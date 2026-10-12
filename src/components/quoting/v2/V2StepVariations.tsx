@@ -858,9 +858,8 @@ export function V2StepVariations({
           <h2 className={`text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
             House Variations &amp; Upgrades
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5 max-w-3xl">
-            Tailored to <span className="font-bold text-slate-300">{quote.design.designName || "Selected Design"}</span> ({quote.design.specTier || "H2 Design Inclusions"}).
-            Ordered vertically from Extensions down to Finishes.
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+            {quote.design.designName || "Selected Design"} • {quote.design.specTier || "H2 Design Collection"}
           </p>
         </div>
 

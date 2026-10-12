@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseAreaScheduleFromText } from "@/lib/floorplan/areaScheduleParser";
+import { detectFloorplanFromText, type DetectedFloorplan } from "@/lib/floorplan/floorplanDetector";
 import {
   SINGLE_STOREY_PRICES,
   DOUBLE_STOREY_PRICES,
@@ -264,6 +265,18 @@ export function V2StepFloorPlan({
   const [modifiedPlanPreviewUrl, setModifiedPlanPreviewUrl] = useState<string>(() => design.modifiedPlanImageUrl || "");
   const [isDimensionTableUnchanged, setIsDimensionTableUnchanged] = useState(false);
   const [scanMessage, setScanMessage] = useState<{ type: "success" | "warning" | "info"; text: string } | null>(null);
+  // Progressive Sub-Steps for Modified Floor Plan: 1. upload -> 2. confirm_base -> 3. areas
+  const [modifiedSubStep, setModifiedSubStep] = useState<"upload" | "confirm_base" | "areas">(() => {
+    if (
+      design.isModifiedFloorplan &&
+      design.designName &&
+      (design.modifiedPlanFileName || design.modifiedAreas || (design.areas && (design.areas.totalM2 || 0) > 0))
+    ) {
+      return "areas";
+    }
+    return "upload";
+  });
+  const [detectedCandidate, setDetectedCandidate] = useState<DetectedFloorplan | null>(null);
 
   // Façade selection mode: "catalogue" | "custom"
   const [facadeMode, setFacadeMode] = useState<"catalogue" | "custom">(() => {
@@ -949,6 +962,57 @@ export function V2StepFloorPlan({
     toast.success(`Selected base design: ${row.name} (${row.m2} m²)`);
   };
 
+  const handleConfirmDetectedBase = (detected: DetectedFloorplan) => {
+    const matched = allModels.find(
+      (m) => m.row.name.toLowerCase() === detected.matchedDesignName.toLowerCase()
+    );
+    const row = matched?.row || detected.priceRow || {
+      name: detected.matchedDesignName,
+      m2: detected.standardTotalM2,
+      h1: detected.basePriceH1,
+      h2: detected.basePriceH2,
+      hbs: detected.basePriceHBS,
+    };
+    const type = matched?.type || (detected.housingType as HousingTypeTab) || "Single Storey";
+    handleSelectModifiedBaseModel(row as PriceRow, type);
+
+    if (detected.roomAreas) {
+      const isDouble = type === "Double Storey" || type === "Split Level" || isDoubleStoreyDesign(row.name, type);
+      const newAreas: FloorplanAreaBreakdown = {
+        ...(isDouble
+          ? {
+              lowerLivingM2: (detected.roomAreas as any).lowerLivingM2 ?? 0,
+              groundLivingM2: detected.roomAreas.groundLivingM2 ?? detected.roomAreas.livingM2 ?? 0,
+              firstLivingM2: detected.roomAreas.firstLivingM2 ?? 0,
+              balconyM2: detected.roomAreas.balconyM2 ?? 0,
+            }
+          : {
+              livingM2: detected.roomAreas.livingM2 ?? 0,
+              balconyM2: detected.roomAreas.balconyM2 ?? 0,
+            }),
+        garageM2: detected.roomAreas.garageM2 ?? 0,
+        alfrescoM2: detected.roomAreas.alfrescoM2 ?? 0,
+        porchM2: detected.roomAreas.porchM2 ?? 0,
+        customAreas: [],
+        totalM2: detected.totalM2 || detected.roomAreas.totalM2 || row.m2,
+      };
+
+      if ((detected.roomAreas.balconyM2 || 0) > 0) {
+        setIsBalconyActive(true);
+      }
+
+      onChange({
+        modifiedAreas: newAreas,
+        areas: newAreas,
+        designM2: newAreas.totalM2,
+        modifiedDesignM2: newAreas.totalM2,
+      });
+    }
+
+    setModifiedSubStep("areas");
+    toast.success(`Confirmed base design: ${detected.matchedDesignName}`);
+  };
+
   // Modified Area change handler
   const handleModifiedAreaChange = (field: keyof FloorplanAreaBreakdown, valStr: string) => {
     const val = parseFloat(valStr) || 0;
@@ -1383,17 +1447,28 @@ export function V2StepFloorPlan({
         toast.info("Dimension table not changed or detected on plan. Please enter the modified sizes below.");
       }
 
+      // Detect base design candidate from drawing text / filename
+      const detected = detectFloorplanFromText(rawText, file.name);
+      if (detected && detected.matchedDesignName) {
+        setDetectedCandidate(detected);
+      } else {
+        setDetectedCandidate(null);
+      }
+      setModifiedSubStep("confirm_base");
+
       setIsScanning(false);
       setScanStatus("");
     } catch (err: any) {
       setIsScanning(false);
       setScanStatus("");
       setIsDimensionTableUnchanged(true);
+      setDetectedCandidate(null);
+      setModifiedSubStep("confirm_base");
       setScanMessage({
         type: "warning",
-        text: "Could not scan dimension table automatically. Please enter the new modified sizes below:",
+        text: "Could not scan dimension table automatically. Please confirm or select base design below:",
       });
-      toast.error("Could not scan dimensions. Please input sizes manually below.");
+      toast.info("Please select base design to continue.");
     }
   };
 
@@ -1550,7 +1625,26 @@ export function V2StepFloorPlan({
     toast.success("Applied modified floor plan parameters!");
   };
 
-  const hasFloorPlanSelected = Boolean(design.designName && design.designName.trim().length > 0);
+  const isFloorPlanStepComplete = useMemo(() => {
+    if (designMode === "standard") {
+      return Boolean(design.designName && design.designName.trim().length > 0);
+    }
+    if (designMode === "modified") {
+      return Boolean(
+        modifiedSubStep === "areas" &&
+        design.designName &&
+        design.designName.trim().length > 0
+      );
+    }
+    // custom
+    return Boolean(
+      design.designName &&
+      design.designName.trim().length > 0 &&
+      (design.basePrice || 0) > 0
+    );
+  }, [designMode, modifiedSubStep, design.designName, design.basePrice]);
+
+  const hasFloorPlanSelected = isFloorPlanStepComplete;
   const hasInclusionSelected = Boolean(selectedTierCode);
 
   return (
@@ -1567,9 +1661,6 @@ export function V2StepFloorPlan({
           <h2 className={`text-3xl sm:text-4xl font-extrabold tracking-tight mt-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
             Floor Plan, Inclusions &amp; Façade
           </h2>
-          <p className="text-sm sm:text-base text-slate-400 mt-1">
-            Select house type, quick search floor plan, choose inclusion specification, and customize façade.
-          </p>
         </div>
 
         {/* Selected Plan Snapshot Badge */}
@@ -1621,6 +1712,9 @@ export function V2StepFloorPlan({
           onClick={() => {
             setDesignMode("modified");
             onChange({ isModifiedFloorplan: true });
+            if (!design.designName || (!design.modifiedPlanFileName && !design.modifiedAreas)) {
+              setModifiedSubStep("upload");
+            }
           }}
           className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center gap-2 cursor-pointer ${
             designMode === "modified"
@@ -1804,879 +1898,1057 @@ export function V2StepFloorPlan({
           </div>
         )}
 
-        {/* MODIFIED FLOOR PLAN OPTIONS */}
+        {/* MODIFIED FLOOR PLAN OPTIONS (PROGRESSIVE 3-STEP FLOW) */}
         {designMode === "modified" && (
-          <div className="space-y-5 pt-2">
-            {/* Top Action & Upload Bar */}
-            <div
-              className={`p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                isLight ? "bg-amber-50/80 border-amber-300 shadow-xs" : "bg-amber-950/20 border-amber-500/30"
-              }`}
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span className={`text-sm sm:text-base font-bold ${isLight ? "text-amber-950" : "text-amber-300"}`}>
-                    Modified Floor Plan Mode
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 mt-1 max-w-xl">
-                  Upload an architectural plan to scan for schedule of areas, or enter customized room sizes below.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <Button
+          <div className="space-y-6 pt-2">
+            {/* Progressive Sub-Step Progress Indicator */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-700/40 pb-3">
+              <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto py-1">
+                <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isScanning}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs sm:text-sm h-11 px-4 gap-2 rounded-xl shadow-md cursor-pointer"
-                >
-                  <Upload className="h-4 w-4 stroke-[2.5]" />
-                  {isScanning ? (scanStatus || "Scanning Plan…") : "Upload Modified Design (PDF / Image)"}
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/pdf,image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </div>
-            </div>
-
-            {/* Uploaded Drawing Preview Thumbnail & File Info */}
-            {modifiedPlanPreviewUrl && (
-              <div
-                className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300 ${
-                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex-none flex items-center justify-center">
-                    {modifiedPlanPreviewUrl.startsWith("data:image") || modifiedPlanPreviewUrl.includes(".jpg") || modifiedPlanPreviewUrl.includes(".png") ? (
-                      <img
-                        src={modifiedPlanPreviewUrl}
-                        alt="Uploaded modified plan"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <FileText className="h-8 w-8 text-amber-400" />
-                    )}
-                  </div>
-                  <div>
-                    <span className="text-xs uppercase font-extrabold tracking-wider text-amber-500 block">
-                      Uploaded Architectural Drawing
-                    </span>
-                    <span className={`text-sm font-bold truncate block ${isLight ? "text-slate-900" : "text-white"}`}>
-                      {design.modifiedPlanFileName || "Custom Modified Plan Drawing"}
-                    </span>
-                    <span className="text-xs text-slate-400 block mt-0.5">
-                      Drawing sheet attached to quote package.
-                    </span>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs h-9 px-3 font-semibold rounded-xl self-start sm:self-auto cursor-pointer"
-                >
-                  Replace Drawing
-                </Button>
-              </div>
-            )}
-
-            {/* Selected Base Design Overview Banner (when a base design is chosen) */}
-            {design.designName && (
-              <div
-                className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                  isLight
-                    ? "bg-emerald-50/90 border-emerald-300 text-emerald-950 shadow-xs"
-                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-500 flex-none">
-                    <Home className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-base font-extrabold">{design.designName}</span>
-                      <Badge variant="outline" className="font-mono text-xs font-bold py-0.5 px-2">
-                        CAD Baseline: {standardBaselineAreas.totalM2 || design.standardDesignM2 || design.designM2} m²
-                      </Badge>
-                      <Badge className="text-xs bg-emerald-600 text-white font-semibold py-0.5 px-2">
-                        {design.housingType || houseType}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
-                      Standard Base Price: {formatAud(design.standardBasePrice || design.basePrice || 0)}
-                    </p>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsModifiedDropdownOpen(true);
-                  }}
-                  className="text-xs h-9 px-3 font-semibold rounded-xl self-start sm:self-auto cursor-pointer"
-                >
-                  Change Base Design
-                </Button>
-              </div>
-            )}
-
-            {/* Base Design Searchable Combobox */}
-            <div className="space-y-2 relative" ref={modifiedDropdownRef}>
-              <div className="flex items-center justify-between">
-                <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                  Base Hudson Design to Modify
-                </Label>
-                <span className="text-xs text-slate-400">
-                  Type any design name (e.g. Tiffany 22, Jasper 26, Amber 21, Topaz)
-                </span>
-              </div>
-
-              <div className="relative">
-                <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 pointer-events-none" />
-                <Input
-                  placeholder="Type to search all Hudson floor plans (e.g. Jasper 26, Tiffany 22, Amber)..."
-                  value={modifiedSearchQuery}
-                  onFocus={() => setIsModifiedDropdownOpen(true)}
-                  onChange={(e) => {
-                    setModifiedSearchQuery(e.target.value);
-                    setIsModifiedDropdownOpen(true);
-                  }}
-                  className={`pl-12 pr-20 text-base h-12 rounded-xl ${
-                    isLight
-                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600"
-                      : "bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500"
-                  }`}
-                />
-                <div className="absolute right-3 top-2.5 flex items-center gap-1">
-                  {modifiedSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setModifiedSearchQuery("");
-                        setIsModifiedDropdownOpen(true);
-                      }}
-                      className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-500/10 cursor-pointer"
-                      title="Clear search"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setIsModifiedDropdownOpen(!isModifiedDropdownOpen)}
-                    className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-500/10 cursor-pointer"
-                    title="Toggle dropdown"
-                  >
-                    <ChevronDown className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Dropdown Results Menu */}
-              {isModifiedDropdownOpen && (
-                <div
-                  className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-80 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
-                    isLight
-                      ? "bg-white/98 border-slate-300 text-slate-900 divide-y divide-slate-100"
-                      : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80"
+                  onClick={() => setModifiedSubStep("upload")}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    modifiedSubStep === "upload"
+                      ? "bg-amber-500 text-slate-950 shadow-sm"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
                   }`}
                 >
-                  {filteredModifiedModels.length === 0 ? (
-                    <div className="p-5 text-center text-sm text-slate-400">
-                      No matching floor plans found for "{modifiedSearchQuery}".
-                    </div>
-                  ) : (
-                    filteredModifiedModels.map(({ row, type }) => {
-                      const isSelected = design.designName?.toLowerCase() === row.name.toLowerCase();
-                      const tierPrice = getTierPrice(row, design.specTier || "H2 Design Collection", type);
-                      const planInfo = plansForDesign(row.name)[0];
+                  <span className="w-5 h-5 rounded-full bg-slate-950/30 flex items-center justify-center text-[10px]">1</span>
+                  <span>Upload Drawing</span>
+                </button>
 
-                      return (
-                        <div
-                          key={`${type}-${row.name}`}
-                          role="option"
-                          aria-selected={isSelected}
-                          onClick={() => handleSelectModifiedBaseModel(row, type)}
-                          className={`p-4 cursor-pointer transition-all flex items-center justify-between gap-4 ${
-                            isSelected
-                              ? isLight
-                                ? "bg-emerald-50/90 text-emerald-950 font-bold"
-                                : "bg-emerald-500/20 text-emerald-300 font-bold"
-                              : isLight
-                              ? "hover:bg-slate-100"
-                              : "hover:bg-slate-900"
-                          }`}
-                        >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2.5 flex-wrap">
-                              <span className="text-base font-extrabold truncate">{row.name}</span>
-                              <Badge variant="outline" className="text-[11px] font-mono font-semibold py-0.5 px-2 bg-slate-500/10">
-                                {row.m2} m²
-                              </Badge>
-                              <Badge
-                                variant="secondary"
-                                className={`text-[10px] uppercase font-bold py-0.5 px-2 ${
-                                  type === "Double Storey"
-                                    ? "bg-purple-500/15 text-purple-400 border border-purple-500/30"
-                                    : type === "Dual Living"
-                                    ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
-                                    : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                                }`}
-                              >
-                                {type}
-                              </Badge>
-                              {isSelected && (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-none" />
-                              )}
-                            </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-600 -rotate-90 flex-none" />
 
-                            <div className="flex items-center gap-4 text-xs text-slate-400 mt-1">
-                              <span className="flex items-center gap-1.5">
-                                <Bed className="h-3.5 w-3.5" /> {planInfo?.beds ?? (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3))} Beds
-                              </span>
-                              <span className="flex items-center gap-1.5">
-                                <Bath className="h-3.5 w-3.5" /> {planInfo?.baths ?? (row.m2 > 180 ? 2 : 1)} Baths
-                              </span>
-                              <span className="flex items-center gap-1.5">
-                                <Car className="h-3.5 w-3.5" /> {planInfo?.cars ?? (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1))} Cars
-                              </span>
-                            </div>
-                          </div>
+                <button
+                  type="button"
+                  onClick={() => setModifiedSubStep("confirm_base")}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    modifiedSubStep === "confirm_base"
+                      ? "bg-amber-500 text-slate-950 shadow-sm"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                  }`}
+                >
+                  <span className="w-5 h-5 rounded-full bg-slate-950/30 flex items-center justify-center text-[10px]">2</span>
+                  <span>Confirm Base Design</span>
+                </button>
 
-                          <div className="text-right flex-none">
-                            <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">
-                              Base Price
-                            </span>
-                            <span className={`text-base font-mono font-extrabold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                              {formatAud(tierPrice)}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-600 -rotate-90 flex-none" />
+
+                <button
+                  type="button"
+                  disabled={!design.designName}
+                  onClick={() => design.designName && setModifiedSubStep("areas")}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    modifiedSubStep === "areas"
+                      ? "bg-amber-500 text-slate-950 shadow-sm"
+                      : design.designName
+                      ? "text-slate-400 hover:text-white hover:bg-slate-800/40 cursor-pointer"
+                      : "text-slate-600 opacity-50 cursor-not-allowed"
+                  }`}
+                >
+                  <span className="w-5 h-5 rounded-full bg-slate-950/30 flex items-center justify-center text-[10px]">3</span>
+                  <span>Area Schedule &amp; Pricing</span>
+                </button>
+              </div>
+
+              {design.designName && (
+                <Badge variant="outline" className="hidden sm:inline-flex font-mono text-xs font-bold py-1 px-2.5">
+                  Base: {design.designName}
+                </Badge>
               )}
             </div>
 
-            {/* Guidance / Alert Message Banner */}
-            {scanMessage && (
-              <div
-                className={`p-4 rounded-xl border flex items-start gap-3 animate-in fade-in duration-300 ${
-                  scanMessage.type === "success"
-                    ? isLight
-                      ? "bg-emerald-50 border-emerald-300 text-emerald-950"
-                      : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                    : isLight
-                    ? "bg-amber-50 border-amber-300 text-amber-950"
-                    : "bg-amber-500/10 border-amber-500/30 text-amber-300"
-                }`}
-              >
-                {scanMessage.type === "success" ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-none mt-0.5" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 text-amber-500 flex-none mt-0.5" />
-                )}
-                <div>
-                  <span className="text-sm font-bold block">{scanMessage.text}</span>
-                  {scanMessage.type === "warning" && (
-                    <span className="text-xs text-slate-400 block mt-0.5">
-                      Adjust living, garage, alfresco, or porch sizes below. The base price and tender delta update live.
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* SUB-STEP 1: UPLOADING MODIFIED FLOORPLAN (NOTHING ELSE VISIBLE) */}
+            {modifiedSubStep === "upload" && (
+              <div className="space-y-5 animate-in fade-in duration-300">
+                <div
+                  className={`p-6 sm:p-10 rounded-2xl sm:rounded-3xl border text-center transition-all ${
+                    isLight
+                      ? "bg-gradient-to-br from-amber-50/70 via-white to-amber-50/40 border-amber-300/80 shadow-md"
+                      : "bg-gradient-to-br from-amber-950/20 via-slate-900/60 to-slate-900/80 border-amber-500/30"
+                  }`}
+                >
+                  <div className="max-w-xl mx-auto space-y-4">
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex items-center justify-center">
+                      <Upload className="h-8 w-8 stroke-[2.5]" />
+                    </div>
 
-            {/* Side-by-Side Modified Area Dimensions Grid - ALWAYS RENDERED */}
-            <div className="space-y-4 pt-1">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-                    Modified Dimensions Schedule (m²)
-                  </Label>
-                  <span className="text-xs text-slate-400">
-                    {design.designName
-                      ? "Adjust room sizes below. Base CAD reference values shown for comparison."
-                      : "Enter customized sizes below, or select a base Hudson design above to auto-populate standard CAD areas."}
-                  </span>
-                </div>
+                    <div>
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-xs font-bold text-amber-500 border-amber-500/30">
+                          Step 1 of 3
+                        </Badge>
+                        <span className="text-xs uppercase font-extrabold tracking-wider text-slate-400">
+                          Modified Plan
+                        </span>
+                      </div>
+                      <h3 className={`text-xl sm:text-2xl font-black ${isLight ? "text-slate-900" : "text-white"}`}>
+                        Upload Modified Architectural Plan
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                        Upload your architectural drawing (PDF, JPG, or PNG) to detect the Hudson base design and scan the schedule of areas.
+                      </p>
+                    </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline" className="font-mono text-xs font-bold py-1 px-2.5">
-                    Baseline: {standardBaselineAreas.totalM2 > 0 ? `${standardBaselineAreas.totalM2} m²` : "Not selected"}
-                  </Badge>
-                  <Badge
-                    className={`font-mono text-xs font-bold py-1 px-2.5 ${
-                      totalVariance > 0
-                        ? "bg-emerald-500 text-slate-950"
-                        : totalVariance < 0
-                        ? "bg-rose-500 text-white"
-                        : "bg-slate-700 text-white"
-                    }`}
-                  >
-                    Modified: {currentTotal > 0 ? `${currentTotal} m²` : "0.00 m²"}
-                    {standardBaselineAreas.totalM2 > 0 ? ` (${totalVariance >= 0 ? `+${totalVariance}` : `${totalVariance}`} m²)` : ""}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Dynamic Zones Grid (Living, Garage, Alfresco, Porch / Ground, First, Lower, Balcony) */}
-              <div className={`grid gap-4 ${isDoubleOrSplit ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 lg:grid-cols-4"}`}>
-                {(isDoubleOrSplit
-                  ? [
-                      ...(standardBaselineAreas.lowerLivingM2 || design.areas?.lowerLivingM2 || (design.designName && /cinnamon|mauve/i.test(design.designName))
-                        ? [
-                            {
-                              key: "lowerLivingM2" as const,
-                              label: "Lower Ground Living",
-                              std: standardBaselineAreas.lowerLivingM2 || 0,
-                              val: design.areas?.lowerLivingM2 ?? (design.modifiedAreas?.lowerLivingM2 ?? standardBaselineAreas.lowerLivingM2 ?? 0),
-                              rate: activeExtensionRates.gf || 1420,
-                            },
-                          ]
-                        : []),
-                      {
-                        key: "groundLivingM2" as const,
-                        label: "Ground Floor Living",
-                        std: standardBaselineAreas.groundLivingM2 || 0,
-                        val: design.areas?.groundLivingM2 ?? (design.modifiedAreas?.groundLivingM2 ?? standardBaselineAreas.groundLivingM2 ?? 0),
-                        rate: activeExtensionRates.gf || 1420,
-                      },
-                      {
-                        key: "firstLivingM2" as const,
-                        label: "First Floor Living",
-                        std: standardBaselineAreas.firstLivingM2 || 0,
-                        val: design.areas?.firstLivingM2 ?? (design.modifiedAreas?.firstLivingM2 ?? standardBaselineAreas.firstLivingM2 ?? 0),
-                        rate: activeExtensionRates.ff || 1580,
-                      },
-                      {
-                        key: "garageM2" as const,
-                        label: "Garage Area",
-                        std: standardBaselineAreas.garageM2 || 0,
-                        val: design.areas?.garageM2 ?? (design.modifiedAreas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0),
-                        rate: activeExtensionRates.garage || 950,
-                      },
-                      {
-                        key: "alfrescoM2" as const,
-                        label: "Alfresco Area",
-                        std: standardBaselineAreas.alfrescoM2 || 0,
-                        val: design.areas?.alfrescoM2 ?? (design.modifiedAreas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0),
-                        rate: activeExtensionRates.alfresco || 780,
-                      },
-                      {
-                        key: "porchM2" as const,
-                        label: "Porch Area",
-                        std: standardBaselineAreas.porchM2 || 0,
-                        val: design.areas?.porchM2 ?? (design.modifiedAreas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0),
-                        rate: activeExtensionRates.porch || 780,
-                      },
-                      ...(isBalconyVisible
-                        ? [
-                            {
-                              key: "balconyM2" as const,
-                              label: "Balcony Area",
-                              std: standardBaselineAreas.balconyM2 || 0,
-                              val: design.areas?.balconyM2 ?? (design.modifiedAreas?.balconyM2 ?? standardBaselineAreas.balconyM2 ?? 0),
-                              rate: activeExtensionRates.balcony || 850,
-                              isRemovable: !standardBaselineAreas.balconyM2 || standardBaselineAreas.balconyM2 === 0,
-                            },
-                          ]
-                        : []),
-                    ]
-                  : [
-                      {
-                        key: "livingM2" as const,
-                        label: "Living Area",
-                        std: standardBaselineAreas.livingM2 || 0,
-                        val: design.areas?.livingM2 ?? (design.modifiedAreas?.livingM2 ?? standardBaselineAreas.livingM2 ?? 0),
-                        rate: activeExtensionRates.gf || 1420,
-                      },
-                      {
-                        key: "garageM2" as const,
-                        label: "Garage Area",
-                        std: standardBaselineAreas.garageM2 || 0,
-                        val: design.areas?.garageM2 ?? (design.modifiedAreas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0),
-                        rate: activeExtensionRates.garage || 950,
-                      },
-                      {
-                        key: "alfrescoM2" as const,
-                        label: "Alfresco Area",
-                        std: standardBaselineAreas.alfrescoM2 || 0,
-                        val: design.areas?.alfrescoM2 ?? (design.modifiedAreas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0),
-                        rate: activeExtensionRates.alfresco || 780,
-                      },
-                      {
-                        key: "porchM2" as const,
-                        label: "Porch Area",
-                        std: standardBaselineAreas.porchM2 || 0,
-                        val: design.areas?.porchM2 ?? (design.modifiedAreas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0),
-                        rate: activeExtensionRates.porch || 780,
-                      },
-                      ...(isBalconyVisible
-                        ? [
-                            {
-                              key: "balconyM2" as const,
-                              label: "Balcony Area",
-                              std: standardBaselineAreas.balconyM2 || 0,
-                              val: design.areas?.balconyM2 ?? (design.modifiedAreas?.balconyM2 ?? standardBaselineAreas.balconyM2 ?? 0),
-                              rate: activeExtensionRates.balcony || 850,
-                              isRemovable: !standardBaselineAreas.balconyM2 || standardBaselineAreas.balconyM2 === 0,
-                            },
-                          ]
-                        : []),
-                    ]
-                ).map((zone) => {
-                  const delta = zone.std > 0 ? Math.round((zone.val - zone.std) * 100) / 100 : (zone.val || 0);
-                  const cost = zone.std > 0
-                    ? (delta > 0 ? Math.round(delta * zone.rate) : delta < 0 ? Math.round(delta * zone.rate * 0.8) : 0)
-                    : Math.round(delta * zone.rate);
-                  const hasVariance = zone.std > 0 ? Math.abs(delta) > 0.05 : zone.val > 0;
-
-                  return (
+                    {/* Drag-and-drop / Click Area */}
                     <div
-                      key={zone.key}
-                      className={`p-4 rounded-2xl border transition-all ${
-                        isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                      onClick={() => !isScanning && fileInputRef.current?.click()}
+                      className={`p-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center gap-3 ${
+                        isLight
+                          ? "border-amber-300 hover:border-amber-500 bg-white/80 hover:bg-amber-50/50"
+                          : "border-amber-500/40 hover:border-amber-400 bg-slate-950/40 hover:bg-amber-950/20"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                          {zone.label}
-                        </Label>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-mono text-slate-400">
-                            Std: {zone.std > 0 ? `${zone.std} m²` : "—"}
-                          </span>
-                          {(zone as any).isRemovable && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsBalconyActive(false);
-                                handleModifiedAreaChange("balconyM2", "0");
-                                toast.info("Removed Balcony");
-                              }}
-                              className="p-1 rounded text-rose-400 hover:bg-rose-500/10 cursor-pointer"
-                              title="Remove Balcony"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder={zone.std > 0 ? String(zone.std) : "0.00"}
-                          value={zone.val > 0 ? zone.val : ""}
-                          onChange={(e) => handleModifiedAreaChange(zone.key, e.target.value)}
-                          className="h-12 text-lg font-mono font-bold rounded-xl"
-                        />
-
-                        {/* Quick +/- Steppers & Reset */}
-                        <div className="flex items-center gap-1.5 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => handleStepArea(zone.key, -1)}
-                            className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                            title="Decrease by 1m²"
-                          >
-                            -1m²
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleStepArea(zone.key, 1)}
-                            className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                            title="Increase by 1m²"
-                          >
-                            +1m²
-                          </button>
-                          {zone.std > 0 && hasVariance && (
-                            <button
-                              type="button"
-                              onClick={() => handleResetArea(zone.key)}
-                              className="py-1 px-2 text-[11px] font-semibold rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors cursor-pointer"
-                              title="Reset to CAD standard"
-                            >
-                              Reset
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Variance & Rate Breakdown */}
-                      <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1">
-                        <div className="flex items-center justify-between text-xs font-mono">
-                          <span className="text-slate-400">Variance:</span>
-                          <span
-                            className={`font-bold ${
-                              !hasVariance
-                                ? "text-slate-400"
-                                : delta >= 0
-                                ? "text-emerald-500"
-                                : "text-rose-400"
-                            }`}
-                          >
-                            {zone.std > 0
-                              ? `${delta >= 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2)} m²`
-                              : `${delta.toFixed(2)} m² (added)`}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                          <span>Rate:</span>
-                          <span>${zone.rate.toLocaleString()}/m²</span>
-                        </div>
-
-                        {hasVariance && cost !== 0 && (
-                          <div className="flex items-center justify-between text-[11px] font-mono">
-                            <span className="text-slate-400">Delta:</span>
-                            <span className={cost >= 0 ? "text-emerald-500 font-bold" : "text-rose-400 font-bold"}>
-                              {cost >= 0 ? `+${formatAud(cost)}` : `${formatAud(cost)} (80% credit)`}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Action Buttons to Add Balcony or Custom Area */}
-              <div className="flex items-center gap-3 flex-wrap">
-                {!isBalconyVisible && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsBalconyActive(true);
-                      handleModifiedAreaChange("balconyM2", "6.5");
-                      toast.success("Added Balcony zone (6.50 m² @ $850/m²)");
-                    }}
-                    className="rounded-xl border-dashed border-cyan-500/40 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 font-semibold"
-                  >
-                    <Plus className="w-4 h-4 mr-1.5" />
-                    + Add Balcony ($850/m²)
-                  </Button>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsAddingCustomArea(!isAddingCustomArea)}
-                  className={`rounded-xl border-dashed font-semibold ${
-                    isAddingCustomArea
-                      ? "border-amber-500/60 text-amber-400 bg-amber-500/10"
-                      : "border-emerald-500/40 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                  }`}
-                >
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  {isAddingCustomArea ? "Cancel Custom Area" : "+ Add Custom Floor Area"}
-                </Button>
-              </div>
-
-              {/* Inline Add Custom Floor Area Form */}
-              {isAddingCustomArea && (
-                <div
-                  className={`p-4 sm:p-5 rounded-2xl border space-y-4 animate-in fade-in duration-200 ${
-                    isLight ? "bg-amber-50/50 border-amber-200" : "bg-amber-950/20 border-amber-500/30"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      <span className="text-sm font-bold uppercase tracking-wider text-amber-400">
-                        Add Custom Floor Area / Extension
-                      </span>
-                    </div>
-                    <span className="text-xs text-slate-400">
-                      Priced accurately at base envelope & roof rate
-                    </span>
-                  </div>
-
-                  {/* Suggestion Chips */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[11px] text-slate-400 font-semibold mr-1">Quick presets:</span>
-                    {[
-                      { name: "Rear Covered Deck", rate: 850, m2: 15 },
-                      { name: "Covered Terrace", rate: 850, m2: 12 },
-                      { name: "Workshop Extension", rate: 950, m2: 18 },
-                      { name: "Alfresco Extension", rate: 780, m2: 10 },
-                      { name: "Pergola / Patio", rate: 650, m2: 14 },
-                      { name: "Gym / Studio", rate: 1200, m2: 20 },
-                    ].map((preset) => (
-                      <button
-                        key={preset.name}
-                        type="button"
-                        onClick={() => {
-                          setNewCustomAreaName(preset.name);
-                          setNewCustomAreaM2(preset.m2.toString());
-                          setNewCustomAreaRate(preset.rate.toString());
-                        }}
-                        className="px-2.5 py-1 text-xs rounded-lg border border-slate-700 bg-slate-900/60 hover:border-amber-500/50 hover:text-amber-300 text-slate-300 transition-colors cursor-pointer"
-                      >
-                        {preset.name} ({preset.m2}m² @ ${preset.rate}/m²)
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <Label className="text-xs text-slate-400 font-semibold mb-1 block">
-                        Area / Room Name
-                      </Label>
-                      <Input
-                        placeholder="e.g. Rear Covered Deck, Workshop..."
-                        value={newCustomAreaName}
-                        onChange={(e) => setNewCustomAreaName(e.target.value)}
-                        className="h-10 text-sm rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-slate-400 font-semibold mb-1 block">
-                        Size (m²)
-                      </Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="e.g. 15.00"
-                        value={newCustomAreaM2}
-                        onChange={(e) => setNewCustomAreaM2(e.target.value)}
-                        className="h-10 text-sm font-mono font-bold rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-slate-400 font-semibold mb-1 block">
-                        Rate ($/m²)
-                      </Label>
-                      <Input
-                        type="number"
-                        step="10"
-                        placeholder="850"
-                        value={newCustomAreaRate}
-                        onChange={(e) => setNewCustomAreaRate(e.target.value)}
-                        className="h-10 text-sm font-mono font-bold rounded-xl"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-amber-500/20">
-                    <div className="text-xs text-slate-400 font-mono">
-                      {Number(newCustomAreaM2) > 0 && Number(newCustomAreaRate) > 0 ? (
-                        <span>
-                          Addition:{" "}
-                          <strong className="text-emerald-400">
-                            +{formatAud(Math.round(Number(newCustomAreaM2) * Number(newCustomAreaRate)))}
-                          </strong>{" "}
-                          ({Number(newCustomAreaM2)} m² @ ${Number(newCustomAreaRate)}/m²)
+                      <FileText className="h-10 w-10 text-amber-500" />
+                      <div className="space-y-1">
+                        <span className={`text-sm sm:text-base font-extrabold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                          {isScanning ? (scanStatus || "Scanning Plan…") : "Click or drag drawing file here"}
                         </span>
-                      ) : (
-                        "Specify name and size to add to modified plan"
-                      )}
+                        <span className="text-xs text-slate-400 block font-mono">
+                          Supports PDF architectural sheets, PNG, JPG renders
+                        </span>
+                      </div>
+
+                      <Button
+                        type="button"
+                        disabled={isScanning}
+                        className="mt-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm h-11 px-6 rounded-xl shadow-md cursor-pointer gap-2"
+                      >
+                        <Upload className="h-4 w-4 stroke-[2.5]" />
+                        {isScanning ? (scanStatus || "Scanning…") : "Browse Architectural Plan"}
+                      </Button>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="application/pdf,image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+
+                    {/* Manual Bypass Link */}
+                    <div className="pt-2">
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsAddingCustomArea(false)}
-                        className="rounded-xl text-xs text-slate-400 hover:text-white"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={!newCustomAreaName.trim() || Number(newCustomAreaM2) <= 0}
                         onClick={() => {
-                          handleAddCustomArea(
-                            newCustomAreaName,
-                            Number(newCustomAreaM2),
-                            Number(newCustomAreaRate) || 850
-                          );
+                          setModifiedSubStep("confirm_base");
+                          setDetectedCandidate(null);
                         }}
-                        className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                        className="text-xs text-slate-400 hover:text-amber-500 font-semibold underline underline-offset-4 transition-colors cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5 mr-1" /> Add Zone to Plan
-                      </Button>
+                        Skip upload &amp; select base Hudson design manually →
+                      </button>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Custom Floor Areas List */}
-              {customAreas.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                      Custom & Additional Floor Areas ({customAreas.length})
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono">
-                      Subtotal:{" "}
-                      <strong className="text-emerald-400">
-                        +{formatAud(
-                          customAreas.reduce(
-                            (sum, ca) => sum + Math.round((Number(ca.m2) || 0) * (Number(ca.ratePerM2) || 850)),
-                            0
-                          )
+            {/* SUB-STEP 2: CONFIRMATION OF BASE DESIGN */}
+            {modifiedSubStep === "confirm_base" && (
+              <div className="space-y-5 animate-in fade-in duration-300">
+                {/* Uploaded Drawing Snippet */}
+                {modifiedPlanPreviewUrl && (
+                  <div
+                    className={`p-3 sm:p-4 rounded-2xl border flex items-center justify-between gap-3 ${
+                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex-none flex items-center justify-center">
+                        {modifiedPlanPreviewUrl.startsWith("data:image") || modifiedPlanPreviewUrl.includes(".jpg") || modifiedPlanPreviewUrl.includes(".png") ? (
+                          <img
+                            src={modifiedPlanPreviewUrl}
+                            alt="Uploaded modified plan"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <FileText className="h-6 w-6 text-amber-400" />
                         )}
-                      </strong>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-amber-500 block">
+                          Uploaded Drawing
+                        </span>
+                        <span className={`text-xs sm:text-sm font-bold truncate block ${isLight ? "text-slate-900" : "text-white"}`}>
+                          {design.modifiedPlanFileName || "Architectural Drawing Attached"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setModifiedSubStep("upload")}
+                      className="text-xs h-8 px-2.5 text-slate-400 hover:text-white"
+                    >
+                      ← Replace Drawing
+                    </Button>
+                  </div>
+                )}
+
+                {/* Detected Base Design Card (if auto-detected from plan) */}
+                {detectedCandidate && (
+                  <div
+                    className={`p-6 sm:p-7 rounded-2xl sm:rounded-3xl border transition-all ${
+                      isLight
+                        ? "bg-emerald-50/90 border-emerald-300 text-emerald-950 shadow-md"
+                        : "bg-emerald-950/25 border-emerald-500/40 text-emerald-300 shadow-lg"
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center flex-none mt-0.5">
+                          <CheckCircle2 className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <Badge className="bg-emerald-600 text-white font-bold text-[10px] uppercase px-2 py-0.5">
+                              Detected from Plan
+                            </Badge>
+                            <Badge variant="outline" className="font-mono text-xs font-bold py-0.5 px-2">
+                              CAD Baseline: {detectedCandidate.standardTotalM2} m²
+                            </Badge>
+                            <Badge className="text-xs bg-emerald-500/20 text-emerald-400 font-semibold py-0.5 px-2 border border-emerald-500/30">
+                              {detectedCandidate.housingType}
+                            </Badge>
+                          </div>
+                          <h4 className={`text-xl sm:text-2xl font-black ${isLight ? "text-emerald-950" : "text-white"}`}>
+                            {detectedCandidate.matchedDesignName}
+                          </h4>
+                          <span className="text-xs font-mono text-slate-400 mt-1 block">
+                            Standard Base Price: {formatAud(detectedCandidate.basePriceH2 || detectedCandidate.effectiveBasePrice || 0)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                        <Button
+                          type="button"
+                          onClick={() => handleConfirmDetectedBase(detectedCandidate)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm h-12 px-6 rounded-xl shadow-md cursor-pointer gap-2"
+                        >
+                          Confirm &amp; Proceed to Areas <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Combobox Search Selector (Always available to pick or change) */}
+                <div className="space-y-3 relative" ref={modifiedDropdownRef}>
+                  <div className="flex items-center justify-between">
+                    <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                      {detectedCandidate ? "Or Select a Different Base Design" : "Step 2 of 3: Select Base Hudson Design"}
+                    </Label>
+                    <span className="text-xs text-slate-400">
+                      Search all {allModels.length} Hudson floor plans
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {customAreas.map((ca) => {
-                      const m2Val = Number(ca.m2) || 0;
-                      const rateVal = Number(ca.ratePerM2) || 850;
-                      const addition = Math.round(m2Val * rateVal);
+                  <div className="relative">
+                    <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 pointer-events-none" />
+                    <Input
+                      placeholder="Type to search base design (e.g. Jasper 26, Tiffany 22, Amber, Sapphire)..."
+                      value={modifiedSearchQuery}
+                      onFocus={() => setIsModifiedDropdownOpen(true)}
+                      onChange={(e) => {
+                        setModifiedSearchQuery(e.target.value);
+                        setIsModifiedDropdownOpen(true);
+                      }}
+                      className={`pl-12 pr-20 text-base h-12 rounded-xl ${
+                        isLight
+                          ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600"
+                          : "bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500"
+                      }`}
+                    />
+                    <div className="absolute right-3 top-2.5 flex items-center gap-1">
+                      {modifiedSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModifiedSearchQuery("");
+                            setIsModifiedDropdownOpen(true);
+                          }}
+                          className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-500/10 cursor-pointer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsModifiedDropdownOpen(!isModifiedDropdownOpen)}
+                        className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-500/10 cursor-pointer"
+                      >
+                        <ChevronDown className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Dropdown Results */}
+                  {isModifiedDropdownOpen && (
+                    <div
+                      className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-80 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                        isLight
+                          ? "bg-white/98 border-slate-300 text-slate-900 divide-y divide-slate-100"
+                          : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80"
+                      }`}
+                    >
+                      {filteredModifiedModels.length === 0 ? (
+                        <div className="p-5 text-center text-sm text-slate-400">
+                          No matching floor plans found for "{modifiedSearchQuery}".
+                        </div>
+                      ) : (
+                        filteredModifiedModels.map(({ row, type }) => {
+                          const isSelected = design.designName?.toLowerCase() === row.name.toLowerCase();
+                          const tierPrice = getTierPrice(row, design.specTier || "H2 Design Collection", type);
+                          const planInfo = plansForDesign(row.name)[0];
+
+                          return (
+                            <div
+                              key={`${type}-${row.name}`}
+                              role="option"
+                              aria-selected={isSelected}
+                              onClick={() => {
+                                handleSelectModifiedBaseModel(row, type);
+                                setModifiedSubStep("areas");
+                              }}
+                              className={`p-4 cursor-pointer transition-all flex items-center justify-between gap-4 ${
+                                isSelected
+                                  ? isLight
+                                    ? "bg-emerald-50/90 text-emerald-950 font-bold"
+                                    : "bg-emerald-500/20 text-emerald-300 font-bold"
+                                  : isLight
+                                  ? "hover:bg-slate-100"
+                                  : "hover:bg-slate-900"
+                              }`}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2.5 flex-wrap">
+                                  <span className="text-base font-extrabold truncate">{row.name}</span>
+                                  <Badge variant="outline" className="text-[11px] font-mono font-semibold py-0.5 px-2 bg-slate-500/10">
+                                    {row.m2} m²
+                                  </Badge>
+                                  <Badge
+                                    variant="secondary"
+                                    className={`text-[10px] uppercase font-bold py-0.5 px-2 ${
+                                      type === "Double Storey"
+                                        ? "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                                        : type === "Dual Living"
+                                        ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                                        : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                    }`}
+                                  >
+                                    {type}
+                                  </Badge>
+                                  {isSelected && (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-none" />
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-4 text-xs text-slate-400 mt-1">
+                                  <span className="flex items-center gap-1.5">
+                                    <Bed className="h-3.5 w-3.5" /> {planInfo?.beds ?? (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3))} Beds
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <Bath className="h-3.5 w-3.5" /> {planInfo?.baths ?? (row.m2 > 180 ? 2 : 1)} Baths
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <Car className="h-3.5 w-3.5" /> {planInfo?.cars ?? (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1))} Cars
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="text-right flex-none">
+                                <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">
+                                  Base Price
+                                </span>
+                                <span className={`text-base font-mono font-extrabold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                                  {formatAud(tierPrice)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {/* Navigation controls for Sub-Step 2 */}
+                  <div className="flex items-center justify-between pt-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setModifiedSubStep("upload")}
+                      className="text-xs text-slate-400 hover:text-white"
+                    >
+                      ← Back to Upload
+                    </Button>
+                    {design.designName && (
+                      <Button
+                        type="button"
+                        onClick={() => setModifiedSubStep("areas")}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs h-10 px-5 rounded-xl cursor-pointer gap-1.5"
+                      >
+                        Proceed to Areas Schedule <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-STEP 3: SCHEDULE OF AREAS & PRICING */}
+            {modifiedSubStep === "areas" && (
+              <div className="space-y-5 animate-in fade-in duration-300">
+                {/* Active Base Design Overview Banner */}
+                {design.designName && (
+                  <div
+                    className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      isLight
+                        ? "bg-slate-50 border-slate-200 text-slate-900 shadow-xs"
+                        : "bg-slate-950/60 border-slate-800 text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-500 flex-none">
+                        <Home className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-base font-extrabold">{design.designName}</span>
+                          <Badge variant="outline" className="font-mono text-xs font-bold py-0.5 px-2">
+                            CAD Baseline: {standardBaselineAreas.totalM2 || design.standardDesignM2 || design.designM2} m²
+                          </Badge>
+                          <Badge className="text-xs bg-emerald-600 text-white font-semibold py-0.5 px-2">
+                            {design.housingType || houseType}
+                          </Badge>
+                        </div>
+                        <span className="text-xs text-slate-400 font-mono mt-0.5 block">
+                          Standard Base Price: {formatAud(design.standardBasePrice || design.basePrice || 0)}
+                          {design.modifiedPlanFileName ? ` • Plan: ${design.modifiedPlanFileName}` : ""}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setModifiedSubStep("confirm_base")}
+                        className="text-xs h-9 px-3 font-semibold rounded-xl cursor-pointer"
+                      >
+                        Change Base Design
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setModifiedSubStep("upload")}
+                        className="text-xs h-9 px-3 font-semibold rounded-xl cursor-pointer"
+                      >
+                        Replace Drawing
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Guidance / Alert Message Banner */}
+                {scanMessage && (
+                  <div
+                    className={`p-4 rounded-xl border flex items-start gap-3 animate-in fade-in duration-300 ${
+                      scanMessage.type === "success"
+                        ? isLight
+                          ? "bg-emerald-50 border-emerald-300 text-emerald-950"
+                          : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                        : isLight
+                        ? "bg-amber-50 border-amber-300 text-amber-950"
+                        : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                    }`}
+                  >
+                    {scanMessage.type === "success" ? (
+                      <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-none mt-0.5" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-amber-500 flex-none mt-0.5" />
+                    )}
+                    <div>
+                      <span className="text-sm font-bold block">{scanMessage.text}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Side-by-Side Modified Area Dimensions Grid */}
+                <div className="space-y-4 pt-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                        Modified Dimensions Schedule (m²)
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="font-mono text-xs font-bold py-1 px-2.5">
+                        Baseline: {standardBaselineAreas.totalM2 > 0 ? `${standardBaselineAreas.totalM2} m²` : "Not selected"}
+                      </Badge>
+                      <Badge
+                        className={`font-mono text-xs font-bold py-1 px-2.5 ${
+                          totalVariance > 0
+                            ? "bg-emerald-500 text-slate-950"
+                            : totalVariance < 0
+                            ? "bg-rose-500 text-white"
+                            : "bg-slate-700 text-white"
+                        }`}
+                      >
+                        Modified: {currentTotal > 0 ? `${currentTotal} m²` : "0.00 m²"}
+                        {standardBaselineAreas.totalM2 > 0 ? ` (${totalVariance >= 0 ? `+${totalVariance}` : `${totalVariance}`} m²)` : ""}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Zones Grid */}
+                  <div className={`grid gap-4 ${isDoubleOrSplit ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 lg:grid-cols-4"}`}>
+                    {(isDoubleOrSplit
+                      ? [
+                          ...(standardBaselineAreas.lowerLivingM2 || design.areas?.lowerLivingM2 || (design.designName && /cinnamon|mauve/i.test(design.designName))
+                            ? [
+                                {
+                                  key: "lowerLivingM2" as const,
+                                  label: "Lower Ground Living",
+                                  std: standardBaselineAreas.lowerLivingM2 || 0,
+                                  val: design.areas?.lowerLivingM2 ?? (design.modifiedAreas?.lowerLivingM2 ?? standardBaselineAreas.lowerLivingM2 ?? 0),
+                                  rate: activeExtensionRates.gf || 1420,
+                                },
+                              ]
+                            : []),
+                          {
+                            key: "groundLivingM2" as const,
+                            label: "Ground Floor Living",
+                            std: standardBaselineAreas.groundLivingM2 || 0,
+                            val: design.areas?.groundLivingM2 ?? (design.modifiedAreas?.groundLivingM2 ?? standardBaselineAreas.groundLivingM2 ?? 0),
+                            rate: activeExtensionRates.gf || 1420,
+                          },
+                          {
+                            key: "firstLivingM2" as const,
+                            label: "First Floor Living",
+                            std: standardBaselineAreas.firstLivingM2 || 0,
+                            val: design.areas?.firstLivingM2 ?? (design.modifiedAreas?.firstLivingM2 ?? standardBaselineAreas.firstLivingM2 ?? 0),
+                            rate: activeExtensionRates.ff || 1580,
+                          },
+                          {
+                            key: "garageM2" as const,
+                            label: "Garage Area",
+                            std: standardBaselineAreas.garageM2 || 0,
+                            val: design.areas?.garageM2 ?? (design.modifiedAreas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0),
+                            rate: activeExtensionRates.garage || 950,
+                          },
+                          {
+                            key: "alfrescoM2" as const,
+                            label: "Alfresco Area",
+                            std: standardBaselineAreas.alfrescoM2 || 0,
+                            val: design.areas?.alfrescoM2 ?? (design.modifiedAreas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0),
+                            rate: activeExtensionRates.alfresco || 780,
+                          },
+                          {
+                            key: "porchM2" as const,
+                            label: "Porch Area",
+                            std: standardBaselineAreas.porchM2 || 0,
+                            val: design.areas?.porchM2 ?? (design.modifiedAreas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0),
+                            rate: activeExtensionRates.porch || 780,
+                          },
+                          ...(isBalconyVisible
+                            ? [
+                                {
+                                  key: "balconyM2" as const,
+                                  label: "Balcony Area",
+                                  std: standardBaselineAreas.balconyM2 || 0,
+                                  val: design.areas?.balconyM2 ?? (design.modifiedAreas?.balconyM2 ?? standardBaselineAreas.balconyM2 ?? 0),
+                                  rate: activeExtensionRates.balcony || 2050,
+                                  isRemovable: !standardBaselineAreas.balconyM2 || standardBaselineAreas.balconyM2 === 0,
+                                },
+                              ]
+                            : []),
+                        ]
+                      : [
+                          {
+                            key: "livingM2" as const,
+                            label: "Living Area",
+                            std: standardBaselineAreas.livingM2 || 0,
+                            val: design.areas?.livingM2 ?? (design.modifiedAreas?.livingM2 ?? standardBaselineAreas.livingM2 ?? 0),
+                            rate: activeExtensionRates.gf || 1420,
+                          },
+                          {
+                            key: "garageM2" as const,
+                            label: "Garage Area",
+                            std: standardBaselineAreas.garageM2 || 0,
+                            val: design.areas?.garageM2 ?? (design.modifiedAreas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0),
+                            rate: activeExtensionRates.garage || 950,
+                          },
+                          {
+                            key: "alfrescoM2" as const,
+                            label: "Alfresco Area",
+                            std: standardBaselineAreas.alfrescoM2 || 0,
+                            val: design.areas?.alfrescoM2 ?? (design.modifiedAreas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0),
+                            rate: activeExtensionRates.alfresco || 780,
+                          },
+                          {
+                            key: "porchM2" as const,
+                            label: "Porch Area",
+                            std: standardBaselineAreas.porchM2 || 0,
+                            val: design.areas?.porchM2 ?? (design.modifiedAreas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0),
+                            rate: activeExtensionRates.porch || 780,
+                          },
+                          ...(isBalconyVisible
+                            ? [
+                                {
+                                  key: "balconyM2" as const,
+                                  label: "Balcony Area",
+                                  std: standardBaselineAreas.balconyM2 || 0,
+                                  val: design.areas?.balconyM2 ?? (design.modifiedAreas?.balconyM2 ?? standardBaselineAreas.balconyM2 ?? 0),
+                                  rate: activeExtensionRates.balcony || 2050,
+                                  isRemovable: !standardBaselineAreas.balconyM2 || standardBaselineAreas.balconyM2 === 0,
+                                },
+                              ]
+                            : []),
+                        ]
+                    ).map((zone) => {
+                      const delta = zone.std > 0 ? Math.round((zone.val - zone.std) * 100) / 100 : (zone.val || 0);
+                      const cost = zone.std > 0
+                        ? (delta > 0 ? Math.round(delta * zone.rate) : delta < 0 ? Math.round(delta * zone.rate * 0.8) : 0)
+                        : Math.round(delta * zone.rate);
+                      const hasVariance = zone.std > 0 ? Math.abs(delta) > 0.05 : zone.val > 0;
 
                       return (
                         <div
-                          key={ca.id}
+                          key={zone.key}
                           className={`p-4 rounded-2xl border transition-all ${
-                            isLight
-                              ? "bg-slate-50 border-cyan-200"
-                              : "bg-slate-950/60 border-cyan-500/30"
+                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                           }`}
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 truncate max-w-[170px]" title={ca.name}>
-                              {ca.name}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteCustomArea(ca.id)}
-                              className="p-1 rounded text-rose-400 hover:bg-rose-500/10 cursor-pointer"
-                              title="Delete custom area"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                              {zone.label}
+                            </Label>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-mono text-slate-400">
+                                Std: {zone.std > 0 ? `${zone.std} m²` : "—"}
+                              </span>
+                              {(zone as any).isRemovable && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsBalconyActive(false);
+                                    handleModifiedAreaChange("balconyM2", "0");
+                                    toast.info("Removed Balcony");
+                                  }}
+                                  className="p-1 rounded text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                                  title="Remove Balcony"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           <div className="space-y-2">
                             <Input
                               type="number"
                               step="0.01"
-                              value={m2Val > 0 ? m2Val : ""}
-                              onChange={(e) => handleUpdateCustomArea(ca.id, parseFloat(e.target.value) || 0)}
+                              placeholder={zone.std > 0 ? String(zone.std) : "0.00"}
+                              value={zone.val > 0 ? zone.val : ""}
+                              onChange={(e) => handleModifiedAreaChange(zone.key, e.target.value)}
                               className="h-12 text-lg font-mono font-bold rounded-xl"
                             />
 
-                            {/* Steppers */}
+                            {/* Steppers & Reset */}
                             <div className="flex items-center gap-1.5 pt-1">
                               <button
                                 type="button"
-                                onClick={() => handleUpdateCustomArea(ca.id, Math.max(0, m2Val - 1))}
+                                onClick={() => handleStepArea(zone.key, -1)}
                                 className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Decrease by 1m²"
                               >
                                 -1m²
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleUpdateCustomArea(ca.id, m2Val + 1)}
+                                onClick={() => handleStepArea(zone.key, 1)}
                                 className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                title="Increase by 1m²"
                               >
                                 +1m²
                               </button>
+                              {zone.std > 0 && hasVariance && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetArea(zone.key)}
+                                  className="py-1 px-2 text-[11px] font-semibold rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors cursor-pointer"
+                                  title="Reset to CAD standard"
+                                >
+                                  Reset
+                                </button>
+                              )}
                             </div>
                           </div>
 
+                          {/* Variance & Rate Breakdown */}
                           <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1">
-                            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                              <span>Rate:</span>
-                              <span>${rateVal.toLocaleString()}/m²</span>
-                            </div>
-                            <div className="flex items-center justify-between text-[11px] font-mono">
-                              <span className="text-slate-400">Delta:</span>
-                              <span className="text-emerald-500 font-bold">
-                                +{formatAud(addition)}
+                            <div className="flex items-center justify-between text-xs font-mono">
+                              <span className="text-slate-400">Variance:</span>
+                              <span
+                                className={`font-bold ${
+                                  !hasVariance
+                                    ? "text-slate-400"
+                                    : delta >= 0
+                                    ? "text-emerald-500"
+                                    : "text-rose-400"
+                                }`}
+                              >
+                                {zone.std > 0
+                                  ? `${delta >= 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2)} m²`
+                                  : `${delta.toFixed(2)} m² (added)`}
                               </span>
                             </div>
+
+                            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                              <span>Rate:</span>
+                              <span>${zone.rate.toLocaleString()}/m²</span>
+                            </div>
+
+                            {hasVariance && cost !== 0 && (
+                              <div className="flex items-center justify-between text-[11px] font-mono">
+                                <span className="text-slate-400">Delta:</span>
+                                <span className={cost >= 0 ? "text-emerald-500 font-bold" : "text-rose-400 font-bold"}>
+                                  {cost >= 0 ? `+${formatAud(cost)}` : `${formatAud(cost)} (80% credit)`}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
 
-              {/* Live Base Price Summary Bar */}
-              <div
-                className={`p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                  isLight ? "bg-emerald-50/80 border-emerald-200" : "bg-emerald-950/20 border-emerald-500/20"
-                }`}
-              >
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-500">
-                      Modified Design Base
-                    </span>
-                    {design.designName ? (
-                      <span className={`text-base font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
-                        {design.designName} ({currentTotal} m²)
-                      </span>
-                    ) : (
-                      <span className="text-xs text-amber-500 font-semibold">
-                        Select a base Hudson design above to link standard CAD baseline areas
-                      </span>
+                  {/* Action Buttons to Add Balcony or Custom Area */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {!isBalconyVisible && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setIsBalconyActive(true);
+                          handleModifiedAreaChange("balconyM2", "6.5");
+                          toast.success(`Added Balcony zone (6.50 m² @ $${(activeExtensionRates.balcony || 2050).toLocaleString()}/m²)`);
+                        }}
+                        className="rounded-xl border-dashed border-cyan-500/40 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 font-semibold cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4 mr-1.5" />
+                        + Add Balcony (${(activeExtensionRates.balcony || 2050).toLocaleString()}/m²)
+                      </Button>
                     )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsAddingCustomArea(!isAddingCustomArea)}
+                      className={`rounded-xl border-dashed font-semibold cursor-pointer ${
+                        isAddingCustomArea
+                          ? "border-amber-500/60 text-amber-400 bg-amber-500/10"
+                          : "border-emerald-500/40 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                      }`}
+                    >
+                      <Plus className="w-4 h-4 mr-1.5" />
+                      {isAddingCustomArea ? "Cancel Custom Area" : "+ Add Custom Floor Area"}
+                    </Button>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Living: ${activeExtensionRates.gf.toLocaleString()}/m² • Garage: ${activeExtensionRates.garage.toLocaleString()}/m² • Alfresco: ${activeExtensionRates.alfresco.toLocaleString()}/m² • Porch: ${activeExtensionRates.porch.toLocaleString()}/m² (80% credit on reductions)
-                  </p>
-                </div>
 
-                <div className="flex items-center gap-4 flex-wrap">
-                  {design.designName && (
-                    <div className="text-right">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
-                        Standard Base
-                      </span>
-                      <span className="text-sm font-mono text-slate-400">
-                        {formatAud(design.standardBasePrice || design.basePrice || 0)}
-                      </span>
+                  {/* Inline Add Custom Floor Area Form */}
+                  {isAddingCustomArea && (
+                    <div
+                      className={`p-4 sm:p-5 rounded-2xl border space-y-4 animate-in fade-in duration-200 ${
+                        isLight ? "bg-amber-50/50 border-amber-200" : "bg-amber-950/20 border-amber-500/30"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-amber-400" />
+                          <span className="text-sm font-bold uppercase tracking-wider text-amber-400">
+                            Add Custom Floor Area / Extension
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Suggestion Chips */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] text-slate-400 font-semibold mr-1">Quick presets:</span>
+                        {[
+                          { name: "Rear Covered Deck", rate: 850, m2: 15 },
+                          { name: "Covered Terrace", rate: 850, m2: 12 },
+                          { name: "Workshop Extension", rate: 950, m2: 18 },
+                          { name: "Alfresco Extension", rate: 780, m2: 10 },
+                          { name: "Pergola / Patio", rate: 650, m2: 14 },
+                          { name: "Gym / Studio", rate: 1200, m2: 20 },
+                        ].map((preset) => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => {
+                              setNewCustomAreaName(preset.name);
+                              setNewCustomAreaM2(preset.m2.toString());
+                              setNewCustomAreaRate(preset.rate.toString());
+                            }}
+                            className="px-2.5 py-1 text-xs rounded-lg border border-slate-700 bg-slate-900/60 hover:border-amber-500/50 hover:text-amber-300 text-slate-300 transition-colors cursor-pointer"
+                          >
+                            {preset.name} ({preset.m2}m² @ ${preset.rate}/m²)
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <Label className="text-xs text-slate-400 font-semibold mb-1 block">
+                            Area / Room Name
+                          </Label>
+                          <Input
+                            placeholder="e.g. Rear Covered Deck, Workshop..."
+                            value={newCustomAreaName}
+                            onChange={(e) => setNewCustomAreaName(e.target.value)}
+                            className="h-10 text-sm rounded-xl"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-slate-400 font-semibold mb-1 block">
+                            Size (m²)
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="e.g. 15.00"
+                            value={newCustomAreaM2}
+                            onChange={(e) => setNewCustomAreaM2(e.target.value)}
+                            className="h-10 text-sm font-mono font-bold rounded-xl"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-slate-400 font-semibold mb-1 block">
+                            Rate ($/m²)
+                          </Label>
+                          <Input
+                            type="number"
+                            step="10"
+                            placeholder="850"
+                            value={newCustomAreaRate}
+                            onChange={(e) => setNewCustomAreaRate(e.target.value)}
+                            className="h-10 text-sm font-mono font-bold rounded-xl"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-amber-500/20">
+                        <div className="text-xs text-slate-400 font-mono">
+                          {Number(newCustomAreaM2) > 0 && Number(newCustomAreaRate) > 0 ? (
+                            <span>
+                              Addition:{" "}
+                              <strong className="text-emerald-400">
+                                +{formatAud(Math.round(Number(newCustomAreaM2) * Number(newCustomAreaRate)))}
+                              </strong>{" "}
+                              ({Number(newCustomAreaM2)} m² @ ${Number(newCustomAreaRate)}/m²)
+                            </span>
+                          ) : (
+                            "Specify name and size to add to modified plan"
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsAddingCustomArea(false)}
+                            className="rounded-xl text-xs text-slate-400 hover:text-white"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!newCustomAreaName.trim() || Number(newCustomAreaM2) <= 0}
+                            onClick={() => {
+                              handleAddCustomArea(
+                                newCustomAreaName,
+                                Number(newCustomAreaM2),
+                                Number(newCustomAreaRate) || 850
+                              );
+                            }}
+                            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5 mr-1" /> Add Zone to Plan
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  {design.designName && modPricingCalc?.totalCostAdjustment !== undefined && modPricingCalc.totalCostAdjustment !== 0 && (
-                    <div className="text-right">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
-                        Area Tender Delta
-                      </span>
-                      <span className={`text-sm font-mono font-bold ${modPricingCalc.totalCostAdjustment >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
-                        {modPricingCalc.totalCostAdjustment >= 0 ? `+${formatAud(modPricingCalc.totalCostAdjustment)}` : formatAud(modPricingCalc.totalCostAdjustment)}
-                      </span>
+                  {/* Custom Floor Areas List */}
+                  {customAreas.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                          Custom &amp; Additional Floor Areas ({customAreas.length})
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono">
+                          Subtotal:{" "}
+                          <strong className="text-emerald-400">
+                            +{formatAud(
+                              customAreas.reduce(
+                                (sum, ca) => sum + Math.round((Number(ca.m2) || 0) * (Number(ca.ratePerM2) || 850)),
+                                0
+                              )
+                            )}
+                          </strong>
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {customAreas.map((ca) => {
+                          const m2Val = Number(ca.m2) || 0;
+                          const rateVal = Number(ca.ratePerM2) || 850;
+                          const addition = Math.round(m2Val * rateVal);
+
+                          return (
+                            <div
+                              key={ca.id}
+                              className={`p-4 rounded-2xl border transition-all ${
+                                isLight
+                                  ? "bg-slate-50 border-cyan-200"
+                                  : "bg-slate-950/60 border-cyan-500/30"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 truncate max-w-[170px]" title={ca.name}>
+                                  {ca.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCustomArea(ca.id)}
+                                  className="p-1 rounded text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                                  title="Delete custom area"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={m2Val > 0 ? m2Val : ""}
+                                  onChange={(e) => handleUpdateCustomArea(ca.id, parseFloat(e.target.value) || 0)}
+                                  className="h-12 text-lg font-mono font-bold rounded-xl"
+                                />
+
+                                {/* Steppers */}
+                                <div className="flex items-center gap-1.5 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateCustomArea(ca.id, Math.max(0, m2Val - 1))}
+                                    className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                  >
+                                    -1m²
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateCustomArea(ca.id, m2Val + 1)}
+                                    className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                  >
+                                    +1m²
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1">
+                                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                                  <span>Rate:</span>
+                                  <span>${rateVal.toLocaleString()}/m²</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] font-mono">
+                                  <span className="text-slate-400">Delta:</span>
+                                  <span className="text-emerald-500 font-bold">
+                                    +{formatAud(addition)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
-                      Total Modified Base
-                    </span>
-                    <span className={`text-xl sm:text-2xl font-mono font-black ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                      {formatAud(design.basePrice || 0)}
-                    </span>
+                  {/* Direct Base Price Summary Bar */}
+                  <div
+                    className={`p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      isLight ? "bg-emerald-50/80 border-emerald-200" : "bg-emerald-950/20 border-emerald-500/20"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-500">
+                          Modified Design Base
+                        </span>
+                        {design.designName ? (
+                          <span className={`text-base font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
+                            {design.designName} ({currentTotal} m²)
+                          </span>
+                        ) : (
+                          <span className="text-xs text-amber-500 font-semibold">
+                            Select a base Hudson design above to link standard CAD baseline areas
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {design.designName && (
+                        <div className="text-right">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                            Standard Base
+                          </span>
+                          <span className="text-sm font-mono text-slate-400">
+                            {formatAud(design.standardBasePrice || design.basePrice || 0)}
+                          </span>
+                        </div>
+                      )}
+
+                      {design.designName && modPricingCalc?.totalCostAdjustment !== undefined && modPricingCalc.totalCostAdjustment !== 0 && (
+                        <div className="text-right">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                            Area Tender Delta
+                          </span>
+                          <span className={`text-sm font-mono font-bold ${modPricingCalc.totalCostAdjustment >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                            {modPricingCalc.totalCostAdjustment >= 0 ? `+${formatAud(modPricingCalc.totalCostAdjustment)}` : formatAud(modPricingCalc.totalCostAdjustment)}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                          Total Modified Base
+                        </span>
+                        <span className={`text-xl sm:text-2xl font-mono font-black ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                          {formatAud(design.basePrice || 0)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -3147,9 +3419,6 @@ export function V2StepFloorPlan({
               <Label className={`text-sm sm:text-base font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
                 3. Select Inclusion Specification Tier
               </Label>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Choose the standard finishes package for {design.designName}.
-              </p>
             </div>
           </div>
 
@@ -3222,9 +3491,6 @@ export function V2StepFloorPlan({
               <Label className={`text-sm sm:text-base font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
                 4. Select Façade (Filtered for {design.designName})
               </Label>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Choose a certified catalogue façade or specify an architectural custom bespoke façade.
-              </p>
             </div>
 
             {/* Catalogue vs Custom Toggle */}

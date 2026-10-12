@@ -527,9 +527,6 @@ export function V2StepSiteCosts({
           <h2 className={`text-3xl sm:text-4xl font-extrabold tracking-tight mt-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
             Site Costs &amp; Earthworks
           </h2>
-          <p className="text-sm sm:text-base text-slate-400 mt-1 max-w-3xl">
-            Configure site type, slope fall, foundation piering, allowances, overlays, and statutory council fees.
-          </p>
         </div>
 
         {/* Action Controls & Live Site Subtotal */}
