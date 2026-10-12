@@ -382,9 +382,9 @@ export function getFacadesForDesignAndHousingType(
     }
   }
 
-  // Cinnamon is front-to-rear tri-level split with no dedicated facades yet - treat as standard double storey
-  const isCinnamon = designName ? /cinnamon/i.test(designName) : false;
-  if (isCinnamon) {
+  // Cinnamon and Mauve are split-level designs with normal double storey front facades - treat as standard double storey
+  const isDoubleFrontSplit = designName ? /cinnamon|mauve/i.test(designName) : false;
+  if (isDoubleFrontSplit) {
     return isNsw ? NSW_DOUBLE_STOREY_FACADES : HOUSING_FACADES["Double Storey"];
   }
 
@@ -519,11 +519,11 @@ export function QuoteDesignStep({
     });
   }, [design.designName, design.housingType, design.specTier, design.facadeName, design.isCustomFacade, design.isModifiedFloorplan, design.landscapingSelected, design.landscapingLandSize]);
 
-  const isCinnamon = Boolean(design.designName && /cinnamon/i.test(design.designName));
+  const isDoubleFrontSplit = Boolean(design.designName && /cinnamon|mauve/i.test(design.designName));
   const isDouble =
     design.mode === "custom_floorplan"
       ? customSpec.storeys === "double"
-      : effectiveHousingType === "Double Storey" || effectiveHousingType === "double" || isCinnamon;
+      : effectiveHousingType === "Double Storey" || effectiveHousingType === "double" || isDoubleFrontSplit;
   const isDuplex =
     effectiveHousingType === "Dual Living" ||
     effectiveHousingType === "dual-oc" ||
@@ -2432,7 +2432,7 @@ export function QuoteDesignStep({
                   isLight ? "text-slate-900" : "text-slate-300"
                 }`}>
                   <PenTool className={`h-3.5 w-3.5 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
-                  Architectural Facade ({isCinnamon ? "Double Storey" : design.housingType} Range)
+                  Architectural Facade ({isDoubleFrontSplit ? "Double Storey" : design.housingType} Range)
                 </Label>
                 <span className={`text-xs font-mono font-bold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
                   {design.facadePrice === 0 ? "Standard Included ($0)" : `+${formatAud(design.facadePrice)}`}

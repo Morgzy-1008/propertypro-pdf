@@ -79,6 +79,7 @@ import type {
   BaseDesignCandidate,
   PlanModificationAnalysis,
   FloorplanAreaBreakdown,
+  CustomFloorAreaItem,
 } from "@/lib/quoting/quoteTypes";
 import { ModifiedPlanReviewModal } from "@/components/quoting/ModifiedPlanReviewModal";
 import { BaseDesignConfirmationModal } from "@/components/quoting/BaseDesignConfirmationModal";
@@ -246,6 +247,13 @@ export function V2StepFloorPlan({
   const [isBaseConfirmOpen, setIsBaseConfirmOpen] = useState(false);
   const [pendingAnalysis, setPendingAnalysis] = useState<PlanModificationAnalysis | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+  // Custom floor areas local state
+  const [isAddingCustomArea, setIsAddingCustomArea] = useState(false);
+  const [newCustomAreaName, setNewCustomAreaName] = useState("");
+  const [newCustomAreaM2, setNewCustomAreaM2] = useState("");
+  const [newCustomAreaRate, setNewCustomAreaRate] = useState("850");
+  const [isBalconyActive, setIsBalconyActive] = useState(false);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -646,7 +654,21 @@ export function V2StepFloorPlan({
     return getStandardAreaBreakdown(design.designName, design.housingType, design.standardDesignM2 || design.designM2);
   }, [design.designName, design.housingType, design.standardDesignM2, design.designM2]);
 
-  const currentLiving = design.areas?.livingM2 ?? standardBaselineAreas.livingM2 ?? 0;
+  const customAreas: CustomFloorAreaItem[] = useMemo(() => {
+    return ((design.modifiedAreas?.customAreas || design.areas?.customAreas || []) as CustomFloorAreaItem[]);
+  }, [design.modifiedAreas?.customAreas, design.areas?.customAreas]);
+
+  const isBalconyVisible = Boolean(
+    isBalconyActive ||
+    (standardBaselineAreas.balconyM2 && standardBaselineAreas.balconyM2 > 0) ||
+    (design.areas?.balconyM2 !== undefined && design.areas.balconyM2 > 0) ||
+    (design.modifiedAreas?.balconyM2 !== undefined && design.modifiedAreas.balconyM2 > 0)
+  );
+
+  const currentLiving = isDoubleOrSplit
+    ? ((design.areas?.lowerLivingM2 || 0) + (design.areas?.groundLivingM2 || 0) + (design.areas?.firstLivingM2 || 0)) ||
+      ((standardBaselineAreas.lowerLivingM2 || 0) + (standardBaselineAreas.groundLivingM2 || 0) + (standardBaselineAreas.firstLivingM2 || 0))
+    : (design.areas?.livingM2 ?? standardBaselineAreas.livingM2 ?? 0);
   const currentGarage = design.areas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0;
   const currentAlfresco = design.areas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0;
   const currentPorch = design.areas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0;
@@ -796,28 +818,37 @@ export function V2StepFloorPlan({
     const initialModifiedAreas: FloorplanAreaBreakdown = {
       ...(isDouble
         ? {
+            lowerLivingM2: currentModAreas?.lowerLivingM2 && currentModAreas.lowerLivingM2 > 0 ? currentModAreas.lowerLivingM2 : (stdAreas.lowerLivingM2 || 0),
             groundLivingM2: currentModAreas?.groundLivingM2 && currentModAreas.groundLivingM2 > 0 ? currentModAreas.groundLivingM2 : (stdAreas.groundLivingM2 || 0),
             firstLivingM2: currentModAreas?.firstLivingM2 && currentModAreas.firstLivingM2 > 0 ? currentModAreas.firstLivingM2 : (stdAreas.firstLivingM2 || 0),
             balconyM2: currentModAreas?.balconyM2 !== undefined ? currentModAreas.balconyM2 : (stdAreas.balconyM2 || 0),
           }
         : {
             livingM2: currentModAreas?.livingM2 && currentModAreas.livingM2 > 0 ? currentModAreas.livingM2 : (stdAreas.livingM2 || 0),
+            balconyM2: currentModAreas?.balconyM2 !== undefined ? currentModAreas.balconyM2 : (stdAreas.balconyM2 || 0),
           }),
       garageM2: currentModAreas?.garageM2 && currentModAreas.garageM2 > 0 ? currentModAreas.garageM2 : (stdAreas.garageM2 || 0),
       alfrescoM2: currentModAreas?.alfrescoM2 && currentModAreas.alfrescoM2 > 0 ? currentModAreas.alfrescoM2 : (stdAreas.alfrescoM2 || 0),
       porchM2: currentModAreas?.porchM2 && currentModAreas.porchM2 > 0 ? currentModAreas.porchM2 : (stdAreas.porchM2 || 0),
+      customAreas: currentModAreas?.customAreas || [],
       totalM2: 0,
     };
 
+    const customAreasSum = (initialModifiedAreas.customAreas || []).reduce((sum, ca) => sum + (Number(ca.m2) || 0), 0);
     const calculatedTotal = Math.round(
       ((isDouble
-        ? (initialModifiedAreas.groundLivingM2 || 0) + (initialModifiedAreas.firstLivingM2 || 0) + (initialModifiedAreas.balconyM2 || 0)
-        : (initialModifiedAreas.livingM2 || 0)) +
+        ? (initialModifiedAreas.lowerLivingM2 || 0) + (initialModifiedAreas.groundLivingM2 || 0) + (initialModifiedAreas.firstLivingM2 || 0) + (initialModifiedAreas.balconyM2 || 0)
+        : (initialModifiedAreas.livingM2 || 0) + (initialModifiedAreas.balconyM2 || 0)) +
        (initialModifiedAreas.garageM2 || 0) +
        (initialModifiedAreas.alfrescoM2 || 0) +
-       (initialModifiedAreas.porchM2 || 0)) * 100
+       (initialModifiedAreas.porchM2 || 0) +
+       customAreasSum) * 100
     ) / 100;
     initialModifiedAreas.totalM2 = calculatedTotal;
+
+    if (stdAreas.balconyM2 && stdAreas.balconyM2 > 0) {
+      setIsBalconyActive(true);
+    }
 
     const facades = getFacadesForDesignAndHousingType(row.name, type, division);
     const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
@@ -886,17 +917,201 @@ export function V2StepFloorPlan({
       design.housingType === "Split Level" ||
       isDoubleStoreyDesign(design.designName, design.housingType || houseType);
 
+    const customAreasSum = (updatedAreas.customAreas || []).reduce((sum, ca) => sum + (Number(ca.m2) || 0), 0);
     const updatedTotal = Math.round(
       ((isDouble
-        ? (updatedAreas.groundLivingM2 || 0) + (updatedAreas.firstLivingM2 || 0) + (updatedAreas.balconyM2 || 0)
-        : (updatedAreas.livingM2 || 0)) +
+        ? (updatedAreas.lowerLivingM2 || 0) + (updatedAreas.groundLivingM2 || 0) + (updatedAreas.firstLivingM2 || 0) + (updatedAreas.balconyM2 || 0)
+        : (updatedAreas.livingM2 || 0) + (updatedAreas.balconyM2 || 0)) +
       (updatedAreas.garageM2 || 0) +
       (updatedAreas.alfrescoM2 || 0) +
-      (updatedAreas.porchM2 || 0)) * 100
+      (updatedAreas.porchM2 || 0) +
+      customAreasSum) * 100
     ) / 100;
 
     updatedAreas.totalM2 = updatedTotal;
 
+    const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
+    const calc = calculateModifiedFloorplanPricing({
+      ...design,
+      isModifiedFloorplan: true,
+      standardAreas: standardBaselineAreas,
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
+      designM2: updatedTotal,
+      modifiedDesignM2: updatedTotal,
+      standardDesignM2: standardBaselineAreas.totalM2,
+      standardBasePrice: currentBasePrice,
+    });
+
+    onChange({
+      isModifiedFloorplan: true,
+      standardAreas: standardBaselineAreas,
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
+      designM2: updatedTotal,
+      modifiedDesignM2: updatedTotal,
+      standardDesignM2: standardBaselineAreas.totalM2,
+      standardBasePrice: currentBasePrice,
+      basePrice: calc.modifiedBasePrice,
+    });
+  };
+
+  // Add a bespoke / custom floor area (e.g. Balcony, Deck, Pergola, Workshop)
+  const handleAddCustomArea = (name: string, m2: number, ratePerM2: number) => {
+    if (!name.trim() || m2 <= 0) return;
+    const currentAreas = design.areas || design.modifiedAreas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
+    const existingCustom = currentAreas.customAreas || [];
+    const newCustomItem: CustomFloorAreaItem = {
+      id: `custom_${Date.now()}`,
+      name: name.trim(),
+      m2: Math.round(m2 * 100) / 100,
+      ratePerM2: Math.round(ratePerM2) || 850,
+      recipeId: "recipe_custom_ext",
+    };
+    const updatedCustom = [...existingCustom, newCustomItem];
+    const updatedAreas: FloorplanAreaBreakdown = {
+      ...currentAreas,
+      customAreas: updatedCustom,
+      totalM2: 0,
+    };
+
+    const isDouble = design.housingType === "Double Storey" ||
+      design.housingType === "Split Level" ||
+      isDoubleStoreyDesign(design.designName, design.housingType || houseType);
+
+    const customAreasSum = updatedCustom.reduce((sum, ca) => sum + (Number(ca.m2) || 0), 0);
+    const updatedTotal = Math.round(
+      ((isDouble
+        ? (updatedAreas.lowerLivingM2 || 0) + (updatedAreas.groundLivingM2 || 0) + (updatedAreas.firstLivingM2 || 0) + (updatedAreas.balconyM2 || 0)
+        : (updatedAreas.livingM2 || 0) + (updatedAreas.balconyM2 || 0)) +
+      (updatedAreas.garageM2 || 0) +
+      (updatedAreas.alfrescoM2 || 0) +
+      (updatedAreas.porchM2 || 0) +
+      customAreasSum) * 100
+    ) / 100;
+
+    updatedAreas.totalM2 = updatedTotal;
+    const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
+    const calc = calculateModifiedFloorplanPricing({
+      ...design,
+      isModifiedFloorplan: true,
+      standardAreas: standardBaselineAreas,
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
+      designM2: updatedTotal,
+      modifiedDesignM2: updatedTotal,
+      standardDesignM2: standardBaselineAreas.totalM2,
+      standardBasePrice: currentBasePrice,
+    });
+
+    onChange({
+      isModifiedFloorplan: true,
+      standardAreas: standardBaselineAreas,
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
+      designM2: updatedTotal,
+      modifiedDesignM2: updatedTotal,
+      standardDesignM2: standardBaselineAreas.totalM2,
+      standardBasePrice: currentBasePrice,
+      basePrice: calc.modifiedBasePrice,
+    });
+
+    setIsAddingCustomArea(false);
+    setNewCustomAreaName("");
+    setNewCustomAreaM2("");
+    toast.success(`Added ${newCustomItem.name} (${newCustomItem.m2} m² @ $${newCustomItem.ratePerM2}/m²)`);
+  };
+
+  // Delete a bespoke / custom floor area
+  const handleDeleteCustomArea = (id: string) => {
+    const currentAreas = design.areas || design.modifiedAreas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
+    const existingCustom = currentAreas.customAreas || [];
+    const updatedCustom = existingCustom.filter((c) => c.id !== id);
+    const updatedAreas: FloorplanAreaBreakdown = {
+      ...currentAreas,
+      customAreas: updatedCustom,
+      totalM2: 0,
+    };
+
+    const isDouble = design.housingType === "Double Storey" ||
+      design.housingType === "Split Level" ||
+      isDoubleStoreyDesign(design.designName, design.housingType || houseType);
+
+    const customAreasSum = updatedCustom.reduce((sum, ca) => sum + (Number(ca.m2) || 0), 0);
+    const updatedTotal = Math.round(
+      ((isDouble
+        ? (updatedAreas.lowerLivingM2 || 0) + (updatedAreas.groundLivingM2 || 0) + (updatedAreas.firstLivingM2 || 0) + (updatedAreas.balconyM2 || 0)
+        : (updatedAreas.livingM2 || 0) + (updatedAreas.balconyM2 || 0)) +
+      (updatedAreas.garageM2 || 0) +
+      (updatedAreas.alfrescoM2 || 0) +
+      (updatedAreas.porchM2 || 0) +
+      customAreasSum) * 100
+    ) / 100;
+
+    updatedAreas.totalM2 = updatedTotal;
+    const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
+    const calc = calculateModifiedFloorplanPricing({
+      ...design,
+      isModifiedFloorplan: true,
+      standardAreas: standardBaselineAreas,
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
+      designM2: updatedTotal,
+      modifiedDesignM2: updatedTotal,
+      standardDesignM2: standardBaselineAreas.totalM2,
+      standardBasePrice: currentBasePrice,
+    });
+
+    onChange({
+      isModifiedFloorplan: true,
+      standardAreas: standardBaselineAreas,
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
+      designM2: updatedTotal,
+      modifiedDesignM2: updatedTotal,
+      standardDesignM2: standardBaselineAreas.totalM2,
+      standardBasePrice: currentBasePrice,
+      basePrice: calc.modifiedBasePrice,
+    });
+    toast.info("Custom area removed");
+  };
+
+  // Update an existing custom floor area
+  const handleUpdateCustomArea = (id: string, newM2: number, newRate?: number) => {
+    const currentAreas = design.areas || design.modifiedAreas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
+    const existingCustom = currentAreas.customAreas || [];
+    const updatedCustom = existingCustom.map((c) => {
+      if (c.id === id) {
+        return {
+          ...c,
+          m2: Math.max(0, Math.round(newM2 * 100) / 100),
+          ...(newRate !== undefined ? { ratePerM2: Math.max(0, Math.round(newRate)) } : {}),
+        };
+      }
+      return c;
+    });
+    const updatedAreas: FloorplanAreaBreakdown = {
+      ...currentAreas,
+      customAreas: updatedCustom,
+      totalM2: 0,
+    };
+
+    const isDouble = design.housingType === "Double Storey" ||
+      design.housingType === "Split Level" ||
+      isDoubleStoreyDesign(design.designName, design.housingType || houseType);
+
+    const customAreasSum = updatedCustom.reduce((sum, ca) => sum + (Number(ca.m2) || 0), 0);
+    const updatedTotal = Math.round(
+      ((isDouble
+        ? (updatedAreas.lowerLivingM2 || 0) + (updatedAreas.groundLivingM2 || 0) + (updatedAreas.firstLivingM2 || 0) + (updatedAreas.balconyM2 || 0)
+        : (updatedAreas.livingM2 || 0) + (updatedAreas.balconyM2 || 0)) +
+      (updatedAreas.garageM2 || 0) +
+      (updatedAreas.alfrescoM2 || 0) +
+      (updatedAreas.porchM2 || 0) +
+      customAreasSum) * 100
+    ) / 100;
+
+    updatedAreas.totalM2 = updatedTotal;
     const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
     const calc = calculateModifiedFloorplanPricing({
       ...design,
@@ -975,32 +1190,78 @@ export function V2StepFloorPlan({
 
       const hasParsedDimensions = Boolean(
         parsedSchedule &&
-        (parsedSchedule.totalM2 || parsedSchedule.livingM2)
+        (parsedSchedule.totalM2 || parsedSchedule.livingM2 || parsedSchedule.groundLivingM2 || parsedSchedule.lowerLivingM2 || parsedSchedule.balconyM2)
       );
 
       // Check if the extracted dimensions are changed from baseline
       const isChangedFromBaseline = Boolean(hasParsedDimensions && (
         (parsedSchedule?.totalM2 && Math.abs(parsedSchedule.totalM2 - (baselineAreas.totalM2 || 0)) > 0.1) ||
         (parsedSchedule?.livingM2 && Math.abs(parsedSchedule.livingM2 - (baselineAreas.livingM2 || 0)) > 0.1) ||
+        (parsedSchedule?.lowerLivingM2 && Math.abs(parsedSchedule.lowerLivingM2 - (baselineAreas.lowerLivingM2 || 0)) > 0.1) ||
+        (parsedSchedule?.groundLivingM2 && Math.abs(parsedSchedule.groundLivingM2 - (baselineAreas.groundLivingM2 || 0)) > 0.1) ||
+        (parsedSchedule?.firstLivingM2 && Math.abs(parsedSchedule.firstLivingM2 - (baselineAreas.firstLivingM2 || 0)) > 0.1) ||
         (parsedSchedule?.garageM2 && Math.abs(parsedSchedule.garageM2 - (baselineAreas.garageM2 || 0)) > 0.1) ||
         (parsedSchedule?.alfrescoM2 && Math.abs(parsedSchedule.alfrescoM2 - (baselineAreas.alfrescoM2 || 0)) > 0.1) ||
-        (parsedSchedule?.porchM2 && Math.abs(parsedSchedule.porchM2 - (baselineAreas.porchM2 || 0)) > 0.1)
+        (parsedSchedule?.porchM2 && Math.abs(parsedSchedule.porchM2 - (baselineAreas.porchM2 || 0)) > 0.1) ||
+        (parsedSchedule?.balconyM2 !== undefined && Math.abs(parsedSchedule.balconyM2 - (baselineAreas.balconyM2 || 0)) > 0.1) ||
+        (parsedSchedule?.unassignedItems && parsedSchedule.unassignedItems.length > 0)
       ));
 
       if (hasParsedDimensions && isChangedFromBaseline && parsedSchedule) {
-        const newLiving = parsedSchedule.livingM2 || baselineAreas.livingM2 || 0;
-        const newGarage = parsedSchedule.garageM2 || baselineAreas.garageM2 || 0;
-        const newAlfresco = parsedSchedule.alfrescoM2 || baselineAreas.alfrescoM2 || 0;
-        const newPorch = parsedSchedule.porchM2 || baselineAreas.porchM2 || 0;
-        const newTotal = parsedSchedule.totalM2 || Math.round((newLiving + newGarage + newAlfresco + newPorch) * 100) / 100;
+        const isDouble = design.housingType === "Double Storey" ||
+          design.housingType === "Split Level" ||
+          isDoubleStoreyDesign(design.designName, design.housingType || houseType);
+
+        const newLowerLiving = parsedSchedule.lowerLivingM2 ?? baselineAreas.lowerLivingM2 ?? 0;
+        const newGroundLiving = parsedSchedule.groundLivingM2 ?? (isDouble && parsedSchedule.livingM2 ? parsedSchedule.livingM2 : (baselineAreas.groundLivingM2 ?? 0));
+        const newFirstLiving = parsedSchedule.firstLivingM2 ?? baselineAreas.firstLivingM2 ?? 0;
+        const newLiving = !isDouble ? (parsedSchedule.livingM2 || baselineAreas.livingM2 || 0) : 0;
+        const newGarage = parsedSchedule.garageM2 ?? baselineAreas.garageM2 ?? 0;
+        const newAlfresco = parsedSchedule.alfrescoM2 ?? baselineAreas.alfrescoM2 ?? 0;
+        const newPorch = parsedSchedule.porchM2 ?? baselineAreas.porchM2 ?? 0;
+        const newBalcony = parsedSchedule.balconyM2 !== undefined ? parsedSchedule.balconyM2 : (baselineAreas.balconyM2 ?? 0);
+
+        // Extract custom areas from unassigned items
+        const existingCustom = (design.areas?.customAreas || design.modifiedAreas?.customAreas || []) as CustomFloorAreaItem[];
+        const extractedCustom: CustomFloorAreaItem[] = (parsedSchedule.unassignedItems || [])
+          .filter((item) => item.sqm > 0 && !existingCustom.some((ec) => ec.name.toLowerCase() === item.label.toLowerCase()))
+          .map((item, idx) => ({
+            id: `extracted_${Date.now()}_${idx}`,
+            name: item.label,
+            m2: item.sqm,
+            ratePerM2: 850,
+          }));
+        const combinedCustom = [...existingCustom, ...extractedCustom];
+        const customSum = combinedCustom.reduce((sum, ca) => sum + (Number(ca.m2) || 0), 0);
+
+        const livingSum = isDouble
+          ? newLowerLiving + newGroundLiving + newFirstLiving + newBalcony
+          : newLiving + newBalcony;
+
+        const newTotal = parsedSchedule.totalM2 || Math.round((livingSum + newGarage + newAlfresco + newPorch + customSum) * 100) / 100;
 
         const updatedAreas: FloorplanAreaBreakdown = {
-          livingM2: newLiving,
+          ...(isDouble
+            ? {
+                lowerLivingM2: newLowerLiving,
+                groundLivingM2: newGroundLiving,
+                firstLivingM2: newFirstLiving,
+                balconyM2: newBalcony,
+              }
+            : {
+                livingM2: newLiving,
+                balconyM2: newBalcony,
+              }),
           garageM2: newGarage,
           alfrescoM2: newAlfresco,
           porchM2: newPorch,
+          customAreas: combinedCustom,
           totalM2: newTotal,
         };
+
+        if (newBalcony > 0) {
+          setIsBalconyActive(true);
+        }
 
         const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
         const calc = calculateModifiedFloorplanPricing({
@@ -1030,9 +1291,23 @@ export function V2StepFloorPlan({
         });
 
         setIsDimensionTableUnchanged(false);
+        const parts: string[] = [];
+        if (isDouble) {
+          if (newLowerLiving > 0) parts.push(`Lower: ${newLowerLiving} m²`);
+          if (newGroundLiving > 0) parts.push(`Ground: ${newGroundLiving} m²`);
+          if (newFirstLiving > 0) parts.push(`First: ${newFirstLiving} m²`);
+        } else {
+          if (newLiving > 0) parts.push(`Living: ${newLiving} m²`);
+        }
+        if (newGarage > 0) parts.push(`Garage: ${newGarage} m²`);
+        if (newAlfresco > 0) parts.push(`Alfresco: ${newAlfresco} m²`);
+        if (newPorch > 0) parts.push(`Porch: ${newPorch} m²`);
+        if (newBalcony > 0) parts.push(`Balcony: ${newBalcony} m²`);
+        extractedCustom.forEach((ca) => parts.push(`${ca.name}: ${ca.m2} m²`));
+
         setScanMessage({
           type: "success",
-          text: `Dimension table detected! Living: ${newLiving} m², Garage: ${newGarage} m², Alfresco: ${newAlfresco} m², Porch: ${newPorch} m² (Total: ${newTotal} m²)`,
+          text: `Dimension table detected! ${parts.join(" • ")} (Total: ${newTotal} m²)`,
         });
         toast.success(`Extracted modified areas: Total ${newTotal} m²`);
       } else {
@@ -1800,53 +2075,65 @@ export function V2StepFloorPlan({
                 </div>
               </div>
 
-              {/* Dynamic Zones Grid (Living, Garage, Alfresco, Porch / Ground, First) */}
+              {/* Dynamic Zones Grid (Living, Garage, Alfresco, Porch / Ground, First, Lower, Balcony) */}
               <div className={`grid gap-4 ${isDoubleOrSplit ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 lg:grid-cols-4"}`}>
                 {(isDoubleOrSplit
                   ? [
+                      ...(standardBaselineAreas.lowerLivingM2 || design.areas?.lowerLivingM2 || (design.designName && /cinnamon|mauve/i.test(design.designName))
+                        ? [
+                            {
+                              key: "lowerLivingM2" as const,
+                              label: "Lower Ground Living",
+                              std: standardBaselineAreas.lowerLivingM2 || 0,
+                              val: design.areas?.lowerLivingM2 ?? (design.modifiedAreas?.lowerLivingM2 ?? standardBaselineAreas.lowerLivingM2 ?? 0),
+                              rate: activeExtensionRates.gf || 1420,
+                            },
+                          ]
+                        : []),
                       {
                         key: "groundLivingM2" as const,
                         label: "Ground Floor Living",
                         std: standardBaselineAreas.groundLivingM2 || 0,
                         val: design.areas?.groundLivingM2 ?? (design.modifiedAreas?.groundLivingM2 ?? standardBaselineAreas.groundLivingM2 ?? 0),
-                        rate: 1420,
+                        rate: activeExtensionRates.gf || 1420,
                       },
                       {
                         key: "firstLivingM2" as const,
                         label: "First Floor Living",
                         std: standardBaselineAreas.firstLivingM2 || 0,
                         val: design.areas?.firstLivingM2 ?? (design.modifiedAreas?.firstLivingM2 ?? standardBaselineAreas.firstLivingM2 ?? 0),
-                        rate: 1580,
+                        rate: activeExtensionRates.ff || 1580,
                       },
                       {
                         key: "garageM2" as const,
                         label: "Garage Area",
                         std: standardBaselineAreas.garageM2 || 0,
                         val: design.areas?.garageM2 ?? (design.modifiedAreas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0),
-                        rate: 950,
+                        rate: activeExtensionRates.garage || 950,
                       },
                       {
                         key: "alfrescoM2" as const,
                         label: "Alfresco Area",
                         std: standardBaselineAreas.alfrescoM2 || 0,
                         val: design.areas?.alfrescoM2 ?? (design.modifiedAreas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0),
-                        rate: 780,
+                        rate: activeExtensionRates.alfresco || 780,
                       },
                       {
                         key: "porchM2" as const,
                         label: "Porch Area",
                         std: standardBaselineAreas.porchM2 || 0,
                         val: design.areas?.porchM2 ?? (design.modifiedAreas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0),
-                        rate: 780,
+                        rate: activeExtensionRates.porch || 780,
                       },
-                      ...(standardBaselineAreas.balconyM2 || design.areas?.balconyM2
+                      ...(isBalconyVisible
                         ? [
                             {
                               key: "balconyM2" as const,
                               label: "Balcony Area",
                               std: standardBaselineAreas.balconyM2 || 0,
                               val: design.areas?.balconyM2 ?? (design.modifiedAreas?.balconyM2 ?? standardBaselineAreas.balconyM2 ?? 0),
-                              rate: 850,
+                              rate: activeExtensionRates.balcony || 850,
+                              isRemovable: !standardBaselineAreas.balconyM2 || standardBaselineAreas.balconyM2 === 0,
                             },
                           ]
                         : []),
@@ -1857,34 +2144,48 @@ export function V2StepFloorPlan({
                         label: "Living Area",
                         std: standardBaselineAreas.livingM2 || 0,
                         val: design.areas?.livingM2 ?? (design.modifiedAreas?.livingM2 ?? standardBaselineAreas.livingM2 ?? 0),
-                        rate: 1420,
+                        rate: activeExtensionRates.gf || 1420,
                       },
                       {
                         key: "garageM2" as const,
                         label: "Garage Area",
                         std: standardBaselineAreas.garageM2 || 0,
                         val: design.areas?.garageM2 ?? (design.modifiedAreas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0),
-                        rate: 950,
+                        rate: activeExtensionRates.garage || 950,
                       },
                       {
                         key: "alfrescoM2" as const,
                         label: "Alfresco Area",
                         std: standardBaselineAreas.alfrescoM2 || 0,
                         val: design.areas?.alfrescoM2 ?? (design.modifiedAreas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0),
-                        rate: 780,
+                        rate: activeExtensionRates.alfresco || 780,
                       },
                       {
                         key: "porchM2" as const,
                         label: "Porch Area",
                         std: standardBaselineAreas.porchM2 || 0,
                         val: design.areas?.porchM2 ?? (design.modifiedAreas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0),
-                        rate: 780,
+                        rate: activeExtensionRates.porch || 780,
                       },
+                      ...(isBalconyVisible
+                        ? [
+                            {
+                              key: "balconyM2" as const,
+                              label: "Balcony Area",
+                              std: standardBaselineAreas.balconyM2 || 0,
+                              val: design.areas?.balconyM2 ?? (design.modifiedAreas?.balconyM2 ?? standardBaselineAreas.balconyM2 ?? 0),
+                              rate: activeExtensionRates.balcony || 850,
+                              isRemovable: !standardBaselineAreas.balconyM2 || standardBaselineAreas.balconyM2 === 0,
+                            },
+                          ]
+                        : []),
                     ]
                 ).map((zone) => {
-                  const delta = zone.std > 0 ? Math.round((zone.val - zone.std) * 100) / 100 : 0;
-                  const cost = delta > 0 ? Math.round(delta * zone.rate) : delta < 0 ? Math.round(delta * zone.rate * 0.8) : 0;
-                  const hasVariance = zone.std > 0 && Math.abs(delta) > 0.05;
+                  const delta = zone.std > 0 ? Math.round((zone.val - zone.std) * 100) / 100 : (zone.val || 0);
+                  const cost = zone.std > 0
+                    ? (delta > 0 ? Math.round(delta * zone.rate) : delta < 0 ? Math.round(delta * zone.rate * 0.8) : 0)
+                    : Math.round(delta * zone.rate);
+                  const hasVariance = zone.std > 0 ? Math.abs(delta) > 0.05 : zone.val > 0;
 
                   return (
                     <div
@@ -1897,9 +2198,25 @@ export function V2StepFloorPlan({
                         <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
                           {zone.label}
                         </Label>
-                        <span className="text-[11px] font-mono text-slate-400">
-                          Std: {zone.std > 0 ? `${zone.std} m²` : "—"}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-mono text-slate-400">
+                            Std: {zone.std > 0 ? `${zone.std} m²` : "—"}
+                          </span>
+                          {(zone as any).isRemovable && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsBalconyActive(false);
+                                handleModifiedAreaChange("balconyM2", "0");
+                                toast.info("Removed Balcony");
+                              }}
+                              className="p-1 rounded text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                              title="Remove Balcony"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="space-y-2">
@@ -1930,7 +2247,7 @@ export function V2StepFloorPlan({
                           >
                             +1m²
                           </button>
-                          {hasVariance && (
+                          {zone.std > 0 && hasVariance && (
                             <button
                               type="button"
                               onClick={() => handleResetArea(zone.key)}
@@ -1958,7 +2275,7 @@ export function V2StepFloorPlan({
                           >
                             {zone.std > 0
                               ? `${delta >= 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2)} m²`
-                              : "—"}
+                              : `${delta.toFixed(2)} m² (added)`}
                           </span>
                         </div>
 
@@ -1980,6 +2297,267 @@ export function V2StepFloorPlan({
                   );
                 })}
               </div>
+
+              {/* Action Buttons to Add Balcony or Custom Area */}
+              <div className="flex items-center gap-3 flex-wrap">
+                {!isBalconyVisible && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsBalconyActive(true);
+                      handleModifiedAreaChange("balconyM2", "6.5");
+                      toast.success("Added Balcony zone (6.50 m² @ $850/m²)");
+                    }}
+                    className="rounded-xl border-dashed border-cyan-500/40 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 font-semibold"
+                  >
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    + Add Balcony ($850/m²)
+                  </Button>
+                )}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsAddingCustomArea(!isAddingCustomArea)}
+                  className={`rounded-xl border-dashed font-semibold ${
+                    isAddingCustomArea
+                      ? "border-amber-500/60 text-amber-400 bg-amber-500/10"
+                      : "border-emerald-500/40 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                  }`}
+                >
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  {isAddingCustomArea ? "Cancel Custom Area" : "+ Add Custom Floor Area"}
+                </Button>
+              </div>
+
+              {/* Inline Add Custom Floor Area Form */}
+              {isAddingCustomArea && (
+                <div
+                  className={`p-4 sm:p-5 rounded-2xl border space-y-4 animate-in fade-in duration-200 ${
+                    isLight ? "bg-amber-50/50 border-amber-200" : "bg-amber-950/20 border-amber-500/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      <span className="text-sm font-bold uppercase tracking-wider text-amber-400">
+                        Add Custom Floor Area / Extension
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-400">
+                      Priced accurately at base envelope & roof rate
+                    </span>
+                  </div>
+
+                  {/* Suggestion Chips */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] text-slate-400 font-semibold mr-1">Quick presets:</span>
+                    {[
+                      { name: "Rear Covered Deck", rate: 850, m2: 15 },
+                      { name: "Covered Terrace", rate: 850, m2: 12 },
+                      { name: "Workshop Extension", rate: 950, m2: 18 },
+                      { name: "Alfresco Extension", rate: 780, m2: 10 },
+                      { name: "Pergola / Patio", rate: 650, m2: 14 },
+                      { name: "Gym / Studio", rate: 1200, m2: 20 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => {
+                          setNewCustomAreaName(preset.name);
+                          setNewCustomAreaM2(preset.m2.toString());
+                          setNewCustomAreaRate(preset.rate.toString());
+                        }}
+                        className="px-2.5 py-1 text-xs rounded-lg border border-slate-700 bg-slate-900/60 hover:border-amber-500/50 hover:text-amber-300 text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {preset.name} ({preset.m2}m² @ ${preset.rate}/m²)
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs text-slate-400 font-semibold mb-1 block">
+                        Area / Room Name
+                      </Label>
+                      <Input
+                        placeholder="e.g. Rear Covered Deck, Workshop..."
+                        value={newCustomAreaName}
+                        onChange={(e) => setNewCustomAreaName(e.target.value)}
+                        className="h-10 text-sm rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-slate-400 font-semibold mb-1 block">
+                        Size (m²)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. 15.00"
+                        value={newCustomAreaM2}
+                        onChange={(e) => setNewCustomAreaM2(e.target.value)}
+                        className="h-10 text-sm font-mono font-bold rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-slate-400 font-semibold mb-1 block">
+                        Rate ($/m²)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="10"
+                        placeholder="850"
+                        value={newCustomAreaRate}
+                        onChange={(e) => setNewCustomAreaRate(e.target.value)}
+                        className="h-10 text-sm font-mono font-bold rounded-xl"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-amber-500/20">
+                    <div className="text-xs text-slate-400 font-mono">
+                      {Number(newCustomAreaM2) > 0 && Number(newCustomAreaRate) > 0 ? (
+                        <span>
+                          Addition:{" "}
+                          <strong className="text-emerald-400">
+                            +{formatAud(Math.round(Number(newCustomAreaM2) * Number(newCustomAreaRate)))}
+                          </strong>{" "}
+                          ({Number(newCustomAreaM2)} m² @ ${Number(newCustomAreaRate)}/m²)
+                        </span>
+                      ) : (
+                        "Specify name and size to add to modified plan"
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsAddingCustomArea(false)}
+                        className="rounded-xl text-xs text-slate-400 hover:text-white"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={!newCustomAreaName.trim() || Number(newCustomAreaM2) <= 0}
+                        onClick={() => {
+                          handleAddCustomArea(
+                            newCustomAreaName,
+                            Number(newCustomAreaM2),
+                            Number(newCustomAreaRate) || 850
+                          );
+                        }}
+                        className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1" /> Add Zone to Plan
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Floor Areas List */}
+              {customAreas.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                      Custom & Additional Floor Areas ({customAreas.length})
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">
+                      Subtotal:{" "}
+                      <strong className="text-emerald-400">
+                        +{formatAud(
+                          customAreas.reduce(
+                            (sum, ca) => sum + Math.round((Number(ca.m2) || 0) * (Number(ca.ratePerM2) || 850)),
+                            0
+                          )
+                        )}
+                      </strong>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {customAreas.map((ca) => {
+                      const m2Val = Number(ca.m2) || 0;
+                      const rateVal = Number(ca.ratePerM2) || 850;
+                      const addition = Math.round(m2Val * rateVal);
+
+                      return (
+                        <div
+                          key={ca.id}
+                          className={`p-4 rounded-2xl border transition-all ${
+                            isLight
+                              ? "bg-slate-50 border-cyan-200"
+                              : "bg-slate-950/60 border-cyan-500/30"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 truncate max-w-[170px]" title={ca.name}>
+                              {ca.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCustomArea(ca.id)}
+                              className="p-1 rounded text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                              title="Delete custom area"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={m2Val > 0 ? m2Val : ""}
+                              onChange={(e) => handleUpdateCustomArea(ca.id, parseFloat(e.target.value) || 0)}
+                              className="h-12 text-lg font-mono font-bold rounded-xl"
+                            />
+
+                            {/* Steppers */}
+                            <div className="flex items-center gap-1.5 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateCustomArea(ca.id, Math.max(0, m2Val - 1))}
+                                className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              >
+                                -1m²
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateCustomArea(ca.id, m2Val + 1)}
+                                className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              >
+                                +1m²
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1">
+                            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                              <span>Rate:</span>
+                              <span>${rateVal.toLocaleString()}/m²</span>
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] font-mono">
+                              <span className="text-slate-400">Delta:</span>
+                              <span className="text-emerald-500 font-bold">
+                                +{formatAud(addition)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Live Base Price Summary Bar */}
               <div

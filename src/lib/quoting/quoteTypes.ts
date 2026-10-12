@@ -58,13 +58,23 @@ export interface QuoteSelectedLineItem {
   dwellingName?: string;
 }
 
+export interface CustomFloorAreaItem {
+  id: string;
+  name: string;
+  m2: number;
+  ratePerM2: number;
+  recipeId?: string;
+}
+
 export interface CustomFloorplanSpec {
+  lowerLivingM2?: number;
   groundLivingM2: number;
   firstLivingM2: number;
   garageM2: number;
   alfrescoM2: number;
   porchM2: number;
   balconyM2: number;
+  customAreas?: CustomFloorAreaItem[];
   storeys: "single" | "double" | "split";
   // Custom rate overrides ($/m2)
   groundRateM2: number;
@@ -218,6 +228,7 @@ export type InclusionTier =
   | "Home Builders Series";
 
 export interface FloorplanAreaBreakdown {
+  lowerLivingM2?: number; // Lower Ground Living for Split Level (e.g. Mauve)
   livingM2?: number; // Single Storey living area
   groundLivingM2?: number; // Double Storey / Split / Dual living ground floor
   firstLivingM2?: number; // Double Storey / Split / Dual living first floor
@@ -225,6 +236,7 @@ export interface FloorplanAreaBreakdown {
   alfrescoM2: number;
   porchM2: number;
   balconyM2?: number;
+  customAreas?: CustomFloorAreaItem[];
   totalM2: number;
 }
 
@@ -274,6 +286,7 @@ export interface QuoteDesignSelection {
   standardBasePrice?: number; // Original standard base price for reference
   standardAreas?: Partial<FloorplanAreaBreakdown>;
   modifiedAreas?: Partial<FloorplanAreaBreakdown>;
+  areas?: Partial<FloorplanAreaBreakdown>;
   beds?: string;
   baths?: string;
   cars?: string;
@@ -437,13 +450,16 @@ export interface InternalRoomChange {
 }
 
 export interface CustomStandardAreas {
+  lowerLivingM2?: number;
   livingM2?: number;
   garageM2?: number;
   alfrescoM2?: number;
   porchM2?: number;
+  balconyM2?: number;
   totalM2?: number;
   groundLivingM2?: number;
   firstLivingM2?: number;
+  customAreas?: CustomFloorAreaItem[];
 }
 
 export interface BaseDesignCandidate {

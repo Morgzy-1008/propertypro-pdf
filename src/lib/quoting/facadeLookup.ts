@@ -91,12 +91,12 @@ export function findFacadeForDesign(
 
   const rawKey = facadeNameOrId.trim().toLowerCase();
   const baseKey = normalizeFacadeKey(facadeNameOrId);
-  // Cinnamon is a front-to-rear tri-level split, but Hudson does not have dedicated tri-level split facades.
-  // Treat Cinnamon as standard Double Storey for all facade lookups (e.g. Classic -> classic-double-garage, NOT cobalt).
-  const isCinnamon = Boolean(designName && /cinnamon/i.test(designName));
-  const effectiveIsDouble = isDouble || isCinnamon;
-  const effectiveHousingType = isCinnamon ? "Double Storey" : housingType;
-  const isNarrowDouble = effectiveIsDouble && !isCinnamon && isNarrowDoubleStorey(designName);
+  // Cinnamon and Mauve are split-level designs that have a normal double storey facade from the front.
+  // Treat them as standard Double Storey for all facade lookups (e.g. Classic -> classic-double-garage, NOT cobalt).
+  const isDoubleFrontSplit = Boolean(designName && /cinnamon|mauve/i.test(designName));
+  const effectiveIsDouble = isDouble || isDoubleFrontSplit;
+  const effectiveHousingType = isDoubleFrontSplit ? "Double Storey" : housingType;
+  const isNarrowDouble = effectiveIsDouble && !isDoubleFrontSplit && isNarrowDoubleStorey(designName);
 
   // 1. DUPLEX / DUAL OCCUPANCY / DUAL LIVING RESOLUTION (Highest Priority)
   const isDuplex =
@@ -214,8 +214,8 @@ export function findFacadeForDesign(
     }
   }
 
-  // SPLIT LEVEL RESOLUTION (Cobalt facades) - Bypassed for Cinnamon which uses standard Double Storey facades
-  if (!isCinnamon && (effectiveHousingType === "Split Level" || effectiveHousingType === "Split" || /cobalt|split/i.test(rawKey))) {
+  // SPLIT LEVEL RESOLUTION (Cobalt facades) - Bypassed for Cinnamon and Mauve which use standard Double Storey facades
+  if (!isDoubleFrontSplit && (effectiveHousingType === "Split Level" || effectiveHousingType === "Split" || /cobalt|split/i.test(rawKey))) {
     const splitIdMap: Record<string, string> = {
       classic: "classic-cobalt",
       hamptons: "hamptons-cobalt",

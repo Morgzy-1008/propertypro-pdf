@@ -136,10 +136,10 @@ export function getHousingTypePrices(division: string = getActiveDivision()): Re
     "Split Level": isNsw ? NSW_SPLIT_LEVEL_PRICES : SPLIT_LEVEL_PRICES,
     "Dual Living": dual,
     "Granny Flat": [
-      { name: "Acacia 60", m2: 60, h1: 154000, h2: 159000, h3: 167000, hbs: 154000 },
-      { name: "Banksia 60", m2: 60, h1: 156000, h2: 161000, h3: 169000, hbs: 156000 },
-      { name: "Coral 65", m2: 65, h1: 168000, h2: 174000, h3: 182000, hbs: 168000 },
-      { name: "Myrtle 70", m2: 70, h1: 178000, h2: 184000, h3: 193000, hbs: 178000 },
+      { name: "Acacia 60", m2: 60, h1: 154000, h2: 159000, h3: 167000, hbs: 154000, ss: 154000 },
+      { name: "Banksia 60", m2: 60, h1: 156000, h2: 161000, h3: 169000, hbs: 156000, ss: 156000 },
+      { name: "Coral 65", m2: 65, h1: 168000, h2: 174000, h3: 182000, hbs: 168000, ss: 168000 },
+      { name: "Myrtle 70", m2: 70, h1: 178000, h2: 184000, h3: 193000, hbs: 178000, ss: 178000 },
       ...dual,
     ],
   };
@@ -675,7 +675,16 @@ export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
   "Mahogany 48": {"groundLivingM2":190.21,"firstLivingM2":199.17,"garageM2":36,"alfrescoM2":20.51,"porchM2":3.03,"balconyM2":0,"totalM2":448.92},
   "Mahogany 56": {"groundLivingM2":209.35,"firstLivingM2":230.59,"garageM2":50.4,"alfrescoM2":22.46,"porchM2":3.03,"balconyM2":0,"totalM2":515.83},
   "Marigold 35": {"groundLivingM2":129.72,"firstLivingM2":143.31,"garageM2":36,"alfrescoM2":15.17,"porchM2":3.51,"balconyM2":0,"totalM2":327.71},
-  "Mauve 24": {"groundLivingM2":55.79,"firstLivingM2":150.58,"garageM2":38.92,"alfrescoM2":11.88,"porchM2":7.89,"balconyM2":6.68,"totalM2":271.74},
+  "Mauve 24": {"lowerLivingM2":34.12,"groundLivingM2":64.16,"firstLivingM2":76.03,"garageM2":33.46,"alfrescoM2":13.83,"porchM2":2.64,"balconyM2":0,"totalM2":224.24},
+  "Mauve 24 Classic": {"lowerLivingM2":34.12,"groundLivingM2":64.16,"firstLivingM2":76.03,"garageM2":33.46,"alfrescoM2":13.83,"porchM2":2.64,"balconyM2":0,"totalM2":224.24},
+  "Mauve 28": {"lowerLivingM2":58.89,"groundLivingM2":53.91,"firstLivingM2":96.56,"garageM2":33.99,"alfrescoM2":13.24,"porchM2":2.65,"balconyM2":0,"totalM2":259.24},
+  "Mauve 28 Classic": {"lowerLivingM2":58.89,"groundLivingM2":53.91,"firstLivingM2":96.56,"garageM2":33.99,"alfrescoM2":13.24,"porchM2":2.65,"balconyM2":0,"totalM2":259.24},
+  "Mauve 28 (qld)": {"lowerLivingM2":58.89,"groundLivingM2":53.91,"firstLivingM2":96.56,"garageM2":33.99,"alfrescoM2":13.24,"porchM2":2.65,"balconyM2":0,"totalM2":259.24},
+  "Mauve 32": {"lowerLivingM2":71.98,"groundLivingM2":65.03,"firstLivingM2":109.55,"garageM2":33.86,"alfrescoM2":15.00,"porchM2":2.65,"balconyM2":0,"totalM2":298.07},
+  "Mauve 32 Classic": {"lowerLivingM2":71.98,"groundLivingM2":65.03,"firstLivingM2":109.55,"garageM2":33.86,"alfrescoM2":15.00,"porchM2":2.65,"balconyM2":0,"totalM2":298.07},
+  "Mauve 35": {"lowerLivingM2":77.73,"groundLivingM2":79.44,"firstLivingM2":115.72,"garageM2":34.40,"alfrescoM2":18.72,"porchM2":2.65,"balconyM2":0,"totalM2":328.66},
+  "Mauve 35 Classic": {"lowerLivingM2":77.73,"groundLivingM2":79.44,"firstLivingM2":115.72,"garageM2":34.40,"alfrescoM2":18.72,"porchM2":2.65,"balconyM2":0,"totalM2":328.66},
+  "Mauve 35 (qld)": {"lowerLivingM2":77.73,"groundLivingM2":79.44,"firstLivingM2":115.72,"garageM2":34.40,"alfrescoM2":18.72,"porchM2":2.65,"balconyM2":0,"totalM2":328.66},
   "Mint 17": {"groundLivingM2":64.68,"firstLivingM2":67.16,"garageM2":18.63,"alfrescoM2":7.2,"porchM2":2.07,"balconyM2":0,"totalM2":159.74},
   "Mint 19": {"groundLivingM2":71.64,"firstLivingM2":76.99,"garageM2":18.63,"alfrescoM2":8.64,"porchM2":2.07,"balconyM2":0,"totalM2":177.97},
   "Mint 21": {"groundLivingM2":75.72,"firstLivingM2":81.93,"garageM2":18.63,"alfrescoM2":12.64,"porchM2":2.41,"balconyM2":0,"totalM2":191.33},
@@ -787,6 +796,18 @@ export function getStandardAreaBreakdown(
   const altName = cleanName.replace(/Cayene/i, "Cayenne");
   if (altName && HUDSON_STANDARD_AREAS[altName]) {
     return { ...HUDSON_STANDARD_AREAS[altName] };
+  }
+
+  // Case-insensitive lookup across HUDSON_STANDARD_AREAS
+  const lowerTarget = (designName || "").toLowerCase().trim();
+  const lowerClean = cleanName.toLowerCase();
+  const lowerAlt = altName.toLowerCase();
+  const foundAreaKey = Object.keys(HUDSON_STANDARD_AREAS).find((k) => {
+    const lk = k.toLowerCase();
+    return lk === lowerTarget || lk === lowerClean || lk === lowerAlt;
+  });
+  if (foundAreaKey) {
+    return { ...HUDSON_STANDARD_AREAS[foundAreaKey] };
   }
 
   // Check official architectural CAD registry
@@ -916,17 +937,34 @@ export function calculateModifiedFloorplanPricing(
   const effectiveStdGarage = rawStdGarage;
 
   if (isDoubleOrSplit) {
+    const hasLowerLiving =
+      stdAreas.lowerLivingM2 !== undefined ||
+      modAreas.lowerLivingM2 !== undefined ||
+      housingType === "Split Level" ||
+      Boolean(design?.designName && /mauve|split/i.test(design.designName));
+
     const zoneDefs: { key: string; label: string; std: number; mod: number; rate: number }[] = [
+      ...(hasLowerLiving
+        ? [
+            {
+              key: "lowerLivingM2",
+              label: "Lower Ground Living",
+              std: stdAreas.lowerLivingM2 ?? 0,
+              mod: modAreas.lowerLivingM2 !== undefined ? Number(modAreas.lowerLivingM2) : (stdAreas.lowerLivingM2 ?? 0),
+              rate: rateConfig.groundLivingM2 || activeTierRates.gf,
+            },
+          ]
+        : []),
       {
         key: "groundLivingM2",
-        label: housingType === "Split Level" ? "Lower/Ground Living" : "Ground Floor Living",
+        label: "Ground Floor Living",
         std: stdAreas.groundLivingM2 ?? 0,
         mod: modAreas.groundLivingM2 !== undefined ? Number(modAreas.groundLivingM2) : (stdAreas.groundLivingM2 ?? 0),
         rate: rateConfig.groundLivingM2 || activeTierRates.gf,
       },
       {
         key: "firstLivingM2",
-        label: housingType === "Split Level" ? "Upper Level Living" : "First Floor Living",
+        label: hasLowerLiving ? "Upper Level Living" : "First Floor Living",
         std: stdAreas.firstLivingM2 ?? 0,
         mod: modAreas.firstLivingM2 !== undefined ? Number(modAreas.firstLivingM2) : (stdAreas.firstLivingM2 ?? 0),
         rate: rateConfig.firstLivingM2 || activeTierRates.ff,
@@ -982,6 +1020,10 @@ export function calculateModifiedFloorplanPricing(
       });
     }
   } else {
+    const hasBalcony =
+      (stdAreas.balconyM2 && stdAreas.balconyM2 > 0) ||
+      (modAreas.balconyM2 !== undefined && Number(modAreas.balconyM2) > 0);
+
     const zoneDefs: { key: string; label: string; std: number; mod: number; rate: number }[] = [
       {
         key: "livingM2",
@@ -1011,6 +1053,17 @@ export function calculateModifiedFloorplanPricing(
         mod: modAreas.porchM2 !== undefined ? Number(modAreas.porchM2) : (stdAreas.porchM2 ?? 0),
         rate: rateConfig.porchM2 || activeTierRates.porch,
       },
+      ...(hasBalcony
+        ? [
+            {
+              key: "balconyM2",
+              label: "Balcony",
+              std: stdAreas.balconyM2 ?? 0,
+              mod: modAreas.balconyM2 !== undefined ? Number(modAreas.balconyM2) : (stdAreas.balconyM2 ?? 0),
+              rate: rateConfig.balconyM2 || activeTierRates.balcony,
+            },
+          ]
+        : []),
     ];
 
     for (const def of zoneDefs) {
@@ -1032,6 +1085,28 @@ export function calculateModifiedFloorplanPricing(
         isReduced: delta < 0,
         costAdjustment: cost,
       });
+    }
+  }
+
+  // Process any custom floor areas dynamically added by the estimator / user
+  const customAreasList = modAreas.customAreas || (design as any)?.areas?.customAreas;
+  if (Array.isArray(customAreasList)) {
+    for (const ca of customAreasList) {
+      const caM2 = Number(ca.m2) || 0;
+      if (ca && caM2 > 0) {
+        const rate = Number(ca.ratePerM2) || (activeTierRates as any).ancillary || activeTierRates.alfresco || 780;
+        const cost = Math.round(caM2 * rate);
+        zones.push({
+          key: `custom_${ca.id || ca.name}`,
+          label: ca.name || "Custom Floor Area",
+          standardM2: 0,
+          modifiedM2: caM2,
+          deltaM2: caM2,
+          ratePerM2: rate,
+          isReduced: false,
+          costAdjustment: cost,
+        });
+      }
     }
   }
 
@@ -1176,15 +1251,16 @@ export function calculateDesignGFA(design: QuoteDesignSelection): number {
   }
 
   // 2. Double Storey or Split Level:
-  // Footprint is ground floor slab: Ground Living + Garage + Porch + Alfresco
+  // Footprint is ground floor slab: Lower Ground Living + Ground Living + Garage + Porch + Alfresco
   if (design.isModifiedFloorplan) {
     const calc = calculateModifiedFloorplanPricing(design);
     const gLiving = calc.zones.find((z) => z.key === "groundLivingM2")?.modifiedM2 || 0;
+    const lowerLiving = calc.zones.find((z) => z.key === "lowerLivingM2")?.modifiedM2 || 0;
     const garage = calc.zones.find((z) => z.key === "garageM2")?.modifiedM2 || 0;
     const alfresco = calc.zones.find((z) => z.key === "alfrescoM2")?.modifiedM2 || 0;
     const porch = calc.zones.find((z) => z.key === "porchM2")?.modifiedM2 || 0;
-    if (gLiving > 0) {
-      return Number((gLiving + garage + alfresco + porch).toFixed(2));
+    if (gLiving > 0 || lowerLiving > 0) {
+      return Number((lowerLiving + gLiving + garage + alfresco + porch).toFixed(2));
     }
     return Number(calc.modifiedTotalM2.toFixed(2));
   }
@@ -1194,7 +1270,7 @@ export function calculateDesignGFA(design: QuoteDesignSelection): number {
     design.housingType,
     totalM2,
   );
-  const gLiving = stdAreas.groundLivingM2 || 0;
+  const gLiving = (stdAreas.lowerLivingM2 || 0) + (stdAreas.groundLivingM2 || 0);
   const garage = stdAreas.garageM2 || 0;
   const alfresco = stdAreas.alfrescoM2 || 0;
   const porch = stdAreas.porchM2 || 0;
@@ -2315,12 +2391,14 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
   // 4. Update standard facade uplift if not custom
   if (!quote.design.isCustomFacade && quote.design.facadeName) {
     try {
+      const isDouble = isDoubleStoreyDesign(quote.design.designName, quote.design.housingType);
+      const storey: FacadeStorey = isDouble ? "double" : "single";
       const facadePrice = facadePriceForDesign(
-        quote.design.housingType || "Single Storey",
         quote.design.facadeName,
+        storey,
         quote.design.designName
       );
-      quote.design.facadePrice = facadePrice;
+      quote.design.facadePrice = facadePrice ?? 0;
     } catch {}
   }
 

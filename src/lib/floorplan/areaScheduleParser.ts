@@ -7,6 +7,7 @@
  */
 
 export interface ExtractedAreaSchedule {
+  lowerLivingM2?: number;
   livingM2?: number;
   groundLivingM2?: number;
   firstLivingM2?: number;
@@ -57,7 +58,7 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
   };
 
   const evaluateCandidate = (c: ScheduleCandidate): number => {
-    const living = c.livingM2 || ((c.groundLivingM2 || 0) + (c.firstLivingM2 || 0)) || 0;
+    const living = c.livingM2 || (((c.lowerLivingM2 || 0) + (c.groundLivingM2 || 0) + (c.firstLivingM2 || 0))) || 0;
     const compSum = living + (c.garageM2 || 0) + (c.alfrescoM2 || 0) + (c.porchM2 || 0) + (c.balconyM2 || 0);
 
     // Reject obvious noise or physically impossible values
@@ -106,7 +107,9 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
     for (let i = 0; i < chunkLines.length; i++) {
       const l = chunkLines[i];
       // Zone labels typically start with optional numbered prefixes (e.g. "1. GROUND FLOOR LIVING AREA")
-      if (/(?:^|[\d+\.\)]\s*)(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING|LOWER\s*GROUND)/i.test(l)) {
+      if (/(?:^|[\d+\.\)]\s*)(?:LOWER\s*GROUND(?:\s*FLOOR)?(?:\s*LIVING)?|LOWER\s*LIVING)/i.test(l)) {
+        zoneLabels.push({ zone: "lowerLiving", label: l, lineIdx: i });
+      } else if (/(?:^|[\d+\.\)]\s*)(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?)/i.test(l)) {
         zoneLabels.push({ zone: "groundLiving", label: l, lineIdx: i });
       } else if (/(?:^|[\d+\.\)]\s*)(?:FIRST\s*FLOOR\s*LIVING(?:\s*AREA)?|FIRST\s*LIVING(?:\s*AREA)?|UPPER\s*LIVING)/i.test(l)) {
         zoneLabels.push({ zone: "firstLiving", label: l, lineIdx: i });
@@ -118,7 +121,7 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
         zoneLabels.push({ zone: "alfresco", label: l, lineIdx: i });
       } else if (/(?:^|[\d+\.\)]\s*)(?:ENTRY\s*PORCH|PORCH|PORTICO)/i.test(l) && !/door|d1|entry\s*max/i.test(l)) {
         zoneLabels.push({ zone: "porch", label: l, lineIdx: i });
-      } else if (/(?:^|[\d+\.\)]\s*)(?:BALCONY)/i.test(l)) {
+      } else if (/(?:^|[\d+\.\)]\s*)(?:BALCONY|UPPER\s*BALCONY|FRONT\s*BALCONY)/i.test(l)) {
         zoneLabels.push({ zone: "balcony", label: l, lineIdx: i });
       }
 
@@ -137,7 +140,8 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
       for (let k = 0; k < zoneLabels.length; k++) {
         const z = zoneLabels[k].zone;
         const val = numbersList[k].val;
-        if (z === "groundLiving") cand.groundLivingM2 = val;
+        if (z === "lowerLiving") cand.lowerLivingM2 = val;
+        else if (z === "groundLiving") cand.groundLivingM2 = val;
         else if (z === "firstLiving") cand.firstLivingM2 = val;
         else if (z === "living") cand.livingM2 = val;
         else if (z === "garage") cand.garageM2 = val;
@@ -161,7 +165,13 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
       const nextL = idx + 1 < chunkLines.length ? chunkLines[idx + 1] : "";
       const lineToTest = /\d/.test(l) ? l : `${l} ${nextL}`;
 
-      const matchGround = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      const matchLower = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:LOWER\s*GROUND(?:\s*FLOOR)?(?:\s*LIVING)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchLower && !blockCand.lowerLivingM2) {
+        blockCand.lowerLivingM2 = cleanNum(matchLower[1]);
+        blockCand.matchedLines?.push(`Lower Living -> ${blockCand.lowerLivingM2}`);
+      }
+
+      const matchGround = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchGround && !blockCand.groundLivingM2) {
         blockCand.groundLivingM2 = cleanNum(matchGround[1]);
         blockCand.matchedLines?.push(`Ground Living -> ${blockCand.groundLivingM2}`);
@@ -197,6 +207,12 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
         blockCand.matchedLines?.push(`Porch -> ${blockCand.porchM2}`);
       }
 
+      const matchBalcony = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:BALCONY|UPPER\s*BALCONY|FRONT\s*BALCONY|REAR\s*BALCONY))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchBalcony && !blockCand.balconyM2 && !/door|window|sliding/i.test(lineToTest)) {
+        blockCand.balconyM2 = cleanNum(matchBalcony[1], 80);
+        blockCand.matchedLines?.push(`Balcony -> ${blockCand.balconyM2}`);
+      }
+
       const matchTotal = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:TOTAL\s*(?:HOUSE|COVERED|SLAB|AREA|GBA|GFA)?|GROSS\s*(?:BUILDING\s*)?AREA))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchTotal && !blockCand.totalM2) {
         blockCand.totalM2 = cleanNum(matchTotal[1]);
@@ -221,7 +237,16 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
       const nextL = idx + 1 < allLines.length ? allLines[idx + 1] : "";
       const lineToTest = /\d/.test(l) ? l : `${l} ${nextL}`;
 
-      const matchGround = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      const matchLower = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:LOWER\s*GROUND(?:\s*FLOOR)?(?:\s*LIVING)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchLower && !globalCand.lowerLivingM2) {
+        const v = cleanNum(matchLower[1]);
+        if (v >= 20 && v <= 500) {
+          globalCand.lowerLivingM2 = v;
+          globalCand.matchedLines?.push(`Lower Living -> ${v}`);
+        }
+      }
+
+      const matchGround = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchGround && !globalCand.groundLivingM2) {
         const v = cleanNum(matchGround[1]);
         if (v >= 30 && v <= 500) {
@@ -272,6 +297,15 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
         if (v >= 0.5 && v <= 30) {
           globalCand.porchM2 = v;
           globalCand.matchedLines?.push(`Porch -> ${v}`);
+        }
+      }
+
+      const matchBalcony = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:BALCONY|UPPER\s*BALCONY|FRONT\s*BALCONY|REAR\s*BALCONY))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchBalcony && !globalCand.balconyM2 && !/door|window|sliding/i.test(lineToTest)) {
+        const v = cleanNum(matchBalcony[1], 80);
+        if (v >= 1 && v <= 80) {
+          globalCand.balconyM2 = v;
+          globalCand.matchedLines?.push(`Balcony -> ${v}`);
         }
       }
 
@@ -361,7 +395,7 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
   }
 
   const compSum =
-    (best.livingM2 || (best.groundLivingM2 || 0) + (best.firstLivingM2 || 0)) +
+    (best.livingM2 || (best.lowerLivingM2 || 0) + (best.groundLivingM2 || 0) + (best.firstLivingM2 || 0)) +
     (best.garageM2 || 0) +
     (best.alfrescoM2 || 0) +
     (best.porchM2 || 0) +
@@ -372,6 +406,7 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
       best.totalM2 = Number(compSum.toFixed(2));
     }
     return {
+      lowerLivingM2: best.lowerLivingM2,
       livingM2: best.livingM2,
       groundLivingM2: best.groundLivingM2,
       firstLivingM2: best.firstLivingM2,

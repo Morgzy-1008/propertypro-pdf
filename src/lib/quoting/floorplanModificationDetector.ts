@@ -57,6 +57,7 @@ export function resetFloorplanEngineMemory(): void {
  * Residential dwellings: total > 50m², living >= 40m², garage >= 20m², alfresco >= 2m², porch >= 0.5m²
  */
 export function sanitizeAreaSchedule(table?: {
+  lowerLivingM2?: number | null;
   livingM2?: number | null;
   groundLivingM2?: number | null;
   firstLivingM2?: number | null;
@@ -68,6 +69,7 @@ export function sanitizeAreaSchedule(table?: {
   widthM?: number | null;
   lengthM?: number | null;
 }): {
+  lowerLivingM2?: number;
   livingM2?: number;
   groundLivingM2?: number;
   firstLivingM2?: number;
@@ -81,6 +83,7 @@ export function sanitizeAreaSchedule(table?: {
 } {
   if (!table) return {};
   const sanitized: {
+    lowerLivingM2?: number;
     livingM2?: number;
     groundLivingM2?: number;
     firstLivingM2?: number;
@@ -95,6 +98,9 @@ export function sanitizeAreaSchedule(table?: {
 
   if (typeof table.totalM2 === "number" && !isNaN(table.totalM2) && table.totalM2 >= 50 && table.totalM2 <= 1000) {
     sanitized.totalM2 = table.totalM2;
+  }
+  if (typeof table.lowerLivingM2 === "number" && !isNaN(table.lowerLivingM2) && table.lowerLivingM2 >= 15 && table.lowerLivingM2 <= 400) {
+    sanitized.lowerLivingM2 = table.lowerLivingM2;
   }
   if (typeof table.livingM2 === "number" && !isNaN(table.livingM2) && table.livingM2 >= 40 && table.livingM2 <= 800) {
     sanitized.livingM2 = table.livingM2;
@@ -2175,15 +2181,18 @@ export async function identifyBaseDesignCandidate(
   };
 
   const parsedRegexTable = {
+    lowerLivingM2: parseCandidateM2(/(?:lower\s*(?:ground|floor|living)(?:\s*area)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i, 200),
     livingM2: parseCandidateM2(/(?:living(?:\s*area)?|ground\s*floor|first\s*floor|residence|habitable|internal(?:\s*area)?)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 350),
     garageM2: parseCandidateM2(/(?:garage(?:\s*\+\s*workshop)?|double\s*garage|dlug|carport)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 80),
     totalM2: parseCandidateM2(/(?:gross\s*building\s*area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 600),
     alfrescoM2: parseCandidateM2(/(?:(?:covered\s*)?a[li1t|]fresco|outdoor\s*living|patio|verandah?|terrace)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 80),
     porchM2: parseCandidateM2(/(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 30),
+    balconyM2: parseCandidateM2(/(?:(?:upper\s*|front\s*|rear\s*)?balcony)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 60),
   };
 
   const vTable = sanitizeAreaSchedule(visualModel?.scheduleTable);
   const rawExtractedTable = {
+    lowerLivingM2: scheduleParsed?.lowerLivingM2 || vTable?.lowerLivingM2 || parsedRegexTable.lowerLivingM2,
     livingM2:
       scheduleParsed?.livingM2 ||
       (scheduleParsed?.groundLivingM2 && scheduleParsed?.firstLivingM2
@@ -2196,7 +2205,7 @@ export async function identifyBaseDesignCandidate(
     garageM2: scheduleParsed?.garageM2 || vTable?.garageM2 || parsedRegexTable.garageM2,
     alfrescoM2: scheduleParsed?.alfrescoM2 || vTable?.alfrescoM2 || parsedRegexTable.alfrescoM2,
     porchM2: scheduleParsed?.porchM2 || vTable?.porchM2 || parsedRegexTable.porchM2,
-    balconyM2: scheduleParsed?.balconyM2,
+    balconyM2: scheduleParsed?.balconyM2 || vTable?.balconyM2 || parsedRegexTable.balconyM2,
     totalM2: scheduleParsed?.totalM2 || vTable?.totalM2 || parsedRegexTable.totalM2,
     widthM: vTable?.widthM,
     lengthM: vTable?.lengthM,
@@ -2472,6 +2481,13 @@ export async function analyzeModifiedFloorplanFile(
 
   const parsedDirectSchedule = parseAreaScheduleFromText(rawText);
 
+  const tableLowerLivingM2 =
+    parsedDirectSchedule?.lowerLivingM2 !== undefined
+      ? parsedDirectSchedule.lowerLivingM2
+      : extractM2(
+          /(?:lower\s*(?:ground|floor|living)(?:\s*area)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+          200
+        );
   const tableGroundLivingM2 =
     parsedDirectSchedule?.groundLivingM2 !== undefined
       ? parsedDirectSchedule.groundLivingM2
@@ -2517,6 +2533,13 @@ export async function analyzeModifiedFloorplanFile(
           /(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
           25
         );
+  let tableBalconyM2 =
+    parsedDirectSchedule?.balconyM2 !== undefined
+      ? parsedDirectSchedule.balconyM2
+      : extractM2(
+          /(?:(?:upper\s*|front\s*|rear\s*)?balcony)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+          60
+        );
   let tableTotalM2 =
     parsedDirectSchedule?.totalM2 !== undefined
       ? parsedDirectSchedule.totalM2
@@ -2534,6 +2557,7 @@ export async function analyzeModifiedFloorplanFile(
     tableGarageM2 = tableGarageM2 || pTable.garageM2;
     tableAlfrescoM2 = tableAlfrescoM2 || pTable.alfrescoM2;
     tablePorchM2 = tablePorchM2 || pTable.porchM2;
+    tableBalconyM2 = tableBalconyM2 || pTable.balconyM2;
     tableTotalM2 = tableTotalM2 || pTable.totalM2;
     tableWidthM = tableWidthM || pTable.widthM;
     tableLengthM = tableLengthM || pTable.lengthM;
@@ -2542,9 +2566,13 @@ export async function analyzeModifiedFloorplanFile(
   // Candidate Drawing Schedule Table (Specifications printed on the candidate drawing if present)
   const candidateTableSpec = sanitizeAreaSchedule({
     livingM2: tableLivingM2,
+    lowerLivingM2: tableLowerLivingM2,
+    groundLivingM2: tableGroundLivingM2,
+    firstLivingM2: tableFirstLivingM2,
     garageM2: tableGarageM2,
     alfrescoM2: tableAlfrescoM2,
     porchM2: tablePorchM2,
+    balconyM2: tableBalconyM2,
     totalM2: tableTotalM2,
     widthM: tableWidthM,
     lengthM: tableLengthM,
@@ -3402,6 +3430,31 @@ export async function analyzeModifiedFloorplanFile(
   }
 
 
+  // Balcony Area Detection (e.g. Balcony added to Mauve 35 or candidate drawing)
+  const candidateBalconyM2 = candidateTableSpec.balconyM2 || parsedDirectSchedule?.balconyM2;
+  const standardBalconyM2 = (stdAreas as any)?.balconyM2 || 0;
+  if (candidateBalconyM2 !== undefined && candidateBalconyM2 > 0) {
+    const balconyDelta = Math.round((candidateBalconyM2 - standardBalconyM2) * 100) / 100;
+    if (Math.abs(balconyDelta) >= 0.2) {
+      const existingBalcony = areaDeltas.find((d) => d.zoneKey === "balconyM2");
+      if (!existingBalcony) {
+        areaDeltas.push({
+          zoneKey: "balconyM2",
+          zoneLabel: balconyDelta > 0 ? "Balcony Area Extension" : "Balcony Area Reduction",
+          standardM2: standardBalconyM2,
+          modifiedM2: candidateBalconyM2,
+          deltaM2: balconyDelta,
+          recipeId: "recipe_balcony_m2",
+          unitRate: databuildRates.balcony_m2 || 850,
+          subtotal: balconyDelta > 0
+            ? Math.round(balconyDelta * (databuildRates.balcony_m2 || 850))
+            : Math.round(balconyDelta * (databuildRates.balcony_m2 || 850) * 0.8),
+          accepted: true,
+        });
+      }
+    }
+  }
+
   // 3. Intelligent Net Total Area Reconciliation & Balance Allocation:
   // If the modified plan's total area is greater than standardTotalM2 + 0.5:
   const effectiveModTotal = candidateTableSpec.totalM2 || geminiResult?.scheduleTable?.totalM2;
@@ -3410,12 +3463,28 @@ export async function analyzeModifiedFloorplanFile(
     const allocatedDelta = areaDeltas.reduce((sum, d) => sum + d.deltaM2, 0);
     const unallocatedM2 = Math.round((totalNetDelta - allocatedDelta) * 100) / 100;
     if (unallocatedM2 >= 0.5) {
-      // Check if unallocated area belongs to an unallocated Alfresco, Garage, or Porch
+      // Check if unallocated area belongs to an unallocated Balcony, Alfresco, Garage, or Porch
       const hasAlf = areaDeltas.some((d) => d.zoneKey === "alfrescoM2");
       const hasGar = areaDeltas.some((d) => d.zoneKey === "garageM2");
       const hasPor = areaDeltas.some((d) => d.zoneKey === "porchM2");
+      const hasBal = areaDeltas.some((d) => d.zoneKey === "balconyM2");
 
-      if (!hasAlf && candidateTableSpec.alfrescoM2) {
+      if (!hasBal && candidateTableSpec.balconyM2) {
+        const balDelta = Math.round((candidateTableSpec.balconyM2 - standardBalconyM2) * 100) / 100;
+        if (Math.abs(balDelta - unallocatedM2) < 0.5) {
+          areaDeltas.push({
+            zoneKey: "balconyM2",
+            zoneLabel: balDelta > 0 ? "Balcony Area Extension" : "Balcony Area Reduction",
+            standardM2: standardBalconyM2,
+            modifiedM2: candidateTableSpec.balconyM2,
+            deltaM2: balDelta,
+            recipeId: "recipe_balcony_m2",
+            unitRate: databuildRates.balcony_m2 || 850,
+            subtotal: balDelta > 0 ? Math.round(balDelta * (databuildRates.balcony_m2 || 850)) : Math.round(balDelta * (databuildRates.balcony_m2 || 850) * 0.8),
+            accepted: true,
+          });
+        }
+      } else if (!hasAlf && candidateTableSpec.alfrescoM2) {
         const alfDelta = Math.round((candidateTableSpec.alfrescoM2 - standardAlfrescoM2) * 100) / 100;
         if (Math.abs(alfDelta - unallocatedM2) < 0.5) {
           areaDeltas.push({

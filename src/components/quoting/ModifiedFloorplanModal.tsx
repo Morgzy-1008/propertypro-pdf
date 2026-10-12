@@ -32,6 +32,7 @@ if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
 }
 
 export interface ExtractedAreaSchedule {
+  lowerLivingM2?: number;
   livingM2?: number;
   groundLivingM2?: number;
   firstLivingM2?: number;
@@ -110,13 +111,13 @@ function legacyParseAreaScheduleFromText(text: string): ExtractedAreaSchedule | 
             if (lower.includes("lower ground") || lower.includes("lower floor") || lower.includes("lower living")) {
               if (!seenZones.has("lower_ground")) {
                 seenZones.add("lower_ground");
-                result.groundLivingM2 = (result.groundLivingM2 || 0) + val;
+                result.lowerLivingM2 = val;
                 result.matchedLines?.push(`${label} -> ${val}`);
               }
             } else if (lower.includes("ground floor living") || lower.includes("ground living") || (lower.includes("ground floor") && lower.includes("living"))) {
               if (!seenZones.has("ground_living")) {
                 seenZones.add("ground_living");
-                result.groundLivingM2 = (result.groundLivingM2 || 0) + val;
+                result.groundLivingM2 = val;
                 result.matchedLines?.push(`${label} -> ${val}`);
               }
             } else if (lower.includes("first floor living") || lower.includes("first living") || lower.includes("upper living")) {

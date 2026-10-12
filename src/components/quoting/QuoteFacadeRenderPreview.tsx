@@ -29,12 +29,12 @@ export function QuoteFacadeRenderPreview({
 
   const facadeName = design.facadeName || (design.designName ? "Classic" : "");
   const housingType = design.housingType || "Single Storey";
-  const isCinnamon = Boolean(design.designName && /cinnamon/i.test(design.designName));
+  const isDoubleFrontSplit = Boolean(design.designName && /cinnamon|mauve/i.test(design.designName));
   const isDouble = isDoubleStoreyDesign(
     design.designName,
     housingType,
     design.customSpec?.storeys,
-  ) || isCinnamon;
+  ) || isDoubleFrontSplit;
   const isDoubleOrSplit = Boolean(
     isDouble ||
     housingType === "Double Storey" ||
@@ -71,7 +71,7 @@ export function QuoteFacadeRenderPreview({
     setLoading(true);
 
     // Find matching facade using the comprehensive lookup engine
-    const matched = findFacadeForDesign(facadeName, isDouble, isCinnamon ? "Double Storey" : housingType, design.designName || design.modelName);
+    const matched = findFacadeForDesign(facadeName, isDouble, isDoubleFrontSplit ? "Double Storey" : housingType, design.designName || design.modelName);
 
     if (matched) {
       if (isMounted) {
