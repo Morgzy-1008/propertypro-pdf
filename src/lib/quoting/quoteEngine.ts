@@ -159,25 +159,29 @@ export function getTierPrice(
   const isHBS = norm.includes("HBS") || norm.includes("HOME BUILDER");
   const isSS = norm.includes("SS") || norm.includes("SMART SERIES") || norm.includes("SMART STYLE") || norm.includes("FHB") || norm.includes("START SMART") || norm.includes("FIRST HOME");
   const isIP = norm.includes("IP") || norm.includes("INVEST");
+  const effectiveDiv = (division || (model as any).division || getActiveDivision() || "").toUpperCase();
 
-  if (isSS) {
-    const fhb = findFhbPrice(model.name, division || (model as any).division || getActiveDivision(), housingType);
+  // If division is NSW, FHB and IP should never return QLD prices
+  if (effectiveDiv === "NSW" && (isSS || isIP)) {
+    return model.h2 || model.h1 || 0;
+  }
+
+  // The investment package pricing should be the exact same price as the first home buyer range for those particular designs
+  if (isSS || isIP) {
+    const fhb = findFhbPrice(model.name, effectiveDiv, housingType);
     if (fhb !== null) return fhb;
     if (model.fhb) return model.fhb;
     if (model.ss) return model.ss;
+    return model.h2 || model.h1 || 0;
   }
 
   if (housingType === "Dual Living") {
     if (isHBS) return (model as any).hbs || model.h1 || 0;
-    if (isSS) return (model as any).ss || (model as any).hbs || model.h1 || 0;
-    if (isIP) return model.h1 || model.h2 || 0;
     if (isH1) return model.h1 || (model as any).hbs || 0;
     if (isH3) return (model as any).h3 || model.h2 || 0;
     return model.h2 || model.h1 || 0;
   }
   if (isHBS) return (model as any).hbs || model.h1 || 0;
-  if (isSS) return (model as any).ss || (model as any).hbs || model.h1 || 0;
-  if (isIP) return model.h1 || model.h2 || 0;
   if (isH1) return model.h1 || (model as any).hbs || 0;
   if (isH3) return (model as any).h3 || model.h2 || 0;
   return model.h2 || model.h1 || 0;
@@ -1473,10 +1477,12 @@ export function calculateQuotePricing(
   // Calculate GFA (m2) of building footprint on slab
   const gfaM2 = calculateDesignGFA(design);
 
-  // Landscaping and Driveway Packages
+  // Landscaping and Driveway Packages (FHB and IP Turnkey Packages)
   const isFhbTier =
     (design.specTier || "").toLowerCase().includes("fhb") ||
     (design.specTier || "").toLowerCase().includes("start smart") ||
+    (design.specTier || "").toLowerCase().includes("ip") ||
+    (design.specTier || "").toLowerCase().includes("invest") ||
     (design.specTier || "").toLowerCase() === "ss" ||
     (design.specTier || "").toLowerCase().includes("smart series");
 

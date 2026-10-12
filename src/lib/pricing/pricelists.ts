@@ -150,44 +150,23 @@ export function findFhbPrice(
 
   // Determine lists to search
   const divUpper = (division || "").toUpperCase();
-  let candidateLists: FhbPriceRow[][] = [];
+
+  // Strict isolation: For New South Wales, do NOT show Queensland pricing!
+  // Per user instructions, FHB and Investment Package options are strictly for Queensland
+  // until official NSW prices are provided.
   if (divUpper === "NSW") {
-    candidateLists = [NSW_FHB_SINGLE_STOREY_PRICES, ALL_FHB_PRICES];
-  } else if (divUpper === "QLD") {
-    candidateLists = [QLD_FHB_DOUBLE_STOREY_PRICES, ALL_FHB_PRICES];
-  } else {
-    // If division is not provided or ALL, search all
-    candidateLists = [ALL_FHB_PRICES];
+    return null;
   }
 
-  // Handle Azure 19 bedrooms explicitly
-  const isAzure19 = /azure\s*19\b/i.test(name);
-  if (isAzure19) {
-    const is3Bed =
-      /3\s*(?:bed|bedroom)/i.test(name) ||
-      options?.bedrooms === 3 ||
-      options?.bedrooms === "3";
-    const targetName = is3Bed ? "Azure 19 - (3 Bedrooms)" : "Azure 19 - (4 Bedrooms)";
-    const match = ALL_FHB_PRICES.find((r) => r.name === targetName);
-    if (match) return match.fhbPrice;
-  }
+  // QLD FHB / IP search list: strictly the 22 Turnkey designs
+  const candidateLists = [QLD_FHB_DOUBLE_STOREY_PRICES];
 
   // Handle Mocha 24 garage explicitly
   const isMocha24 = /mocha\s*24\b/i.test(name);
   if (isMocha24) {
     const isDetached = /detach/i.test(name) || /detach/i.test(options?.garage || "");
     const targetName = isDetached ? "Mocha 24 (Detached Garage)" : "Mocha 24 (Attached Garage)";
-    const match = ALL_FHB_PRICES.find((r) => r.name === targetName);
-    if (match) return match.fhbPrice;
-  }
-
-  // Handle Carmine MK2 explicitly if searched as Carmine 21 or Carmine 23
-  if (/^carmine\s*21(?:\s*(?:mk\s*2|mkii|mk2))?$/i.test(rawTrimmed)) {
-    const match = ALL_FHB_PRICES.find((r) => r.name.toLowerCase().startsWith("carmine 21"));
-    if (match) return match.fhbPrice;
-  }
-  if (/^carmine\s*23(?:\s*(?:mk\s*2|mkii|mk2))?$/i.test(rawTrimmed)) {
-    const match = ALL_FHB_PRICES.find((r) => r.name.toLowerCase().startsWith("carmine 23"));
+    const match = QLD_FHB_DOUBLE_STOREY_PRICES.find((r) => r.name === targetName);
     if (match) return match.fhbPrice;
   }
 
@@ -203,6 +182,45 @@ export function findFhbPrice(
   }
 
   return null;
+}
+
+/**
+ * 22 official designs eligible for First Home Buyer (FHB) and Investment Package (IP) turnkey inclusions in Queensland.
+ */
+export const QLD_FHB_IP_DESIGNS: readonly string[] = [
+  "Carolina 22",
+  "Carolina 24",
+  "Cerise 20",
+  "Lime 19",
+  "Lime 21",
+  "Lime 23",
+  "Lime 25",
+  "Mint 17",
+  "Mint 19",
+  "Mint 21",
+  "Mint 24",
+  "Mocha 24 (Attached Garage)",
+  "Mocha 24 (Detached Garage)",
+  "Mocha 25",
+  "Orchid 23 (s/g)",
+  "Orchid 25 (s/g)",
+  "Ruby 19 (s/g)",
+  "Ruby 21 (s/g)",
+  "Ruby 23 (s/g)",
+  "Sabel 28",
+  "Terracotta 23 (s/g)",
+  "Terracotta 25",
+];
+
+/**
+ * Checks whether a design is eligible for First Home Buyer (FHB) or Investment Package (IP) options.
+ * Strictly available only for Queensland on the 22 certified turnkey designs.
+ */
+export function isFhbIpEligibleDesign(name?: string, division?: string): boolean {
+  if (!name) return false;
+  const divUpper = (division || "QLD").toUpperCase();
+  if (divUpper === "NSW") return false;
+  return findFhbPrice(name, "QLD") !== null;
 }
 
 /**

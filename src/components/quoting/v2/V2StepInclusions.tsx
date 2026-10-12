@@ -10,6 +10,8 @@ import {
   SPLIT_LEVEL_PRICES,
 } from "@/lib/pricelist.data";
 import { getTierPrice } from "@/lib/quoting/quoteEngine";
+import { isFhbIpEligibleDesign } from "@/lib/pricing/pricelists";
+import { getActiveDivision } from "@/lib/divisionContext";
 import { getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
 import type { QuoteDesignSelection, InclusionTier } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
@@ -145,12 +147,28 @@ export function V2StepInclusions({
 
   const currentTierNormalized = (design.specTier || "H2").toUpperCase();
 
+  const division = (design as any).division || getActiveDivision();
+  const isNsw = division === "NSW";
+  const isCurrentDesignFhbEligible = !isNsw && isFhbIpEligibleDesign(design.designName, division);
+
+  const availableTiers = isNsw
+    ? TIERS.filter((t) => t.shortCode !== "IP" && t.shortCode !== "FHB")
+    : TIERS;
+
   const handleSelectTier = (tier: InclusionTier, shortCode: "H1" | "H2" | "H3" | "IP" | "FHB", autoShift: boolean = true) => {
+    const isFhbOrIp = shortCode === "IP" || shortCode === "FHB";
+    if (isFhbOrIp && !isCurrentDesignFhbEligible) {
+      toast.error(
+        `${tier} is only available on selected QLD Turnkey designs (Carolina, Lime, Mint, Mocha, Orchid, Ruby, Sabel, Terracotta, Cerise). Please choose an eligible design first.`
+      );
+      return;
+    }
+
     let nextBasePrice = design.basePrice;
     let nextStdBasePrice = design.standardBasePrice;
 
     if (currentModel) {
-      nextBasePrice = getTierPrice(currentModel, tier, design.housingType);
+      nextBasePrice = getTierPrice(currentModel, tier, design.housingType, division);
       nextStdBasePrice = nextBasePrice;
     }
 
@@ -195,42 +213,55 @@ export function V2StepInclusions({
         </div>
       </div>
 
-      {/* 5 Inclusion Tier Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        {TIERS.map((item) => {
+      {/* Inclusion Tier Cards */}
+      <div className={`grid gap-4 ${isNsw ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"}`}>
+        {availableTiers.map((item) => {
           const isSelected =
             currentTierNormalized.includes(item.shortCode) ||
             design.specTier?.toLowerCase() === item.tier.toLowerCase() ||
             (item.shortCode === "FHB" && (currentTierNormalized.includes("SS") || currentTierNormalized.includes("START") || currentTierNormalized.includes("FIRST"))) ||
             (item.shortCode === "IP" && (currentTierNormalized.includes("INVEST") || currentTierNormalized.includes("IP")));
 
+          const isFhbOrIp = item.shortCode === "IP" || item.shortCode === "FHB";
+          const isTierDisabled = isFhbOrIp && !isCurrentDesignFhbEligible;
+
           // Calculate price for this design at this tier
           const tierPrice = currentModel
-            ? getTierPrice(currentModel, item.tier, design.housingType)
+            ? getTierPrice(currentModel, item.tier, design.housingType, division)
             : design.basePrice || 0;
 
           return (
             <div
               key={item.shortCode}
-              onClick={() => handleSelectTier(item.tier, item.shortCode, true)}
-              className={`rounded-2xl border p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 relative hover:scale-[1.01] ${
-                isSelected
+              onClick={() => !isTierDisabled && handleSelectTier(item.tier, item.shortCode, true)}
+              className={`rounded-2xl border p-5 flex flex-col justify-between transition-all duration-200 relative ${
+                isTierDisabled
                   ? isLight
-                    ? "bg-emerald-50/90 border-emerald-500 shadow-lg ring-2 ring-emerald-500/30"
-                    : "bg-emerald-950/30 border-emerald-500 shadow-xl ring-2 ring-emerald-500/40"
+                    ? "bg-slate-100/70 border-slate-200 opacity-60 cursor-not-allowed"
+                    : "bg-slate-950/40 border-slate-900 opacity-50 cursor-not-allowed"
+                  : isSelected
+                  ? isLight
+                    ? "bg-emerald-50/90 border-emerald-500 shadow-lg ring-2 ring-emerald-500/30 cursor-pointer hover:scale-[1.01]"
+                    : "bg-emerald-950/30 border-emerald-500 shadow-xl ring-2 ring-emerald-500/40 cursor-pointer hover:scale-[1.01]"
                   : isLight
-                  ? "bg-white border-slate-200 hover:border-slate-300 shadow-sm"
-                  : "bg-slate-900/60 border-slate-800/80 hover:border-slate-700 backdrop-blur-md"
+                  ? "bg-white border-slate-200 hover:border-slate-300 shadow-sm cursor-pointer hover:scale-[1.01]"
+                  : "bg-slate-900/60 border-slate-800/80 hover:border-slate-700 backdrop-blur-md cursor-pointer hover:scale-[1.01]"
               }`}
             >
               {/* Optional Ribbon Badge */}
-              {item.badge && (
+              {isTierDisabled ? (
+                <div className="absolute -top-3 right-4">
+                  <Badge className="bg-amber-500/20 text-amber-500 border border-amber-500/30 font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 shadow-sm">
+                    22 QLD Models Only
+                  </Badge>
+                </div>
+              ) : item.badge ? (
                 <div className="absolute -top-3 right-4">
                   <Badge className={`${item.badgeColor || "bg-emerald-500 text-slate-950"} font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 shadow-sm`}>
                     {item.badge}
                   </Badge>
                 </div>
-              )}
+              ) : null}
 
               <div>
                 {/* Header info */}

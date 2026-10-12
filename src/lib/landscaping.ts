@@ -133,7 +133,9 @@ export function landscapingPriceFor(
     normTier === "ss" ||
     normTier.includes("fhb") ||
     normTier.includes("start smart") ||
-    normTier.includes("first home");
+    normTier.includes("first home") ||
+    normTier.includes("ip") ||
+    normTier.includes("invest");
 
   if (isFhb) {
     return getFhbLandscapeAllowance(landSize);

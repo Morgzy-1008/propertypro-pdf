@@ -54,6 +54,11 @@ import {
   NSW_SPLIT_LEVEL_PRICES,
   NSW_DUAL_OC_PRICES,
 } from "@/lib/pricelist.nsw.data";
+import {
+  isFhbIpEligibleDesign,
+  findFhbPrice,
+  QLD_FHB_IP_DESIGNS,
+} from "@/lib/pricing/pricelists";
 import { getActiveDivision, onDivisionChanged, type Division } from "@/lib/divisionContext";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import {
@@ -361,6 +366,21 @@ export function V2StepFloorPlan({
     return list;
   }, [division]);
 
+  const isNsw = division === "NSW";
+
+  const isCurrentDesignFhbEligible = useMemo(() => {
+    if (isNsw) return false;
+    return isFhbIpEligibleDesign(design.designName, division);
+  }, [design.designName, division, isNsw]);
+
+  // For NSW, only make sure H1, H2, H3 are available (per user directive: FHB/IP are available only for QLD price list)
+  const availableTiers = useMemo(() => {
+    if (isNsw) {
+      return INCLUSION_TIERS.filter((t) => t.shortCode !== "IP" && t.shortCode !== "FHB");
+    }
+    return INCLUSION_TIERS;
+  }, [isNsw]);
+
   // Re-price design when division changes so QLD vs NSW prices update live
   useEffect(() => {
     if (design.designName && (design.mode === "standard" || !design.mode)) {
@@ -368,10 +388,16 @@ export function V2StepFloorPlan({
         (m) => m.row.name.toLowerCase() === design.designName.toLowerCase()
       );
       if (matched) {
-        const tier = design.specTier || "H2 Design Collection";
-        const newBasePrice = getTierPrice(matched.row, tier, matched.type);
-        if (newBasePrice > 0 && newBasePrice !== design.basePrice) {
+        let tier = design.specTier || "H2 Design Collection";
+        // If state changed to NSW and active tier was FHB/IP, revert to H2
+        if (isNsw && (tier.includes("IP") || tier.includes("FHB") || tier.includes("Start Smart"))) {
+          tier = "H2 Design Collection";
+          setSelectedTierCode("H2");
+        }
+        const newBasePrice = getTierPrice(matched.row, tier, matched.type, division);
+        if (newBasePrice > 0 && (newBasePrice !== design.basePrice || tier !== design.specTier)) {
           onChange({
+            specTier: tier,
             standardBasePrice: newBasePrice,
             basePrice: newBasePrice,
             designM2: matched.row.m2,
@@ -379,7 +405,7 @@ export function V2StepFloorPlan({
         }
       }
     }
-  }, [division, allModels]);
+  }, [division, allModels, isNsw]);
 
   // Filtered designs for current house type and search
   const filteredModels = useMemo(() => {
@@ -387,11 +413,16 @@ export function V2StepFloorPlan({
       if (type !== houseType) return false;
       if (searchQuery.trim().length > 0) {
         const query = searchQuery.toLowerCase().trim();
-        return row.name.toLowerCase().includes(query);
+        const matchesName = row.name.toLowerCase().includes(query);
+        const matchesFhb =
+          (query === "fhb" || query.includes("invest") || query === "turnkey") &&
+          !isNsw &&
+          isFhbIpEligibleDesign(row.name, division);
+        return matchesName || matchesFhb;
       }
       return true;
     });
-  }, [allModels, houseType, searchQuery]);
+  }, [allModels, houseType, searchQuery, isNsw, division]);
 
   // Filtered designs for modified floor plan base design selector
   const filteredModifiedModels = useMemo(() => {
@@ -730,7 +761,7 @@ export function V2StepFloorPlan({
 
   // Handle selecting a standard catalogue design
   const handleSelectModel = (row: PriceRow, type: HousingTypeTab) => {
-    const tier = selectedTierCode
+    let tier = selectedTierCode
       ? (selectedTierCode === "H1"
           ? "H1 Smart Living"
           : selectedTierCode === "H2"
@@ -741,7 +772,20 @@ export function V2StepFloorPlan({
           ? "IP Investor Pack"
           : "FHB Start Smart")
       : (design.specTier || "H2 Design Collection");
-    const basePrice = getTierPrice(row, tier, type);
+
+    // If active tier is IP or FHB, but the newly selected design is NOT eligible:
+    if (
+      (tier.includes("IP") || tier.includes("FHB") || tier.includes("Start Smart")) &&
+      !isFhbIpEligibleDesign(row.name, division)
+    ) {
+      tier = "H2 Design Collection";
+      setSelectedTierCode("H2");
+      toast.info(
+        `${row.name} is not in the FHB / Investor turnkey range. Specification reset to H2 Design Collection.`
+      );
+    }
+
+    const basePrice = getTierPrice(row, tier, type, division);
     const planInfo = plansForDesign(row.name)[0];
     const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
 
@@ -756,6 +800,7 @@ export function V2StepFloorPlan({
       designM2: row.m2,
       housingType: type,
       basePrice,
+      specTier: tier,
       bedrooms: planInfo?.beds ? Number(planInfo.beds) : (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3)),
       bathrooms: planInfo?.baths ? Number(planInfo.baths) : 1,
       garage: planInfo?.cars ? Number(planInfo.cars) : (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1)),
@@ -782,17 +827,25 @@ export function V2StepFloorPlan({
 
   // Switch Inclusion Tier (Point 3)
   const handleSelectTier = (tierDef: TierCardDef) => {
+    const isFhbOrIp = tierDef.shortCode === "IP" || tierDef.shortCode === "FHB";
+    if (isFhbOrIp && !isCurrentDesignFhbEligible) {
+      toast.error(
+        `${tierDef.title} is only available on selected QLD Turnkey designs (Carolina, Lime, Mint, Mocha, Orchid, Ruby, Sabel, Terracotta, Cerise). Please choose an eligible design first.`
+      );
+      return;
+    }
+
     const tier = tierDef.tier;
     let nextBasePrice = design.basePrice || 350000;
 
     if (designMode === "standard" && currentModel) {
-      nextBasePrice = getTierPrice(currentModel.row, tier, houseType);
+      nextBasePrice = getTierPrice(currentModel.row, tier, houseType, division);
     } else if (designMode === "modified" && design.baseDesignCandidate) {
       const candModel = allModels.find(
         (m) => m.row.name.toLowerCase() === design.baseDesignCandidate!.modelName.toLowerCase()
       );
       if (candModel) {
-        const stdBase = getTierPrice(candModel.row, tier, houseType);
+        const stdBase = getTierPrice(candModel.row, tier, houseType, division);
         const calc = calculateModifiedFloorplanPricing({
           ...design,
           specTier: tier,
@@ -801,7 +854,7 @@ export function V2StepFloorPlan({
         nextBasePrice = calc.modifiedBasePrice;
       }
     } else if (designMode === "modified" && currentModel) {
-      const stdBase = getTierPrice(currentModel.row, tier, houseType);
+      const stdBase = getTierPrice(currentModel.row, tier, houseType, division);
       const calc = calculateModifiedFloorplanPricing({
         ...design,
         specTier: tier,
@@ -1838,7 +1891,7 @@ export function V2StepFloorPlan({
                 ) : (
                   filteredModels.map(({ row, type }) => {
                     const isSelected = design.designName?.toLowerCase() === row.name.toLowerCase();
-                    const tierPrice = getTierPrice(row, design.specTier || "H2", type);
+                    const tierPrice = getTierPrice(row, design.specTier || "H2", type, division);
                     const planInfo = plansForDesign(row.name)[0];
 
                     return (
@@ -1858,11 +1911,16 @@ export function V2StepFloorPlan({
                         }`}
                       >
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-2.5 flex-wrap">
                             <span className="text-base font-extrabold truncate">{row.name}</span>
                             <span className="text-xs px-2.5 py-0.5 rounded-md bg-slate-500/10 text-slate-400 font-mono font-semibold">
                               {row.m2} m²
                             </span>
+                            {!isNsw && isFhbIpEligibleDesign(row.name, division) && (
+                              <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                                FHB / IP Turnkey
+                              </span>
+                            )}
                             {isSelected && (
                               <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-none" />
                             )}
@@ -3422,31 +3480,54 @@ export function V2StepFloorPlan({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            {INCLUSION_TIERS.map((tierDef) => {
+          <div
+            className={`grid gap-4 ${
+              isNsw
+                ? "grid-cols-1 md:grid-cols-3"
+                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+            }`}
+          >
+            {availableTiers.map((tierDef) => {
               const isSelected = selectedTierCode === tierDef.shortCode;
+              const isFhbOrIp = tierDef.shortCode === "IP" || tierDef.shortCode === "FHB";
+              const isTierDisabled = isFhbOrIp && !isCurrentDesignFhbEligible;
+
+              // Direct card price calculation
+              let cardPrice: number | null = null;
+              if (currentModel) {
+                cardPrice = getTierPrice(currentModel.row, tierDef.tier, houseType, division);
+              }
+
               return (
                 <div
                   key={tierDef.shortCode}
                   data-testid={`tier-card-${tierDef.shortCode.toLowerCase()}`}
-                  onClick={() => handleSelectTier(tierDef)}
-                  className={`p-5 sm:p-6 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01] relative flex flex-col justify-between ${
-                    isSelected
+                  onClick={() => !isTierDisabled && handleSelectTier(tierDef)}
+                  className={`p-5 sm:p-6 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+                    isTierDisabled
                       ? isLight
-                        ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
-                        : "bg-emerald-950/30 border-emerald-400 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400"
+                        ? "bg-slate-100/70 border-slate-200 opacity-60 cursor-not-allowed"
+                        : "bg-slate-950/40 border-slate-900 opacity-50 cursor-not-allowed"
+                      : isSelected
+                      ? isLight
+                        ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20 cursor-pointer hover:scale-[1.01]"
+                        : "bg-emerald-950/30 border-emerald-400 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400 cursor-pointer hover:scale-[1.01]"
                       : isLight
-                      ? "bg-slate-50 border-slate-200 hover:border-slate-300"
-                      : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                      ? "bg-slate-50 border-slate-200 hover:border-slate-300 cursor-pointer hover:scale-[1.01]"
+                      : "bg-slate-950/60 border-slate-800 hover:border-slate-700 cursor-pointer hover:scale-[1.01]"
                   }`}
                 >
-                  {tierDef.badge && (
+                  {isTierDisabled ? (
+                    <span className="absolute -top-3 right-4 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full shadow-xs bg-amber-500/20 text-amber-500 border border-amber-500/30">
+                      22 QLD Models Only
+                    </span>
+                  ) : tierDef.badge ? (
                     <span
                       className={`absolute -top-3 right-4 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full shadow-xs ${tierDef.badgeColor}`}
                     >
                       {tierDef.badge}
                     </span>
-                  )}
+                  ) : null}
 
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
@@ -3459,7 +3540,25 @@ export function V2StepFloorPlan({
                     <h4 className={`text-lg sm:text-xl font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
                       {tierDef.title}
                     </h4>
-                    <p className="text-xs sm:text-sm text-slate-400 mb-4">{tierDef.tagline}</p>
+                    <p className="text-xs sm:text-sm text-slate-400 mb-2">{tierDef.tagline}</p>
+
+                    {/* Direct Pricing Display on Card */}
+                    <div className="mb-3">
+                      {isTierDisabled ? (
+                        <span className="text-[11px] text-amber-500/90 font-semibold block leading-tight">
+                          Only available on 22 certified FHB/Investor designs
+                        </span>
+                      ) : cardPrice ? (
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-xl sm:text-2xl font-mono font-black text-emerald-500">
+                            {formatAud(cardPrice)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                            Base
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
 
                     <ul className="space-y-2 text-xs sm:text-sm text-slate-400 border-t border-slate-700/40 pt-3">
                       {tierDef.features.map((f, i) => (
