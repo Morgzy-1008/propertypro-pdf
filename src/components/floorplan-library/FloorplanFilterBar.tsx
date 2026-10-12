@@ -59,6 +59,7 @@ const HOUSE_TYPES: { label: string; short: string; value: HouseTypeFilter }[] = 
 ];
 
 const INCLUSIONS_TIERS: { label: string; sub: string; value: InclusionsTier }[] = [
+  { label: "FHB", sub: "Start Smart", value: "SS" },
   { label: "H1", sub: "Smart Living", value: "H1" },
   { label: "H2", sub: "Design", value: "H2" },
   { label: "H3", sub: "Luxury", value: "H3" },

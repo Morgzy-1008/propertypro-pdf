@@ -45,6 +45,7 @@ import logoUrl from "@/assets/hudson-homes-logo.png";
 import { formatAud } from "@/lib/pricing";
 import { pdfDocumentToPagesAndText, pdfPagesToDataUrls } from "@/lib/pdfPages";
 import { DevelopersDialog } from "@/components/database/DevelopersDialog";
+import { PricelistsTab } from "@/components/database/PricelistsTab";
 import { devKey, listDevelopers, rememberDeveloper } from "@/lib/developers";
 import { parseDeveloperPriceList, extractLotsFromText, type ParsedLot } from "@/lib/parseLotList";
 import {
@@ -1465,7 +1466,7 @@ function DatabasePage() {
   const { mode } = useTheme();
   const isLight = mode === "normal";
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"lots" | "packages">("lots");
+  const [tab, setTab] = useState<"lots" | "packages" | "pricelists">("lots");
   const [stateFilter, setStateFilter] = useState<"ALL" | "QLD" | "NSW">("ALL");
   const [lots, setLots] = useState<Lot[]>([]);
   const [packages, setPackages] = useState<Pkg[]>([]);
@@ -2350,7 +2351,7 @@ function DatabasePage() {
       <main className="space-y-5 p-4 sm:p-6 relative z-10 flex-1 max-w-[1700px] mx-auto w-full">
         <div className="flex flex-wrap items-center gap-3">
           <div className={`flex rounded-xl border ${isLight ? "border-slate-200 bg-white shadow-xs" : "border-slate-800/90 bg-slate-900/90 shadow-inner"} p-1 backdrop-blur-md`}>
-            {(["lots", "packages"] as const).map((t) => (
+            {(["lots", "packages", "pricelists"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -2360,15 +2361,23 @@ function DatabasePage() {
                       ? isLight
                         ? "bg-cyan-100 text-cyan-900 border border-cyan-300 shadow-xs font-bold"
                         : "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : isLight
-                        ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-bold"
-                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-amber-200 border border-brand-gold/40 shadow-sm"
+                      : t === "packages"
+                        ? isLight
+                          ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-bold"
+                          : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-amber-200 border border-brand-gold/40 shadow-sm"
+                        : isLight
+                          ? "bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs font-bold"
+                          : "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
                     : isLight
                       ? "text-slate-600 hover:text-slate-900"
                       : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                {t === "lots" ? `Land lots (${lots.length})` : `Packages (${packages.length})`}
+                {t === "lots"
+                  ? `Land lots (${lots.length})`
+                  : t === "packages"
+                    ? `Packages (${packages.length})`
+                    : "Price Lists (FHB & 2026)"}
               </button>
             ))}
           </div>
@@ -2388,7 +2397,7 @@ function DatabasePage() {
                     : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              All States ({tab === "lots" ? lots.length : packages.length})
+              All States {tab === "pricelists" ? "(NSW & QLD)" : `(${tab === "lots" ? lots.length : packages.length})`}
             </button>
             <button
               type="button"
@@ -2404,7 +2413,7 @@ function DatabasePage() {
               }`}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
-              QLD ({tab === "lots" ? qldLotsCount : qldPkgsCount})
+              QLD {tab === "pricelists" ? "(22 FHB)" : `(${tab === "lots" ? qldLotsCount : qldPkgsCount})`}
             </button>
             <button
               type="button"
@@ -2420,127 +2429,131 @@ function DatabasePage() {
               }`}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              NSW ({tab === "lots" ? nswLotsCount : nswPkgsCount})
+              NSW {tab === "pricelists" ? "(55 FHB)" : `(${tab === "lots" ? nswLotsCount : nswPkgsCount})`}
             </button>
           </div>
 
-          <Input
-            className={`h-9 w-full rounded-lg text-xs sm:max-w-xs ${
-              isLight
-                ? "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-cyan-500 shadow-xs"
-                : "border-slate-800 bg-slate-900/80 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60"
-            }`}
-            placeholder={tab === "lots" ? "Search estate, suburb, lot…" : "Search package, design, facade, suburb…"}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {tab === "lots" ? (
-            <Select value={lotSort} onValueChange={(v) => setLotSort(v as typeof lotSort)}>
-              <SelectTrigger className={`h-9 w-[180px] rounded-lg text-xs ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
-                <SelectItem value="registration">Sort: Registration</SelectItem>
-                <SelectItem value="land_price">Sort: Land price</SelectItem>
-                <SelectItem value="land_size">Sort: Land size</SelectItem>
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Package Sort Dropdown */}
-              <Select value={pkgSort} onValueChange={(v) => setPkgSort(v as typeof pkgSort)}>
-                <SelectTrigger className={`h-9 w-[180px] rounded-lg text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
-                  <SelectItem value="price_asc">Sort: Price (Low → High)</SelectItem>
-                  <SelectItem value="price_desc">Sort: Price (High → Low)</SelectItem>
-                  <SelectItem value="suburb">Sort: Suburb (A–Z)</SelectItem>
-                  <SelectItem value="design">Sort: Design (A–Z)</SelectItem>
-                  <SelectItem value="house_price">Sort: House Price</SelectItem>
-                  <SelectItem value="land_price">Sort: Land Price</SelectItem>
-                </SelectContent>
-              </Select>
+          {tab !== "pricelists" && (
+            <>
+              <Input
+                className={`h-9 w-full rounded-lg text-xs sm:max-w-xs ${
+                  isLight
+                    ? "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-cyan-500 shadow-xs"
+                    : "border-slate-800 bg-slate-900/80 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60"
+                }`}
+                placeholder={tab === "lots" ? "Search estate, suburb, lot…" : "Search package, design, facade, suburb…"}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {tab === "lots" ? (
+                <Select value={lotSort} onValueChange={(v) => setLotSort(v as typeof lotSort)}>
+                  <SelectTrigger className={`h-9 w-[180px] rounded-lg text-xs ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
+                    <SelectItem value="registration">Sort: Registration</SelectItem>
+                    <SelectItem value="land_price">Sort: Land price</SelectItem>
+                    <SelectItem value="land_size">Sort: Land size</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Package Sort Dropdown */}
+                  <Select value={pkgSort} onValueChange={(v) => setPkgSort(v as typeof pkgSort)}>
+                    <SelectTrigger className={`h-9 w-[180px] rounded-lg text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
+                      <SelectItem value="price_asc">Sort: Price (Low → High)</SelectItem>
+                      <SelectItem value="price_desc">Sort: Price (High → Low)</SelectItem>
+                      <SelectItem value="suburb">Sort: Suburb (A–Z)</SelectItem>
+                      <SelectItem value="design">Sort: Design (A–Z)</SelectItem>
+                      <SelectItem value="house_price">Sort: House Price</SelectItem>
+                      <SelectItem value="land_price">Sort: Land Price</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-              {/* Package Status Filter Dropdown */}
-              <Select value={pkgStatusFilter} onValueChange={(v) => setPkgStatusFilter(v as typeof pkgStatusFilter)}>
-                <SelectTrigger className={`h-9 w-[155px] rounded-lg text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
-                  <SelectItem value="ALL">All Statuses ({packages.length})</SelectItem>
-                  <SelectItem value="live">
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
-                      Live ({packages.filter((p) => p.status === "live").length})
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="draft">
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.9)]" />
-                      Draft ({packages.filter((p) => p.status === "draft").length})
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="sold">
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" />
-                      Sold ({packages.filter((p) => p.status === "sold").length})
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="nhc_exclusive">
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
-                      Exclusive ({packages.filter((p) => p.status === "nhc_exclusive").length})
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                  {/* Package Status Filter Dropdown */}
+                  <Select value={pkgStatusFilter} onValueChange={(v) => setPkgStatusFilter(v as typeof pkgStatusFilter)}>
+                    <SelectTrigger className={`h-9 w-[155px] rounded-lg text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
+                      <SelectItem value="ALL">All Statuses ({packages.length})</SelectItem>
+                      <SelectItem value="live">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                          Live ({packages.filter((p) => p.status === "live").length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="draft">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.9)]" />
+                          Draft ({packages.filter((p) => p.status === "draft").length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="sold">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" />
+                          Sold ({packages.filter((p) => p.status === "sold").length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="nhc_exclusive">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
+                          Exclusive ({packages.filter((p) => p.status === "nhc_exclusive").length})
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
 
-              {/* Package Beds Filter Dropdown */}
-              <Select value={pkgBedFilter} onValueChange={(v) => setPkgBedFilter(v as typeof pkgBedFilter)}>
-                <SelectTrigger className={`h-9 w-[120px] rounded-lg text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
-                  <SelectItem value="ALL">All Beds</SelectItem>
-                  <SelectItem value="3">3 Bedrooms</SelectItem>
-                  <SelectItem value="4">4 Bedrooms</SelectItem>
-                  <SelectItem value="5+">5+ Bedrooms</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                  {/* Package Beds Filter Dropdown */}
+                  <Select value={pkgBedFilter} onValueChange={(v) => setPkgBedFilter(v as typeof pkgBedFilter)}>
+                    <SelectTrigger className={`h-9 w-[120px] rounded-lg text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
+                      <SelectItem value="ALL">All Beds</SelectItem>
+                      <SelectItem value="3">3 Bedrooms</SelectItem>
+                      <SelectItem value="4">4 Bedrooms</SelectItem>
+                      <SelectItem value="5+">5+ Bedrooms</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2 sm:ml-auto">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}
+                  onClick={() => {
+                    const url = stateFilter !== "ALL" ? `/browse/land?state=${stateFilter}` : "/browse/land";
+                    window.open(url, "_blank", "noopener");
+                  }}
+                >
+                  <FileDown className="h-3.5 w-3.5 text-cyan-400" /> Customer land PDF
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}
+                  onClick={() => {
+                    const url = stateFilter !== "ALL" ? `/browse/packages?view=sheet&state=${stateFilter}` : "/browse/packages?view=sheet";
+                    window.open(url, "_blank", "noopener");
+                  }}
+                >
+                  <FileDown className="h-3.5 w-3.5 text-amber-400" /> Customer packages PDF
+                </Button>
+                {tab === "lots" && (
+                  <>
+                    <DevelopersDialog />
+                    <ImportDialog onSaved={load} existingLots={lots} />
+                    <LotDialog onSaved={load} />
+                  </>
+                )}
+              </div>
+            </>
           )}
-          <div className="flex flex-wrap gap-2 sm:ml-auto">
-            <Button
-              size="sm"
-              variant="outline"
-              className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}
-              onClick={() => {
-                const url = stateFilter !== "ALL" ? `/browse/land?state=${stateFilter}` : "/browse/land";
-                window.open(url, "_blank", "noopener");
-              }}
-            >
-              <FileDown className="h-3.5 w-3.5 text-cyan-400" /> Customer land PDF
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}
-              onClick={() => {
-                const url = stateFilter !== "ALL" ? `/browse/packages?view=sheet&state=${stateFilter}` : "/browse/packages?view=sheet";
-                window.open(url, "_blank", "noopener");
-              }}
-            >
-              <FileDown className="h-3.5 w-3.5 text-amber-400" /> Customer packages PDF
-            </Button>
-            {tab === "lots" && (
-              <>
-                <DevelopersDialog />
-                <ImportDialog onSaved={load} existingLots={lots} />
-                <LotDialog onSaved={load} />
-              </>
-            )}
-          </div>
         </div>
 
         {tab === "lots" && selLots.length > 0 && (
@@ -3150,7 +3163,7 @@ function DatabasePage() {
               )}
             </table>
           </div>
-        ) : (
+        ) : tab === "packages" ? (
           <div className="space-y-4">
             {/* Packages Overhead Summary Cards / Totals */}
             <div
@@ -3838,26 +3851,30 @@ function DatabasePage() {
               </table>
             </div>
           </div>
+        ) : (
+          <PricelistsTab isLight={isLight} initialStateFilter={stateFilter} />
         )}
 
         {/* Global Live Availability Status Legend with Atmospheric Glows */}
-        <div
-          className={`mt-4 pt-3 pb-1 flex flex-wrap items-center gap-3 text-xs border-t ${
-            isLight ? "border-slate-200 text-slate-600" : "border-slate-800/60 text-slate-400"
-          }`}
-        >
-          <span className={`font-semibold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-            Availability Status Legend:
-          </span>
-          <StatusPill value="available" isLight={isLight} />
-          <span className="text-[11px] mr-2">Available for sale</span>
-          <StatusPill value="on_hold" isLight={isLight} />
-          <span className="text-[11px] mr-2">Client hold (24h)</span>
-          <StatusPill value="sold" isLight={isLight} />
-          <span className="text-[11px] mr-2">Unconditionally sold</span>
-          <StatusPill value="nhc_exclusive" isLight={isLight} />
-          <span className="text-[11px]">NHC exclusive release</span>
-        </div>
+        {tab !== "pricelists" && (
+          <div
+            className={`mt-4 pt-3 pb-1 flex flex-wrap items-center gap-3 text-xs border-t ${
+              isLight ? "border-slate-200 text-slate-600" : "border-slate-800/60 text-slate-400"
+            }`}
+          >
+            <span className={`font-semibold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+              Availability Status Legend:
+            </span>
+            <StatusPill value="available" isLight={isLight} />
+            <span className="text-[11px] mr-2">Available for sale</span>
+            <StatusPill value="on_hold" isLight={isLight} />
+            <span className="text-[11px] mr-2">Client hold (24h)</span>
+            <StatusPill value="sold" isLight={isLight} />
+            <span className="text-[11px] mr-2">Unconditionally sold</span>
+            <StatusPill value="nhc_exclusive" isLight={isLight} />
+            <span className="text-[11px]">NHC exclusive release</span>
+          </div>
+        )}
 
       {/* Offscreen host for direct A4 PDF download */}
       <div

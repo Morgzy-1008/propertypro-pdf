@@ -247,6 +247,9 @@ export function FloorplanPresentationModal({
               <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
                 Pricelist:
               </span>
+              <div className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-mono font-bold">
+                FHB: ${activeVariant.prices.ss.toLocaleString()}
+              </div>
               <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
                 H1: ${activeVariant.prices.h1.toLocaleString()}
               </div>

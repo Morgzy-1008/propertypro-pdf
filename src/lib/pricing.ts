@@ -13,6 +13,7 @@ import {
 } from "./pricelist.nsw.data";
 import { getActiveDivision, type Division } from "./divisionContext";
 import type { RangeId } from "@/components/flyer/types";
+import { findFhbPrice } from "./pricing/pricelists";
 
 export type HousingType = "single-storey" | "double-storey" | "split-level" | "acreage" | "dual-oc" | "granny-flat";
 
@@ -146,6 +147,11 @@ export function findDesign(name: string, division?: Division): PriceRow | undefi
 export const PROMO_DISCOUNT = 0;
 
 export function housePriceFor(name: string, range: RangeId, division?: Division): number | null {
+  const div = division || getActiveDivision();
+  if (range === "ss") {
+    const fhb = findFhbPrice(name, div);
+    if (fhb !== null) return fhb;
+  }
   const row = findDesign(name, division);
   if (!row) return null;
   const lists = getPriceLists(division);

@@ -235,7 +235,8 @@ export function V2StepVariations({
     currentLandSize,
     quote.design.housingType,
     quote.design.designName,
-    division
+    division,
+    quote.design.specTier
   );
   const isLandscapingActive = Boolean(quote.design.landscapingSelected);
 
@@ -253,7 +254,8 @@ export function V2StepVariations({
       ...(next ? { exposedDrivewaySelected: false, exposedDrivewayCost: 0 } : {}),
     });
     if (next) {
-      toast.success(`Added Turnkey Landscaping Package (+${formatAud(currentLandscapingCost)})`);
+      const sign = currentLandscapingCost >= 0 ? "+" : "";
+      toast.success(`Added Turnkey Landscaping Package (${sign}${formatAud(currentLandscapingCost)})`);
     } else {
       toast.info("Removed Landscaping Package");
     }
@@ -262,7 +264,7 @@ export function V2StepVariations({
   const handleLandSizeChange = (valStr: string) => {
     if (!onDesignChange) return;
     const size = Number(valStr) || 450;
-    const price = landscapingPriceFor(size, quote.design.housingType, quote.design.designName, division);
+    const price = landscapingPriceFor(size, quote.design.housingType, quote.design.designName, division, quote.design.specTier);
     onDesignChange({
       landscapingSelected: true,
       landscapingLandSize: size,
@@ -270,7 +272,8 @@ export function V2StepVariations({
       exposedDrivewaySelected: false,
       exposedDrivewayCost: 0,
     });
-    toast.success(`Updated Landscaping Package for ${size} m² lot (+${formatAud(price)})`);
+    const sign = price >= 0 ? "+" : "";
+    toast.success(`Updated Landscaping Package for ${size} m² lot (${sign}${formatAud(price)})`);
   };
 
   const handleToggleDriveway = () => {
@@ -1231,7 +1234,11 @@ export function V2StepVariations({
                       ? isLight ? "text-emerald-700" : "text-emerald-400"
                       : "text-slate-400"
                   }`}>
-                    +{formatAud(currentLandscapingCost)}
+                    {currentLandscapingCost < 0
+                      ? `-${formatAud(Math.abs(currentLandscapingCost))}`
+                      : currentLandscapingCost === 0
+                      ? "Included ($0)"
+                      : `+${formatAud(currentLandscapingCost)}`}
                   </span>
                   <Button
                     type="button"

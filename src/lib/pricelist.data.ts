@@ -8,7 +8,10 @@ export interface PriceRow {
   h1: number;
   h2: number;
   h3: number;
+  fhb?: number;
 }
+
+export * from "./pricing/pricelists";
 
 export const SINGLE_STOREY_PRICES: PriceRow[] = [
   {
@@ -958,6 +961,16 @@ export const DOUBLE_STOREY_PRICES: PriceRow[] = [
     h1: 490900,
     h2: 528900,
     h3: 586900
+  },
+  {
+    name: "Cerise 20",
+    m2: 184.98,
+    hbs: 359900,
+    ss: 474900,
+    h1: 424900,
+    h2: 452900,
+    h3: 498900,
+    fhb: 474900
   },
   {
     name: "Emerald 28",

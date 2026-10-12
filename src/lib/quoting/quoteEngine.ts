@@ -14,6 +14,7 @@ import {
   NSW_SPLIT_LEVEL_PRICES,
   NSW_DUAL_OC_PRICES,
 } from "@/lib/pricelist.nsw.data";
+import { findFhbPrice } from "@/lib/pricing/pricelists";
 import { facadePriceForDesign } from "@/components/flyer/facadePricing";
 import { HUDSON_CAD_REGISTRY } from "@/components/flyer/floorplanVisionEngine";
 import { getActiveDivision, type Division } from "@/lib/divisionContext";
@@ -149,6 +150,7 @@ export function getTierPrice(
   model: PriceRow,
   tier: string = "H2",
   housingType?: string,
+  division?: string,
 ): number {
   if (!model) return 0;
   const norm = String(tier || "H2").toUpperCase();
@@ -157,6 +159,11 @@ export function getTierPrice(
   const isHBS = norm.includes("HBS") || norm.includes("HOME BUILDER");
   const isSS = norm.includes("SS") || norm.includes("SMART SERIES") || norm.includes("SMART STYLE") || norm.includes("FHB") || norm.includes("START SMART") || norm.includes("FIRST HOME");
   const isIP = norm.includes("IP") || norm.includes("INVEST");
+
+  if (isSS) {
+    const fhb = findFhbPrice(model.name, division || getActiveDivision(), housingType);
+    if (fhb !== null) return fhb;
+  }
 
   if (housingType === "Dual Living") {
     if (isHBS) return (model as any).hbs || model.h1 || 0;
@@ -1459,7 +1466,7 @@ export function calculateQuotePricing(
 
   // Landscaping and Driveway Packages
   const landscapingCost = design.landscapingSelected
-    ? (Number(design.landscapingCost) > 0 ? Number(design.landscapingCost) : landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName, (design as any).state || (site as any).state))
+    ? (Number(design.landscapingCost) > 0 ? Number(design.landscapingCost) : landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName, (design as any).state || (site as any).state, design.specTier))
     : 0;
 
   const exposedDrivewayCost = design.exposedDrivewaySelected && !design.landscapingSelected

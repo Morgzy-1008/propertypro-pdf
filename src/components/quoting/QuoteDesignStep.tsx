@@ -504,7 +504,8 @@ export function QuoteDesignStep({
               design.landscapingLandSize || 450,
               detectedType,
               design.designName,
-              newDiv
+              newDiv,
+              design.specTier,
             );
           }
 
@@ -1943,12 +1944,12 @@ export function QuoteDesignStep({
                 const isSelected =
                   design.specTier === tier.id ||
                   (tier.id === "Home Builders Series" && (design.specTier === "Home Builders Series" || design.specTier === "Hudson Base")) ||
-                  (tier.id === "Smart Series" && (design.specTier === "Smart Series" || design.specTier === "Smart Style")) ||
+                  (tier.id === "Smart Series" && (design.specTier === "Smart Series" || design.specTier === "Smart Style" || design.specTier === "FHB Start Smart" || design.specTier === "FHB Inclusions" || String(design.specTier || "").includes("FHB") || String(design.specTier || "").includes("START SMART"))) ||
                   (tier.id === "H1 Smart Inclusions" && (design.specTier === "H1 Smart Inclusions" || design.specTier === "H1 Inclusions (2025)")) ||
                   (tier.id === "H2 Design Inclusions" && (design.specTier === "H2 Design Inclusions" || design.specTier === "H2 Inclusions (2025)")) ||
                   (tier.id === "H3 Luxury Inclusions" && (design.specTier === "H3 Luxury Inclusions" || design.specTier === "H3 Inclusions (2025)"));
                 
-                const tierStdPrice = currentModel ? getTierPrice(currentModel, tier.id, design.housingType) : 0;
+                const tierStdPrice = currentModel ? getTierPrice(currentModel, tier.id, design.housingType, division) : 0;
                 let tierDisplayPrice = tierStdPrice;
                 if (design.isModifiedFloorplan && currentModel) {
                   const tempDesign: QuoteDesignSelection = {
@@ -2266,7 +2267,7 @@ export function QuoteDesignStep({
                 onClick={() => {
                   const next = !design.landscapingSelected;
                   const size = design.landscapingLandSize || 450;
-                  const price = next ? landscapingPriceFor(size, design.housingType, design.designName, division) : 0;
+                  const price = next ? landscapingPriceFor(size, design.housingType, design.designName, division, design.specTier) : 0;
                   onChange({
                     landscapingSelected: next,
                     landscapingLandSize: size,
@@ -2310,7 +2311,7 @@ export function QuoteDesignStep({
                       value={String(design.landscapingLandSize || 450)}
                       onValueChange={(val) => {
                         const size = Number(val);
-                        const price = landscapingPriceFor(size, design.housingType, design.designName, division);
+                        const price = landscapingPriceFor(size, design.housingType, design.designName, division, design.specTier);
                         onChange({
                           landscapingSelected: true,
                           landscapingLandSize: size,
@@ -2337,7 +2338,12 @@ export function QuoteDesignStep({
                   <div className="text-right pl-2">
                     <span className="text-[10px] text-slate-400 block">Package Total:</span>
                     <span className="font-extrabold text-emerald-400 font-mono text-sm block">
-                      +{formatAud(landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName, division))}
+                      {(() => {
+                        const lsCost = landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName, division, design.specTier);
+                        if (lsCost < 0) return `-${formatAud(Math.abs(lsCost))}`;
+                        if (lsCost === 0) return "Included ($0)";
+                        return `+${formatAud(lsCost)}`;
+                      })()}
                     </span>
                   </div>
                 </div>

@@ -116,13 +116,29 @@ function tiersFor(housingType: string, designName: string, stateOrDivision?: str
   return DUAL_OC[key] ?? DUAL_OC.maize;
 }
 
+import { getFhbLandscapeAllowance, FHB_LANDSCAPE_PACKAGES } from "./pricing/pricelists";
+
+export { getFhbLandscapeAllowance, FHB_LANDSCAPE_PACKAGES };
+
 /** Blocks larger than the published 900m² tier are quoted individually. */
 export function landscapingPriceFor(
   landSize: string | number,
   housingType = "single-storey",
   designName = "",
   stateOrDivision?: string,
+  tierOrRange?: string,
 ): number {
+  const normTier = String(tierOrRange || "").toLowerCase();
+  const isFhb =
+    normTier === "ss" ||
+    normTier.includes("fhb") ||
+    normTier.includes("start smart") ||
+    normTier.includes("first home");
+
+  if (isFhb) {
+    return getFhbLandscapeAllowance(landSize);
+  }
+
   const size = Number(String(landSize).replace(/[^0-9.]/g, ""));
   if (!Number.isFinite(size) || size <= 0) return 0;
   const tiers = tiersFor(housingType, designName, stateOrDivision);

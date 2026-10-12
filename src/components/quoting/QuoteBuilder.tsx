@@ -264,7 +264,9 @@ export function QuoteBuilder() {
     try {
       const rawPlanBridge =
         localStorage.getItem("hudson_imported_floorplan_bridge") ||
-        localStorage.getItem("hudson_draft_quote_from_concept");
+        localStorage.getItem("hudson_draft_quote_from_concept") ||
+        sessionStorage.getItem("hudson_plan_bridge") ||
+        localStorage.getItem("hudson_plan_bridge");
 
       if (rawPlanBridge) {
         const bridge = JSON.parse(rawPlanBridge);
@@ -308,7 +310,8 @@ export function QuoteBuilder() {
             ));
 
           setQuote((prev) => {
-            const specTier = prev.design.specTier || "H2";
+            const specTier = bridge.specTier || prev.design.specTier || "H2";
+            const bridgeState = bridge.state || prev.client.state;
             const standardBasePrice = matchedHudson
               ? getTierPrice(matchedHudson.row, specTier, housingType)
               : (Number(bridge.standardBasePrice) || Number(bridge.basePrice) || prev.design.basePrice);
@@ -353,6 +356,7 @@ export function QuoteBuilder() {
               ...prev.design,
               designName: canonicalName,
               housingType,
+              specTier,
               designM2: stdTotalM2,
               standardDesignM2: stdTotalM2,
               standardBasePrice,
@@ -379,6 +383,7 @@ export function QuoteBuilder() {
 
             const updatedClient = {
               ...prev.client,
+              state: bridgeState || prev.client.state,
               clientName: bridge.clientName || bridge.client?.clientName || prev.client.clientName,
               notes: bridge.notes || bridge.client?.notes || prev.client.notes,
             };
@@ -420,6 +425,8 @@ export function QuoteBuilder() {
           }
           localStorage.removeItem("hudson_imported_floorplan_bridge");
           localStorage.removeItem("hudson_draft_quote_from_concept");
+          sessionStorage.removeItem("hudson_plan_bridge");
+          localStorage.removeItem("hudson_plan_bridge");
         }
       }
 

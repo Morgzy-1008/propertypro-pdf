@@ -800,8 +800,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       const costs = data.landscaping
         ? {
             ...data.costs,
-            driveway: 0,
-            landscaping: landscapingPriceFor(data.landSize, data.housingType, name),
+            driveway: data.range === "ss" ? 0 : 0,
+            landscaping: landscapingPriceFor(data.landSize, data.housingType, name, division, data.range),
           }
         : data.costs;
       applyPricing(name, data.range, data.landPrice, nextUplift, costs);
@@ -856,16 +856,32 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
   const selectRange = (range: FlyerData["range"]) => {
     set("range", range);
-    applyPricing(data.designName, range, data.landPrice, uplift);
+    let nextCosts = data.costs;
+    if (data.landscaping || range === "ss") {
+      const lsCost = landscapingPriceFor(
+        data.landSize || 450,
+        data.housingType,
+        data.designName,
+        division,
+        range,
+      );
+      nextCosts = {
+        ...data.costs,
+        driveway: range === "ss" ? 0 : (data.costs.driveway || 12000),
+        landscaping: lsCost,
+      };
+      set("costs", nextCosts);
+    }
+    applyPricing(data.designName, range, data.landPrice, uplift, nextCosts);
   };
 
   const setLandSize = (v: string) => {
     set("landSize", v);
-    if (!data.landscaping) return;
+    if (!data.landscaping && data.range !== "ss") return;
     const next = {
       ...data.costs,
-      driveway: 0,
-      landscaping: landscapingPriceFor(v, data.housingType, data.designName),
+      driveway: data.range === "ss" ? 0 : data.costs.driveway,
+      landscaping: landscapingPriceFor(v, data.housingType, data.designName, division, data.range),
     };
     set("costs", next);
     const h = parseAud(data.housePrice);
@@ -921,8 +937,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     const next = on
       ? {
           ...data.costs,
-          driveway: 0,
-          landscaping: landscapingPriceFor(data.landSize, data.housingType, data.designName),
+          driveway: data.range === "ss" ? 0 : 0,
+          landscaping: landscapingPriceFor(data.landSize, data.housingType, data.designName, division, data.range),
         }
       : {
           ...data.costs,
@@ -1900,7 +1916,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 set("facadeUrl", "");
                 const base = defaultCosts(v);
                 const nextCosts = data.landscaping
-                  ? { ...base, driveway: 0, landscaping: landscapingPriceFor(data.landSize, v, "") }
+                  ? { ...base, driveway: data.range === "ss" ? 0 : 0, landscaping: landscapingPriceFor(data.landSize, v, "", division, data.range) }
                   : base;
                 set("costs", nextCosts);
                 const amount = facadeUpliftFor(
@@ -2190,8 +2206,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               const next = data.landscaping
                 ? {
                     ...base,
-                    driveway: 0,
-                    landscaping: landscapingPriceFor(data.landSize, data.housingType, data.designName),
+                    driveway: data.range === "ss" ? 0 : 0,
+                    landscaping: landscapingPriceFor(data.landSize, data.housingType, data.designName, division, data.range),
                   }
                 : base;
               set("costs", next);
