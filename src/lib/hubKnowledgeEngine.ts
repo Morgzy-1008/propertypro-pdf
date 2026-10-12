@@ -12,6 +12,23 @@ import {
   evaluatePropertyFeasibility,
   type FeasibilityAssessmentResult,
 } from "@/lib/planning/universalPlanningEngine";
+import {
+  HUDSON_OPTIONS_PRICE_LIST_2026,
+  type HudsonPlanOption,
+} from "@/lib/quoting/hudsonOptionsPriceList2026";
+import {
+  SINGLE_STOREY_PRICES,
+  DOUBLE_STOREY_PRICES,
+  SPLIT_LEVEL_PRICES,
+  DUAL_OC_PRICES,
+  type PriceRow,
+} from "@/lib/pricelist.data";
+import {
+  NSW_SINGLE_STOREY_PRICES,
+  NSW_DOUBLE_STOREY_PRICES,
+  NSW_SPLIT_LEVEL_PRICES,
+  NSW_DUAL_OC_PRICES,
+} from "@/lib/pricelist.nsw.data";
 
 export interface HubAiResponse {
   answer: string;
@@ -626,11 +643,319 @@ export const HISTORICAL_CLIENT_TENDERS_DATA: HistoricalClientTender[] = [
   }
 ];
 
+// ============================================================================
+// HUDSON ARCHITECTURAL DESIGN & OPTIONS PRICING ENGINE
+// ============================================================================
+
+export function evaluateDesignAndOptionPricing(
+  query: string,
+  rawMessage: string
+): HubAiResponse | null {
+  const norm = query.toLowerCase().trim();
+
+  // Guard: Must be related to pricing, options, upgrades, or specific plan queries
+  const isPricingOrOptionIntent =
+    /\b(?:price|pricing|cost|costs|how\s*much|quote|option|options|upgrade|upgrades|suite|retreat|workshop|balcony|ensuite|alfresco|living\s*room|bed\s*[45]|skylight|gallery|storage|roller\s*door|nook|wc|h1|h2|h3|spec)\b/i.test(norm) ||
+    norm.startsWith("price") ||
+    norm.startsWith("cost");
+
+  if (!isPricingOrOptionIntent) {
+    return null;
+  }
+
+  // Combine all base pricelists for lookup
+  const allQldPrices: PriceRow[] = [
+    ...SINGLE_STOREY_PRICES,
+    ...DOUBLE_STOREY_PRICES,
+    ...SPLIT_LEVEL_PRICES,
+    ...DUAL_OC_PRICES,
+  ];
+  const allNswPrices: PriceRow[] = [
+    ...NSW_SINGLE_STOREY_PRICES,
+    ...NSW_DOUBLE_STOREY_PRICES,
+    ...NSW_SPLIT_LEVEL_PRICES,
+    ...NSW_DUAL_OC_PRICES,
+  ];
+
+  // Collect all known design names from options list and base pricelist
+  const allDesignNames = new Set<string>();
+  for (const opt of HUDSON_OPTIONS_PRICE_LIST_2026) {
+    allDesignNames.add(opt.design);
+    const baseWord = opt.design.replace(/\s*\d+.*$/, "").trim();
+    if (baseWord.length > 2) allDesignNames.add(baseWord);
+  }
+  for (const p of allQldPrices) {
+    allDesignNames.add(p.name);
+    const baseWord = p.name.replace(/\s*\d+.*$/, "").trim();
+    if (baseWord.length > 2) allDesignNames.add(baseWord);
+  }
+
+  // Sort designs by length descending so "Cobalt 30" matches before "Cobalt"
+  const sortedDesignNames = Array.from(allDesignNames).sort((a, b) => b.length - a.length);
+
+  let matchedDesignStr: string | null = null;
+  for (const d of sortedDesignNames) {
+    const dLower = d.toLowerCase();
+    const regex = new RegExp(`\\b${dLower.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`, "i");
+    if (regex.test(norm)) {
+      matchedDesignStr = d;
+      break;
+    }
+  }
+
+  if (!matchedDesignStr) {
+    return null;
+  }
+
+  // If matchedDesignStr is just the family name (e.g. "Cobalt") and query has a number (e.g. "30"), try to form "Cobalt 30"
+  const numMatch = norm.match(/\b(\d{2})\b/);
+  let specificDesign = matchedDesignStr;
+  if (numMatch && !matchedDesignStr.match(/\d{2}/)) {
+    const candidate = `${matchedDesignStr} ${numMatch[1]}`;
+    if (
+      HUDSON_OPTIONS_PRICE_LIST_2026.some((o) => o.design.toLowerCase() === candidate.toLowerCase()) ||
+      allQldPrices.some((p) => p.name.toLowerCase().startsWith(candidate.toLowerCase()))
+    ) {
+      specificDesign = candidate;
+    }
+  }
+
+  // Check for matching options in HUDSON_OPTIONS_PRICE_LIST_2026
+  const designOptions = HUDSON_OPTIONS_PRICE_LIST_2026.filter((opt) => {
+    const optClean = opt.design.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const targetClean = specificDesign.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return optClean.includes(targetClean) || targetClean.includes(optClean);
+  });
+
+  // Base price lookup (QLD and NSW)
+  const qldBase = allQldPrices.find((p) =>
+    p.name.toLowerCase().startsWith(specificDesign.toLowerCase())
+  );
+  const nswBase = allNswPrices.find((p) =>
+    p.name.toLowerCase().startsWith(specificDesign.toLowerCase())
+  );
+
+  // Check if a specific option was mentioned in the query (e.g. "guest suite", "retreat", "workshop", "bed 5", etc.)
+  let matchedOption: HudsonPlanOption | null = null;
+  if (designOptions.length > 0) {
+    let maxMatchCount = 0;
+    for (const opt of designOptions) {
+      const optWords = opt.option.toLowerCase().split(/[\s/()\-]+/).filter((w) => w.length >= 3);
+      const matchCount = optWords.filter((w) => norm.includes(w)).length;
+      if (matchCount > maxMatchCount) {
+        maxMatchCount = matchCount;
+        matchedOption = opt;
+      }
+    }
+  }
+
+  // A. SPECIFIC OPTION PRICING MATCH (e.g. "Cobalt 30 Additional Guest Suite")
+  if (matchedOption) {
+    const h1Str = matchedOption.h1Price !== null ? `$${matchedOption.h1Price.toLocaleString()}` : "TBA";
+    const h2Str = matchedOption.h2Price !== null ? `$${matchedOption.h2Price.toLocaleString()}` : "TBA";
+    const h3Str = matchedOption.h3Price !== null ? `$${matchedOption.h3Price.toLocaleString()}` : "TBA";
+
+    const catLabel = matchedOption.category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const otherOptions = designOptions.filter((o) => o !== matchedOption);
+
+    let answer = `### 🏷️ Hudson Homes Pre-Approved Option Pricing: ${matchedOption.design}
+#### Option: ${matchedOption.option}
+- **Architectural Category**: ${catLabel} Design Option  
+- **Source**: Hudson Homes Retail Options Price List (2026 Official QLD/NSW Benchmark)
+
+---
+
+#### 1. Option Pricing by Specification Tier
+| Specification Tier | Inclusions Profile | Option Price (GST Incl.) |
+| :--- | :--- | :--- |
+| **H1 Smart Spec** | Quality Turnkey Essentials (Haier Appliances, Standard Turnkey) | **${h1Str}** |
+| **H2 Designer Spec** | Elevated Premium Inclusions (Fisher & Paykel 900mm, 20mm Stone) | **${h2Str}** |
+| **H3 Luxury Spec** | Ultimate Prestige Package (Luxury Finishes & Extended Fittings) | **${h3Str}** |
+`;
+
+    if (matchedOption.notes) {
+      answer += `\n> 📌 **Architectural Notes**: ${matchedOption.notes}\n`;
+    }
+
+    if (qldBase || nswBase) {
+      const m2Str = qldBase?.m2 || nswBase?.m2;
+      const squares = m2Str ? (m2Str / 9.2903).toFixed(1) : "";
+      answer += `\n---
+
+#### 2. Base House & Combined Package Pricing (${matchedOption.design})
+${m2Str ? `*Architectural Area: **${m2Str} m²** (${squares} squares)*\n` : ""}
+| Region | Base H1 (Smart) | Base H2 (Designer) | Base H3 (Luxury) | Combined H1 (Base + Option) | Combined H2 (Base + Option) | Combined H3 (Base + Option) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+`;
+      if (qldBase) {
+        const combH1 = matchedOption.h1Price !== null ? `$${(qldBase.h1 + matchedOption.h1Price).toLocaleString()}` : "TBA";
+        const combH2 = matchedOption.h2Price !== null ? `$${(qldBase.h2 + matchedOption.h2Price).toLocaleString()}` : "TBA";
+        const combH3 = matchedOption.h3Price !== null ? `$${(qldBase.h3 + matchedOption.h3Price).toLocaleString()}` : "TBA";
+        answer += `| **QLD Metro** | $${qldBase.h1.toLocaleString()} | $${qldBase.h2.toLocaleString()} | $${qldBase.h3.toLocaleString()} | **${combH1}** | **${combH2}** | **${combH3}** |\n`;
+      }
+      if (nswBase) {
+        const combH1 = matchedOption.h1Price !== null ? `$${(nswBase.h1 + matchedOption.h1Price).toLocaleString()}` : "TBA";
+        const combH2 = matchedOption.h2Price !== null ? `$${(nswBase.h2 + matchedOption.h2Price).toLocaleString()}` : "TBA";
+        const combH3 = matchedOption.h3Price !== null ? `$${(nswBase.h3 + matchedOption.h3Price).toLocaleString()}` : "TBA";
+        answer += `| **NSW Metro** | $${nswBase.h1.toLocaleString()} | $${nswBase.h2.toLocaleString()} | $${nswBase.h3.toLocaleString()} | **${combH1}** | **${combH2}** | **${combH3}** |\n`;
+      }
+    }
+
+    if (otherOptions.length > 0) {
+      answer += `\n---
+
+#### 3. Other Available Options for ${matchedOption.design}
+| Option Name | H1 Spec | H2 Spec | H3 Spec |
+| :--- | :--- | :--- | :--- |
+`;
+      for (const o of otherOptions) {
+        const oH1 = o.h1Price !== null ? `$${o.h1Price.toLocaleString()}` : "TBA";
+        const oH2 = o.h2Price !== null ? `$${o.h2Price.toLocaleString()}` : "TBA";
+        const oH3 = o.h3Price !== null ? `$${o.h3Price.toLocaleString()}` : "TBA";
+        answer += `| **${o.option}** | ${oH1} | ${oH2} | ${oH3} |\n`;
+      }
+    }
+
+    answer += `\n---
+
+#### 4. Next Steps
+- **Quote Builder V2**: You can select the **${matchedOption.option}** option directly in [Quote Builder V2](/quote-builder) under the Floorplan Options step to generate an immediate fixed-price tender.
+- **Price Lock Guarantee**: All retail options are covered by Hudson Homes' fixed price tender policy when included at initial tender issuance.`;
+
+    const suggested = [
+      `What is the difference between H1, H2, and H3 inclusions?`,
+      `How much is the base price for the ${matchedOption.design}?`,
+    ];
+    if (otherOptions.length > 0) {
+      suggested.push(`What is the price for the ${otherOptions[0].option} on ${matchedOption.design}?`);
+    } else {
+      suggested.push(`Can I modify the layout of the ${matchedOption.design}?`);
+    }
+
+    return {
+      answer,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: suggested,
+      modelUsed: "hudson-options-pricing-engine",
+    };
+  }
+
+  // B. ALL OPTIONS FOR DESIGN (e.g. "what options are available for the cobalt 30")
+  if (designOptions.length > 0 && (norm.includes("option") || norm.includes("upgrade") || norm.includes("variation") || norm.includes("what can"))) {
+    let answer = `### 🏷️ Hudson Homes Pre-Approved Options: ${specificDesign}
+**Source**: Hudson Homes Retail Options Price List (2026 Official QLD/NSW Benchmark)
+
+Here are the pre-costed architectural options available for the **${specificDesign}**:
+
+| Option Name | Category | H1 Smart Spec | H2 Designer Spec | H3 Luxury Spec |
+| :--- | :--- | :--- | :--- | :--- |
+`;
+    for (const opt of designOptions) {
+      const h1Str = opt.h1Price !== null ? `$${opt.h1Price.toLocaleString()}` : "TBA";
+      const h2Str = opt.h2Price !== null ? `$${opt.h2Price.toLocaleString()}` : "TBA";
+      const h3Str = opt.h3Price !== null ? `$${opt.h3Price.toLocaleString()}` : "TBA";
+      const catLabel = opt.category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      answer += `| **${opt.option}** | ${catLabel} | **${h1Str}** | **${h2Str}** | **${h3Str}** |\n`;
+    }
+
+    if (qldBase || nswBase) {
+      answer += `\n#### Base House Pricing (${specificDesign}):\n`;
+      if (qldBase) {
+        answer += `- **QLD Metro**: H1: **$${qldBase.h1.toLocaleString()}** | H2: **$${qldBase.h2.toLocaleString()}** | H3: **$${qldBase.h3.toLocaleString()}** (SS: $${qldBase.ss.toLocaleString()})\n`;
+      }
+      if (nswBase) {
+        answer += `- **NSW Metro**: H1: **$${nswBase.h1.toLocaleString()}** | H2: **$${nswBase.h2.toLocaleString()}** | H3: **$${nswBase.h3.toLocaleString()}** (SS: $${nswBase.ss.toLocaleString()})\n`;
+      }
+    }
+
+    return {
+      answer,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        `What is the price for the ${designOptions[0].option} on ${specificDesign}?`,
+        `What is the difference between H1 Smart and H2 Designer inclusions?`,
+        `Can I customize this floorplan further in Quote Builder V2?`,
+      ],
+      modelUsed: "hudson-options-pricing-engine",
+    };
+  }
+
+  // C. BASE DESIGN PRICING (e.g. "what is the price for the cobalt 30")
+  if (qldBase || nswBase) {
+    const p = qldBase || nswBase!;
+    const squares = (p.m2 / 9.2903).toFixed(1);
+    let answer = `### 🏷️ Hudson Homes Official Base Pricelist: ${specificDesign}
+**Total Architectural Area**: **${p.m2} m²** (${squares} squares)  
+**Effective Date**: Master Hudson Homes Price Lists (Metropolitan 2026)
+
+---
+
+#### 1. Official Base Pricing Schedule
+| Pricing Tier | QLD Metro Base Price | NSW Metro Base Price | Inclusions Profile |
+| :--- | :--- | :--- | :--- |
+| **Home Building Standard (HBS)** | ${qldBase ? `$${qldBase.hbs.toLocaleString()}` : "N/A"} | ${nswBase ? `$${nswBase.hbs.toLocaleString()}` : "N/A"} | Standard base package |
+| **Smart Spec (SS)** | ${qldBase ? `$${qldBase.ss.toLocaleString()}` : "N/A"} | ${nswBase ? `$${nswBase.ss.toLocaleString()}` : "N/A"} | Essential turnkey inclusions |
+| **H1 Smart Spec** | ${qldBase ? `**$${qldBase.h1.toLocaleString()}**` : "N/A"} | ${nswBase ? `**$${nswBase.h1.toLocaleString()}**` : "N/A"} | Haier appliances, standard turnkey package |
+| **H2 Designer Spec** | ${qldBase ? `**$${qldBase.h2.toLocaleString()}**` : "N/A"} | ${nswBase ? `**$${nswBase.h2.toLocaleString()}**` : "N/A"} | Fisher & Paykel 900mm appliances, 20mm stone benchtops |
+| **H3 Luxury Spec** | ${qldBase ? `**$${qldBase.h3.toLocaleString()}**` : "N/A"} | ${nswBase ? `**$${nswBase.h3.toLocaleString()}**` : "N/A"} | High-end luxury finishes, freestanding bath & premium tapware |
+`;
+
+    if (designOptions.length > 0) {
+      answer += `\n---
+
+#### 2. Pre-Approved Plan Options for ${specificDesign}
+| Option Name | H1 Spec | H2 Spec | H3 Spec |
+| :--- | :--- | :--- | :--- |
+`;
+      for (const opt of designOptions) {
+        const h1Str = opt.h1Price !== null ? `$${opt.h1Price.toLocaleString()}` : "TBA";
+        const h2Str = opt.h2Price !== null ? `$${opt.h2Price.toLocaleString()}` : "TBA";
+        const h3Str = opt.h3Price !== null ? `$${opt.h3Price.toLocaleString()}` : "TBA";
+        answer += `| **${opt.option}** | ${h1Str} | ${h2Str} | ${h3Str} |\n`;
+      }
+    }
+
+    answer += `\n---
+
+#### 3. Quote Builder V2 Handoff
+To configure this design with site costs, estate covenant allowances, and optional facades:
+- Open **[Quote Builder V2](/quote-builder)** to build and download a fixed-price tender.`;
+
+    const suggested = [
+      `What is included in the H2 Designer package for ${specificDesign}?`,
+    ];
+    if (designOptions.length > 0) {
+      suggested.push(`What is the price for the ${designOptions[0].option} on ${specificDesign}?`);
+    }
+    suggested.push(`What minimum lot width is required for the ${specificDesign}?`);
+
+    return {
+      answer,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: suggested,
+      modelUsed: "hudson-pricelist-engine",
+    };
+  }
+
+  return null;
+}
+
 export function generateHudsonKnowledgeResponse(
   message: string,
   staffUser?: StaffProfile | null
 ): HubAiResponse {
   const query = (message || "").toLowerCase().trim();
+
+  // 00. HUDSON ARCHITECTURAL DESIGN & OPTIONS PRICING ENGINE (High Priority)
+  // Handles inquiries like "what is the price for the cobalt 30 guest suite option",
+  // "options for cobalt 30", "price for jasper 26", "how much is amber 21", etc.
+  const designOrOptionPricing = evaluateDesignAndOptionPricing(query, message);
+  if (designOrOptionPricing) {
+    return designOrOptionPricing;
+  }
 
   // 0. PDF EXPORT INTENT (e.g. "Hudson AI, put this compliance check into a downloaded PDF for me")
   const isPdfExportRequest =
@@ -644,7 +969,8 @@ export function generateHudsonKnowledgeResponse(
 
   if (isPdfExportRequest) {
     const hasSpecificAddressOrLGA =
-      (/\b\d+\s+[a-z\s]+\s+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
+      !/\b(?:price|pricing|cost|how\s*much|quote|option|options|upgrade|upgrades|suite|retreat|workshop|ensuite)\b/i.test(query) &&
+      (/\b(?:\d+[a-z]?|lot\s*\d+)\s+[a-z0-9\s'-]+?\s+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
       /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara|penrith|huntlee|cessnock|rothbury|calderwood|shellharbour|wollongong|harmony|aura/i.test(query)) &&
       !query.includes("ncc") &&
       !query.includes("bca") &&
@@ -735,7 +1061,8 @@ Your executive PDF has been compiled and is ready for immediate download. Click 
   // 0A. COMPLIANCE CHECK (CC) & STATUTORY PROPERTY FEASIBILITY
   const isCC = /^cc\b[:\s]*/i.test((message || "").trim()) || /compliance\s*check/i.test(query) || /feasibility\s*check/i.test(query);
   const isAddressQuery =
-    (/\b\d+\s+[a-z\s]+\s+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
+    !/\b(?:price|pricing|cost|how\s*much|quote|option|options|upgrade|upgrades|suite|retreat|workshop|ensuite)\b/i.test(query) &&
+    (/\b(?:\d+[a-z]?|lot\s*\d+)\s+[a-z0-9\s'-]+?\s+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
     /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|warnervale|marsden\s*park|ashmore|ahsmore|warrigal|gold\s*coast|southport|carrara|benowa/i.test(query)) &&
     !query.includes("ncc") &&
     !query.includes("bca") &&
@@ -3979,7 +4306,10 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
   // 6. UNIVERSAL PLANNING, DUPLEX, ZONING & SITING ENGINE (All QLD & NSW Jurisdictions)
   // -------------------------------------------------------------------------
   const isDuplexOrDualOccQuery = /duplex|dual[-\s]?occupancy|dual[-\s]?key|dual[-\s]?living|auxiliary\s*unit|secondary\s*dwelling|granny\s*flat|rooming|co[-\s]?living/i.test(query);
-  const isAddressOrPropertyQuery = /mount\s*cotton|mt\s*cotton|capalaba|sheldon|redland|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|brisbane|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query);
+  const isAddressOrPropertyQuery =
+    !/\b(?:price|pricing|cost|how\s*much|quote|option|options|upgrade|upgrades|suite|retreat|workshop|ensuite)\b/i.test(query) &&
+    (/mount\s*cotton|mt\s*cotton|capalaba|sheldon|redland|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|brisbane|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara/i.test(query) ||
+     /\b(?:\d+[a-z]?|lot\s*\d+)\s+[a-z0-9\s'-]+?\s+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query));
 
   if (isAddressOrPropertyQuery) {
     const assessment = evaluatePropertyFeasibility(message);

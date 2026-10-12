@@ -1332,7 +1332,7 @@ export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
   }
 
   // 2. Detect Development Typology
-  let typology: DevelopmentTypology = isCCCommand ? "compliance_check" : "duplex";
+  let typology: DevelopmentTypology = "compliance_check";
   if (/\b(?:dual[-\s]?key|auxiliary\s*unit|auxiliary\s*dwelling)\b/i.test(norm)) {
     typology = "dual_key";
   } else if (/\b(?:granny\s*flat|secondary\s*dwelling)\b/i.test(norm)) {
@@ -1367,7 +1367,7 @@ export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
   // 5. Extract Street Address (e.g. "131 Mount Cotton Road", "61 Paradise Road", "29 Warrigal Crescent", "14 Smith Street")
   let streetNumber: string | undefined;
   let streetName: string | undefined;
-  const addressMatch = clean.match(/(?:lot\s*)?(\d+[a-z]?)\s+([a-z\s]+?(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy))\b/i);
+  const addressMatch = clean.match(/(?:lot\s*)?(\d+[a-z]?)\s+([a-z0-9\s'-]+?\s+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy))\b/i);
   if (addressMatch) {
     streetNumber = addressMatch[1];
     streetName = addressMatch[2].trim();
@@ -1597,7 +1597,9 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
   // Determine overall verdict
   const isDimensionFailure = lotSizePass === false || frontagePass === false;
   let verdict: FeasibilityAssessmentResult["verdict"] = "COMPLIANT STATUTORY FRAMEWORK";
-  const confidenceScore = 0.99;
+  const hasRealAddress = !!(parsed.streetName || (parsed.streetNumber && parsed.streetName));
+  const hasRealSuburb = !!parsed.suburb;
+  const confidenceScore = (hasRealAddress || hasRealSuburb || parsed.isCCCommand) ? 0.99 : 0.65;
 
   if (isDimensionFailure) {
     verdict = "NOT FEASIBLE (INSUFFICIENT LOT DIMENSIONS)";
