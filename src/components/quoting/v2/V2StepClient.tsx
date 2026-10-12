@@ -198,7 +198,7 @@ export function V2StepClient({
       if (detected.region) {
         onSiteChange({
           councilRegion: detected.region,
-          councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
+          councilFee: typeof detected.fee === "number" ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
         });
       }
     }
@@ -222,7 +222,7 @@ export function V2StepClient({
       if (detected.region) {
         onSiteChange({
           councilRegion: detected.region,
-          councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
+          councilFee: typeof detected.fee === "number" ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
         });
       }
     }
@@ -298,7 +298,7 @@ export function V2StepClient({
     if (detected.region && site?.councilRegion !== detected.region) {
       onSiteChange({
         councilRegion: detected.region,
-        councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
+        councilFee: typeof detected.fee === "number" ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
       });
     }
   }, [client.siteAddress, client.suburb, client.estate, client.postcode, activeState, isAddressTba, site?.councilRegion]);
@@ -329,8 +329,8 @@ export function V2StepClient({
       if (onSiteChange) {
         const isNsw = (client.state || getActiveDivision()) === "NSW";
         onSiteChange({
-          councilRegion: isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council",
-          councilFee: isNsw ? 2000 : 2227,
+          councilRegion: isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Brisbane City Council",
+          councilFee: isNsw ? 2000 : 0,
         });
       }
       toast.info("Cleared Address TBA. You can now enter a site address.");
@@ -377,7 +377,7 @@ export function V2StepClient({
       if (detected.region) {
         onSiteChange({
           councilRegion: detected.region,
-          councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
+          councilFee: typeof detected.fee === "number" ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
         });
       }
     }
@@ -458,7 +458,7 @@ export function V2StepClient({
       );
       onSiteChange({
         councilRegion: detected.region,
-        councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
+        councilFee: typeof detected.fee === "number" ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
       });
     }
 
@@ -1102,7 +1102,7 @@ export function V2StepClient({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs pt-1">
                 <div>
                   <div className={`font-semibold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
-                    {site?.councilRegion || (activeState === "NSW" ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council")}
+                    {site?.councilRegion || (activeState === "NSW" ? "NSW Local Council (Standard Statutory Fee)" : "Brisbane City Council")}
                   </div>
                   <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                     Determined automatically by login &amp; address
@@ -1110,7 +1110,7 @@ export function V2StepClient({
                 </div>
                 <div className="flex items-center gap-1.5 sm:text-right">
                   <div className={`font-bold text-sm ${isLight ? "text-slate-900" : "text-emerald-400"}`}>
-                    ${((site?.councilFee ?? (activeState === "NSW" ? 2000 : 2227))).toLocaleString()}
+                    ${((site?.councilFee ?? (activeState === "NSW" ? 2000 : (site?.councilRegion === "Brisbane City Council" ? 0 : 2227)))).toLocaleString()}
                   </div>
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider">
                     Statutory Fee

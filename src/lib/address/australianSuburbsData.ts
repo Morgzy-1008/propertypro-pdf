@@ -131,12 +131,12 @@ export function detectCouncilForSuburb(suburb: string, state: string, postcode: 
     return "City of Gold Coast";
   }
 
-  // City of Moreton Bay ($2,350 / QLD)
+  // Moreton Bay Regional Council (QLD)
   if (
-    /north harbour|burpengary|morayfield|caboolture|narangba|mango hill|north lakes|kallangur|deception bay|griffin|murrumba downs|petrie|strathpine/i.test(s) ||
-    /^(4505|4506|4510|4504|4509|4503|4500)$/.test(p)
+    /north harbour|burpengary|morayfield|caboolture|narangba|mango hill|north lakes|kallangur|deception bay|griffin|murrumba downs|petrie|strathpine|bray park|brendale|lawnton|dakabin|cashmere|warner|eatons hill|albany creek|arana hills|ferny hills|everton hills|bunya|samford|samford valley|dayboro|woodford|bribie island|bongaree|bellara|banksia beach|sandstone point|ningi|beachmere|upper caboolture|bellmere|elimbah|wamuran|clontarf|scarborough|margate|woody point|newport|rothwell/i.test(s) ||
+    /^(4500|4501|4502|4503|4504|4505|4506|4507|4508|4509|4510|4511|4512|4520|4019|4020|4021|4022|4037)$/.test(p)
   ) {
-    return "City of Moreton Bay";
+    return "Moreton Bay Regional Council";
   }
 
   // Sunshine Coast Council ($2,450 / QLD)
@@ -147,10 +147,10 @@ export function detectCouncilForSuburb(suburb: string, state: string, postcode: 
     return "Sunshine Coast Council";
   }
 
-  // Brisbane City Council ($3,190 / QLD)
+  // Brisbane City Council ($0 / QLD)
   if (
-    /rochedale|bridgeman downs|pallara|heathwood|graceville|sherwood|chelmer|indooroopilly|toowong|chermside|carindale|wynnum|manly|kenmore|calamvale|sunnybank|algester/i.test(s) ||
-    (state === "QLD" && /^(4000|4005|4006|4064|4068|4075|4101|4102|4109|4110|4113|4115|4116|4122|4123|4152|4178|4179|4032|4034|4053|4069)$/.test(p))
+    /mitchelton|everton park|gaythorne|enoggera|keperra|ferny grove|upper kedron|mcdowall|stafford|stafford heights|brookside|alderley|grange|wilston|windsor|newmarket|ashgrove|the gap|paddington|bardon|red hill|kelvin grove|herston|spring hill|fortitude valley|new farm|teneriffe|newstead|bowen hills|albion|wooloowin|lutwyche|kedron|wavell heights|nundah|northgate|virginia|banyo|geebung|zillmere|aspley|carseldine|bald hills|deagon|sandgate|shorncliffe|brighton|boondall|taigum|fitzgibbon|bracken ridge|rochedale|bridgeman downs|pallara|heathwood|graceville|sherwood|chelmer|indooroopilly|toowong|chermside|carindale|wynnum|manly|kenmore|calamvale|sunnybank|algester|forest lake|richlands|inala|ellen grove|oxley|corinda|mount gravatt|mansfield|wishart|holland park|tarragindi|moorooka|yeronga|annerley|greenslopes|coorparoo|camp hill|norman park|east brisbane|kangaroo point|south brisbane|west end|woolloongabba|salisbury|rocklea|archerfield|coopers plains|macgregor|robertson|acacia ridge|brisbane/i.test(s) ||
+    (state === "QLD" && /^(4000|4005|4006|4007|4008|4009|4010|4011|4012|4013|4014|4017|4018|4030|4031|4032|4034|4035|4036|4051|4053|4054|4055|4059|4060|4061|4064|4065|4066|4067|4068|4069|4070|4073|4074|4075|4076|4077|4078|4101|4102|4103|4104|4105|4106|4107|4108|4109|4110|4111|4112|4113|4115|4116|4120|4121|4122|4151|4152|4153|4154|4155|4156|4169|4170|4171|4172|4173|4174|4178|4179)$/.test(p))
   ) {
     return "Brisbane City Council";
   }

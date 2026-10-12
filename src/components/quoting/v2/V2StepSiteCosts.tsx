@@ -254,8 +254,8 @@ export function V2StepSiteCosts({
     if (!currentBelongsToActiveList || !site.councilRegion || (locationChanged && detected.region && detected.region !== site.councilRegion && !detected.isUnrecognized)) {
       const fallbackCouncil = detected.region && councilList.some((c) => c.name === detected.region)
         ? detected.region
-        : (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council");
-      const fallbackFee = detected.fee > 0 ? detected.fee : (isNsw ? 2000 : 2227);
+        : (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Brisbane City Council");
+      const fallbackFee = typeof detected.fee === "number" ? detected.fee : (isNsw ? 2000 : 2227);
 
       onChange({
         councilRegion: fallbackCouncil,
@@ -268,10 +268,10 @@ export function V2StepSiteCosts({
   const defaultCouncilFee = useMemo(() => {
     const matched = councilList.find((c) => c.name === site.councilRegion);
     if (matched) return matched.fee;
-    return isNsw ? 2000 : 2227;
+    return isNsw ? 2000 : (site.councilRegion === "Brisbane City Council" ? 0 : 2227);
   }, [site.councilRegion, councilList, isNsw]);
 
-  const currentCouncilFee = site.councilFee !== undefined && site.councilFee > 0 ? site.councilFee : defaultCouncilFee;
+  const currentCouncilFee = typeof site.councilFee === "number" ? site.councilFee : defaultCouncilFee;
 
   // Progressive breadcrumbs stages list
   const stagesList = useMemo(() => {
@@ -312,8 +312,8 @@ export function V2StepSiteCosts({
       demolitionAsbestosRequired: type === "kdrb",
       kdrbDemolitionOption: type === "kdrb" ? "builder" : "none",
       demolitionAsbestosCost: type === "kdrb" ? 34500 : 0,
-      councilRegion: site.councilRegion || (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council"),
-      councilFee: currentCouncilFee > 0 ? currentCouncilFee : (isNsw ? 2000 : 2227),
+      councilRegion: site.councilRegion || (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Brisbane City Council"),
+      councilFee: typeof currentCouncilFee === "number" ? currentCouncilFee : (isNsw ? 2000 : 2227),
     };
     onChange(patch);
 
@@ -1897,7 +1897,7 @@ export function V2StepSiteCosts({
                 </Label>
                 <Badge variant="outline" className="text-xs font-bold text-cyan-500 border-cyan-500/30 px-2.5 py-0.5">
                   <Check className="h-3.5 w-3.5 mr-1" />
-                  {site.councilRegion || (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council")} ({formatAud(currentCouncilFee)})
+                  {site.councilRegion || (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Brisbane City Council")} ({formatAud(currentCouncilFee)})
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
@@ -1926,11 +1926,12 @@ export function V2StepSiteCosts({
                           activeState
                         );
                         if (det.region) {
+                          const fee = typeof det.fee === "number" ? det.fee : (isNsw ? 2000 : 2227);
                           onChange({
                             councilRegion: det.region,
-                            councilFee: det.fee > 0 ? det.fee : (isNsw ? 2000 : 2227),
+                            councilFee: fee,
                           });
-                          toast.success(`Tailored council to: ${det.region} (${formatAud(det.fee || (isNsw ? 2000 : 2227))})`);
+                          toast.success(`Tailored council to: ${det.region} (${formatAud(fee)})`);
                         }
                       }}
                       className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
@@ -1941,7 +1942,7 @@ export function V2StepSiteCosts({
                   )}
                 </div>
                 <Select
-                  value={site.councilRegion || (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council")}
+                  value={site.councilRegion || (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Brisbane City Council")}
                   onValueChange={(val) => {
                     const matched = councilList.find((c) => c.name === val);
                     onChange({

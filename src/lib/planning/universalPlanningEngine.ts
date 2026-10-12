@@ -474,8 +474,11 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     coveredSuburbs: [
       "morayfield", "caboolture", "burpengary", "burpengary east", "narangba", 
       "north lakes", "griffin", "mango hill", "kallangur", "murrumba downs", 
-      "petrie", "strathpine", "bray park", "warner", "upper caboolture", "elimba", 
-      "deception bay", "clontarf", "redcliffe", "scarborough", "woody point", "bellmere"
+      "petrie", "strathpine", "bray park", "brendale", "lawnton", "dakabin",
+      "cashmere", "warner", "eatons hill", "albany creek", "arana hills", "ferny hills",
+      "everton hills", "bunya", "samford", "samford valley", "dayboro", "upper caboolture", 
+      "bellmere", "elimbah", "wamuran", "deception bay", "clontarf", "redcliffe", 
+      "scarborough", "margate", "woody point", "newport", "rothwell"
     ],
     zoningDefaults: {
       primaryZoning: "General Residential (Suburban / Next Generation)",
@@ -527,9 +530,30 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     governingInstrument: "Brisbane City Plan 2014",
     statutoryAuthority: "Brisbane City Council",
     coveredSuburbs: [
-      "brisbane", "pallara", "heathwood", "rochedale", "upper mount gravatt", 
-      "sunnybank", "calamvale", "doolandella", "richlands", "algester", 
-      "bracken ridge", "taigum", "fitzgibbon", "bridgeman downs", "carindale"
+      "brisbane", "mitchelton", "everton park", "gaythorne", "enoggera", "keperra", 
+      "ferny grove", "upper kedron", "mcdowall", "stafford", "stafford heights", 
+      "brookside", "alderley", "grange", "wilston", "windsor", "newmarket", "ashgrove", 
+      "the gap", "paddington", "bardon", "red hill", "kelvin grove", "herston", 
+      "spring hill", "fortitude valley", "new farm", "teneriffe", "newstead", "bowen hills", 
+      "albion", "wooloowin", "lutwyche", "kedron", "wavell heights", "nundah", "northgate", 
+      "virginia", "banyo", "geebung", "zillmere", "aspley", "carseldine", "bald hills", 
+      "deagon", "sandgate", "shorncliffe", "brighton", "boondall", "taigum", "fitzgibbon", 
+      "bracken ridge", "bridgeman downs", "chermside", "chermside west", "carindale", 
+      "carina", "carina heights", "cannon hill", "murarrie", "tingalpa", "belmont", 
+      "chandler", "gumdale", "wakerley", "manly", "manly west", "wynnum", "wynnum west", 
+      "lota", "rochedale", "eight mile plains", "runcorn", "kuraby", "stretton", 
+      "drewvale", "calamvale", "sunnybank", "sunnybank hills", "algester", "parkinson", 
+      "pallara", "heathwood", "doolandella", "forest lake", "richlands", "inala", 
+      "ellen grove", "oxley", "corinda", "sherwood", "graceville", "chelmer", 
+      "indooroopilly", "taringa", "toowong", "st lucia", "kenmore", "kenmore hills", 
+      "chapel hill", "brookfield", "upper brookfield", "pullenvale", "anstead", 
+      "bellbowrie", "moggill", "mount gravatt", "mount gravatt east", "upper mount gravatt", 
+      "mansfield", "wishart", "holland park", "holland park west", "tarragindi", 
+      "moorooka", "yeerongpilly", "yeronga", "fairfield", "annerley", "greenslopes", 
+      "coorparoo", "camp hill", "norman park", "east brisbane", "kangaroo point", 
+      "south brisbane", "west end", "highgate hill", "dutton park", "woolloongabba", 
+      "salisbury", "rocklea", "archerfield", "coopers plains", "macgregor", "robertson", 
+      "acacia ridge"
     ],
     zoningDefaults: {
       primaryZoning: "Low Density Residential (LDR) / Low-Medium Density (LMR)",
@@ -1530,7 +1554,17 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
       norm.includes("warrigal")
     ) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "council_gold_coast");
-    } else if (norm.includes("brisbane") || norm.includes("rochedale") || norm.includes("pallara")) {
+    } else if (
+      norm.includes("brisbane") ||
+      norm.includes("rochedale") ||
+      norm.includes("pallara") ||
+      norm.includes("mitchelton") ||
+      norm.includes("everton park") ||
+      norm.includes("keperra") ||
+      norm.includes("enoggera") ||
+      norm.includes("ferny grove") ||
+      norm.includes("chermside")
+    ) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "council_brisbane");
     } else if (norm.includes("warnervale") || norm.includes("central coast")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_central_coast");

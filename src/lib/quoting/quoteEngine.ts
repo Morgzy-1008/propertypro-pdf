@@ -2091,7 +2091,65 @@ export function detectCouncilFromLocation(
   };
 
   // Helper function for QLD councils matching
+  // Helper function for QLD councils matching
   const matchQldCouncil = (): CouncilInfo | null => {
+    // -------------------------------------------------------------------------
+    // STEP 1: SPECIFIC SUBURB MATCHING (Takes Absolute Priority Over Postcodes)
+    // -------------------------------------------------------------------------
+
+    // Brisbane City Council Suburbs ($0 Standard Statutory / Certifier Baseline)
+    const brisbaneSuburbs = [
+      "mitchelton", "everton park", "gaythorne", "enoggera", "keperra", "ferny grove", "upper kedron",
+      "mcdowall", "stafford", "stafford heights", "brookside", "brookside centre", "alderley", "grange", "wilston",
+      "windsor", "newmarket", "ashgrove", "the gap", "paddington", "bardon", "red hill", "kelvin grove",
+      "herston", "spring hill", "fortitude valley", "new farm", "teneriffe", "newstead", "bowen hills",
+      "albion", "wooloowin", "lutwyche", "kedron", "wavell heights", "nundah", "northgate", "virginia",
+      "banyo", "geebung", "zillmere", "aspley", "carseldine", "bald hills", "deagon", "sandgate",
+      "shorncliffe", "brighton", "boondall", "taigum", "fitzgibbon", "bracken ridge", "bridgeman downs",
+      "chermside", "chermside west", "carindale", "carina", "carina heights", "cannon hill", "murarrie",
+      "tingalpa", "belmont", "chandler", "gumdale", "wakerley", "manly", "manly west", "wynnum", "wynnum west", "lota",
+      "rochedale", "rochedale south", "eight mile plains", "runcorn", "kuraby", "stretton", "drewvale",
+      "calamvale", "sunnybank", "sunnybank hills", "algester", "parkinson", "pallara", "heathwood",
+      "doolandella", "forest lake", "richlands", "inala", "ellen grove", "oxley", "corinda", "sherwood",
+      "graceville", "chelmer", "indooroopilly", "taringa", "toowong", "st lucia", "kenmore", "kenmore hills",
+      "chapel hill", "brookfield", "upper brookfield", "pullenvale", "anstead", "bellbowrie", "moggill",
+      "mount gravatt", "mount gravatt east", "upper mount gravatt", "mansfield", "wishart", "holland park",
+      "holland park west", "tarragindi", "moorooka", "yeerongpilly", "yeronga", "fairfield", "annerley",
+      "greenslopes", "coorparoo", "camp hill", "norman park", "east brisbane", "kangaroo point", "south brisbane",
+      "west end", "highgate hill", "dutton park", "woolloongabba", "salisbury", "rocklea", "archerfield",
+      "coopers plains", "macgregor", "robertson", "acacia ridge", "brisbane"
+    ];
+
+    // Moreton Bay Regional Council Suburbs ($2,227)
+    const moretonSuburbs = [
+      "moreton bay", "caboolture", "caboolture south", "morayfield", "north lakes", "mango hill", "strathpine",
+      "redcliffe", "burpengary", "burpengary east", "narangba", "warner", "griffin", "petrie", "kallangur",
+      "murrumba downs", "dakabin", "lawnton", "bray park", "brendale", "cashmere", "eatons hill", "albany creek",
+      "arana hills", "ferny hills", "everton hills", "bunya", "samford", "samford valley", "dayboro",
+      "woodford", "bribie island", "bongaree", "bellara", "banksia beach", "sandstone point", "ningi", "beachmere",
+      "upper caboolture", "bellmere", "elimbah", "wamuran", "d'aguilar", "clontarf", "scarborough", "margate",
+      "woody point", "newport", "rothwell", "deception bay", "north harbour"
+    ];
+
+    // Check specific suburb match (using word boundary)
+    const matchedBrisbaneSuburbs = brisbaneSuburbs.filter((s) => new RegExp(`\\b${s}\\b`, "i").test(text));
+    const matchedMoretonSuburbs = moretonSuburbs.filter((s) => new RegExp(`\\b${s}\\b`, "i").test(text));
+
+    if (matchedBrisbaneSuburbs.length > 0 && matchedMoretonSuburbs.length === 0) {
+      return { region: "Brisbane City Council", fee: 0 };
+    }
+    if (matchedMoretonSuburbs.length > 0 && matchedBrisbaneSuburbs.length === 0) {
+      return { region: "Moreton Bay Regional Council", fee: 2227 };
+    }
+    if (matchedBrisbaneSuburbs.length > 0 && matchedMoretonSuburbs.length > 0) {
+      // Pick the most specific match by length
+      const maxB = Math.max(...matchedBrisbaneSuburbs.map((s) => s.length));
+      const maxM = Math.max(...matchedMoretonSuburbs.map((s) => s.length));
+      return maxB >= maxM
+        ? { region: "Brisbane City Council", fee: 0 }
+        : { region: "Moreton Bay Regional Council", fee: 2227 };
+    }
+
     // Gold Coast City Council ($2,950)
     const goldCoastKeywords = [
       "gold coast", "coomera", "pimpama", "ormeau", "helensvale", "hope island", "sanctuary cove",
@@ -2099,10 +2157,9 @@ export function detectCouncilFromLocation(
       "broadbeach", "mermaid beach", "miami", "burleigh", "palm beach", "currumbin", "tugun", "bilinga",
       "coolangatta", "varsity lakes", "mudgeeraba", "tallai", "worongary", "carrara", "ashmore", "benowa",
       "bundall", "molendinar", "arundel", "parkwood", "labrador", "runaway bay", "hollywell", "paradise point",
-      "willow vale", "yatala", "jacobs well", "4208", "4209", "4210", "4211", "4212", "4213", "4214", "4215",
-      "4216", "4217", "4218", "4220", "4221", "4223", "4224", "4225", "4226", "4227", "4228"
+      "willow vale", "yatala", "jacobs well"
     ];
-    if (goldCoastKeywords.some((k) => text.includes(k))) {
+    if (goldCoastKeywords.some((k) => new RegExp(`\\b${k}\\b`, "i").test(text))) {
       return { region: "Gold Coast City Council", fee: 2950 };
     }
 
@@ -2110,9 +2167,9 @@ export function detectCouncilFromLocation(
     const sunshineKeywords = [
       "sunshine coast", "noosa", "maroochydore", "caloundra", "birtinya", "baringa", "nirimba", "aura",
       "palmview", "harmony", "sippy downs", "buderim", "mooloolaba", "kawana", "pelican waters", "currimundi",
-      "coolum", "peregian", "tewantin", "4551", "4556", "4557", "4558", "4567", "4575"
+      "coolum", "peregian", "tewantin"
     ];
-    if (sunshineKeywords.some((k) => text.includes(k))) {
+    if (sunshineKeywords.some((k) => new RegExp(`\\b${k}\\b`, "i").test(text))) {
       return { region: "Sunshine Coast Council", fee: 2950 };
     }
 
@@ -2125,10 +2182,9 @@ export function detectCouncilFromLocation(
       "tanah merah", "cornubia", "logan village", "munruben", "new beith", "north maclean", "south maclean",
       "chambers flat", "stockleigh", "cedar vale", "cedar creek", "undullah", "belivah", "buccan", "tamborine",
       "glenlogan", "veresdale", "boronia heights", "hillcrest", "forestdale", "heritage park", "regents park",
-      "berrinba", "priestdale", "4114", "4117", "4118", "4119", "4123", "4127", "4128", "4129", "4130", "4131",
-      "4132", "4133", "4207", "4280", "4285"
+      "berrinba", "priestdale"
     ];
-    if (loganKeywords.some((k) => text.includes(k))) {
+    if (loganKeywords.some((k) => new RegExp(`\\b${k}\\b`, "i").test(text))) {
       return { region: "Logan City Council", fee: 2227 };
     }
 
@@ -2141,34 +2197,18 @@ export function detectCouncilFromLocation(
       "leichhardt", "one mile", "sadliers crossing", "west ipswich", "coalfalls", "woodend", "tivoli",
       "north ipswich", "basin pocket", "east ipswich", "north booval", "riverview", "dinmore", "swanbank",
       "white rock", "goolman", "peak crossing", "willowbank", "ebenezer", "rosewood", "marburg", "walloon",
-      "thagoona", "amberley", "wulkuraka", "4300", "4301", "4303", "4304", "4305", "4306"
+      "thagoona", "amberley", "wulkuraka"
     ];
-    if (ipswichKeywords.some((k) => text.includes(k))) {
+    if (ipswichKeywords.some((k) => new RegExp(`\\b${k}\\b`, "i").test(text))) {
       return { region: "Ipswich City Council", fee: 2227 };
-    }
-
-    // Moreton Bay Regional Council ($2,227)
-    const moretonKeywords = [
-      "moreton bay", "caboolture", "caboolture south", "morayfield", "north lakes", "mango hill", "strathpine",
-      "redcliffe", "burpengary", "burpengary east", "narangba", "warner", "griffin", "petrie", "kallangur",
-      "murrumba downs", "dakabin", "lawnton", "bray park", "brendale", "cashmere", "eatons hill", "albany creek",
-      "arana hills", "ferny hills", "everton hills", "bribie island", "bongaree", "bellara", "banksia beach",
-      "sandstone point", "ningi", "beachmere", "upper caboolture", "bellmere", "elimbah", "wamuran", "d'aguilar",
-      "woodford", "dayboro", "samford", "samford valley", "clontarf", "scarborough", "margate", "woody point",
-      "newport", "rothwell", "deception bay", "4500", "4501", "4502", "4503", "4504", "4505", "4506", "4507",
-      "4508", "4509", "4510", "4511", "4512", "4520", "4019", "4020", "4021", "4022", "4037", "4053", "4054", "4055"
-    ];
-    if (moretonKeywords.some((k) => text.includes(k))) {
-      return { region: "Moreton Bay Regional Council", fee: 2227 };
     }
 
     // Redland City Council ($2,227)
     const redlandKeywords = [
       "redland", "redlands", "redland bay", "cleveland", "capalaba", "thornlands", "victoria point",
-      "wellington point", "birkdale", "ormiston", "alexandra hills", "mount cotton", "sheldon",
-      "4157", "4158", "4159", "4160", "4161", "4163", "4164", "4165"
+      "wellington point", "birkdale", "ormiston", "alexandra hills", "mount cotton", "sheldon"
     ];
-    if (redlandKeywords.some((k) => text.includes(k))) {
+    if (redlandKeywords.some((k) => new RegExp(`\\b${k}\\b`, "i").test(text))) {
       return { region: "Redland City Council", fee: 2227 };
     }
 
@@ -2177,37 +2217,64 @@ export function detectCouncilFromLocation(
       "toowoomba", "highfields", "kearneys spring", "middle ridge", "rangeville", "centenary heights",
       "darling heights", "drayton", "harristown", "glenvale", "wilsonton", "cotswold hills",
       "gowrie mountain", "kingsthorpe", "meringandan", "westbrook", "wyreema", "cambooya", "greenmount",
-      "clifton", "oakey", "4350", "4352"
+      "clifton", "oakey"
     ];
-    if (toowoombaKeywords.some((k) => text.includes(k))) {
+    if (toowoombaKeywords.some((k) => new RegExp(`\\b${k}\\b`, "i").test(text))) {
       return { region: "Toowoomba Regional Council", fee: 2227 };
-    }
-
-    // Brisbane City Council ($0 Standard)
-    const brisbaneKeywords = [
-      "brisbane", "chermside", "carindale", "indooroopilly", "sunnybank", "calamvale", "parkinson", "algester",
-      "stretton", "drewvale", "kuraby", "runcorn", "eight mile plains", "mount gravatt", "mansfield", "wishart",
-      "rochedale", "coorparoo", "camp hill", "carina", "cannon hill", "wynnum", "manly", "tingalpa", "belmont",
-      "chandler", "gumdale", "wakerley", "the gap", "ashgrove", "paddington", "milton", "toowong", "taringa",
-      "st lucia", "kenmore", "chapel hill", "brookfield", "pullenvale", "bellbowrie", "moggill", "annerley",
-      "yeronga", "fairfield", "moorooka", "salisbury", "rocklea", "archerfield", "acacia ridge", "coopers plains",
-      "macgregor", "robertson", "tarragindi", "holland park", "greenslopes", "dutton park", "south brisbane",
-      "west end", "highgate hill", "kangaroo point", "east brisbane", "new farm", "teneriffe", "newstead",
-      "fortitude valley", "spring hill", "bowen hills", "herston", "kelvin grove", "red hill", "bardon",
-      "auchenflower", "grange", "wilston", "windsor", "albion", "wooloowin", "lutwyche", "kedron", "stafford",
-      "everton park", "mitchelton", "gaythorne", "enoggera", "keperra", "ferny grove", "bridgeman downs",
-      "mcdowall", "carseldine", "aspley", "zillmere", "geebung", "wavell heights", "nundah", "northgate",
-      "banyo", "virginia", "hendra", "clayfield", "ascot", "hamilton", "pinkenba", "bracken ridge", "bald hills",
-      "fitzgibbon", "taigum", "boondall", "sandgate", "shorncliffe", "brighton", "deagon"
-    ];
-    if (brisbaneKeywords.some((k) => text.includes(k))) {
-      return { region: "Brisbane City Council", fee: 0 };
     }
 
     // Scenic Rim / Lockyer / Other SEQ ($2,227)
     const otherSeqKeywords = ["scenic rim", "beaudesert", "boonah", "lockyer", "gatton", "laidley", "plainland"];
-    if (otherSeqKeywords.some((k) => text.includes(k))) {
+    if (otherSeqKeywords.some((k) => new RegExp(`\\b${k}\\b`, "i").test(text))) {
       return { region: `${text.split(" ")[0].toUpperCase()} Regional Council`, fee: 2227 };
+    }
+
+    // -------------------------------------------------------------------------
+    // STEP 2: POSTCODE MATCHING (Only if no specific suburb matched)
+    // -------------------------------------------------------------------------
+    // Cross-border postcodes (4053, 4054, 4055) fallback to Brisbane City Council if no specific Moreton suburb was named
+    if (/\b(4053|4054|4055)\b/.test(text)) {
+      return { region: "Brisbane City Council", fee: 0 };
+    }
+
+    // Moreton Bay Postcodes
+    if (/\b(4500|4501|4502|4503|4504|4505|4506|4507|4508|4509|4510|4511|4512|4520|4019|4020|4021|4022|4037)\b/.test(text)) {
+      return { region: "Moreton Bay Regional Council", fee: 2227 };
+    }
+
+    // Gold Coast Postcodes
+    if (/\b(4208|4209|4210|4211|4212|4213|4214|4215|4216|4217|4218|4220|4221|4223|4224|4225|4226|4227|4228)\b/.test(text)) {
+      return { region: "Gold Coast City Council", fee: 2950 };
+    }
+
+    // Sunshine Coast Postcodes
+    if (/\b(4551|4556|4557|4558|4567|4575)\b/.test(text)) {
+      return { region: "Sunshine Coast Council", fee: 2950 };
+    }
+
+    // Logan Postcodes
+    if (/\b(4114|4117|4118|4119|4123|4124|4127|4128|4129|4130|4131|4132|4133|4207|4280|4285)\b/.test(text)) {
+      return { region: "Logan City Council", fee: 2227 };
+    }
+
+    // Ipswich Postcodes
+    if (/\b(4300|4301|4303|4304|4305|4306)\b/.test(text)) {
+      return { region: "Ipswich City Council", fee: 2227 };
+    }
+
+    // Redland Postcodes
+    if (/\b(4157|4158|4159|4160|4161|4163|4164|4165)\b/.test(text)) {
+      return { region: "Redland City Council", fee: 2227 };
+    }
+
+    // Toowoomba Postcodes
+    if (/\b(4350|4352)\b/.test(text)) {
+      return { region: "Toowoomba Regional Council", fee: 2227 };
+    }
+
+    // Brisbane Metro Postcodes Fallback
+    if (/\b(4000|4005|4006|4007|4008|4009|4010|4011|4012|4013|4014|4017|4018|4030|4031|4032|4034|4035|4036|4051|4059|4060|4061|4064|4065|4066|4067|4068|4069|4070|4073|4074|4075|4076|4077|4078|4101|4102|4103|4104|4105|4106|4107|4108|4109|4110|4111|4112|4113|4115|4116|4120|4121|4122|4151|4152|4153|4154|4155|4156|4169|4170|4171|4172|4173|4174|4178|4179)\b/.test(text)) {
+      return { region: "Brisbane City Council", fee: 0 };
     }
 
     return null;
