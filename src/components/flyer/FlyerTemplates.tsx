@@ -215,13 +215,17 @@ function Facade({
   isSingleGarage?: boolean;
 }) {
   const resolvedUrl = useMemo(() => resolveUpdatedFacadeRender(url), [url]);
-  const [imgSrc, setImgSrc] = useState(resolvedUrl || "");
+  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
+  const [prevResolved, setPrevResolved] = useState(resolvedUrl);
 
-  useEffect(() => {
-    setImgSrc(resolvedUrl || "");
-  }, [resolvedUrl]);
+  if (resolvedUrl !== prevResolved) {
+    setPrevResolved(resolvedUrl);
+    setFallbackUrl(null);
+  }
 
-  const lowerUrl = (resolvedUrl || "").toLowerCase();
+  const displaySrc = fallbackUrl || resolvedUrl;
+
+  const lowerUrl = (displaySrc || "").toLowerCase();
 
   const isDoubleOrSplit = Boolean(
     isDouble ||
@@ -247,7 +251,7 @@ function Facade({
 
   const isSingleGarageDouble = isDoubleOrSplit && isSg;
 
-  if (busy && !resolvedUrl) {
+  if (busy && !displaySrc) {
     return (
       <div className={`relative flex h-full w-full flex-col items-center justify-center bg-brand-navy-deep gap-3 p-4 text-white ${className ?? ""}`}>
         <Loader2 className="h-8 w-8 animate-spin text-brand-gold" />
@@ -261,7 +265,7 @@ function Facade({
     );
   }
 
-  if (!resolvedUrl) {
+  if (!displaySrc) {
     return (
       <div className={`flex h-full w-full flex-col items-center justify-center bg-slate-50/80 border border-dashed border-slate-300 rounded-[1.5mm] gap-1.5 p-4 ${className ?? ""}`}>
         <span className="text-[2.8mm] tracking-[0.2em] text-brand-navy/60 font-semibold uppercase">
@@ -289,16 +293,16 @@ function Facade({
   return (
     <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-transparent ${className ?? ""}`}>
       <img
-        src={imgSrc}
+        src={displaySrc}
         alt="Facade render"
         loading="eager"
         crossOrigin="anonymous"
         onError={() => {
           // If direct image fails to load, try first-party proxy
-          if (resolvedUrl && !imgSrc.includes("/api/proxy-image") && !resolvedUrl.startsWith("data:")) {
-            setImgSrc(`/api/proxy-image?url=${encodeURIComponent(resolvedUrl)}`);
-          } else if (resolvedUrl && !imgSrc.includes("weserv.nl") && !resolvedUrl.startsWith("data:")) {
-            setImgSrc(`https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}&output=jpg`);
+          if (resolvedUrl && !displaySrc.includes("/api/proxy-image") && !resolvedUrl.startsWith("data:")) {
+            setFallbackUrl(`/api/proxy-image?url=${encodeURIComponent(resolvedUrl)}`);
+          } else if (resolvedUrl && !displaySrc.includes("weserv.nl") && !resolvedUrl.startsWith("data:")) {
+            setFallbackUrl(`https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}&output=jpg`);
           }
         }}
         className={`h-full w-full object-cover ${objectPositionClass} ${busy ? "opacity-75" : ""}`}

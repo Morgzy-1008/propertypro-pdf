@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = "PropertyProFacadeCacheDB";
-const DB_VERSION = 12; // Upgraded to v12 to include high-speed facade thumbnails
+const DB_VERSION = 13; // Upgraded to v13 to ensure both enhanced_facades and facade_thumbnails exist reliably
 const STORE_NAME = "enhanced_facades";
 const THUMB_STORE_NAME = "facade_thumbnails";
 
@@ -58,15 +58,18 @@ export async function getIdbThumbnail(url: string): Promise<string | null> {
 /** Batch get cached thumbnails from IndexedDB in a single transaction */
 export async function getIdbThumbnails(urls: string[]): Promise<Record<string, string>> {
   if (!urls || urls.length === 0) return {};
+  const uniqueUrls = Array.from(new Set(urls.filter(Boolean)));
+  if (uniqueUrls.length === 0) return {};
+
   try {
     const db = await getDb();
     return new Promise((resolve) => {
       const tx = db.transaction(THUMB_STORE_NAME, "readonly");
       const store = tx.objectStore(THUMB_STORE_NAME);
       const results: Record<string, string> = {};
-      let remaining = urls.length;
+      let remaining = uniqueUrls.length;
 
-      for (const url of urls) {
+      for (const url of uniqueUrls) {
         const req = store.get(url);
         req.onsuccess = () => {
           if (req.result) results[url] = req.result as string;
@@ -165,6 +168,23 @@ export async function clearAllIdbEnhanced(): Promise<void> {
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
+      const request = store.clear();
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Clear all facade thumbnails from IndexedDB */
+export async function clearAllIdbThumbnails(): Promise<void> {
+  try {
+    const db = await getDb();
+    return new Promise((resolve) => {
+      const tx = db.transaction(THUMB_STORE_NAME, "readwrite");
+      const store = tx.objectStore(THUMB_STORE_NAME);
       const request = store.clear();
 
       request.onsuccess = () => resolve();

@@ -2489,17 +2489,19 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         </div>
       </Section>
 
-      <FacadeCheckModal
-        isOpen={facadeCheckOpen}
-        onClose={() => setFacadeCheckOpen(false)}
-        facadeUrl={data.facadeUrl}
-        facadeName={data.facadeName || "Current Facade"}
-        facadeId={data.facadeId || "custom"}
-        housingType={data.housingType || "double"}
-        onApplyNewRender={(newUrl) => {
-          set("facadeUrl", newUrl);
-        }}
-      />
+      {facadeCheckOpen && (
+        <FacadeCheckModal
+          isOpen={facadeCheckOpen}
+          onClose={() => setFacadeCheckOpen(false)}
+          facadeUrl={data.facadeUrl}
+          facadeName={data.facadeName || "Current Facade"}
+          facadeId={data.facadeId || "custom"}
+          housingType={data.housingType || "double"}
+          onApplyNewRender={(newUrl) => {
+            set("facadeUrl", newUrl);
+          }}
+        />
+      )}
     </div>
   );
 }

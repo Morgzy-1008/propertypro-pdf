@@ -1,7 +1,13 @@
 import { HUDSON_FACADES } from "./facades.data";
 import { facadePriceForDesign, type FacadeStorey } from "./facadePricing";
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
-import { getIdbEnhanced, saveIdbEnhanced, clearIdbEnhanced } from "./idbFacadeCache";
+import {
+  getIdbEnhanced,
+  saveIdbEnhanced,
+  clearIdbEnhanced,
+  clearAllIdbEnhanced,
+  clearAllIdbThumbnails,
+} from "./idbFacadeCache";
 
 export interface FacadeItem {
   id: string;
@@ -216,8 +222,7 @@ export async function revertEnhanced(id: string): Promise<string | null> {
 }
 
 export async function resetFacadeRenderMemory(): Promise<void> {
-  const { clearAllIdbEnhanced } = await import("./idbFacadeCache");
-  await clearAllIdbEnhanced();
+  await Promise.all([clearAllIdbEnhanced(), clearAllIdbThumbnails()]);
   try {
     for (let i = window.localStorage.length - 1; i >= 0; i--) {
       const key = window.localStorage.key(i);

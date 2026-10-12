@@ -1049,8 +1049,12 @@ async function fetchImageAsBase64(url: string, designName?: string): Promise<{ m
   if (!url) return null;
   if (typeof window === "undefined") {
     try {
-      const fs = await import("fs");
-      const path = await import("path");
+      const fsMod = "node:fs";
+      const pathMod = "node:path";
+      // @ts-ignore
+      const fs = await import(/* @vite-ignore */ fsMod);
+      // @ts-ignore
+      const path = await import(/* @vite-ignore */ pathMod);
       const cleanPath = url.startsWith("/") ? url.slice(1) : url;
       const fullPath = path.resolve(process.cwd(), "public", cleanPath);
       if (fs.existsSync(fullPath)) {

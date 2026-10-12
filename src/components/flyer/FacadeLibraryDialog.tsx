@@ -108,9 +108,31 @@ const BATCH_INCREMENT = 12;
 
 // In-memory cache for synchronous 0ms thumbnail loading across dialog opens
 const memoryThumbnailCache = new Map<string, string>();
-const pendingThumbnailPromises = new Map<string, Promise<string>>();
+const thumbnailListeners = new Map<string, Set<(src: string) => void>>();
+const inFlightThumbnailPromises = new Map<string, Promise<string>>();
 
-// Concurrency-limited background thumbnail task queue (max 2 canvas renders concurrently)
+function subscribeThumbnail(url: string, callback: (src: string) => void): () => void {
+  if (!thumbnailListeners.has(url)) {
+    thumbnailListeners.set(url, new Set());
+  }
+  thumbnailListeners.get(url)!.add(callback);
+  return () => {
+    thumbnailListeners.get(url)?.delete(callback);
+    if (thumbnailListeners.get(url)?.size === 0) {
+      thumbnailListeners.delete(url);
+    }
+  };
+}
+
+function notifyThumbnail(url: string, src: string) {
+  memoryThumbnailCache.set(url, src);
+  const listeners = thumbnailListeners.get(url);
+  if (listeners) {
+    listeners.forEach((cb) => cb(src));
+  }
+}
+
+// Concurrency-limited background thumbnail task queue (max 2 jobs concurrently)
 let activeThumbnailJobs = 0;
 const thumbnailJobQueue: Array<() => void> = [];
 
@@ -139,14 +161,72 @@ function runWithConcurrencyLimit<T>(task: () => Promise<T>): Promise<T> {
 
 /**
  * Dynamically downsizes full-resolution images into a crisp 15KB WebP thumbnail
- * directly in the browser via Canvas and caches in IndexedDB and RAM.
+ * directly in the browser via background ImageBitmap + Canvas and caches in IndexedDB and RAM.
  */
+async function generateThumbnailOffThread(url: string): Promise<string> {
+  // Yield to main thread first so UI interaction stays 60fps
+  await new Promise((r) => setTimeout(r, 0));
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+    const blob = await res.blob();
+
+    // Modern off-main-thread image decoding and downsampling
+    if (typeof createImageBitmap === "function") {
+      const bitmap = await createImageBitmap(blob, {
+        resizeWidth: 420,
+        resizeQuality: "medium",
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d", { alpha: false });
+      if (ctx) {
+        ctx.drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const thumbUrl = canvas.toDataURL("image/webp", 0.82);
+        return thumbUrl;
+      }
+      bitmap.close();
+    }
+  } catch {
+    // Fallback to standard Image below
+  }
+
+  return new Promise<string>((resolve) => {
+    if (typeof window === "undefined") return resolve(url);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const targetWidth = 420;
+        const targetHeight =
+          Math.round((img.naturalHeight / (img.naturalWidth || 1)) * targetWidth) || 164;
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext("2d", { alpha: false });
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          const thumbUrl = canvas.toDataURL("image/webp", 0.82);
+          resolve(thumbUrl);
+          return;
+        }
+      } catch {}
+      resolve(url);
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
+
 async function getOrGenerateThumbnail(url: string): Promise<string> {
   if (memoryThumbnailCache.has(url)) {
     return memoryThumbnailCache.get(url)!;
   }
-  if (pendingThumbnailPromises.has(url)) {
-    return pendingThumbnailPromises.get(url)!;
+  if (inFlightThumbnailPromises.has(url)) {
+    return inFlightThumbnailPromises.get(url)!;
   }
 
   const promise = (async () => {
@@ -154,58 +234,55 @@ async function getOrGenerateThumbnail(url: string): Promise<string> {
     try {
       const cached = await getIdbThumbnail(url);
       if (cached) {
-        memoryThumbnailCache.set(url, cached);
+        notifyThumbnail(url, cached);
         return cached;
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
 
-    // 2. Generate thumbnail dynamically via Image + Canvas under concurrency limit
+    // 2. Generate thumbnail dynamically via ImageBitmap + Canvas under concurrency limit
     return runWithConcurrencyLimit(async () => {
       if (memoryThumbnailCache.has(url)) {
         return memoryThumbnailCache.get(url)!;
       }
-      return new Promise<string>((resolve) => {
-        if (typeof window === "undefined") {
-          resolve(url);
-          return;
-        }
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          try {
-            const canvas = document.createElement("canvas");
-            const targetWidth = 420;
-            const targetHeight = Math.round((img.naturalHeight / (img.naturalWidth || 1)) * targetWidth) || 164;
-            canvas.width = targetWidth;
-            canvas.height = targetHeight;
-            const ctx = canvas.getContext("2d", { alpha: false });
-            if (ctx) {
-              ctx.imageSmoothingEnabled = true;
-              ctx.imageSmoothingQuality = "medium";
-              ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-              const thumbUrl = canvas.toDataURL("image/webp", 0.82);
-              memoryThumbnailCache.set(url, thumbUrl);
-              saveIdbThumbnail(url, thumbUrl).catch(() => {});
-              resolve(thumbUrl);
-              return;
-            }
-          } catch {
-            // fallback
-          }
-          resolve(url);
-        };
-        img.onerror = () => resolve(url);
-        img.src = url;
-      });
+      const thumbUrl = await generateThumbnailOffThread(url);
+      notifyThumbnail(url, thumbUrl);
+      if (thumbUrl !== url) {
+        saveIdbThumbnail(url, thumbUrl).catch(() => {});
+      }
+      return thumbUrl;
     });
   })();
 
-  pendingThumbnailPromises.set(url, promise);
-  const result = await promise;
-  pendingThumbnailPromises.delete(url);
-  return result;
+  inFlightThumbnailPromises.set(url, promise);
+  try {
+    const result = await promise;
+    return result;
+  } finally {
+    inFlightThumbnailPromises.delete(url);
+  }
+}
+
+function useFacadeThumbnail(url: string): string | null {
+  const [thumbSrc, setThumbSrc] = useState<string | null>(
+    () => memoryThumbnailCache.get(url) || null
+  );
+
+  useEffect(() => {
+    if (memoryThumbnailCache.has(url)) {
+      setThumbSrc(memoryThumbnailCache.get(url)!);
+      return;
+    }
+
+    const unsubscribe = subscribeThumbnail(url, (src) => {
+      setThumbSrc(src);
+    });
+
+    getOrGenerateThumbnail(url).catch(() => {});
+
+    return unsubscribe;
+  }, [url]);
+
+  return thumbSrc;
 }
 
 function FacadeCardThumbnail({
@@ -219,45 +296,31 @@ function FacadeCardThumbnail({
   isSingleGarage?: boolean;
   showGarageBadge?: boolean;
 }) {
-  const [thumbSrc, setThumbSrc] = useState<string | null>(() => memoryThumbnailCache.get(f.url) || null);
+  const thumbSrc = useFacadeThumbnail(f.url);
   const [loaded, setLoaded] = useState(false);
-  const [, setError] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    if (memoryThumbnailCache.has(f.url)) {
-      setThumbSrc(memoryThumbnailCache.get(f.url)!);
-      return;
-    }
-    getOrGenerateThumbnail(f.url).then((src) => {
-      if (active) {
-        setThumbSrc(src);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [f.url]);
-
-  const displaySrc = thumbSrc || f.url;
 
   return (
     <div
       className="relative aspect-[210/82] w-full bg-slate-900/60 overflow-hidden"
       style={{ contentVisibility: "auto", containIntrinsicSize: "240px 95px" }}
     >
-      <img
-        src={displaySrc}
-        alt={f.name}
-        loading={isHighPriority ? "eager" : "lazy"}
-        decoding="async"
-        fetchPriority={isHighPriority ? "high" : "auto"}
-        onLoad={() => setLoaded(true)}
-        onError={() => setError(true)}
-        className={`h-full w-full object-cover object-center transition-opacity duration-200 ${
-          loaded ? "opacity-100" : "opacity-90"
-        }`}
-      />
+      {thumbSrc ? (
+        <img
+          src={thumbSrc}
+          alt={f.name}
+          loading={isHighPriority ? "eager" : "lazy"}
+          decoding="async"
+          fetchPriority={isHighPriority ? "high" : "auto"}
+          onLoad={() => setLoaded(true)}
+          className={`h-full w-full object-cover object-center transition-opacity duration-200 ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-800/40 animate-pulse">
+          <div className="h-4 w-4 rounded-full border border-brand-gold/40 border-t-brand-gold animate-spin opacity-40" />
+        </div>
+      )}
       {f.range === "Narrow Double Storey" && (
         <span className="absolute right-1.5 top-1.5 rounded bg-cyan-950/80 border border-cyan-700/60 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300 backdrop-blur-xs">
           Narrow Double
@@ -434,7 +497,7 @@ export function FacadeLibrary({
     getIdbThumbnails(uncachedUrls)
       .then((batch) => {
         Object.entries(batch).forEach(([url, thumb]) => {
-          memoryThumbnailCache.set(url, thumb);
+          notifyThumbnail(url, thumb);
         });
       })
       .catch(() => {});

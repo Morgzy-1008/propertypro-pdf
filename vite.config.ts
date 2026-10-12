@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
-import tsconfigPaths from "vite-tsconfig-paths";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -442,11 +441,15 @@ export default defineConfig({
   preview: {
     allowedHosts: true,
   },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   plugins: [
     TanStackRouterVite(),
     tailwindcss(),
     react(),
-    tsconfigPaths(),
     apiDevPlugin(),
     versionPlugin(),
   ],
@@ -468,7 +471,23 @@ export default defineConfig({
             if (id.includes("framer-motion")) return "vendor-motion";
             if (id.includes("lucide-react")) return "vendor-lucide";
             if (id.includes("@radix-ui")) return "vendor-radix";
+            if (id.includes("@google/genai")) return "vendor-genai";
+            if (id.includes("@tanstack")) return "vendor-tanstack";
+            if (id.includes("html2canvas")) return "vendor-canvas";
+            if (id.includes("jszip")) return "vendor-zip";
           }
+          if (id.includes("australianSuburbsData")) return "data-suburbs";
+          if (id.includes("masterWindowDoorSchedules")) return "data-schedules";
+          if (id.includes("hubKnowledgeEngine")) return "lib-hub-engine";
+          if (id.includes("floorplanModificationDetector")) return "lib-floorplan-detector";
+          if (id.includes("universalPlanningEngine")) return "lib-planning-engine";
+          if (id.includes("routes/_authenticated/database.tsx")) return "route-database";
+          if (id.includes("routes/_authenticated/tender-request.tsx")) return "route-tender-request";
+          if (id.includes("routes/_authenticated/3d-studio.tsx")) return "route-3d-studio";
+          if (id.includes("routes/_authenticated/elevations-3d.tsx")) return "route-elevations-3d";
+          if (id.includes("routes/_authenticated/floorplan-editor.tsx")) return "route-floorplan-editor";
+          if (id.includes("routes/_authenticated/land-scout.tsx")) return "route-land-scout";
+          if (id.includes("routes/_authenticated/crm.tsx")) return "route-crm";
         },
       },
     },

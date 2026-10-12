@@ -310,6 +310,8 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className={`sm:max-w-2xl max-h-[90vh] overflow-y-auto p-6 ${
@@ -336,11 +338,17 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
           isLight ? "border-slate-200 bg-slate-100" : "border-slate-800 bg-slate-900/60"
         }`}>
           <div className="aspect-[210/82] w-full overflow-hidden bg-black/40">
-            <img
-              src={currentUrl}
-              alt={facadeName}
-              className="h-full w-full object-cover object-center"
-            />
+            {currentUrl ? (
+              <img
+                src={currentUrl}
+                alt={facadeName}
+                className="h-full w-full object-cover object-center"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
+                No facade preview
+              </div>
+            )}
           </div>
           {/* Subtle safe framing overlays */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-blue-500/20 to-transparent" />
