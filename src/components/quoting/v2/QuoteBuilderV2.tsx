@@ -219,6 +219,7 @@ export function QuoteBuilderV2({
               <React.Fragment key={step.id}>
                 <button
                   type="button"
+                  data-testid={`step-btn-${step.id}`}
                   onClick={() => handleStepClick(step.id)}
                   className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                     isCurrent

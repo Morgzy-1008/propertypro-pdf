@@ -427,7 +427,7 @@ export interface QuickQuoteTemplate {
   };
   designName: string;
   housingType: string;
-  specTier: "H1 Smart Living" | "H2 Design Collection" | "H3 Luxury Inclusions";
+  specTier: "H1 Smart Living" | "H2 Design Collection" | "H3 Luxury Inclusions" | "IP Investor Pack" | "FHB Start Smart" | string;
   sitePresetId: string;
   variationIds: string[];
 }

@@ -99,7 +99,7 @@ type HousingTypeTab = "Single Storey" | "Double Storey" | "Dual Living" | "Split
 
 interface TierCardDef {
   tier: InclusionTier;
-  shortCode: "H1" | "H2" | "H3";
+  shortCode: "H1" | "H2" | "H3" | "IP" | "FHB";
   title: string;
   tagline: string;
   badge?: string;
@@ -146,6 +146,34 @@ const INCLUSION_TIERS: TierCardDef[] = [
       "2740mm (9ft) high ceilings to ground floor",
       "Multi-zone reverse cycle ducted air conditioning",
       "Floor-to-ceiling rectified porcelain bathroom tiling",
+    ],
+  },
+  {
+    tier: "IP Investor Pack" as InclusionTier,
+    shortCode: "IP",
+    title: "IP Investor Pack",
+    tagline: "100% Turnkey High-Yield Finish",
+    badge: "Turnkey Ready",
+    badgeColor: "bg-cyan-500 text-slate-950",
+    features: [
+      "Driveway, crossover, fencing, letterbox & clothesline",
+      "Block-out roller blinds & flyscreens throughout",
+      "Reverse cycle air conditioning & LED downlights",
+      "20mm stone kitchen benchtops & dishwasher",
+    ],
+  },
+  {
+    tier: "FHB Start Smart" as InclusionTier,
+    shortCode: "FHB",
+    title: "FHB Start Smart",
+    tagline: "First Home Buyer Grant Ready",
+    badge: "FHOG Ready",
+    badgeColor: "bg-purple-500 text-white",
+    features: [
+      "Eligible for $30k QLD / $10k NSW FHOG",
+      "Fixed-price contract with zero price blowouts",
+      "600mm Haier stainless steel appliance suite",
+      "Ceramic living tiles & quality carpet with underlay",
     ],
   },
 ];
@@ -217,8 +245,10 @@ export function V2StepFloorPlan({
   const secondDropdownRef = useRef<HTMLDivElement>(null);
 
   // Explicit user tier selection state (so Point 4 is hidden until Point 3 is clicked)
-  const [selectedTierCode, setSelectedTierCode] = useState<"H1" | "H2" | "H3" | null>(() => {
+  const [selectedTierCode, setSelectedTierCode] = useState<"H1" | "H2" | "H3" | "IP" | "FHB" | null>(() => {
     if (design.hasExplicitlySelectedTier && design.specTier) {
+      if (design.specTier.includes("IP") || design.specTier.includes("INVEST")) return "IP";
+      if (design.specTier.includes("FHB") || design.specTier.includes("START SMART") || design.specTier.includes("FIRST HOME")) return "FHB";
       if (design.specTier.includes("H1")) return "H1";
       if (design.specTier.includes("H3")) return "H3";
       return "H2";
@@ -688,7 +718,15 @@ export function V2StepFloorPlan({
   // Handle selecting a standard catalogue design
   const handleSelectModel = (row: PriceRow, type: HousingTypeTab) => {
     const tier = selectedTierCode
-      ? (selectedTierCode === "H1" ? "H1 Smart Living" : selectedTierCode === "H2" ? "H2 Design Collection" : "H3 Luxury Inclusions")
+      ? (selectedTierCode === "H1"
+          ? "H1 Smart Living"
+          : selectedTierCode === "H2"
+          ? "H2 Design Collection"
+          : selectedTierCode === "H3"
+          ? "H3 Luxury Inclusions"
+          : selectedTierCode === "IP"
+          ? "IP Investor Pack"
+          : "FHB Start Smart")
       : (design.specTier || "H2 Design Collection");
     const basePrice = getTierPrice(row, tier, type);
     const planInfo = plansForDesign(row.name)[0];
@@ -805,7 +843,15 @@ export function V2StepFloorPlan({
     }
 
     const tier = selectedTierCode
-      ? (selectedTierCode === "H1" ? "H1 Smart Living" : selectedTierCode === "H2" ? "H2 Design Collection" : "H3 Luxury Inclusions")
+      ? (selectedTierCode === "H1"
+          ? "H1 Smart Living"
+          : selectedTierCode === "H2"
+          ? "H2 Design Collection"
+          : selectedTierCode === "H3"
+          ? "H3 Luxury Inclusions"
+          : selectedTierCode === "IP"
+          ? "IP Investor Pack"
+          : "FHB Start Smart")
       : (design.specTier || "H2 Design Collection");
     const stdBasePrice = getTierPrice(row, tier, type);
     const planInfo = plansForDesign(row.name)[0];
@@ -3095,7 +3141,7 @@ export function V2StepFloorPlan({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {INCLUSION_TIERS.map((tierDef) => {
               const isSelected = selectedTierCode === tierDef.shortCode;
               return (

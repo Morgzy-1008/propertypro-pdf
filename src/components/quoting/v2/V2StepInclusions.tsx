@@ -24,7 +24,7 @@ interface V2StepInclusionsProps {
 
 interface TierCardDef {
   tier: InclusionTier;
-  shortCode: "H1" | "H2" | "H3";
+  shortCode: "H1" | "H2" | "H3" | "IP" | "FHB";
   title: string;
   tagline: string;
   badge?: string;
@@ -38,15 +38,15 @@ const TIERS: TierCardDef[] = [
   {
     tier: "H1 Smart Living",
     shortCode: "H1",
-    title: "Smart Living",
+    title: "H1 Smart Living",
     tagline: "Essential Value & Reliable Quality",
     features: [
-      { text: "20mm engineered stone kitchen benchtop" },
-      { text: "600mm Westinghouse European stainless appliances" },
+      { text: "Laminate / 20mm stone kitchen benchtop" },
+      { text: "600mm European stainless appliances" },
       { text: "Semi-frameless shower screens with chrome tapware" },
-      { text: "Termimesh stainless steel physical termite barrier" },
+      { text: "Termimesh physical termite barrier" },
       { text: "Quality carpet to bedrooms & ceramic tiles to living" },
-      { text: "R2.5 ceiling insulation batts & roof sarking" },
+      { text: "NSW: Concrete roof tiles / QLD: Colorbond® steel" },
     ],
     accentBorder: "border-slate-500/40",
     glowClass: "hover:border-slate-400",
@@ -54,17 +54,17 @@ const TIERS: TierCardDef[] = [
   {
     tier: "H2 Design Collection",
     shortCode: "H2",
-    title: "Design Collection",
+    title: "H2 Design Collection",
     tagline: "The Hudson Signature Standard",
     badge: "Most Popular",
     badgeColor: "bg-emerald-500 text-slate-950",
     features: [
-      { text: "900mm Westinghouse gas cooktop & canopy rangehood", isUpgrade: true },
-      { text: "20mm stone to kitchen, bathroom & ensuite vanities", isUpgrade: true },
-      { text: "Soft-close cabinet doors & drawers throughout", isUpgrade: true },
-      { text: "LED downlight package to main open-plan living zones", isUpgrade: true },
-      { text: "Flyscreens to all opening windows & sliding doors" },
-      { text: "Automated sectional garage door with 2 remote keyfobs" },
+      { text: "900mm Westinghouse / F&P appliances", isUpgrade: true },
+      { text: "20mm stone to kitchen, bathroom & ensuite", isUpgrade: true },
+      { text: "Day/night ducted air conditioning system", isUpgrade: true },
+      { text: "Raised 2590mm high ceilings throughout", isUpgrade: true },
+      { text: "LED downlight package to open-plan living", isUpgrade: true },
+      { text: "NSW: Designer roof tiles / QLD: Colorbond® steel" },
     ],
     accentBorder: "border-emerald-500",
     glowClass: "hover:border-emerald-400 shadow-emerald-500/10",
@@ -72,7 +72,7 @@ const TIERS: TierCardDef[] = [
   {
     tier: "H3 Luxury Inclusions",
     shortCode: "H3",
-    title: "Luxury Living",
+    title: "H3 Luxury Inclusions",
     tagline: "Executive Architectural Finish",
     badge: "Executive",
     badgeColor: "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950",
@@ -82,10 +82,46 @@ const TIERS: TierCardDef[] = [
       { text: "Multi-zone reverse cycle ducted air conditioning", isUpgrade: true },
       { text: "Floor-to-ceiling rectified porcelain bathroom tiling", isUpgrade: true },
       { text: "Freestanding designer acrylic bath & black mixers", isUpgrade: true },
-      { text: "Fisher & Paykel premium appliance package", isUpgrade: true },
+      { text: "NSW: Flat designer tiles or Colorbond® / QLD: Colorbond®" },
     ],
     accentBorder: "border-amber-500/80",
     glowClass: "hover:border-amber-400 shadow-amber-500/10",
+  },
+  {
+    tier: "IP Investor Pack",
+    shortCode: "IP",
+    title: "IP Investor Pack",
+    tagline: "100% Turn-Key High-Yield Package",
+    badge: "Turnkey Ready",
+    badgeColor: "bg-cyan-500 text-slate-950",
+    features: [
+      { text: "100% Turn-key: Driveway, path, fencing & turf", isUpgrade: true },
+      { text: "Roller blinds & barrier screens throughout", isUpgrade: true },
+      { text: "Clothesline & designer letterbox included", isUpgrade: true },
+      { text: "Reverse-cycle air conditioning & LED downlights" },
+      { text: "20mm stone kitchen benchtops & dishwasher" },
+      { text: "NSW: Concrete roof tiles / QLD: Colorbond® steel" },
+    ],
+    accentBorder: "border-cyan-500/80",
+    glowClass: "hover:border-cyan-400 shadow-cyan-500/10",
+  },
+  {
+    tier: "FHB Start Smart",
+    shortCode: "FHB",
+    title: "FHB Start Smart",
+    tagline: "First Home Buyer Grant & Value Package",
+    badge: "FHOG Ready",
+    badgeColor: "bg-purple-500 text-white",
+    features: [
+      { text: "Eligible for $30k QLD / $10k NSW FHOG", isUpgrade: true },
+      { text: "Fixed-price contract guarantee with $0 surprises", isUpgrade: true },
+      { text: "600mm Haier stainless steel appliance suite" },
+      { text: "Ceramic floor tiles & quality carpet with underlay" },
+      { text: "Split-system air conditioning & ceiling fans" },
+      { text: "NSW: Concrete roof tiles / QLD: Colorbond® steel" },
+    ],
+    accentBorder: "border-purple-500/80",
+    glowClass: "hover:border-purple-400 shadow-purple-500/10",
   },
 ];
 
@@ -109,7 +145,7 @@ export function V2StepInclusions({
 
   const currentTierNormalized = (design.specTier || "H2").toUpperCase();
 
-  const handleSelectTier = (tier: InclusionTier, shortCode: "H1" | "H2" | "H3", autoShift: boolean = true) => {
+  const handleSelectTier = (tier: InclusionTier, shortCode: "H1" | "H2" | "H3" | "IP" | "FHB", autoShift: boolean = true) => {
     let nextBasePrice = design.basePrice;
     let nextStdBasePrice = design.standardBasePrice;
 
@@ -159,12 +195,14 @@ export function V2StepInclusions({
         </div>
       </div>
 
-      {/* 3 Inclusion Tier Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* 5 Inclusion Tier Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {TIERS.map((item) => {
           const isSelected =
             currentTierNormalized.includes(item.shortCode) ||
-            design.specTier?.toLowerCase() === item.tier.toLowerCase();
+            design.specTier?.toLowerCase() === item.tier.toLowerCase() ||
+            (item.shortCode === "FHB" && (currentTierNormalized.includes("SS") || currentTierNormalized.includes("START") || currentTierNormalized.includes("FIRST"))) ||
+            (item.shortCode === "IP" && (currentTierNormalized.includes("INVEST") || currentTierNormalized.includes("IP")));
 
           // Calculate price for this design at this tier
           const tierPrice = currentModel
@@ -175,7 +213,7 @@ export function V2StepInclusions({
             <div
               key={item.shortCode}
               onClick={() => handleSelectTier(item.tier, item.shortCode, true)}
-              className={`rounded-2xl border p-6 flex flex-col justify-between cursor-pointer transition-all duration-200 relative hover:scale-[1.01] ${
+              className={`rounded-2xl border p-5 flex flex-col justify-between cursor-pointer transition-all duration-200 relative hover:scale-[1.01] ${
                 isSelected
                   ? isLight
                     ? "bg-emerald-50/90 border-emerald-500 shadow-lg ring-2 ring-emerald-500/30"
@@ -204,12 +242,16 @@ export function V2StepInclusions({
                           ? "bg-amber-500/20 text-amber-400"
                           : item.shortCode === "H2"
                           ? "bg-emerald-500/20 text-emerald-400"
+                          : item.shortCode === "IP"
+                          ? "bg-cyan-500/20 text-cyan-400"
+                          : item.shortCode === "FHB"
+                          ? "bg-purple-500/20 text-purple-400"
                           : "bg-slate-500/20 text-slate-300"
                       }`}
                     >
                       {item.shortCode}
                     </span>
-                    <h3 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                    <h3 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                       {item.title}
                     </h3>
                   </div>

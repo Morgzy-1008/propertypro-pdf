@@ -219,13 +219,21 @@ export type InclusionTier =
   | "H1 Smart Inclusions"
   | "H2 Design Inclusions"
   | "H3 Luxury Inclusions"
+  | "H1 Smart Living"
+  | "H2 Design Collection"
   | "H1 Inclusions (2025)"
   | "H2 Inclusions (2025)"
   | "H3 Inclusions (2025)"
+  | "IP Investor Pack"
+  | "IP Inclusions (Turnkey)"
+  | "IP (New)"
+  | "FHB Start Smart"
+  | "FHB Inclusions"
   | "Smart Style"
   | "Smart Series"
   | "Hudson Base"
-  | "Home Builders Series";
+  | "Home Builders Series"
+  | (string & {});
 
 export interface FloorplanAreaBreakdown {
   lowerLivingM2?: number; // Lower Ground Living for Split Level (e.g. Mauve)

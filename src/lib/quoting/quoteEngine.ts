@@ -152,20 +152,23 @@ export function getTierPrice(
 ): number {
   if (!model) return 0;
   const norm = String(tier || "H2").toUpperCase();
-  const isH3 = norm.includes("H3");
-  const isH1 = norm.includes("H1");
+  const isH3 = norm.includes("H3") || norm.includes("LUXURY");
+  const isH1 = norm.includes("H1") || norm.includes("SMART LIVING");
   const isHBS = norm.includes("HBS") || norm.includes("HOME BUILDER");
-  const isSS = norm.includes("SS") || norm.includes("SMART SERIES") || norm.includes("SMART STYLE");
+  const isSS = norm.includes("SS") || norm.includes("SMART SERIES") || norm.includes("SMART STYLE") || norm.includes("FHB") || norm.includes("START SMART") || norm.includes("FIRST HOME");
+  const isIP = norm.includes("IP") || norm.includes("INVEST");
 
   if (housingType === "Dual Living") {
     if (isHBS) return (model as any).hbs || model.h1 || 0;
     if (isSS) return (model as any).ss || (model as any).hbs || model.h1 || 0;
+    if (isIP) return model.h1 || model.h2 || 0;
     if (isH1) return model.h1 || (model as any).hbs || 0;
     if (isH3) return (model as any).h3 || model.h2 || 0;
     return model.h2 || model.h1 || 0;
   }
   if (isHBS) return (model as any).hbs || model.h1 || 0;
   if (isSS) return (model as any).ss || (model as any).hbs || model.h1 || 0;
+  if (isIP) return model.h1 || model.h2 || 0;
   if (isH1) return model.h1 || (model as any).hbs || 0;
   if (isH3) return (model as any).h3 || model.h2 || 0;
   return model.h2 || model.h1 || 0;

@@ -86,9 +86,23 @@ interface QuotePdfDocumentProps {
 
 function formatInclusionTierTitle(tier: string): string {
   if (!tier) return "H2 Design Inclusions (2025)";
-  if (tier.includes("H1")) return "H1 Smart Inclusions (2025)";
-  if (tier.includes("H2")) return "H2 Design Inclusions (2025)";
-  if (tier.includes("H3")) return "H3 Luxury Inclusions (2025)";
+  const t = tier.trim();
+  const upper = t.toUpperCase();
+  if (upper.includes("IP") || upper.includes("INVEST")) {
+    return "IP Investor Pack Inclusions (Turnkey Ready)";
+  }
+  if (upper.includes("FHB") || upper.includes("START SMART") || upper.includes("FIRST HOME")) {
+    return "FHB Start Smart Inclusions (First Home Buyer)";
+  }
+  if (upper.includes("H1") || upper.includes("SMART")) {
+    return "H1 Smart Inclusions (2025)";
+  }
+  if (upper.includes("H3") || upper.includes("LUXURY")) {
+    return "H3 Luxury Inclusions (2025)";
+  }
+  if (upper.includes("H2") || upper.includes("DESIGN")) {
+    return "H2 Design Inclusions (2025)";
+  }
   return tier;
 }
 
@@ -2295,175 +2309,418 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       {/* ========================================================================= */}
       {/* PAGE 5+: EXPANDED FULL-PAGE STANDARD INCLUSIONS SCHEDULE (WEBSITE STYLED) */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div data-testid="pdf-page-inclusions" className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
           {/* Header */}
-          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
-            <div>
-              <div className="text-xs font-bold uppercase tracking-widest text-cyan-700">
-                STANDARD INCLUSIONS SPECIFICATION SCHEDULE
-              </div>
-              <h2 className="text-xl font-extrabold text-slate-900 mt-0.5">
-                {formatInclusionTierTitle(design.specTier)}
-              </h2>
-            </div>
-            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-3.5 py-1.5 rounded-full border border-emerald-300 shadow-sm flex items-center gap-1.5">
-              <Check className="h-3.5 w-3.5 text-emerald-700" />
-              Fully Included in Base Builders Estimate
-            </span>
-          </div>
+          {(() => {
+            const isNswInclusions = quoteState === "NSW";
+            const tierNormUpper = (design.specTier || "H2").toUpperCase();
+            const isIPInclusions = tierNormUpper.includes("IP") || tierNormUpper.includes("INVEST");
+            const isFHBInclusions = tierNormUpper.includes("FHB") || tierNormUpper.includes("START SMART") || tierNormUpper.includes("FIRST HOME") || tierNormUpper.includes("SS");
+            const isH3Inclusions = !isIPInclusions && !isFHBInclusions && (tierNormUpper.includes("H3") || tierNormUpper.includes("LUXURY"));
+            const isH1Inclusions = !isIPInclusions && !isFHBInclusions && (tierNormUpper.includes("H1") || tierNormUpper.includes("SMART"));
+            const isH2Inclusions = !isIPInclusions && !isFHBInclusions && !isH3Inclusions && !isH1Inclusions;
 
-          {/* Comprehensive 8-Category Inclusions Grid with Website Rich Aesthetic */}
-          <div className="space-y-2.5 text-[9.5px] leading-snug">
-            {/* Certification & Approvals */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-              <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                  <FileCheck2 className="h-3.5 w-3.5 text-cyan-700" />
-                  CERTIFICATION AND APPROVALS
-                </span>
-                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-              </div>
-              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Site contour survey by registered surveyor &amp; physical set out</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Building Application (BA) preparation, lodgement &amp; fees</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Structural engineering design for concrete slab &amp; footing</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Form 15 Pre-nail frame/truss layout &amp; Form 16 Structural certs</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Glazing acoustics Form 15 &amp; energy efficiency assessment report</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Final Occupation Certificate (Form 21) upon completion</span></div>
-              </div>
-            </div>
+            return (
+              <>
+                <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-widest text-cyan-700">
+                      STANDARD INCLUSIONS SPECIFICATION SCHEDULE • {isNswInclusions ? "NEW SOUTH WALES" : "QUEENSLAND"}
+                    </div>
+                    <h2 className="text-xl font-extrabold text-slate-900 mt-0.5">
+                      {formatInclusionTierTitle(design.specTier)}
+                    </h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-cyan-800 bg-cyan-50 px-3 py-1.5 rounded-full border border-cyan-300 shadow-sm flex items-center gap-1.5">
+                      <Building className="h-3.5 w-3.5 text-cyan-700" />
+                      {isNswInclusions ? "NSW Schedule (Concrete Tile STD)" : "QLD Schedule (Colorbond® STD)"}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-3.5 py-1.5 rounded-full border border-emerald-300 shadow-sm flex items-center gap-1.5">
+                      <Check className="h-3.5 w-3.5 text-emerald-700" />
+                      {isIPInclusions ? "100% Turnkey Investor Pack" : isFHBInclusions ? "FHOG & Turnkey Ready" : "Fully Included in Base Builders Estimate"}
+                    </span>
+                  </div>
+                </div>
 
-            {/* Site Costs, Preparation & Foundation */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-              <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                  <Layers className="h-3.5 w-3.5 text-cyan-700" />
-                  SITE COSTS, PREPARATION &amp; FOUNDATION
-                </span>
-                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-              </div>
-              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Bulk earthworks &amp; levelling up to 1.0m fall across building pad</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Engineered waffle pod concrete slab on ground including alfresco</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Roof edge safety rail &amp; scaffolding to strict WHS compliance</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Connect sewer, water, power &amp; storm water services to mains</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Part A &amp; Part B Termite Management System with warranty</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Smooth power-trowelled finish to garage and internal living areas</span></div>
-              </div>
-            </div>
+                {/* Comprehensive 8-Category Inclusions Grid with Website Rich Aesthetic */}
+                <div className="space-y-2.5 text-[9.5px] leading-snug">
+                  {/* Certification & Approvals */}
+                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
+                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
+                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                        <FileCheck2 className="h-3.5 w-3.5 text-cyan-700" />
+                        CERTIFICATION AND APPROVALS ({isNswInclusions ? "NSW STATUTORY" : "QLD STATUTORY"})
+                      </span>
+                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
+                    </div>
+                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Site contour survey by registered surveyor &amp; physical set out</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "DA / CDC preparation, architectural plans & council fees" : "Building Application (BA) preparation, lodgement & certifier fees"}</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Structural engineering design for concrete slab &amp; footing</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "Construction Certificate (CC) & structural engineer certification" : "Form 15 Pre-nail frame/truss layout & Form 16 Structural certs"}</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "BASIX Energy Assessment Report & thermal efficiency cert" : "Glazing acoustics Form 15 & 7-Star NatHERS assessment ($0 fee)"}</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "Principal Certifying Authority (PCA) inspections & Final OC" : "Final building certifier inspection & Form 21 Occupancy Cert"}</span></div>
+                    </div>
+                  </div>
 
-            {/* External Features, Roof & Windows */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-              <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                  <Building className="h-3.5 w-3.5 text-cyan-700" />
-                  EXTERNAL FEATURES, ROOF &amp; GLAZING
-                </span>
-                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-              </div>
-              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Colorbond® steel roof or flat profile concrete designer roof tiles" : "Colorbond® corrugated steel roofing with medium duty reflective foil"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Colorbond® fascia and gutters with painted UPVC downpipes</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Engineered T2 treated timber roof trusses and wall framing</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Stain grade decorative solid core front door up to 1200mm wide" : "Hume Newington 2040mm solid core front entry door with double lock"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Powder coated aluminium windows &amp; flyscreens with fibreglass mesh</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>2 external garden taps &amp; energy-efficient heat pump hot water system</span></div>
-              </div>
-            </div>
+                  {/* Site Costs, Preparation & Foundation */}
+                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
+                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
+                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                        <Layers className="h-3.5 w-3.5 text-cyan-700" />
+                        SITE COSTS, PREPARATION &amp; FOUNDATION
+                      </span>
+                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
+                    </div>
+                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Bulk earthworks &amp; levelling up to 1.0m fall across building pad</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Class M engineered reinforced waffle pod slab including alfresco</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "Reinforced concrete bored piering allowance included in site costs" : "Site-specific concrete piering provision (piering quoted per soil report)"}</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Connect sewer, water, power &amp; storm water services to mains</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "Termimesh / Kordon physical stainless steel termite barrier (50-yr)" : "Part A & Part B Termite Management System with warranty"}</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Roof edge safety rail &amp; scaffolding; smooth trowelled slab finish</span></div>
+                    </div>
+                  </div>
 
-            {/* Internal Ceilings, Walls & Doors */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-              <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                  <Home className="h-3.5 w-3.5 text-cyan-700" />
-                  INTERNAL CEILINGS, WALLS &amp; DOORS
-                </span>
-                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-              </div>
-              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "2,740mm ceiling height to single storey / ground floor" : design.specTier.includes("H2") ? "2,590mm ceiling height throughout" : "2,440mm ceiling height throughout"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Hume Linear HLR270 2340mm high internal doors" : "Hume Linear 2040mm internal doors"} with Dulux gloss enamel</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Dulux multi-coat paint system to all internal walls and ceilings</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "2400mm high frameless mirror sliding doors to wardrobes" : "Frameless mirror or vinyl sliding wardrobe doors"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>67x18mm skirting &amp; architraves with Dulux painted full gloss enamel</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Glass wool insulation batts to external walls &amp; ceilings</span></div>
-              </div>
-            </div>
+                  {/* External Features, Roof & Windows */}
+                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
+                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
+                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                        <Building className="h-3.5 w-3.5 text-cyan-700" />
+                        EXTERNAL FEATURES, ROOF &amp; GLAZING
+                      </span>
+                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
+                    </div>
+                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span className="font-semibold text-slate-900">
+                          {isNswInclusions
+                            ? isH3Inclusions
+                              ? "Choice of Bristile flat designer concrete tiles or Colorbond® steel roof"
+                              : isH2Inclusions
+                              ? "Bristile designer concrete roof tiles + sarking (Colorbond® steel option)"
+                              : "Bristile / Monier classic concrete roof tiles + reflective foil sarking"
+                            : isH3Inclusions
+                            ? "Colorbond® steel roofing or Bristile designer flat concrete tiles"
+                            : "Genuine BlueScope Colorbond® corrugated steel roofing + reflective foil"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Colorbond® fascia and quad gutters with painted UPVC downpipes</span></div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Engineered T2 treated termite-resistant timber framing and trusses</span></div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "Hume 1200mm wide designer entrance pivot door with Trilock"
+                            : isH2Inclusions
+                            ? "Hume Newington 2040mm solid core front entrance door with Trilock"
+                            : isIPInclusions
+                            ? "Hume solid core front entry door with deadlock & weather seal"
+                            : "Hume Newington 2040mm solid core front door with lever lockset"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "Powder coated aluminium windows with awning feature & flyscreens"
+                            : isIPInclusions
+                            ? "Powder coated aluminium windows with barrier screens & window locks"
+                            : "Powder coated aluminium windows & flyscreens with fibreglass mesh"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>2 external brass garden taps &amp; energy-efficient heat pump hot water</span></div>
+                    </div>
+                  </div>
 
-            {/* Gourmet Kitchen & Luxury Appliances */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-              <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                  <Sparkles className="h-3.5 w-3.5 text-cyan-700" />
-                  GOURMET KITCHEN &amp; APPLIANCES
-                </span>
-                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-              </div>
-              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "40mm mitred edge stone kitchen benchtops" : design.specTier.includes("H2") ? "20mm stone kitchen benchtops" : "Laminated benchtops with rolled edge"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Fully lined overhead cupboards with plaster bulkhead feature</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Bank of 4 soft-close cutlery drawers and matching pot drawers</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H1") ? "Haier 600mm stainless steel electric oven, cooktop & dishwasher" : "Fisher & Paykel 900mm luxury stainless steel electric oven & 900mm cooktop"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Fisher &amp; Paykel stainless steel dishwasher &amp; built-in microwave oven</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Clark Polar undermount/drop-in sink with Liano II designer pull-out mixer</span></div>
-              </div>
-            </div>
+                  {/* Internal Ceilings, Walls & Doors */}
+                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
+                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
+                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                        <Home className="h-3.5 w-3.5 text-cyan-700" />
+                        INTERNAL CEILINGS, WALLS &amp; DOORS
+                      </span>
+                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
+                    </div>
+                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "2,740mm (9ft) raised ceiling height to ground floor / single storey"
+                            : isH2Inclusions
+                            ? "2,590mm (8ft 6in) raised ceiling height throughout"
+                            : "2,440mm (8ft) standard ceiling height throughout"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "Hume Linear HLR270 2340mm internal doors with designer lever handles"
+                            : isH2Inclusions
+                            ? "Hume Linear 2040mm internal doors with designer lever handles"
+                            : "Hume 2040mm internal doors with Gainsborough passage sets"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Dulux / Taubmans 3-coat paint system to all internal walls &amp; ceilings</span></div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "2400mm high frameless mirror sliding robe doors with shelving"
+                            : isH2Inclusions
+                            ? "Frameless mirror or vinyl sliding robe doors with shelf & rail"
+                            : "Built-in wardrobes with vinyl sliding doors, shelf & rail"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>67x18mm skirting &amp; architraves with gloss enamel; 90mm cove cornice</span></div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isNswInclusions
+                            ? "R4.0 glasswool ceiling batts (excl garage) & R2.0 external wall batts"
+                            : "R3.5 / R4.1 Bradford Gold ceiling batts & R2.0 external wall insulation"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Bathrooms, Ensuite & Powder Room */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-              <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                  <Waves className="h-3.5 w-3.5 text-cyan-700" />
-                  BATHROOM, ENSUITE &amp; POWDER ROOM
-                </span>
-                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-              </div>
-              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Contemporary floating vanities with {design.specTier.includes("H1") ? "laminate" : "20mm stone"} benchtops</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "10mm frameless glass shower screen with pivot doors" : "Semi-frameless shower screens with clear safety glass"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Caroma Aura 1,775mm freestanding white bathtub &amp; Caroma tapware</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Wall-faced closed coupled toilet suites with soft-close seats</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Ceramic full-height wall tiling to wet areas with shower" : "Ceramic wall tiles to 2,100mm in shower recess"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Smart tile floor wastes &amp; tiled shower recess niche</span></div>
-              </div>
-            </div>
+                  {/* Gourmet Kitchen & Luxury Appliances */}
+                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
+                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
+                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                        <Sparkles className="h-3.5 w-3.5 text-cyan-700" />
+                        GOURMET KITCHEN &amp; APPLIANCES
+                      </span>
+                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
+                    </div>
+                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "40mm mitred edge engineered stone benchtops with waterfall edge"
+                            : isH2Inclusions || isIPInclusions
+                            ? "20mm engineered stone kitchen benchtops with pencil round edge"
+                            : isFHBInclusions
+                            ? "Modern 20mm stone or durable laminate kitchen benchtops with rolled edge"
+                            : "Durable laminate kitchen benchtops (20mm stone upgrade optional)"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions || isH2Inclusions
+                            ? "Overhead cupboards with bulkhead & soft-close cutlery/pot drawers"
+                            : "Fully lined melamine cabinetry with overhead cupboards & drawers"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "Fisher & Paykel 900mm luxury electric oven, cooktop & canopy hood"
+                            : isH2Inclusions
+                            ? "Fisher & Paykel / Westinghouse 900mm luxury electric oven & cooktop"
+                            : isIPInclusions || isFHBInclusions
+                            ? "Haier / Westinghouse 600mm stainless steel oven, cooktop & hood"
+                            : "Haier 600mm stainless steel electric oven, ceramic cooktop & hood"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Stainless steel multi-function dishwasher with water-saving rating</span></div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "Clark Polar double undermount sink with Liano II pull-out mixer"
+                            : isH2Inclusions
+                            ? "Clark double bowl stainless drop-in sink with gooseneck mixer"
+                            : "Clark 1.5 or double bowl stainless sink with flickmixer tapware"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Walk-in or built-in pantry with 4 white shelves &amp; microwave provision</span></div>
+                    </div>
+                  </div>
 
-            {/* Laundry & Interior Floor Coverings */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-              <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                  <Award className="h-3.5 w-3.5 text-cyan-700" />
-                  LAUNDRY &amp; INTERNAL FLOOR COVERINGS
-                </span>
-                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-              </div>
-              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Built-in laundry cabinet (up to 1,200mm) with {design.specTier.includes("H1") ? "metal tub" : "20mm stone top & Clark 45L drop-in tub"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Choice of 8.5mm Hybrid Timber flooring or Gold Range floor tiles" : "Floor tiles to entry, hallway, kitchen, family & meals"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Quality carpet with underlay to all bedrooms and media rooms</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Main floor outdoor ceramic tiling to under-roof alfresco</span></div>
-              </div>
-            </div>
+                  {/* Bathrooms, Ensuite & Powder Room */}
+                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
+                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
+                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                        <Waves className="h-3.5 w-3.5 text-cyan-700" />
+                        BATHROOM, ENSUITE &amp; POWDER ROOM
+                      </span>
+                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
+                    </div>
+                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "Wall-hung floating vanities with 20mm stone & counter basins"
+                            : isH2Inclusions || isIPInclusions
+                            ? "Contemporary floating vanities with 20mm stone benchtops"
+                            : "Contemporary laminate vanity units with vitreous china basins"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "10mm frameless glass shower screen with pivot door & smart waste"
+                            : "Semi-frameless shower screens with clear toughened safety glass"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions || isH2Inclusions
+                            ? "Caroma Aura / Urbane 1,775mm freestanding acrylic bathtub"
+                            : "Quality acrylic inset or freestanding bathtub with chrome waste"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Wall-faced closed coupled toilet suites with soft-close seats</span></div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "FULL HEIGHT ceramic wall tiling to ensuite & bathroom wet areas"
+                            : isH2Inclusions
+                            ? "2,100mm wall tiles in shower recess, 500mm hob & 200mm vanity"
+                            : "2,100mm wall tiles to shower recess with vanity & bath splashback"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Chrome double towel rails, toilet roll holders &amp; smart tile wastes</span></div>
+                    </div>
+                  </div>
 
-            {/* Air-Conditioning & Electrical */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-              <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                  <Sparkles className="h-3.5 w-3.5 text-cyan-700" />
-                  AIR-CONDITIONING &amp; ELECTRICAL
-                </span>
-                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-              </div>
-              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Fully Zoned Ducted Air-Conditioning with MyAir5 Touch Screen Controller" : design.specTier.includes("H2") ? "Day/Night Ducted Air-Conditioning System (Living & Bedroom Zones)" : "Reverse Cycle Split System Air-Conditioner to Living Room"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>LED downlights throughout plus ceiling fan/lights to all bedrooms</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "1.5kW Solar PV Power System with single-phase inverter" : "Energy-efficient electrical fitout"}</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Interconnected hardwired photoelectric smoke detectors</span></div>
-                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>NBN pre-wiring with telephone &amp; data points to living</span></div>
-              </div>
-            </div>
-          </div>
+                  {/* Laundry & Interior Floor Coverings */}
+                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
+                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
+                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                        <Award className="h-3.5 w-3.5 text-cyan-700" />
+                        LAUNDRY &amp; INTERNAL FLOOR COVERINGS
+                      </span>
+                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
+                    </div>
+                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions || isH2Inclusions
+                            ? "Built-in 1,200mm laundry cabinet with 20mm stone top & 45L drop-in tub"
+                            : "45L stainless steel laundry tub with powder-coated cabinet & bypass"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "Choice of 8.5mm Hybrid Timber or 600x600mm Gold porcelain floor tiles"
+                            : isH2Inclusions
+                            ? "Floor tiles (up to 450x450mm) to entry, hallway, kitchen, family & meals"
+                            : isIPInclusions
+                            ? "Hard-wearing ceramic floor tiles to main living zones & carpet to beds"
+                            : isFHBInclusions
+                            ? "Ceramic floor tiles to living, entry & kitchen; quality carpet to beds"
+                            : "Ceramic floor tiles to entry, kitchen & meals; carpet to bedrooms"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Quality residential carpet with cushion underlay to all bedrooms &amp; robes</span></div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions || isH2Inclusions
+                            ? "Main floor outdoor ceramic tiling to under-roof alfresco & porch"
+                            : "Under-roof alfresco and porch with broom finish or ceramic tiles"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Air-Conditioning, Electrical & Turnkey Amenities */}
+                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
+                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
+                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                        <Sparkles className="h-3.5 w-3.5 text-cyan-700" />
+                        AIR-CONDITIONING, ELECTRICAL &amp; {isIPInclusions || isFHBInclusions ? "TURNKEY EXTRAS" : "FINISHES"}
+                      </span>
+                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
+                    </div>
+                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions
+                            ? "Fully Zoned Multi-Head Ducted Reverse Cycle Air Conditioning (MyAir5)"
+                            : isH2Inclusions
+                            ? "Day/Night Ducted Air Conditioning System (Living & Bedroom Zones)"
+                            : isIPInclusions
+                            ? "Reverse Cycle Air Conditioning (Ducted or Split System) for tenants"
+                            : isFHBInclusions
+                            ? "Reverse Cycle Split-System Air Conditioner to Main Living + bedroom fans"
+                            : "Reverse Cycle Split System Air-Conditioner to Living Room"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isH3Inclusions || isH2Inclusions
+                            ? "Extensive LED downlights throughout living zones, porch & alfresco"
+                            : "Energy-efficient LED downlights / oyster lights & bedroom fans"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isIPInclusions
+                            ? "100% Turnkey: Exposed aggregate / colour concrete driveway & crossover"
+                            : isFHBInclusions
+                            ? "First Home Buyer: Concrete driveway, path, turf, clothesline & letterbox"
+                            : isH3Inclusions
+                            ? "1.5kW Solar PV Power System with single-phase inverter"
+                            : "NBN pre-wiring with TV antenna point, phone & hardwired data point"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isIPInclusions
+                            ? "1.8m treated pine fencing with side gate, clothesline, letterbox & turf"
+                            : isFHBInclusions
+                            ? "Optimised for First Home Owner Grant ($30k QLD / $10k NSW) & stamp relief"
+                            : "Interconnected hardwired photoelectric smoke detectors & safety switches"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isIPInclusions
+                            ? "Block-out roller blinds to all openable windows & sliding glass doors"
+                            : isFHBInclusions
+                            ? "Block-out roller blinds package available; complete move-in finish"
+                            : "Power points, TV points and exterior waterproof double GPO to alfresco"}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
+                        <span>
+                          {isIPInclusions
+                            ? "Interconnected 240V smoke detectors & safety switches throughout"
+                            : isFHBInclusions
+                            ? "Interconnected 240V smoke detectors & safety switches throughout"
+                            : "NBN pre-wiring with telephone & high-speed data points to living"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Interactive QR Code Card for Full Inclusions Brochure */}
           <div className="mt-3.5 bg-gradient-to-r from-slate-900 via-slate-950 to-cyan-950 text-white rounded-2xl p-3 px-4 flex items-center justify-between gap-4 shadow-md border border-cyan-800/80">
