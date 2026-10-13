@@ -239,11 +239,21 @@ export const HUDSON_CONSULTANTS: CrmConsultant[] = [
     baseSalaryYearly: 0,
     commissionRatePct: 2.25,
   },
+  {
+    id: "all_team",
+    name: "All Colleagues (Hudson Team)",
+    email: "team@hudsonhomes.com.au",
+    phone: "1300 HUDSON",
+    displayOffice: "All Offices & Display Homes",
+    baseSalaryYearly: 0,
+    commissionRatePct: 0,
+  },
 ];
 
 export function normalizeConsultantId(idOrEmailOrName?: string): string {
   if (!idOrEmailOrName) return "morgan_hales";
   const s = idOrEmailOrName.toLowerCase().replace(/-/g, "_").trim();
+  if (s.includes("all") || s.includes("team")) return "all_team";
   if (s.includes("adrian")) return "adrian";
   if (s.includes("morgan")) return "morgan_hales";
   if (s.includes("alyssa")) return "alyssa_hales";
@@ -256,16 +266,64 @@ export function normalizeConsultantId(idOrEmailOrName?: string): string {
   return s;
 }
 
+export interface CrmTaskNote {
+  id: string;
+  author: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface CrmChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export type CrmTaskType =
+  | "mark_up"           // Client Mark-up Drawing (SLA: 2 Days EOD)
+  | "call"              // Phone Call / Follow-up (SLA: Today EOD)
+  | "estimate"          // Create Estimate / Quote (SLA: 1 Day EOD)
+  | "tender_submission" // Tender Submission / ATP (SLA: 3 Days EOD)
+  | "re_tender"         // Re-tender / Variation (SLA: 2 Days EOD)
+  | "contract"          // Contract Signing & Review (SLA: 3 Days EOD)
+  | "site_visit"        // Site Inspection / Soil / Engineering
+  | "lvm_followup"      // LVM Follow-up
+  | "quote_revision"    // Quote Revision
+  | "tr_prep"           // Tender Request Prep
+  | "general";          // General Admin / Team Task
+
 export interface CrmTask {
   id: string;
   title: string;
+  description?: string;
   dueDate?: string;
+  dueAt?: string;             // ISO timestamp for precision SLA countdown
+  slaDays?: number;           // E.g. 0, 1, 2, 3, 5, 7
   completed: boolean;
-  assignedTo?: string;
+  completedAt?: string;
+  completedBy?: string;
+  assignedTo?: string;        // Colleague ID (e.g. "alyssa_hales", "morgan_hales", "adrian", "all_team")
+  delegatedBy?: string;       // Name of colleague who assigned/delegated it
+  createdBy?: string;         // Name of creator
   createdAt: string;
+  updatedAt?: string;
   priority?: "urgent" | "high" | "normal" | "low";
-  type?: "call" | "tr_prep" | "lvm_followup" | "quote_revision" | "site_visit" | "general";
-  delegatedBy?: string;
+  type?: CrmTaskType | string;
+  
+  // Optional client context (if linked to a lead)
+  leadId?: string;
+  clientName?: string;
+  clientMobile?: string;
+  estate?: string;
+  lotNumber?: string;
+  designName?: string;
+  quoteNumber?: string;
+  quickActionUrl?: string;
+
+  // Collaboration & Checklists
+  notes?: CrmTaskNote[];
+  checklist?: CrmChecklistItem[];
+  tags?: string[];
 }
 
 export interface CrmNote {

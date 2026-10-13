@@ -4,6 +4,9 @@ import {
   CrmMessage,
   CrmNote,
   CrmTask,
+  CrmTaskNote,
+  CrmChecklistItem,
+  CrmTaskType,
   CrmTeamMessage,
   TelnyxSettings,
   BulkSmsTemplate,
@@ -928,6 +931,437 @@ export async function deleteLeadTask(leadId: string, taskId: string): Promise<Cr
     window.dispatchEvent(new CustomEvent("hudson_crm_change", { detail: { action: "task_delete", leadId, taskId } }));
   }
   return updated;
+}
+
+// -------------------------------------------------------------
+// Shared Colleague Tasks & Real-Time Collaboration Engine
+// -------------------------------------------------------------
+
+const CRM_SHARED_TASKS_KEY = "hudson_crm_shared_tasks_v2";
+
+export function calculateEodDeadline(days: number, fromDate: Date = new Date()): string {
+  const target = new Date(fromDate);
+  target.setDate(target.getDate() + days);
+  target.setHours(17, 0, 0, 0); // 5:00:00 PM local time
+  return target.toISOString();
+}
+
+export function getTaskSlaUrgency(
+  dueAtOrDate?: string,
+  completed?: boolean
+): {
+  urgency: "overdue" | "due_today" | "due_tomorrow" | "upcoming" | "completed";
+  countdownText: string;
+  badgeStyle: string;
+} {
+  if (completed) {
+    return {
+      urgency: "completed",
+      countdownText: "Smashed Out ✓",
+      badgeStyle: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+    };
+  }
+
+  if (!dueAtOrDate) {
+    return {
+      urgency: "upcoming",
+      countdownText: "Scheduled",
+      badgeStyle: "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30",
+    };
+  }
+
+  const now = new Date();
+  const lowerDue = dueAtOrDate.toLowerCase();
+
+  const dueTime = Date.parse(dueAtOrDate);
+  if (!isNaN(dueTime)) {
+    const due = new Date(dueTime);
+    const diffMs = due.getTime() - now.getTime();
+
+    if (diffMs < 0) {
+      const absDiffMs = Math.abs(diffMs);
+      const diffHours = Math.floor(absDiffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+      const overdueText = diffDays > 0 ? `Overdue by ${diffDays}d` : `Overdue by ${Math.max(1, diffHours)}h`;
+      return {
+        urgency: "overdue",
+        countdownText: overdueText,
+        badgeStyle: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-bold",
+      };
+    }
+
+    const isToday =
+      now.getFullYear() === due.getFullYear() &&
+      now.getMonth() === due.getMonth() &&
+      now.getDate() === due.getDate();
+
+    if (isToday) {
+      const diffHours = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60)));
+      return {
+        urgency: "due_today",
+        countdownText: `Due Today 5:00 PM (${diffHours}h left)`,
+        badgeStyle: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold",
+      };
+    }
+
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow =
+      tomorrow.getFullYear() === due.getFullYear() &&
+      tomorrow.getMonth() === due.getMonth() &&
+      tomorrow.getDate() === due.getDate();
+
+    if (isTomorrow) {
+      return {
+        urgency: "due_tomorrow",
+        countdownText: "Due Tomorrow 5:00 PM",
+        badgeStyle: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 font-semibold",
+      };
+    }
+
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return {
+      urgency: "upcoming",
+      countdownText: `Due in ${diffDays}d (${due.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })})`,
+      badgeStyle: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 font-medium",
+    };
+  }
+
+  if (lowerDue.includes("overdue") || lowerDue.includes("yesterday")) {
+    return {
+      urgency: "overdue",
+      countdownText: dueAtOrDate,
+      badgeStyle: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-bold",
+    };
+  }
+  if (lowerDue.includes("today") || lowerDue.includes("urgent")) {
+    return {
+      urgency: "due_today",
+      countdownText: dueAtOrDate,
+      badgeStyle: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold",
+    };
+  }
+  if (lowerDue.includes("tomorrow")) {
+    return {
+      urgency: "due_tomorrow",
+      countdownText: dueAtOrDate,
+      badgeStyle: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30 font-semibold",
+    };
+  }
+
+  return {
+    urgency: "upcoming",
+    countdownText: dueAtOrDate,
+    badgeStyle: "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30 font-medium",
+  };
+}
+
+function getInitialSharedTasks(): CrmTask[] {
+  const now = new Date();
+  return [
+    {
+      id: "shared_task_01_markup_steve",
+      title: "Mark-up Jasper 26 - Extended Alfresco & Butler's Pantry",
+      description: "Steve from NSW requested an extra 2.4m on the rear alfresco and converting the walk-in linen into an extended butler's pantry with cavity sliding door.",
+      type: "mark_up",
+      assignedTo: "alyssa_hales",
+      delegatedBy: "Morgan Hales",
+      createdBy: "Morgan Hales",
+      completed: false,
+      priority: "high",
+      slaDays: 2,
+      dueAt: calculateEodDeadline(2, now),
+      dueDate: "In 2 days (5:00 PM)",
+      createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+      clientName: "Steve from NSW",
+      clientMobile: "0411 222 333",
+      estate: "Penrith (NSW)",
+      designName: "Jasper 26",
+      quoteNumber: "SN101",
+      quickActionUrl: "/floorplan-editor",
+      checklist: [
+        { id: "c1", text: "Extend rear alfresco roofline by 2.4m", completed: false },
+        { id: "c2", text: "Insert cavity sliding door to butler's pantry", completed: false },
+        { id: "c3", text: "Export PDF redline and attach to client quote", completed: false },
+      ],
+      notes: [
+        {
+          id: "n1",
+          author: "Morgan Hales",
+          text: "Client requested 2.4m extension on rear alfresco and cavity slider to pantry. Ready to sign ATP once revised.",
+          createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+        },
+      ],
+      tags: ["Mark-up", "Jasper 26", "NSW"],
+    },
+    {
+      id: "shared_task_02_call_david",
+      title: "Call David Miller - Soil Test & Piering Allowance Review",
+      description: "Discuss geotechnical borehole findings. Slab engineer upgraded to Class H1 soil; explain $4,850 piering inclusion and fixed price foundation cap.",
+      type: "call",
+      assignedTo: "morgan_hales",
+      delegatedBy: "Morgan Hales",
+      createdBy: "Morgan Hales",
+      completed: false,
+      priority: "urgent",
+      slaDays: 0,
+      dueAt: calculateEodDeadline(0, now),
+      dueDate: "Today 5:00 PM",
+      createdAt: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(),
+      clientName: "David Miller",
+      clientMobile: "0412 345 678",
+      estate: "Bottletree Street, Bahrs Scrub",
+      designName: "Jasper 26",
+      quoteNumber: "DM101",
+      quickActionUrl: "/quote-builder",
+      checklist: [
+        { id: "c1", text: "Walk client through H1 soil classification", completed: false },
+        { id: "c2", text: "Send updated tender variation breakdown", completed: false },
+      ],
+      tags: ["Site Costs", "Soil Test", "Piering"],
+    },
+    {
+      id: "shared_task_03_tender_sarah",
+      title: "Review Sarah Jenkins Tender Proposal (ATP Prep)",
+      description: "Formal Acceptance of Tender Proposal package review. Ensure all inclusion items (ducted air conditioning, 900mm appliances) are line-itemed.",
+      type: "tender_submission",
+      assignedTo: "adrian",
+      delegatedBy: "Morgan Hales",
+      createdBy: "Morgan Hales",
+      completed: false,
+      priority: "high",
+      slaDays: 3,
+      dueAt: calculateEodDeadline(3, now),
+      dueDate: "In 3 days (5:00 PM)",
+      createdAt: new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString(),
+      clientName: "Sarah Jenkins",
+      clientMobile: "0429 881 200",
+      estate: "Flagstone",
+      designName: "Tiffany 22",
+      quickActionUrl: "/tender-request",
+      tags: ["Tender ATP", "Tiffany 22"],
+    },
+    {
+      id: "shared_task_04_site_visit_ben",
+      title: "Verify Soil Test & Contour DWG for Lot 408",
+      description: "Review surveyor CAD levels and check drop edge beam requirements for rear fall before final engineering sign-off.",
+      type: "site_visit",
+      assignedTo: "ben_grill",
+      delegatedBy: "Shelley Lay",
+      createdBy: "Shelley Lay",
+      completed: false,
+      priority: "normal",
+      slaDays: 2,
+      dueAt: calculateEodDeadline(2, now),
+      dueDate: "In 2 days",
+      createdAt: new Date(now.getTime() - 8 * 60 * 60 * 1000).toISOString(),
+      clientName: "Marcus Chen",
+      estate: "Yarrabilba",
+      designName: "Allure 32",
+      tags: ["Site Works", "Contour DWG"],
+    },
+    {
+      id: "shared_task_05_contract_alyssa",
+      title: "Prepare Contract Signing Documents - Lot 712 Spring Mountain",
+      description: "Priya & Aarav Sharma accepted tender. Assemble HIA building contract schedule, finance annexure, and QBCC consumer guide.",
+      type: "contract",
+      assignedTo: "alyssa_hales",
+      delegatedBy: "Morgan Hales",
+      createdBy: "Morgan Hales",
+      completed: false,
+      priority: "high",
+      slaDays: 3,
+      dueAt: calculateEodDeadline(3, now),
+      dueDate: "In 3 days",
+      createdAt: new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString(),
+      clientName: "Priya & Aarav Sharma",
+      clientMobile: "0421 990 144",
+      estate: "Spring Mountain",
+      designName: "Cambridge 28",
+      tags: ["Contract", "QBCC"],
+    },
+    {
+      id: "shared_task_06_team_display",
+      title: "Display Home Brochure Stock & Price List Distribution",
+      description: "Ensure updated Autumn 2026 price lists and double-sided flyers are printed and displayed across Flagstone, Bahrs Scrub, and HomeWorld Warnervale.",
+      type: "general",
+      assignedTo: "all_team",
+      delegatedBy: "Shelley Lay",
+      createdBy: "Shelley Lay",
+      completed: false,
+      priority: "normal",
+      slaDays: 5,
+      dueAt: calculateEodDeadline(5, now),
+      dueDate: "In 5 days",
+      createdAt: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(),
+      tags: ["Displays", "Marketing", "All Team"],
+    },
+  ];
+}
+
+export async function loadSharedTasks(): Promise<CrmTask[]> {
+  if (typeof window === "undefined") return getInitialSharedTasks();
+  const raw = localStorage.getItem(CRM_SHARED_TASKS_KEY);
+  if (!raw) {
+    const seeds = getInitialSharedTasks();
+    localStorage.setItem(CRM_SHARED_TASKS_KEY, JSON.stringify(seeds));
+    return seeds;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return getInitialSharedTasks();
+  }
+}
+
+export async function saveSharedTasks(tasks: CrmTask[]): Promise<void> {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CRM_SHARED_TASKS_KEY, JSON.stringify(tasks));
+    window.dispatchEvent(new CustomEvent("hudson_crm_change", { detail: { action: "shared_tasks_updated" } }));
+  }
+}
+
+export async function loadAllCrmTasks(): Promise<CrmTask[]> {
+  const leads = await loadAllCrmLeads();
+  const shared = await loadSharedTasks();
+
+  const leadTasks: CrmTask[] = [];
+  leads.forEach((l) => {
+    (l.tasks || []).forEach((t) => {
+      leadTasks.push({
+        ...t,
+        leadId: l.id,
+        clientName: l.clientName,
+        clientMobile: l.mobile,
+        estate: l.targetEstate,
+        lotNumber: l.lotNumber,
+        designName: l.preferredDesign,
+      });
+    });
+  });
+
+  return [...shared, ...leadTasks];
+}
+
+export async function addCrmTask(task: Omit<CrmTask, "id" | "createdAt">): Promise<void> {
+  const newTask: CrmTask = {
+    ...task,
+    id: `task_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    createdAt: new Date().toISOString(),
+    completed: false,
+  };
+
+  if (task.leadId) {
+    await addLeadTask(task.leadId, newTask);
+  } else {
+    const current = await loadSharedTasks();
+    await saveSharedTasks([newTask, ...current]);
+  }
+}
+
+export async function updateCrmTask(
+  taskId: string,
+  updates: Partial<CrmTask>,
+  leadId?: string
+): Promise<void> {
+  if (leadId) {
+    const leads = await loadAllCrmLeads();
+    const updated = leads.map((l) => {
+      if (l.id === leadId && l.tasks) {
+        const nextTasks = l.tasks.map((t) =>
+          t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
+        );
+        return { ...l, tasks: nextTasks, updatedAt: new Date().toISOString() };
+      }
+      return l;
+    });
+    localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(updated));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("hudson_crm_change", { detail: { action: "task_updated", taskId, leadId } }));
+    }
+  } else {
+    const shared = await loadSharedTasks();
+    const next = shared.map((t) =>
+      t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
+    );
+    await saveSharedTasks(next);
+  }
+}
+
+export async function reassignCrmTask(
+  taskId: string,
+  newAssignedTo: string,
+  delegatedByName?: string,
+  leadId?: string
+): Promise<void> {
+  const auditNote: CrmTaskNote = {
+    id: `note_${Date.now()}`,
+    author: delegatedByName || "Team Colleague",
+    text: `Reassigned task to ${newAssignedTo}`,
+    createdAt: new Date().toISOString(),
+  };
+
+  const tasks = await loadAllCrmTasks();
+  const existing = tasks.find((t) => t.id === taskId);
+  const currentNotes = existing?.notes || [];
+
+  await updateCrmTask(
+    taskId,
+    {
+      assignedTo: newAssignedTo,
+      delegatedBy: delegatedByName || existing?.delegatedBy,
+      notes: [auditNote, ...currentNotes],
+    },
+    leadId
+  );
+}
+
+export async function addCrmTaskNote(
+  taskId: string,
+  noteText: string,
+  authorName: string,
+  leadId?: string
+): Promise<void> {
+  const tasks = await loadAllCrmTasks();
+  const existing = tasks.find((t) => t.id === taskId);
+  if (!existing) return;
+
+  const newNote: CrmTaskNote = {
+    id: `note_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    author: authorName,
+    text: noteText.trim(),
+    createdAt: new Date().toISOString(),
+  };
+
+  const currentNotes = existing.notes || [];
+  await updateCrmTask(taskId, { notes: [newNote, ...currentNotes] }, leadId);
+}
+
+export async function toggleCrmTaskChecklist(
+  taskId: string,
+  checkItemId: string,
+  completed: boolean,
+  leadId?: string
+): Promise<void> {
+  const tasks = await loadAllCrmTasks();
+  const existing = tasks.find((t) => t.id === taskId);
+  if (!existing || !existing.checklist) return;
+
+  const updatedChecklist = existing.checklist.map((item) =>
+    item.id === checkItemId ? { ...item, completed } : item
+  );
+
+  await updateCrmTask(taskId, { checklist: updatedChecklist }, leadId);
+}
+
+export async function deleteCrmTask(taskId: string, leadId?: string): Promise<void> {
+  if (leadId) {
+    await deleteLeadTask(leadId, taskId);
+  } else {
+    const shared = await loadSharedTasks();
+    const next = shared.filter((t) => t.id !== taskId);
+    await saveSharedTasks(next);
+  }
 }
 
 // -------------------------------------------------------------

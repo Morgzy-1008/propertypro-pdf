@@ -82,7 +82,16 @@ export function CrmWorkspace() {
 
   const [leads, setLeads] = useState<CrmLead[]>([]);
   const [messages, setMessages] = useState<CrmMessage[]>([]);
-  const [activeTab, setActiveTab] = useState<"kanban" | "top_tr" | "tasks" | "team_chat" | "conversations" | "commissions">("kanban");
+  const [activeTab, setActiveTab] = useState<"kanban" | "top_tr" | "tasks" | "team_chat" | "conversations" | "commissions">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get("tab");
+      if (t === "tasks" || t === "top_tr" || t === "team_chat" || t === "conversations" || t === "commissions" || t === "kanban") {
+        return t as any;
+      }
+    }
+    return "kanban";
+  });
   const [selectedConsultantId, setSelectedConsultantId] = useState<string>(() => {
     const user = getActiveStaffUser();
     return normalizeConsultantId(user?.id || user?.email || user?.name);
@@ -482,10 +491,17 @@ export function CrmWorkspace() {
             )}
           </button>
 
-          {/* 3. Tasks & Reminders */}
+          {/* 3. Tasks & Colleague Sharing */}
           <button
             type="button"
-            onClick={() => setActiveTab("tasks")}
+            onClick={() => {
+              setActiveTab("tasks");
+              if (typeof window !== "undefined") {
+                const url = new URL(window.location.href);
+                url.searchParams.set("tab", "tasks");
+                window.history.replaceState(null, "", url.toString());
+              }
+            }}
             className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
               activeTab === "tasks"
                 ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
@@ -495,7 +511,7 @@ export function CrmWorkspace() {
             }`}
           >
             <CheckSquare className="h-3.5 w-3.5" />
-            Tasks &amp; Reminders
+            Tasks &amp; Colleague Sharing
             {openTasksCount > 0 && (
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold border ${
                 overdueTasksCount > 0
