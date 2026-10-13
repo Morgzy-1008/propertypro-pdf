@@ -2429,7 +2429,7 @@ function DatabasePage() {
               }`}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              NSW {tab === "pricelists" ? "(55 FHB)" : `(${tab === "lots" ? nswLotsCount : nswPkgsCount})`}
+              NSW {tab === "pricelists" ? "(76 FHB)" : `(${tab === "lots" ? nswLotsCount : nswPkgsCount})`}
             </button>
           </div>
 

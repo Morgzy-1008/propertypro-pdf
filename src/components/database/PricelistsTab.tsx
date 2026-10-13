@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { formatAud } from "@/lib/pricing";
 import {
   NSW_FHB_SINGLE_STOREY_PRICES,
+  NSW_FHB_DOUBLE_STOREY_PRICES,
   QLD_FHB_DOUBLE_STOREY_PRICES,
   ALL_FHB_PRICES,
   FHB_LANDSCAPE_PACKAGES,
@@ -100,7 +101,32 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
       });
     }
 
-    // 2. Official FHB QLD Double Storey
+    // 2. Official FHB NSW Double Storey
+    for (const row of NSW_FHB_DOUBLE_STOREY_PRICES) {
+      const cleanFhb = cleanDesignNameForFhb(row.name);
+      const nswMatch = NSW_DOUBLE_STOREY_PRICES.find(
+        (r) => cleanDesignNameForFhb(r.name) === cleanFhb,
+      );
+      list.push({
+        id: `NSW-FHB-DS-${row.name}`,
+        name: row.name,
+        division: "NSW",
+        housingType: row.housingType,
+        totalM2: row.totalM2,
+        groundM2: row.groundM2,
+        firstM2: row.firstM2,
+        bedrooms: row.bedrooms,
+        isSingleGarage: row.isSingleGarage,
+        fhbPrice: row.fhbPrice,
+        ssPrice: row.fhbPrice,
+        hbsPrice: nswMatch?.hbs,
+        h1Price: nswMatch?.h1,
+        h2Price: nswMatch?.h2,
+        h3Price: nswMatch?.h3,
+      });
+    }
+
+    // 3. Official FHB QLD Double Storey
     for (const row of QLD_FHB_DOUBLE_STOREY_PRICES) {
       const cleanFhb = cleanDesignNameForFhb(row.name);
       const qldMatch = QLD_DOUBLE_STOREY_PRICES.find(
@@ -360,7 +386,7 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
               Master Builder Price Lists &amp; FHB Turnkey Schedules
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-3xl">
-              Official turnkey pricing for First Home Buyers (NSW Single Storey &amp; QLD Double Storey) including fixed site costs and turnkey landscaping packages, alongside full retail tier specifications (HBS, H1, H2, H3).
+              Official turnkey pricing for First Home Buyers (NSW Single &amp; Double Storey, QLD Double Storey) including fixed site costs and turnkey landscaping packages, alongside full retail tier specifications (HBS, H1, H2, H3).
             </p>
           </div>
 
@@ -536,7 +562,7 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
                       : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                {st === "ALL" ? "All States" : st === "NSW" ? "NSW (55 FHB)" : "QLD (22 FHB)"}
+                {st === "ALL" ? "All States" : st === "NSW" ? "NSW (76 FHB)" : "QLD (22 FHB)"}
               </button>
             ))}
           </div>

@@ -9,6 +9,12 @@ import {
   DUAL_OC_PRICES,
   SPLIT_LEVEL_PRICES,
 } from "@/lib/pricelist.data";
+import {
+  NSW_SINGLE_STOREY_PRICES,
+  NSW_DOUBLE_STOREY_PRICES,
+  NSW_DUAL_OC_PRICES,
+  NSW_SPLIT_LEVEL_PRICES,
+} from "@/lib/pricelist.nsw.data";
 import { getTierPrice } from "@/lib/quoting/quoteEngine";
 import { isFhbIpEligibleDesign } from "@/lib/pricing/pricelists";
 import { getActiveDivision } from "@/lib/divisionContext";
@@ -134,32 +140,38 @@ export function V2StepInclusions({
   onPrev,
   isLight,
 }: V2StepInclusionsProps) {
+  const division = (design as any).division || getActiveDivision();
+  const isNsw = division === "NSW";
+
   // Find current model to compute exact base price differences
-  const allPriceRows = [
-    ...SINGLE_STOREY_PRICES,
-    ...DOUBLE_STOREY_PRICES,
-    ...DUAL_OC_PRICES,
-    ...SPLIT_LEVEL_PRICES,
-  ];
+  const allPriceRows = isNsw
+    ? [
+        ...NSW_SINGLE_STOREY_PRICES,
+        ...NSW_DOUBLE_STOREY_PRICES,
+        ...NSW_DUAL_OC_PRICES,
+        ...NSW_SPLIT_LEVEL_PRICES,
+      ]
+    : [
+        ...SINGLE_STOREY_PRICES,
+        ...DOUBLE_STOREY_PRICES,
+        ...DUAL_OC_PRICES,
+        ...SPLIT_LEVEL_PRICES,
+      ];
   const currentModel = allPriceRows.find(
     (m) => m.name.toLowerCase() === (design.designName || "").toLowerCase()
   );
 
   const currentTierNormalized = (design.specTier || "H2").toUpperCase();
 
-  const division = (design as any).division || getActiveDivision();
-  const isNsw = division === "NSW";
-  const isCurrentDesignFhbEligible = !isNsw && isFhbIpEligibleDesign(design.designName, division);
+  const isCurrentDesignFhbEligible = isFhbIpEligibleDesign(design.designName, division);
 
-  const availableTiers = isNsw
-    ? TIERS.filter((t) => t.shortCode !== "IP" && t.shortCode !== "FHB")
-    : TIERS;
+  const availableTiers = TIERS;
 
   const handleSelectTier = (tier: InclusionTier, shortCode: "H1" | "H2" | "H3" | "IP" | "FHB", autoShift: boolean = true) => {
     const isFhbOrIp = shortCode === "IP" || shortCode === "FHB";
     if (isFhbOrIp && !isCurrentDesignFhbEligible) {
       toast.error(
-        `${tier} is only available on selected QLD Turnkey designs (Carolina, Lime, Mint, Mocha, Orchid, Ruby, Sabel, Terracotta, Cerise). Please choose an eligible design first.`
+        `${tier} is only available on selected First Home Buyer / Turnkey designs. Please choose an eligible design first.`
       );
       return;
     }
@@ -214,7 +226,7 @@ export function V2StepInclusions({
       </div>
 
       {/* Inclusion Tier Cards */}
-      <div className={`grid gap-4 ${isNsw ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"}`}>
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {availableTiers.map((item) => {
           const isSelected =
             currentTierNormalized.includes(item.shortCode) ||

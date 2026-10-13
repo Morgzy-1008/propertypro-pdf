@@ -161,11 +161,6 @@ export function getTierPrice(
   const isIP = norm.includes("IP") || norm.includes("INVEST");
   const effectiveDiv = (division || (model as any).division || getActiveDivision() || "").toUpperCase();
 
-  // If division is NSW, FHB and IP should never return QLD prices
-  if (effectiveDiv === "NSW" && (isSS || isIP)) {
-    return model.h2 || model.h1 || 0;
-  }
-
   // The investment package pricing should be the exact same price as the first home buyer range for those particular designs
   if (isSS || isIP) {
     const fhb = findFhbPrice(model.name, effectiveDiv, housingType);
