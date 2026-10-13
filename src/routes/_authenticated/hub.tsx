@@ -347,9 +347,9 @@ function WelcomeHubPage() {
   const [hubBgPhoto, setHubBgPhoto] = useState<string>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("hudson_hub_bg_photo");
-      if (saved) return saved;
+      if (saved && saved !== "/facades/hamptons_widescreen.jpg") return saved;
     }
-    return "/facades/hamptons_widescreen.jpg"; // Signature Hudson Homes Hamptons Display Home (No HIA circle, clean & serene)
+    return "/facades/bronte-garage-inside.png"; // Hudson Homes Bronte Duplex Facade
   });
   const [isTeamBgVisible, setIsTeamBgVisible] = useState<boolean>(true);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState<boolean>(false);
@@ -827,8 +827,10 @@ function WelcomeHubPage() {
           <div className="flex items-center gap-2 text-[11px] flex-wrap justify-center sm:justify-end">
             <span className="opacity-70">Display Home Backdrop:</span>
             {[
-              { id: "/facades/hamptons_widescreen.jpg", label: "Hamptons (Signature)" },
-              { id: "/facades/riviera_widescreen.jpg", label: "Riviera (Twilight)" },
+              { id: "/facades/bronte-garage-inside.png", label: "Bronte Duplex" },
+              { id: "/facades/bronte-garage-outside.png", label: "Bronte (Outside Garages)" },
+              { id: "/facades/hamptons_widescreen.jpg", label: "Hamptons" },
+              { id: "/facades/riviera_widescreen.jpg", label: "Riviera" },
               { id: "/facades/aspen_widescreen.jpg", label: "Aspen" },
             ].map((b) => (
               <button
