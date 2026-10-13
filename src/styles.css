@@ -360,24 +360,101 @@ html.normal-mode,
 }
 
 /* Header */
-.normal-mode header {
+.normal-mode header:not(.concept-editor-header) {
   background-color: rgba(255, 255, 255, 0.95) !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
-.normal-mode header h1 {
+.normal-mode header:not(.concept-editor-header) h1 {
   color: #0f172a !important;
 }
 
-.normal-mode header div.leading-tight p {
+.normal-mode header:not(.concept-editor-header) div.leading-tight p {
   color: #b45309 !important;
 }
 
-.normal-mode header a,
-.normal-mode header button {
+.normal-mode header:not(.concept-editor-header) a,
+.normal-mode header:not(.concept-editor-header) button {
   color: #334155 !important;
+}
+
+/* Floorplan Concept Editor Darker Blue Top Bar (matches embedded Foresight Concept Editor #0B162D / #132242) */
+header.concept-editor-header,
+.normal-mode header.concept-editor-header {
+  background-color: #0B162D !important;
+  border-color: #132242 !important;
+  color: #E7E8EE !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5) !important;
+}
+
+header.concept-editor-header a,
+.normal-mode header.concept-editor-header a {
+  color: #8B9BB4 !important;
+}
+
+header.concept-editor-header a:hover,
+.normal-mode header.concept-editor-header a:hover {
+  color: #E7E8EE !important;
+  background-color: #132242 !important;
+}
+
+header.concept-editor-header .text-white,
+header.concept-editor-header [class*="text-white"],
+.normal-mode header.concept-editor-header .text-white,
+.normal-mode header.concept-editor-header [class*="text-white"] {
+  color: #ffffff !important;
+}
+
+header.concept-editor-header :is(span, div):not([class*="text-amber"]):not([class*="text-emerald"]):not([class*="text-[#20BCB3]"]):not([class*="text-[#8B9BB4]"]):not(.btn-concept-action *):not(.btn-tender-action *):not([class*="bg-"]) {
+  color: #E7E8EE;
+}
+
+header.concept-editor-header button.btn-concept-action,
+.normal-mode header.concept-editor-header button.btn-concept-action {
+  background-color: #20BCB3 !important;
+  color: #060D1B !important;
+  border-color: rgba(32, 188, 179, 0.4) !important;
+}
+header.concept-editor-header button.btn-concept-action:hover,
+.normal-mode header.concept-editor-header button.btn-concept-action:hover {
+  background-color: #1ea8a1 !important;
+  color: #060D1B !important;
+}
+
+header.concept-editor-header button.btn-tender-action,
+.normal-mode header.concept-editor-header button.btn-tender-action {
+  background: linear-gradient(to right, #f59e0b, #d97706) !important;
+  color: #020617 !important;
+  border-color: #f59e0b !important;
+}
+header.concept-editor-header button.btn-tender-action:hover,
+.normal-mode header.concept-editor-header button.btn-tender-action:hover {
+  background: #f59e0b !important;
+  color: #020617 !important;
+}
+
+/* Floorplan Concept Editor Modals (matching Concept Editor Dark Blue Palette) */
+.concept-editor-modal input:not([type="checkbox"]):not([type="radio"]),
+.normal-mode .concept-editor-modal input:not([type="checkbox"]):not([type="radio"]),
+.normal-mode :is([role="dialog"].concept-editor-modal) input:not([type="checkbox"]):not([type="radio"]) {
+  background-color: #060D1B !important;
+  border-color: #132242 !important;
+  color: #E7E8EE !important;
+}
+.concept-editor-modal input:focus,
+.normal-mode .concept-editor-modal input:focus {
+  border-color: #20BCB3 !important;
+  box-shadow: 0 0 0 1px #20BCB3 !important;
+}
+.concept-editor-modal label,
+.normal-mode .concept-editor-modal label {
+  color: #8B9BB4 !important;
+}
+.concept-editor-modal span,
+.normal-mode .concept-editor-modal span {
+  color: inherit;
 }
 
 /* Template Switcher in Header */
@@ -1632,38 +1709,38 @@ html.normal-mode,
 }
 
 /* --- D. UNIVERSAL DIALOG & MODAL READABILITY IN NORMAL MODE --- */
-.normal-mode [role="dialog"],
-.normal-mode [data-radix-dialog-content],
-.normal-mode [data-radix-popper-content-wrapper] [role="dialog"] {
+.normal-mode [role="dialog"]:not(.concept-editor-modal),
+.normal-mode [data-radix-dialog-content]:not(.concept-editor-modal),
+.normal-mode [data-radix-popper-content-wrapper] [role="dialog"]:not(.concept-editor-modal) {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
 }
 
-.normal-mode :is([role="dialog"], [data-radix-dialog-content]) :is(
+.normal-mode :is([role="dialog"]:not(.concept-editor-modal), [data-radix-dialog-content]:not(.concept-editor-modal)) :is(
   h1, h2, h3, h4, h5, h6,
   [data-radix-dialog-title]
 ) {
   color: #0f172a !important;
 }
 
-.normal-mode :is([role="dialog"], [data-radix-dialog-content]) label {
+.normal-mode :is([role="dialog"]:not(.concept-editor-modal), [data-radix-dialog-content]:not(.concept-editor-modal)) label {
   color: #1e293b !important;
   font-weight: 500 !important;
 }
 
-.normal-mode :is([role="dialog"], [data-radix-dialog-content]) input:not([type="checkbox"]):not([type="radio"]),
-.normal-mode :is([role="dialog"], [data-radix-dialog-content]) textarea,
-.normal-mode :is([role="dialog"], [data-radix-dialog-content]) select,
-.normal-mode :is([role="dialog"], [data-radix-dialog-content]) [role="combobox"],
-.normal-mode :is([role="dialog"], [data-radix-dialog-content]) [data-radix-select-trigger] {
+.normal-mode :is([role="dialog"]:not(.concept-editor-modal), [data-radix-dialog-content]:not(.concept-editor-modal)) input:not([type="checkbox"]):not([type="radio"]),
+.normal-mode :is([role="dialog"]:not(.concept-editor-modal), [data-radix-dialog-content]:not(.concept-editor-modal)) textarea,
+.normal-mode :is([role="dialog"]:not(.concept-editor-modal), [data-radix-dialog-content]:not(.concept-editor-modal)) select,
+.normal-mode :is([role="dialog"]:not(.concept-editor-modal), [data-radix-dialog-content]:not(.concept-editor-modal)) [role="combobox"],
+.normal-mode :is([role="dialog"]:not(.concept-editor-modal), [data-radix-dialog-content]:not(.concept-editor-modal)) [data-radix-select-trigger] {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
   color: #0f172a !important;
 }
 
-.normal-mode :is([role="dialog"], [data-radix-dialog-content]) input::placeholder,
-.normal-mode :is([role="dialog"], [data-radix-dialog-content]) textarea::placeholder {
+.normal-mode :is([role="dialog"]:not(.concept-editor-modal), [data-radix-dialog-content]:not(.concept-editor-modal)) input::placeholder,
+.normal-mode :is([role="dialog"]:not(.concept-editor-modal), [data-radix-dialog-content]:not(.concept-editor-modal)) textarea::placeholder {
   color: #94a3b8 !important;
 }
 

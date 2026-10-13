@@ -300,31 +300,35 @@ export function ForesightEditorFrame() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 font-sans overflow-hidden select-none">
-      {/* 1 SINGLE SLEEK HUDSON HOMES TAB */}
-      <header className={`h-[52px] border-b px-3 sm:px-4 flex items-center justify-between gap-2 flex-none z-30 shadow-md ${
-        isLight ? "bg-white/95 border-slate-200" : "bg-slate-900 border-slate-800"
-      }`}>
+    <div className="flex flex-col h-screen w-screen bg-[#0B162D] text-[#E7E8EE] font-sans overflow-hidden select-none">
+      {/* 1 SINGLE SLEEK HUDSON HOMES TAB - MATCHING CONCEPT EDITOR DARK BLUE */}
+      <header
+        className="keep-dark concept-editor-header h-[52px] border-b border-[#132242] bg-[#0B162D] px-3 sm:px-4 flex items-center justify-between gap-2 flex-none z-30 shadow-lg shadow-black/25"
+        style={{ backgroundColor: "#0B162D", borderColor: "#132242" }}
+      >
         {/* Left: Hub Return + Logo + Title + Dynamic Plan Badge */}
         <div className="flex items-center gap-2.5 min-w-0">
           <Link
             to="/hub"
-            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors text-xs font-semibold shrink-0 ${
-              isLight ? "text-slate-700 hover:text-slate-950 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-slate-800"
-            }`}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors text-xs font-semibold shrink-0 text-[#8B9BB4] hover:text-[#E7E8EE] hover:bg-[#132242]"
             title="Return to Hudson Hub"
           >
-            <Home className={`h-4 w-4 ${isLight ? "text-amber-700" : "text-amber-400"}`} />
+            <Home className="h-4 w-4 text-[#20BCB3]" />
             <span className="hidden md:inline">Hub</span>
           </Link>
 
-          <div className={`h-4 w-px ${isLight ? "bg-slate-300" : "bg-slate-800"} shrink-0`} />
+          <div className="h-4 w-px bg-[#132242] shrink-0" />
 
           <div className="flex items-center gap-2 shrink-0">
-            <Logo light={!isLight} size={7} className="shrink-0" />
-            <span className={`text-xs font-bold ${isLight ? "text-slate-900" : "text-slate-200"} hidden md:inline tracking-wide`}>
-              Floorplan Editor
-            </span>
+            <Logo light={true} size={7} className="shrink-0" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-[#E7E8EE] hidden md:inline tracking-wide">
+                Floorplan Editor
+              </span>
+              <span className="hidden xl:inline text-[10px] font-semibold text-[#20BCB3] bg-[#20BCB3]/10 border border-[#20BCB3]/30 px-1.5 py-0.5 rounded-md">
+                Concept Studio
+              </span>
+            </div>
           </div>
 
           {/* Hudson Model Recognition Badge */}
@@ -332,39 +336,25 @@ export function ForesightEditorFrame() {
             <button
               type="button"
               onClick={() => setIsExportQuoteOpen(true)}
-              className={`cursor-pointer hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all text-[11px] shrink-0 ${
-                isLight
-                  ? "bg-slate-100 border-slate-300 hover:border-amber-600 hover:bg-slate-200"
-                  : "bg-slate-800/80 border-slate-700 hover:border-amber-500/50 hover:bg-slate-800"
-              }`}
+              className="cursor-pointer hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#132242] bg-[#132242]/70 hover:bg-[#132242] hover:border-[#20BCB3]/50 transition-all text-[11px] shrink-0"
               title="Click to view area details and pricing"
             >
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{matchedHudson.row.name}</span>
+              <span className="h-2 w-2 rounded-full bg-[#20BCB3] animate-pulse" />
+              <span className="font-bold text-[#E7E8EE]">{matchedHudson.row.name}</span>
               {hasAreaDifferences ? (
-                <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] border ${
-                  isLight
-                    ? "text-amber-900 bg-amber-100 border-amber-300"
-                    : "text-amber-300 bg-amber-950/60 border-amber-800/60"
-                }`}>
+                <span className="font-bold px-1.5 py-0.5 rounded text-[10px] border text-amber-300 bg-amber-950/60 border-amber-500/40">
                   Modified ({curTotalM2} m²)
                 </span>
               ) : (
-                <span className={`font-semibold px-1.5 py-0.5 rounded text-[10px] border ${
-                  isLight
-                    ? "text-emerald-900 bg-emerald-100 border-emerald-300"
-                    : "text-emerald-300 bg-emerald-950/60 border-emerald-800/60"
-                }`}>
+                <span className="font-semibold px-1.5 py-0.5 rounded text-[10px] border text-emerald-300 bg-emerald-950/60 border-emerald-500/40">
                   Standard ({standardTotalM2} m²)
                 </span>
               )}
             </button>
           ) : detectedPlan ? (
-            <div className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] shrink-0 ${
-              isLight ? "bg-slate-100 border-slate-300" : "bg-slate-800/80 border-slate-700"
-            }`}>
-              <Sparkles className={`h-3 w-3 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
-              <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{detectedPlan.matchedDesignName}</span>
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#132242] bg-[#132242]/70 text-[11px] shrink-0">
+              <Sparkles className="h-3 w-3 text-[#20BCB3]" />
+              <span className="font-bold text-[#E7E8EE]">{detectedPlan.matchedDesignName}</span>
             </div>
           ) : null}
         </div>
@@ -375,7 +365,8 @@ export function ForesightEditorFrame() {
           <Button
             size="sm"
             onClick={() => setIsExportQuoteOpen(true)}
-            className="h-8 px-2.5 sm:px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 shadow-sm shrink-0"
+            className="btn-concept-action h-8 px-2.5 sm:px-3 bg-[#20BCB3] hover:bg-[#1ba8a0] text-[#060D1B] font-bold text-xs gap-1.5 shadow-sm shrink-0 border border-[#20BCB3]/40"
+            style={{ backgroundColor: "#20BCB3", color: "#060D1B" }}
           >
             <Layers className="h-3.5 w-3.5" />
             <span>Send to Quoting</span>
@@ -385,24 +376,20 @@ export function ForesightEditorFrame() {
           <Button
             size="sm"
             onClick={() => setIsExportTenderOpen(true)}
-            className="h-8 px-2.5 sm:px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-bold text-xs gap-1.5 shadow-sm shrink-0"
+            className="btn-tender-action h-8 px-2.5 sm:px-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-bold text-xs gap-1.5 shadow-sm shrink-0"
           >
             <Send className="h-3.5 w-3.5" />
             <span className="hidden md:inline">Send to Tender</span>
           </Button>
 
-          <div className={`h-4 w-px ${isLight ? "bg-slate-300" : "bg-slate-800"} mx-0.5 hidden sm:block shrink-0`} />
+          <div className="h-4 w-px bg-[#132242] mx-0.5 hidden sm:block shrink-0" />
 
           {/* Fullscreen Toggle */}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleToggleFullscreen}
-            className={`h-8 w-8 p-0 shrink-0 ${
-              isLight
-                ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
-                : "text-slate-400 hover:text-white hover:bg-slate-800"
-            }`}
+            className="h-8 w-8 p-0 shrink-0 text-[#8B9BB4] hover:text-[#E7E8EE] hover:bg-[#132242]"
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
           >
             {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -413,14 +400,10 @@ export function ForesightEditorFrame() {
             variant="ghost"
             size="sm"
             onClick={handleOpenExternal}
-            className={`h-8 w-8 p-0 shrink-0 ${
-              isLight
-                ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
-                : "text-slate-400 hover:text-white hover:bg-slate-800"
-            }`}
+            className="h-8 w-8 p-0 shrink-0 text-[#8B9BB4] hover:text-[#E7E8EE] hover:bg-[#132242]"
             title="Open in external browser window"
           >
-            <ExternalLink className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
+            <ExternalLink className="h-3.5 w-3.5 text-[#20BCB3]" />
           </Button>
 
           {/* Reload iframe */}
@@ -428,11 +411,7 @@ export function ForesightEditorFrame() {
             variant="ghost"
             size="sm"
             onClick={handleRefresh}
-            className={`h-8 w-8 p-0 shrink-0 ${
-              isLight
-                ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
-                : "text-slate-400 hover:text-white hover:bg-slate-800"
-            }`}
+            className="h-8 w-8 p-0 shrink-0 text-[#8B9BB4] hover:text-[#E7E8EE] hover:bg-[#132242]"
             title="Reload Editor"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -440,13 +419,13 @@ export function ForesightEditorFrame() {
 
           {/* Staff Header Profile (Compact) */}
           <div className="pl-1 hidden sm:block shrink-0">
-            <StaffHeaderProfile isLight={isLight} compact={true} />
+            <StaffHeaderProfile isLight={false} compact={true} />
           </div>
         </div>
       </header>
 
       {/* FULL-WINDOW FORESIGHT CONCEPT EDITOR WORKSPACE (Edge-to-Edge) */}
-      <div className="flex-1 w-full h-[calc(100vh-52px)] bg-slate-950 overflow-hidden relative">
+      <div className="flex-1 w-full h-[calc(100vh-52px)] bg-[#0B162D] overflow-hidden relative">
         <iframe
           key={iframeKey}
           src={editorUrl}
@@ -459,9 +438,12 @@ export function ForesightEditorFrame() {
 
       {/* Modal 1: Send to Quoting Tool with Live Hudson Model & Delta Verification */}
       <Dialog open={isExportQuoteOpen} onOpenChange={setIsExportQuoteOpen}>
-        <DialogContent className="border-slate-800 bg-slate-950 text-slate-100 sm:max-w-lg">
+        <DialogContent
+          className="keep-dark concept-editor-modal border-[#132242] bg-[#0B162D] text-[#E7E8EE] sm:max-w-lg shadow-2xl"
+          style={{ backgroundColor: "#0B162D", borderColor: "#132242", color: "#E7E8EE" }}
+        >
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-emerald-400 flex items-center gap-2">
+            <DialogTitle className="text-base font-bold text-[#20BCB3] flex items-center gap-2">
               <Layers className="h-5 w-5" />
               Transfer Concept Plan to Quoting Tool
             </DialogTitle>
@@ -490,7 +472,7 @@ export function ForesightEditorFrame() {
                       </span>
                     </div>
                     {deltaPricing && (
-                      <div className="flex items-center justify-between text-[11px] text-slate-300 pt-1 border-t border-amber-800/40">
+                      <div className="flex items-center justify-between text-[11px] text-[#8B9BB4] pt-1 border-t border-amber-800/40">
                         <span>Auto-Calculated Modified Base Price:</span>
                         <span className="font-bold text-emerald-400 text-xs">
                           ${deltaPricing.modifiedBasePrice.toLocaleString()}
@@ -506,7 +488,7 @@ export function ForesightEditorFrame() {
                         variant="ghost"
                         size="sm"
                         onClick={handleResetToStandard}
-                        className="h-6 px-2 text-[10px] text-slate-400 hover:text-white hover:bg-slate-800 gap-1"
+                        className="h-6 px-2 text-[10px] text-[#8B9BB4] hover:text-[#E7E8EE] hover:bg-[#132242] gap-1"
                       >
                         <RotateCcw className="h-3 w-3" /> Reset to Standard SQMs
                       </Button>
@@ -522,29 +504,29 @@ export function ForesightEditorFrame() {
                 )}
               </div>
             ) : (
-              <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 text-[11px] flex items-center gap-2">
-                <Info className="h-4 w-4 text-cyan-400 shrink-0" />
+              <div className="p-2.5 rounded-xl border border-[#132242] bg-[#132242]/40 text-[#8B9BB4] text-[11px] flex items-center gap-2">
+                <Info className="h-4 w-4 text-[#20BCB3] shrink-0" />
                 <span>Custom design concept. Quoting tool will import dimensions as a custom plan.</span>
               </div>
             )}
 
             <div className="space-y-3">
               <div>
-                <Label className="text-[11px] text-slate-300">Client / Prospect Name</Label>
+                <Label className="text-[11px] text-[#8B9BB4]">Client / Prospect Name</Label>
                 <Input
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  className="border-slate-800 bg-slate-900 text-xs mt-1"
+                  className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                 />
               </div>
 
               <div>
-                <Label className="text-[11px] text-slate-300">Floorplan Design Name</Label>
+                <Label className="text-[11px] text-[#8B9BB4]">Floorplan Design Name</Label>
                 <Input
                   value={designName}
                   onChange={(e) => setDesignName(e.target.value)}
                   placeholder="e.g. Amber 21, Jasper 26, Pearl 34"
-                  className="border-slate-800 bg-slate-900 text-xs mt-1"
+                  className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                 />
               </div>
 
@@ -552,9 +534,9 @@ export function ForesightEditorFrame() {
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
                   <div className="flex items-center justify-between">
-                    <Label className="text-[11px] text-slate-300">Living (m²)</Label>
+                    <Label className="text-[11px] text-[#8B9BB4]">Living (m²)</Label>
                     {stdAreas?.livingM2 && (
-                      <span className="text-[10px] text-slate-400">Std: {stdAreas.livingM2}</span>
+                      <span className="text-[10px] text-[#8B9BB4]/80">Std: {stdAreas.livingM2}</span>
                     )}
                   </div>
                   <Input
@@ -562,15 +544,15 @@ export function ForesightEditorFrame() {
                     step="0.1"
                     value={modifiedLivingM2}
                     onChange={(e) => setModifiedLivingM2(e.target.value)}
-                    className="border-slate-800 bg-slate-900 text-xs mt-1"
+                    className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between">
-                    <Label className="text-[11px] text-slate-300">Garage (m²)</Label>
+                    <Label className="text-[11px] text-[#8B9BB4]">Garage (m²)</Label>
                     {stdAreas?.garageM2 && (
-                      <span className="text-[10px] text-slate-400">Std: {stdAreas.garageM2}</span>
+                      <span className="text-[10px] text-[#8B9BB4]/80">Std: {stdAreas.garageM2}</span>
                     )}
                   </div>
                   <Input
@@ -578,15 +560,15 @@ export function ForesightEditorFrame() {
                     step="0.1"
                     value={modifiedGarageM2}
                     onChange={(e) => setModifiedGarageM2(e.target.value)}
-                    className="border-slate-800 bg-slate-900 text-xs mt-1"
+                    className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between">
-                    <Label className="text-[11px] text-slate-300">Alfresco (m²)</Label>
+                    <Label className="text-[11px] text-[#8B9BB4]">Alfresco (m²)</Label>
                     {stdAreas?.alfrescoM2 && (
-                      <span className="text-[10px] text-slate-400">Std: {stdAreas.alfrescoM2}</span>
+                      <span className="text-[10px] text-[#8B9BB4]/80">Std: {stdAreas.alfrescoM2}</span>
                     )}
                   </div>
                   <Input
@@ -594,15 +576,15 @@ export function ForesightEditorFrame() {
                     step="0.1"
                     value={modifiedAlfrescoM2}
                     onChange={(e) => setModifiedAlfrescoM2(e.target.value)}
-                    className="border-slate-800 bg-slate-900 text-xs mt-1"
+                    className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between">
-                    <Label className="text-[11px] text-slate-300">Porch (m²)</Label>
+                    <Label className="text-[11px] text-[#8B9BB4]">Porch (m²)</Label>
                     {stdAreas?.porchM2 && (
-                      <span className="text-[10px] text-slate-400">Std: {stdAreas.porchM2}</span>
+                      <span className="text-[10px] text-[#8B9BB4]/80">Std: {stdAreas.porchM2}</span>
                     )}
                   </div>
                   <Input
@@ -610,35 +592,40 @@ export function ForesightEditorFrame() {
                     step="0.1"
                     value={modifiedPorchM2}
                     onChange={(e) => setModifiedPorchM2(e.target.value)}
-                    className="border-slate-800 bg-slate-900 text-xs mt-1"
+                    className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                   />
                 </div>
               </div>
 
               {/* Total Summary */}
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold">
-                <span className="text-slate-400">Total Calculated Area:</span>
-                <span className="text-white font-bold">{curTotalM2} m²</span>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-[#060D1B] border border-[#132242] text-xs font-semibold">
+                <span className="text-[#8B9BB4]">Total Calculated Area:</span>
+                <span className="text-[#E7E8EE] font-bold">{curTotalM2} m²</span>
               </div>
 
               <div>
-                <Label className="text-[11px] text-slate-300">Architectural Notes / Modifications</Label>
+                <Label className="text-[11px] text-[#8B9BB4]">Architectural Notes / Modifications</Label>
                 <Input
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="border-slate-800 bg-slate-900 text-xs mt-1"
+                  className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-              <Button variant="ghost" size="sm" onClick={() => setIsExportQuoteOpen(false)}>
+            <div className="flex justify-end gap-2 pt-3 border-t border-[#132242]">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExportQuoteOpen(false)}
+                className="text-[#8B9BB4] hover:text-[#E7E8EE] hover:bg-[#132242]"
+              >
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={handleSendToQuoting}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1.5"
+                className="bg-[#20BCB3] hover:bg-[#1ea8a1] text-[#060D1B] font-bold gap-1.5"
               >
                 <CheckCircle2 className="h-4 w-4" />
                 Open in Quoting Tool
@@ -650,7 +637,10 @@ export function ForesightEditorFrame() {
 
       {/* Modal 2: Send to Tender Portal */}
       <Dialog open={isExportTenderOpen} onOpenChange={setIsExportTenderOpen}>
-        <DialogContent className="border-slate-800 bg-slate-950 text-slate-100 sm:max-w-md">
+        <DialogContent
+          className="keep-dark concept-editor-modal border-[#132242] bg-[#0B162D] text-[#E7E8EE] sm:max-w-md shadow-2xl"
+          style={{ backgroundColor: "#0B162D", borderColor: "#132242", color: "#E7E8EE" }}
+        >
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-amber-400 flex items-center gap-2">
               <Send className="h-5 w-5" />
@@ -658,51 +648,56 @@ export function ForesightEditorFrame() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2 text-xs">
-            <p className="text-slate-400 leading-relaxed">
+            <p className="text-[#8B9BB4] leading-relaxed">
               Populate the modified concept plan directly into Tab 3 of your Tender Request for drafting callouts and Master PDF generation.
             </p>
             <div className="space-y-3">
               <div>
-                <Label className="text-[11px] text-slate-300">Client / Purchaser Name</Label>
+                <Label className="text-[11px] text-[#8B9BB4]">Client / Purchaser Name</Label>
                 <Input
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  className="border-slate-800 bg-slate-900 text-xs mt-1"
+                  className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                 />
               </div>
               <div>
-                <Label className="text-[11px] text-slate-300">Design Name</Label>
+                <Label className="text-[11px] text-[#8B9BB4]">Design Name</Label>
                 <Input
                   value={designName}
                   onChange={(e) => setDesignName(e.target.value)}
-                  className="border-slate-800 bg-slate-900 text-xs mt-1"
+                  className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-[11px] text-slate-300">Living (m²)</Label>
+                  <Label className="text-[11px] text-[#8B9BB4]">Living (m²)</Label>
                   <Input
                     type="number"
                     step="0.1"
                     value={modifiedLivingM2}
                     onChange={(e) => setModifiedLivingM2(e.target.value)}
-                    className="border-slate-800 bg-slate-900 text-xs mt-1"
+                    className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                   />
                 </div>
                 <div>
-                  <Label className="text-[11px] text-slate-300">Alfresco (m²)</Label>
+                  <Label className="text-[11px] text-[#8B9BB4]">Alfresco (m²)</Label>
                   <Input
                     type="number"
                     step="0.1"
                     value={modifiedAlfrescoM2}
                     onChange={(e) => setModifiedAlfrescoM2(e.target.value)}
-                    className="border-slate-800 bg-slate-900 text-xs mt-1"
+                    className="border-[#132242] bg-[#060D1B] text-[#E7E8EE] focus:border-[#20BCB3] text-xs mt-1"
                   />
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-              <Button variant="ghost" size="sm" onClick={() => setIsExportTenderOpen(false)}>
+            <div className="flex justify-end gap-2 pt-3 border-t border-[#132242]">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExportTenderOpen(false)}
+                className="text-[#8B9BB4] hover:text-[#E7E8EE] hover:bg-[#132242]"
+              >
                 Cancel
               </Button>
               <Button
