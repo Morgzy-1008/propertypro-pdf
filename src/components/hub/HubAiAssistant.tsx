@@ -251,21 +251,6 @@ interface HubAiAssistantProps {
   staffUser: StaffProfile | null;
 }
 
-const DEFAULT_SUGGESTIONS = [
-  "CC 131 Mount Cotton Road",
-  "CC duplex 61 Paradise Road, Flagstone",
-  "Hudson AI, put this compliance check into a downloaded PDF for me",
-  "What is the difference between CDC and DA in NSW?",
-  "What wind classification does Hudson Homes build for?",
-  "Tell me about slab edge rebates and damp-proofing",
-  "What are the fire and acoustic requirements for duplex party walls?",
-  "What are balustrade and barrier requirements?",
-  "What are the rules for swimming pools and pool fencing?",
-  "What is the difference between H1 Smart, H2 Designer, and H3 Luxury?",
-  "What is Hudson Homes 50-year structural warranty?",
-  "Tell me about the IP Investment & FHB ranges",
-  "What fixed site costs does Hudson Homes cover?",
-];
 
 export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
   const [query, setQuery] = useState("");
@@ -863,32 +848,6 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
             </button>
           </div>
         </form>
-
-        {/* Quick Suggestion Chips Carousel */}
-        <div className="flex items-center gap-1.5 px-3 pb-2.5 overflow-x-auto no-scrollbar">
-          <span className={`text-[10px] uppercase font-bold tracking-wider px-1 flex-shrink-0 ${isLight ? "text-slate-400" : "text-slate-500"}`}>
-            Suggested:
-          </span>
-          {DEFAULT_SUGGESTIONS.map((s, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => {
-                setQuery(s);
-                handleSend(s);
-              }}
-              disabled={isLoading}
-              className={`whitespace-nowrap inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all cursor-pointer flex-shrink-0 ${
-                isLight
-                  ? "border-slate-200 bg-slate-50 text-slate-700 hover:border-brand-gold hover:bg-amber-50/50"
-                  : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-brand-gold/60 hover:text-amber-300 hover:bg-brand-gold/5"
-              }`}
-            >
-              <Sparkles className="h-3 w-3 text-brand-gold flex-shrink-0" />
-              <span>{s}</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Expandable Conversational Window */}
