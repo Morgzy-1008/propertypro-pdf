@@ -13,19 +13,21 @@ import {
   RoofConfig,
 } from "./studio3dTypes";
 import { generateProceduralHipRoof } from "./parametricRoofEngine";
+import { ensureCompleteWallNetwork } from "./wallNetworkEngine";
 
 export type CameraMode = "orbit" | "walkthrough";
 
 export interface SceneManagerOptions {
   container: HTMLElement;
-  design: BuildingDesign3D;
+  design: BuildingDesign3D | null;
   onRoomChange?: (roomName: string) => void;
 }
 
 export class ThreeStudioSceneManager {
   private container: HTMLElement;
-  private design: BuildingDesign3D;
+  private design: BuildingDesign3D | null = null;
   private onRoomChange?: (roomName: string) => void;
+  private emptyGrid: THREE.GridHelper | null = null;
 
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -60,7 +62,7 @@ export class ThreeStudioSceneManager {
 
   constructor(options: SceneManagerOptions) {
     this.container = options.container;
-    this.design = options.design;
+    this.design = options.design ? ensureCompleteWallNetwork(options.design) : null;
     this.onRoomChange = options.onRoomChange;
 
     // 1. Scene
@@ -92,7 +94,11 @@ export class ThreeStudioSceneManager {
     this.scene.add(this.fixturesGroup);
     this.scene.add(this.roofGroup);
 
-    this.rebuildScene();
+    if (this.design) {
+      this.rebuildScene();
+    } else {
+      this.buildEmptyStudio();
+    }
 
     // 6. Event listeners
     this.bindEvents();
@@ -274,6 +280,16 @@ export class ThreeStudioSceneManager {
   }
 
   public rebuildScene(): void {
+    if (!this.design) {
+      this.buildEmptyStudio();
+      return;
+    }
+
+    if (this.emptyGrid) {
+      this.scene.remove(this.emptyGrid);
+      this.emptyGrid = null;
+    }
+
     // Clear previous geometry
     while (this.buildingGroup.children.length > 0) {
       this.buildingGroup.remove(this.buildingGroup.children[0]);
@@ -285,8 +301,15 @@ export class ThreeStudioSceneManager {
       this.roofGroup.remove(this.roofGroup.children[0]);
     }
 
-    // Set orbit target to center of building
-    this.orbitTarget.set(this.design.widthM / 2, this.design.ceilingHeightM / 2, this.design.lengthM / 2);
+    // Set orbit target to center of building and update camera
+    const centerX = this.design.widthM / 2;
+    const centerZ = this.design.lengthM / 2;
+    this.orbitTarget.set(centerX, 1.2, centerZ);
+    if (this.cameraMode === "orbit") {
+      const maxDim = Math.max(this.design.widthM, this.design.lengthM);
+      this.orbitDistance = Math.max(16, maxDim * 1.35);
+      this.updateOrbitCamera();
+    }
 
     // 1. Build Ground, Driveway, and Concrete Slab
     this.buildGroundAndSlab();
@@ -305,6 +328,7 @@ export class ThreeStudioSceneManager {
   }
 
   private buildGroundAndSlab(): void {
+    if (!this.design) return;
     // Manicured Green Turf Ground
     const groundGeom = new THREE.PlaneGeometry(80, 80);
     const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e3a1e, roughness: 0.9 });
@@ -342,6 +366,7 @@ export class ThreeStudioSceneManager {
   }
 
   private buildRoomFloors(): void {
+    if (!this.design) return;
     (this.design.rooms || []).forEach((room) => {
       if (!room.polygon || room.polygon.length < 3) return;
 
@@ -364,11 +389,14 @@ export class ThreeStudioSceneManager {
   }
 
   private buildWallsAndOpenings(): void {
+    if (!this.design) return;
     const ceilingH = this.design.ceilingHeightM;
     const ffl = 0.30;
+    const openings = this.design.openings || [];
+    const walls = this.design.walls || [];
 
     // Walls
-    (this.design.walls || []).forEach((wall) => {
+    walls.forEach((wall) => {
       const p1 = new THREE.Vector2(wall.start[0], wall.start[1]);
       const p2 = new THREE.Vector2(wall.end[0], wall.end[1]);
       const wallLen = p1.distanceTo(p2);
@@ -379,7 +407,7 @@ export class ThreeStudioSceneManager {
       const midZ = (p1.y + p2.y) / 2;
 
       // Find openings situated along this wall
-      const wallOpenings = (this.design.openings || []).filter((op) => {
+      const wallOpenings = openings.filter((op) => {
         const opPos = new THREE.Vector2(op.position[0], op.position[1]);
         // Distance from point to line segment
         const dist = distToSegment(opPos, p1, p2);
@@ -541,6 +569,9 @@ export class ThreeStudioSceneManager {
       const glassMesh = new THREE.Mesh(glassGeom, this.materials.glass);
       glassMesh.position.set(0, op.sillHeight + op.height / 2, 0);
       group.add(glassMesh);
+    } else if (op.type === "archway") {
+      // Open architectural portal archway - no solid door panel
+      return;
     } else {
       // Standard Hinged Door Panel
       const doorGeom = new THREE.BoxGeometry(op.width, op.height, 0.04);
@@ -556,6 +587,7 @@ export class ThreeStudioSceneManager {
   }
 
   private buildFixtures(): void {
+    if (!this.design) return;
     const ffl = 0.30;
 
     (this.design.fixtures || []).forEach((fix) => {
@@ -662,6 +694,7 @@ export class ThreeStudioSceneManager {
   }
 
   private buildRoof(): void {
+    if (!this.design) return;
     if (!this.design.roof.showRoof || this.design.roof.cutawayMode) {
       this.roofGroup.visible = false;
       return;
@@ -683,7 +716,9 @@ export class ThreeStudioSceneManager {
     this.cameraMode = mode;
     if (mode === "walkthrough") {
       // Place camera in living room or entrance at eye level
-      this.walkPosition.set(this.design.widthM / 2, 1.65 + 0.30, this.design.lengthM / 2);
+      const w = this.design ? this.design.widthM : 14;
+      const l = this.design ? this.design.lengthM : 16;
+      this.walkPosition.set(w / 2, 1.65 + 0.30, l / 2);
       this.walkYaw = 0;
       this.walkPitch = 0;
       this.camera.fov = 65; // wider FOV for interior immersion
@@ -696,6 +731,7 @@ export class ThreeStudioSceneManager {
   }
 
   public teleportToRoom(roomName: string): void {
+    if (!this.design) return;
     const room = (this.design.rooms || []).find((r) => r.name === roomName || r.customLabel === roomName);
     if (!room) return;
 
@@ -735,7 +771,9 @@ export class ThreeStudioSceneManager {
 
   public setPresetView(preset: "isometric" | "top" | "front" | "rear" | "left" | "right"): void {
     this.cameraMode = "orbit";
-    const center = new THREE.Vector3(this.design.widthM / 2, 1.2, this.design.lengthM / 2);
+    const center = this.design
+      ? new THREE.Vector3(this.design.widthM / 2, 1.2, this.design.lengthM / 2)
+      : new THREE.Vector3(0, 0.5, 0);
     this.orbitTarget.copy(center);
 
     switch (preset) {
@@ -773,12 +811,51 @@ export class ThreeStudioSceneManager {
     this.updateOrbitCamera();
   }
 
-  public updateDesign(newDesign: BuildingDesign3D): void {
-    this.design = newDesign;
-    this.rebuildScene();
+  public buildEmptyStudio(): void {
+    while (this.buildingGroup.children.length > 0) {
+      this.buildingGroup.remove(this.buildingGroup.children[0]);
+    }
+    while (this.fixturesGroup.children.length > 0) {
+      this.fixturesGroup.remove(this.fixturesGroup.children[0]);
+    }
+    while (this.roofGroup.children.length > 0) {
+      this.roofGroup.remove(this.roofGroup.children[0]);
+    }
+
+    if (this.emptyGrid) {
+      this.scene.remove(this.emptyGrid);
+    }
+    this.scene.background = new THREE.Color("#090d16");
+    this.emptyGrid = new THREE.GridHelper(36, 36, 0xf59e0b, 0x334155);
+    this.emptyGrid.position.y = 0;
+    this.scene.add(this.emptyGrid);
+
+    this.orbitTarget.set(0, 0.5, 0);
+    this.orbitDistance = 22;
+    this.orbitTheta = Math.PI / 4;
+    this.orbitPhi = Math.PI / 3;
+    this.updateOrbitCamera();
+  }
+
+  public updateDesign(newDesign: BuildingDesign3D | null): void {
+    this.design = newDesign ? ensureCompleteWallNetwork(newDesign) : null;
+    if (this.design) {
+      const centerX = this.design.widthM / 2;
+      const centerZ = this.design.lengthM / 2;
+      this.orbitTarget.set(centerX, 1.2, centerZ);
+      const maxDim = Math.max(this.design.widthM, this.design.lengthM);
+      this.orbitDistance = Math.max(16, maxDim * 1.35);
+      this.orbitTheta = Math.PI / 4;
+      this.orbitPhi = Math.PI / 3.2;
+      this.rebuildScene();
+      this.updateOrbitCamera();
+    } else {
+      this.buildEmptyStudio();
+    }
   }
 
   public moveWalkthrough(direction: "forward" | "backward" | "left" | "right", step = 0.8): void {
+    if (!this.design) return;
     if (this.cameraMode !== "walkthrough") {
       this.setCameraMode("walkthrough");
     }
@@ -820,6 +897,7 @@ export class ThreeStudioSceneManager {
   }
 
   public setRoofMode(show: boolean, cutaway: boolean): void {
+    if (!this.design) return;
     this.design.roof.showRoof = show;
     this.design.roof.cutawayMode = cutaway;
     while (this.roofGroup.children.length > 0) {
@@ -829,6 +907,7 @@ export class ThreeStudioSceneManager {
   }
 
   public setCeilingHeight(h: number): void {
+    if (!this.design) return;
     this.design.ceilingHeightM = h;
     this.rebuildScene();
   }
@@ -917,6 +996,7 @@ export class ThreeStudioSceneManager {
   }
 
   private updateWalkthrough(delta: number): void {
+    if (!this.design) return;
     const speed = 4.5 * delta; // 4.5 m/s walk speed
 
     const forward = new THREE.Vector3(-Math.sin(this.walkYaw), 0, -Math.cos(this.walkYaw));
@@ -955,6 +1035,7 @@ export class ThreeStudioSceneManager {
 
   private lastNotifiedRoom = "";
   private checkCurrentRoom(): void {
+    if (!this.design) return;
     const p = new THREE.Vector2(this.walkPosition.x, this.walkPosition.z);
     for (const r of this.design.rooms || []) {
       if (pointInPolygon(p, r.polygon)) {
@@ -975,7 +1056,13 @@ export class ThreeStudioSceneManager {
       const delta = Math.min((time - lastTime) / 1000, 0.1);
       lastTime = time;
 
-      if (this.cameraMode === "walkthrough") {
+      if (!this.design) {
+        // Crisp ambient studio rotation when empty
+        if (!this.isMouseDown && !this.isRightMouseDown) {
+          this.orbitTheta += 0.001;
+          this.updateOrbitCamera();
+        }
+      } else if (this.cameraMode === "walkthrough") {
         this.updateWalkthrough(delta);
       }
 
