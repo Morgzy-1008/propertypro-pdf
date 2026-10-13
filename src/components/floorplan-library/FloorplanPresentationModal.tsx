@@ -80,12 +80,6 @@ export function FloorplanPresentationModal({
                 <span className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
                   {item.housingType}
                 </span>
-                {activeVariant.isBtbReady && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-bold font-mono flex items-center gap-1">
-                    <Zap className="h-3 w-3 fill-current text-amber-400" />
-                    BTB Ready
-                  </span>
-                )}
               </div>
               <h2 className="text-xl sm:text-2xl font-black">{activeVariant.label}</h2>
             </div>
@@ -118,7 +112,6 @@ export function FloorplanPresentationModal({
                     }`}
                   >
                     <span className="font-extrabold">{v.sizeLabel}</span>
-                    <span className="text-[10px] opacity-80 font-bold">sq</span>
                   </button>
                 );
               })}

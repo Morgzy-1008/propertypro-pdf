@@ -23,7 +23,6 @@ import {
   type FloorplanLibraryItem,
   type FloorplanFiltersState,
   type HouseTypeFilter,
-  type ViewMode,
 } from "@/lib/floorplan-library/floorplanLibraryEngine";
 import { FloorplanFilterBar } from "./FloorplanFilterBar";
 import { FloorplanCard } from "./FloorplanCard";
@@ -116,10 +115,7 @@ export function FloorplanLibraryView() {
     });
   };
 
-  // 3. View Mode: 3-across grid by default for scanning more floorplans
-  const [viewMode, setViewMode] = useState<ViewMode>("grid-3");
-
-  // 4. Modal presentation state
+  // 3. Modal presentation state
   const [selectedZoomItem, setSelectedZoomItem] = useState<FloorplanLibraryItem | null>(null);
 
   // 5. Filtered items
@@ -250,7 +246,7 @@ export function FloorplanLibraryView() {
                 Matching Designs
               </span>
               <span className="text-xs font-extrabold leading-none">
-                {filters.inclusionsTier} Tier Active
+                Standard Catalogue
               </span>
             </div>
           </div>
@@ -264,13 +260,10 @@ export function FloorplanLibraryView() {
           totalCount={allFloorplans.length}
           filteredCount={filteredPlans.length}
           typeCounts={typeCounts}
-          bounds={bounds}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
           isLight={isLight}
         />
 
-        {/* Floorplans Render List */}
+        {/* Floorplans Render List - Always 3 across */}
         {filteredPlans.length === 0 ? (
           <div
             className={`rounded-3xl border p-12 text-center flex flex-col items-center justify-center gap-4 my-8 ${
@@ -282,7 +275,7 @@ export function FloorplanLibraryView() {
             </div>
             <h3 className="text-xl font-bold">No Hudson floorplans match your exact filters</h3>
             <p className="text-sm text-slate-400 max-w-md">
-              Try adjusting your width, length, or bedroom requirements, or click below to reset all filters.
+              Try adjusting your width, bedroom, or price filters, or click below to reset all filters.
             </p>
             <button
               type="button"
@@ -293,21 +286,12 @@ export function FloorplanLibraryView() {
             </button>
           </div>
         ) : (
-          <div
-            className={
-              viewMode === "feed"
-                ? "flex flex-col gap-10 max-w-5xl mx-auto w-full"
-                : viewMode === "grid-2"
-                ? "grid grid-cols-1 lg:grid-cols-2 gap-8 w-full"
-                : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full"
-            }
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
             {filteredPlans.map((item) => (
               <FloorplanCard
                 key={item.id}
                 item={item}
                 activeTier={filters.inclusionsTier}
-                viewMode={viewMode}
                 onOpenZoom={setSelectedZoomItem}
                 isLight={isLight}
               />

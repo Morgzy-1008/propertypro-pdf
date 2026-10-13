@@ -24,16 +24,16 @@ import { getActiveTierPrice } from "@/lib/floorplan-library/floorplanLibraryEngi
 
 interface FloorplanCardProps {
   item: FloorplanLibraryItem;
-  activeTier: InclusionsTier;
-  viewMode: ViewMode;
+  activeTier?: InclusionsTier;
+  viewMode?: ViewMode;
   onOpenZoom: (item: FloorplanLibraryItem) => void;
   isLight: boolean;
 }
 
 export function FloorplanCard({
   item,
-  activeTier,
-  viewMode,
+  activeTier = "H2",
+  viewMode = "grid-3",
   onOpenZoom,
   isLight,
 }: FloorplanCardProps) {
@@ -90,8 +90,6 @@ export function FloorplanCard({
     }
   };
 
-  const isFeed = viewMode === "feed";
-
   return (
     <div
       id={`plan-${item.id}`}
@@ -113,15 +111,6 @@ export function FloorplanCard({
               <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-slate-400">
                 {item.housingType}
               </span>
-              {activeVariant.isBtbReady && (
-                <span
-                  className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/40 text-amber-400 text-[10px] font-bold font-mono flex items-center gap-1 shadow-xs"
-                  title={activeVariant.btbDescription || "Built to boundary zero-lot garage ready"}
-                >
-                  <Zap className="h-3 w-3 fill-current text-amber-400" />
-                  BTB Ready
-                </span>
-              )}
               {isMirrored && (
                 <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-[10px] font-bold font-mono">
                   Mirrored (LH/RH)
@@ -129,23 +118,15 @@ export function FloorplanCard({
               )}
             </div>
 
-            <h2
-              className={`font-black tracking-tight group-hover:text-indigo-400 transition-colors ${
-                viewMode === "grid-3" ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
-              }`}
-            >
+            <h2 className="font-black tracking-tight text-xl sm:text-2xl group-hover:text-indigo-400 transition-colors">
               {activeVariant.label}
             </h2>
           </div>
 
-          {/* Price Callout with Inclusions Switcher and Quote Button */}
+          {/* Price Callout with Direct Quote Button */}
           <div className="flex flex-col sm:items-end">
             <div className="flex items-center gap-2">
-              <span
-                className={`font-black font-mono text-emerald-400 tracking-tight ${
-                  viewMode === "grid-3" ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
-                }`}
-              >
+              <span className="font-black font-mono text-emerald-400 tracking-tight text-xl sm:text-2xl">
                 {formattedPrice}
               </span>
               <button
@@ -173,30 +154,13 @@ export function FloorplanCard({
                 {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Share2 className="h-3 w-3" />}
               </button>
             </div>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Tier:</span>
-              {(["H1", "H2", "H3", "HBS"] as InclusionsTier[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setCardTierOverride(t)}
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                    currentTier === t
-                      ? "bg-amber-500 text-slate-950 font-black shadow-xs"
-                      : isLight
-                      ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      : "bg-slate-900 text-slate-400 hover:text-white"
-                  }`}
-                  title={`Switch to ${t} pricing`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+            <span className="text-[10px] font-bold text-slate-400 mt-1">
+              Standard Catalogue Price
+            </span>
           </div>
         </div>
 
-        {/* SIZE VARIANTS SELECTOR: Clean rounded sq total, no brackets */}
+        {/* SIZE VARIANTS SELECTOR: Clean variant buttons without sq label */}
         {item.variants && item.variants.length > 1 && (
           <div className="flex items-center gap-1.5 flex-wrap mt-3 pt-2.5 border-t border-dashed border-inherit">
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1 mr-1">
@@ -220,21 +184,14 @@ export function FloorplanCard({
                   title={`${v.label} • ${v.totalM2.toFixed(1)}m² • Width ${v.widthM}m`}
                 >
                   <span className="font-extrabold">{v.sizeLabel}</span>
-                  <span className="text-[10px] opacity-80 font-bold">sq</span>
                 </button>
               );
             })}
           </div>
         )}
 
-        {/* Telemetry Dimensions & Features: 6 Clean Metrics (Min Lot Removed) */}
-        <div
-          className={`gap-1.5 mt-3 pt-3 border-t border-dashed border-inherit ${
-            viewMode === "grid-3"
-              ? "grid grid-cols-3 sm:grid-cols-6"
-              : "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-4"
-          }`}
-        >
+        {/* Telemetry Dimensions & Features: 6 Clean Metrics */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mt-3 pt-3 border-t border-dashed border-inherit">
           {/* Width */}
           <div
             className={`p-1.5 rounded-xl border flex flex-col justify-center items-center text-center ${
@@ -411,13 +368,7 @@ export function FloorplanCard({
               prices: activeVariant.prices,
             })
           }
-          className={`w-full rounded-2xl p-2 sm:p-3 flex items-center justify-center overflow-hidden border shadow-inner transition-all duration-300 cursor-zoom-in group-hover:border-indigo-500/40 ${
-            viewMode === "feed"
-              ? "h-[650px] sm:h-[750px] md:h-[820px] lg:h-[880px]"
-              : viewMode === "grid-2"
-              ? "h-[540px] sm:h-[620px]"
-              : "h-[480px] sm:h-[540px] lg:h-[580px]"
-          } ${
+          className={`w-full rounded-2xl p-2 sm:p-3 flex items-center justify-center overflow-hidden border shadow-inner transition-all duration-300 cursor-zoom-in group-hover:border-indigo-500/40 h-[480px] sm:h-[540px] lg:h-[580px] ${
             isLight
               ? "bg-white border-slate-200"
               : "bg-white border-slate-300"
