@@ -172,26 +172,39 @@ const MODEL_ALIASES: Record<string, string> = {
   "alabaster 31 classic (cdc)": "Alabaster 31 - TD",
 };
 
-export function findHudsonModelByName(name?: string): { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat" } | null {
+const NSW_PRIORITY_PRICE_ROWS: { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat" }[] = [
+  ...NSW_SINGLE_STOREY_PRICES.map((r) => ({
+    row: r,
+    housingType: (/^aqua\b/i.test(r.name) ? ("Granny Flat" as const) : ("Single Storey" as const)),
+  })),
+  ...NSW_DOUBLE_STOREY_PRICES.map((r) => ({ row: r, housingType: "Double Storey" as const })),
+  ...ALL_PRICE_ROWS,
+];
+
+export function findHudsonModelByName(
+  name?: string,
+  division?: string,
+): { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat" } | null {
   if (!name) return null;
   const clean = name.trim().toLowerCase();
+  const candidatePool = (division || "").toUpperCase() === "NSW" ? NSW_PRIORITY_PRICE_ROWS : ALL_PRICE_ROWS;
 
   // 0. Known model alias lookup
   if (MODEL_ALIASES[clean]) {
     const aliasTarget = MODEL_ALIASES[clean].toLowerCase();
-    const aliasItem = ALL_PRICE_ROWS.find((item) => item.row.name.toLowerCase() === aliasTarget);
+    const aliasItem = candidatePool.find((item) => item.row.name.toLowerCase() === aliasTarget);
     if (aliasItem) return aliasItem;
   }
-  
+
   // 1. Exact full name match
-  for (const item of ALL_PRICE_ROWS) {
+  for (const item of candidatePool) {
     if (item.row.name.toLowerCase() === clean) {
       return item;
     }
   }
 
   // 1b. Word-boundary exact match for full model name on sorted list (longest name first)
-  const sorted = [...ALL_PRICE_ROWS].sort((a, b) => b.row.name.length - a.row.name.length);
+  const sorted = [...candidatePool].sort((a, b) => b.row.name.length - a.row.name.length);
   for (const item of sorted) {
     const rx = new RegExp(`\\b${escapeRegex(item.row.name.toLowerCase())}\\b`, "i");
     if (rx.test(clean)) {
@@ -216,7 +229,7 @@ export function findHudsonModelByName(name?: string): { row: PriceRow; housingTy
   // 3. Fallback check for aliases contained within compound strings
   for (const [aliasKey, targetName] of Object.entries(MODEL_ALIASES)) {
     if (new RegExp(`\\b${escapeRegex(aliasKey)}\\b`, "i").test(clean)) {
-      const aliasItem = ALL_PRICE_ROWS.find((item) => item.row.name.toLowerCase() === targetName.toLowerCase());
+      const aliasItem = candidatePool.find((item) => item.row.name.toLowerCase() === targetName.toLowerCase());
       if (aliasItem) return aliasItem;
     }
   }

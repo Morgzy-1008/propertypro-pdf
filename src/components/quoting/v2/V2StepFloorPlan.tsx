@@ -57,6 +57,7 @@ import {
 import {
   isFhbIpEligibleDesign,
   findFhbPrice,
+  cleanDesignNameForFhb,
   QLD_FHB_IP_DESIGNS,
 } from "@/lib/pricing/pricelists";
 import { getActiveDivision, onDivisionChanged, type Division } from "@/lib/divisionContext";
@@ -252,15 +253,31 @@ export function V2StepFloorPlan({
 
   // Explicit user tier selection state (so Point 4 is hidden until Point 3 is clicked)
   const [selectedTierCode, setSelectedTierCode] = useState<"H1" | "H2" | "H3" | "IP" | "FHB" | null>(() => {
-    if (design.hasExplicitlySelectedTier && design.specTier) {
-      if (design.specTier.includes("IP") || design.specTier.includes("INVEST")) return "IP";
-      if (design.specTier.includes("FHB") || design.specTier.includes("START SMART") || design.specTier.includes("FIRST HOME")) return "FHB";
-      if (design.specTier.includes("H1")) return "H1";
-      if (design.specTier.includes("H3")) return "H3";
-      return "H2";
+    if (design.specTier) {
+      const upper = design.specTier.toUpperCase();
+      if (upper.includes("IP") || upper.includes("INVEST")) return "IP";
+      if (upper.includes("FHB") || upper.includes("START SMART") || upper.includes("FIRST HOME") || upper.includes("SMART SERIES")) return "FHB";
+      if (design.hasExplicitlySelectedTier) {
+        if (upper.includes("H1")) return "H1";
+        if (upper.includes("H3")) return "H3";
+        return "H2";
+      }
     }
     return null;
   });
+
+  useEffect(() => {
+    if (design.specTier) {
+      const upper = design.specTier.toUpperCase();
+      if (upper.includes("IP") || upper.includes("INVEST")) setSelectedTierCode("IP");
+      else if (upper.includes("FHB") || upper.includes("START SMART") || upper.includes("FIRST HOME") || upper.includes("SMART SERIES")) setSelectedTierCode("FHB");
+      else if (design.hasExplicitlySelectedTier) {
+        if (upper.includes("H1")) setSelectedTierCode("H1");
+        else if (upper.includes("H3")) setSelectedTierCode("H3");
+        else setSelectedTierCode("H2");
+      }
+    }
+  }, [design.specTier, design.hasExplicitlySelectedTier]);
 
   // File scan states for modified plan
   const [isScanning, setIsScanning] = useState(false);
@@ -369,28 +386,28 @@ export function V2StepFloorPlan({
   const isNsw = division === "NSW";
 
   const isCurrentDesignFhbEligible = useMemo(() => {
-    if (isNsw) return false;
     return isFhbIpEligibleDesign(design.designName, division);
-  }, [design.designName, division, isNsw]);
+  }, [design.designName, division]);
 
-  // For NSW, only make sure H1, H2, H3 are available (per user directive: FHB/IP are available only for QLD price list)
+  // All 5 inclusion tiers (H1, H2, H3, IP, FHB) are available across both NSW and QLD
   const availableTiers = useMemo(() => {
-    if (isNsw) {
-      return INCLUSION_TIERS.filter((t) => t.shortCode !== "IP" && t.shortCode !== "FHB");
-    }
     return INCLUSION_TIERS;
-  }, [isNsw]);
+  }, []);
 
   // Re-price design when division changes so QLD vs NSW prices update live
   useEffect(() => {
     if (design.designName && (design.mode === "standard" || !design.mode)) {
-      const matched = allModels.find(
-        (m) => m.row.name.toLowerCase() === design.designName.toLowerCase()
-      );
+      const cleanTarget = cleanDesignNameForFhb(design.designName);
+      const matched =
+        allModels.find((m) => m.row.name.toLowerCase() === design.designName.toLowerCase()) ||
+        allModels.find((m) => cleanDesignNameForFhb(m.row.name) === cleanTarget);
       if (matched) {
         let tier = design.specTier || "H2 Design Collection";
-        // If state changed to NSW and active tier was FHB/IP, revert to H2
-        if (isNsw && (tier.includes("IP") || tier.includes("FHB") || tier.includes("Start Smart"))) {
+        // If active tier is FHB/IP and design is not FHB-eligible in the new division, revert to H2
+        if (
+          (tier.includes("IP") || tier.includes("FHB") || tier.includes("Start Smart") || tier.includes("Smart Series")) &&
+          !isFhbIpEligibleDesign(matched.row.name, division)
+        ) {
           tier = "H2 Design Collection";
           setSelectedTierCode("H2");
         }
@@ -405,7 +422,7 @@ export function V2StepFloorPlan({
         }
       }
     }
-  }, [division, allModels, isNsw]);
+  }, [division, allModels]);
 
   // Filtered designs for current house type and search
   const filteredModels = useMemo(() => {
@@ -416,13 +433,12 @@ export function V2StepFloorPlan({
         const matchesName = row.name.toLowerCase().includes(query);
         const matchesFhb =
           (query === "fhb" || query.includes("invest") || query === "turnkey") &&
-          !isNsw &&
           isFhbIpEligibleDesign(row.name, division);
         return matchesName || matchesFhb;
       }
       return true;
     });
-  }, [allModels, houseType, searchQuery, isNsw, division]);
+  }, [allModels, houseType, searchQuery, division]);
 
   // Filtered designs for modified floor plan base design selector
   const filteredModifiedModels = useMemo(() => {
@@ -453,8 +469,11 @@ export function V2StepFloorPlan({
   // Current matched model
   const currentModel = useMemo(() => {
     if (!design.designName) return null;
-    return allModels.find(
-      (m) => m.row.name.toLowerCase() === design.designName.toLowerCase()
+    const cleanTarget = cleanDesignNameForFhb(design.designName);
+    return (
+      allModels.find((m) => m.row.name.toLowerCase() === design.designName.toLowerCase()) ||
+      allModels.find((m) => cleanDesignNameForFhb(m.row.name) === cleanTarget) ||
+      null
     );
   }, [allModels, design.designName]);
 
@@ -830,7 +849,7 @@ export function V2StepFloorPlan({
     const isFhbOrIp = tierDef.shortCode === "IP" || tierDef.shortCode === "FHB";
     if (isFhbOrIp && !isCurrentDesignFhbEligible) {
       toast.error(
-        `${tierDef.title} is only available on selected QLD Turnkey designs (Carolina, Lime, Mint, Mocha, Orchid, Ruby, Sabel, Terracotta, Cerise). Please choose an eligible design first.`
+        `${tierDef.title} is only available on certified ${division} FHB / Investor Turnkey designs. Please choose an eligible design first.`
       );
       return;
     }
@@ -1916,7 +1935,7 @@ export function V2StepFloorPlan({
                             <span className="text-xs px-2.5 py-0.5 rounded-md bg-slate-500/10 text-slate-400 font-mono font-semibold">
                               {row.m2} m²
                             </span>
-                            {!isNsw && isFhbIpEligibleDesign(row.name, division) && (
+                            {isFhbIpEligibleDesign(row.name, division) && (
                               <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">
                                 FHB / IP Turnkey
                               </span>
@@ -3480,13 +3499,7 @@ export function V2StepFloorPlan({
             </div>
           </div>
 
-          <div
-            className={`grid gap-4 ${
-              isNsw
-                ? "grid-cols-1 md:grid-cols-3"
-                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
-            }`}
-          >
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {availableTiers.map((tierDef) => {
               const isSelected = selectedTierCode === tierDef.shortCode;
               const isFhbOrIp = tierDef.shortCode === "IP" || tierDef.shortCode === "FHB";
@@ -3519,7 +3532,7 @@ export function V2StepFloorPlan({
                 >
                   {isTierDisabled ? (
                     <span className="absolute -top-3 right-4 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full shadow-xs bg-amber-500/20 text-amber-500 border border-amber-500/30">
-                      22 QLD Models Only
+                      {isNsw ? "76 NSW Models Only" : "22 QLD Models Only"}
                     </span>
                   ) : tierDef.badge ? (
                     <span
@@ -3546,7 +3559,7 @@ export function V2StepFloorPlan({
                     <div className="mb-3">
                       {isTierDisabled ? (
                         <span className="text-[11px] text-amber-500/90 font-semibold block leading-tight">
-                          Only available on 22 certified FHB/Investor designs
+                          Only available on {isNsw ? "76 NSW" : "22 QLD"} certified FHB/Investor designs
                         </span>
                       ) : cardPrice ? (
                         <div className="flex items-baseline gap-1.5">

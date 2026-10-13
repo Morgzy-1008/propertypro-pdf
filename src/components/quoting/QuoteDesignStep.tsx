@@ -479,7 +479,7 @@ export function QuoteDesignStep({
           typeModels.find((x) => normalizeDesignLookup(x.name) === normalizeDesignLookup(design.designName)) ||
           findDesign(design.designName, newDiv);
         if (m) {
-          const newBasePrice = getTierPrice(m, design.specTier, detectedType);
+          const newBasePrice = getTierPrice(m, design.specTier, detectedType, newDiv);
           const facades = getFacadesForDesignAndHousingType(design.designName, detectedType, newDiv);
           const matchedFacade = facades.find((f) => f.name.toLowerCase() === (design.facadeName || "").toLowerCase());
           const newFacadePrice = matchedFacade ? matchedFacade.uplift : (design.isCustomFacade ? design.facadePrice : 0);

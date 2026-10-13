@@ -29,6 +29,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     design: "Aqua",
     label: "Aqua 1",
     pdfUrl: "/floorplans_master/Aqua 1 Classic LH_Full Master_13.05.2020.pdf",
+    cropBoxes: [{ page: 3, x: 0.11, y: 0.25, w: 0.72, h: 0.42 }],
     beds: "2",
     baths: "1",
     cars: "0",

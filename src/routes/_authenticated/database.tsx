@@ -2382,59 +2382,58 @@ function DatabasePage() {
             ))}
           </div>
 
-          {/* State Division Filter Tabs: All | Queensland (QLD) | New South Wales (NSW) */}
-          <div className={`flex rounded-xl border ${isLight ? "border-slate-200 bg-white shadow-xs" : "border-slate-800/90 bg-slate-900/90 shadow-inner"} p-1 backdrop-blur-md`}>
-            <button
-              type="button"
-              onClick={() => setStateFilter("ALL")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                stateFilter === "ALL"
-                  ? isLight
-                    ? "bg-slate-900 text-white shadow-xs font-bold"
-                    : "bg-slate-800 text-white border border-slate-700 shadow-sm font-bold"
-                  : isLight
-                    ? "text-slate-600 hover:text-slate-900"
-                    : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              All States {tab === "pricelists" ? "(NSW & QLD)" : `(${tab === "lots" ? lots.length : packages.length})`}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStateFilter("QLD")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                stateFilter === "QLD"
-                  ? isLight
-                    ? "bg-cyan-100 text-cyan-900 border border-cyan-300 shadow-xs font-bold"
-                    : "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm font-bold"
-                  : isLight
-                    ? "text-slate-600 hover:text-slate-900"
-                    : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
-              QLD {tab === "pricelists" ? "(22 FHB)" : `(${tab === "lots" ? qldLotsCount : qldPkgsCount})`}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStateFilter("NSW")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                stateFilter === "NSW"
-                  ? isLight
-                    ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-bold"
-                    : "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 shadow-sm font-bold"
-                  : isLight
-                    ? "text-slate-600 hover:text-slate-900"
-                    : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              NSW {tab === "pricelists" ? "(76 FHB)" : `(${tab === "lots" ? nswLotsCount : nswPkgsCount})`}
-            </button>
-          </div>
-
           {tab !== "pricelists" && (
             <>
+              {/* State Division Filter Tabs: All | Queensland (QLD) | New South Wales (NSW) */}
+              <div className={`flex rounded-xl border ${isLight ? "border-slate-200 bg-white shadow-xs" : "border-slate-800/90 bg-slate-900/90 shadow-inner"} p-1 backdrop-blur-md`}>
+                <button
+                  type="button"
+                  onClick={() => setStateFilter("ALL")}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                    stateFilter === "ALL"
+                      ? isLight
+                        ? "bg-slate-900 text-white shadow-xs font-bold"
+                        : "bg-slate-800 text-white border border-slate-700 shadow-sm font-bold"
+                      : isLight
+                        ? "text-slate-600 hover:text-slate-900"
+                        : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  All States ({tab === "lots" ? lots.length : packages.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStateFilter("QLD")}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    stateFilter === "QLD"
+                      ? isLight
+                        ? "bg-cyan-100 text-cyan-900 border border-cyan-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm font-bold"
+                      : isLight
+                        ? "text-slate-600 hover:text-slate-900"
+                        : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
+                  QLD ({tab === "lots" ? qldLotsCount : qldPkgsCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStateFilter("NSW")}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    stateFilter === "NSW"
+                      ? isLight
+                        ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 shadow-sm font-bold"
+                      : isLight
+                        ? "text-slate-600 hover:text-slate-900"
+                        : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  NSW ({tab === "lots" ? nswLotsCount : nswPkgsCount})
+                </button>
+              </div>
               <Input
                 className={`h-9 w-full rounded-lg text-xs sm:max-w-xs ${
                   isLight

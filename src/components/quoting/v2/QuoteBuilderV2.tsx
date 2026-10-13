@@ -133,7 +133,7 @@ export function QuoteBuilderV2({
 
   return (
     <div ref={stepContainerRef} className="space-y-6 pb-12">
-      {/* Top Action Bar */}
+      {/* Top Status Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/50 pb-4">
         <div className="flex items-center gap-3">
           <Badge
@@ -145,66 +145,6 @@ export function QuoteBuilderV2({
           <span className="text-sm text-slate-400 font-medium">
             Rapid Progressive Quoting Engine • {(quote.client?.state || getActiveDivision()) === "NSW" ? "Hudson Homes NSW" : "Hudson Homes QLD"}
           </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {savedQuotesCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenSavedEstimates}
-              className={`text-sm h-9 px-3 gap-2 ${
-                isLight
-                  ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                  : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              <FolderOpen className="h-4 w-4 text-cyan-400" />
-              Saved Estimates ({savedQuotesCount})
-            </Button>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onNewQuote}
-            className={`text-sm h-9 px-3 gap-2 ${
-              isLight
-                ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`}
-          >
-            <RotateCcw className="h-4 w-4" />
-            New Blank
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenShare}
-            className={`text-sm h-9 px-3 gap-2 ${
-              isLight
-                ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`}
-          >
-            <Share2 className="h-4 w-4 text-indigo-400" />
-            Share
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenAdminCatalogue}
-            className={`text-sm h-9 px-3 gap-2 ${
-              isLight
-                ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`}
-          >
-            <FileText className="h-4 w-4 text-amber-400" />
-            Admin Catalogue
-          </Button>
         </div>
       </div>
 

@@ -694,7 +694,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     applyPricing(data.designName, data.range, data.landPrice, uplift, next);
   };
 
-  const applyPlan = (plan: FloorplanRecord) => {
+  const applyPlan = (plan: FloorplanRecord, explicitDesignName?: string) => {
+    const targetDesign = explicitDesignName || data.designName || plan.design;
     set("floorplanName", plan.label);
     set("floorplanUrl", plan.url);
     set("floorplanSize", plan.size);
@@ -703,7 +704,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     set("cars", plan.cars);
 
     // Populate exact house dimensions for siting and setbacks
-    const dim = getHudsonDimensions(plan.label) || getHudsonDimensions(data.designName || plan.design);
+    const dim = getHudsonDimensions(plan.label) || getHudsonDimensions(targetDesign);
     if (dim) {
       set("houseWidthM", dim.width);
       set("houseLengthM", dim.length);
@@ -718,7 +719,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       const facade = resolveDefaultFacade(
         plan.cars,
         data.housingType,
-        data.designName || plan.design,
+        targetDesign,
         data.facadeId,
         data.facadeName,
       );
@@ -733,14 +734,24 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           facade.id,
           facade.name,
           storeyFor(data.housingType) ?? undefined,
-          data.designName || plan.design,
+          targetDesign,
         );
         setUplift(nextUplift);
         setUpliftInput(nextUplift === 0 ? "0" : String(nextUplift));
       }
     }
 
-    applyPricing(data.designName || plan.design, data.range, data.landPrice, nextUplift);
+    let nextCosts = data.costs;
+    if (data.landscaping || data.range === "ss") {
+      nextCosts = {
+        ...data.costs,
+        driveway: data.range === "ss" ? 0 : data.costs.driveway,
+        landscaping: landscapingPriceFor(data.landSize, data.housingType, targetDesign, division, data.range),
+      };
+      set("costs", nextCosts);
+    }
+
+    applyPricing(targetDesign, data.range, data.landPrice, nextUplift, nextCosts, division, plan.beds);
 
     // NOTE: plan.frontage is the *house* width — the flyer's frontage field is
     // the land block frontage, so it is never overwritten by a design change.
@@ -764,9 +775,9 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     const plans = plansForDesign(name);
     setVariants(plans);
     if (plans.length) {
-      applyPlan(plans[0]);
+      applyPlan(plans[0], name);
     } else {
-      const row = findDesign(name);
+      const row = findDesign(name, division);
       set("floorplanName", row?.name ?? name);
       set("floorplanUrl", "");
       set("floorplanSize", row ? String(row.m2) : "");
@@ -801,14 +812,18 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         }
       }
 
-      const costs = data.landscaping
-        ? {
-            ...data.costs,
-            driveway: data.range === "ss" ? 0 : 0,
-            landscaping: landscapingPriceFor(data.landSize, data.housingType, name, division, data.range),
-          }
-        : data.costs;
-      applyPricing(name, data.range, data.landPrice, nextUplift, costs);
+      const costs =
+        data.landscaping || data.range === "ss"
+          ? {
+              ...data.costs,
+              driveway: data.range === "ss" ? 0 : 0,
+              landscaping: landscapingPriceFor(data.landSize, data.housingType, name, division, data.range),
+            }
+          : data.costs;
+      if (data.landscaping || data.range === "ss") {
+        set("costs", costs);
+      }
+      applyPricing(name, data.range, data.landPrice, nextUplift, costs, division, data.beds);
     }
     const sizes = otherSizesForDesign(name);
     set("otherSizes", sizes);

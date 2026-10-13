@@ -32,7 +32,11 @@ export async function getHighResFloorplanForDesign(
   // 1. Check if vector PDF crop is available in HUDSON_FLOORPLANS
   const plans = plansForDesign(cleanName);
   if (plans && plans.length > 0) {
-    const planWithCrops = plans.find((p) => p.cropBoxes && p.cropBoxes.length > 0);
+    const planWithCrops =
+      plans.find((p) => p.cropBoxes && p.cropBoxes.length > 0) ||
+      (plans[0].pdfUrl
+        ? { ...plans[0], cropBoxes: [{ page: 3, x: 0.11, y: 0.25, w: 0.72, h: 0.42 }] }
+        : undefined);
     if (planWithCrops) {
       try {
         const vectorDataUrl = await cropPdfFloorplan(planWithCrops);

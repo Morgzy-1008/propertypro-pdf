@@ -309,9 +309,24 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
   const avgPrice = priceValues.length ? Math.round(priceValues.reduce((a, b) => a + b, 0) / priceValues.length) : 0;
 
   // Handlers for Flyer and Quote handoff
+  const getSelectedPriceForRow = (row: DisplayDesignRow): number => {
+    if (tierFilter === "FHB") return row.fhbPrice || row.ssPrice || row.h1Price || 0;
+    if (tierFilter === "H1") return row.h1Price || row.ssPrice || row.hbsPrice || 0;
+    if (tierFilter === "H2") return row.h2Price || row.h1Price || row.ssPrice || 0;
+    if (tierFilter === "H3") return row.h3Price || row.h2Price || row.h1Price || 0;
+    if (tierFilter === "HBS") return row.hbsPrice || row.h1Price || 0;
+    return row.fhbPrice || row.h2Price || row.h1Price || row.ssPrice || row.hbsPrice || 0;
+  };
+
   const handleCreateFlyer = (row: DisplayDesignRow) => {
     try {
-      const selectedPrice = (tierFilter === "FHB" ? row.fhbPrice : row.h1Price) || row.ssPrice || 0;
+      const selectedPrice = getSelectedPriceForRow(row);
+      const isFhbActive = tierFilter === "FHB" || (tierFilter === "ALL" && Boolean(row.fhbPrice));
+      const range = isFhbActive
+        ? "ss"
+        : tierFilter === "ALL"
+        ? "h2"
+        : tierFilter.toLowerCase();
       const handoff = {
         designName: row.name,
         bedrooms: row.bedrooms,
@@ -322,10 +337,10 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
               ? "granny-flat"
               : "single-storey",
         state: row.division,
-        range: tierFilter === "FHB" ? "ss" : tierFilter.toLowerCase(),
+        range,
         price: selectedPrice,
         housePrice: formatAud(selectedPrice),
-        landscaping: tierFilter === "FHB" ? true : undefined,
+        landscaping: isFhbActive ? true : undefined,
       };
       sessionStorage.setItem("hudson-flyer-handoff", JSON.stringify(handoff));
       navigate({ to: "/flyer" });
@@ -336,7 +351,15 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
 
   const handleCreateQuote = (row: DisplayDesignRow) => {
     try {
-      const selectedPrice = (tierFilter === "FHB" ? row.fhbPrice : row.h1Price) || row.ssPrice || 0;
+      const selectedPrice = getSelectedPriceForRow(row);
+      const isFhbActive = tierFilter === "FHB" || (tierFilter === "ALL" && Boolean(row.fhbPrice));
+      const specTier = isFhbActive
+        ? "FHB Start Smart"
+        : tierFilter === "H1" || tierFilter === "HBS"
+        ? "H1 Smart Living"
+        : tierFilter === "H3"
+        ? "H3 Luxury Inclusions"
+        : "H2 Design Collection";
       const bridge = {
         designName: row.name,
         bedrooms: row.bedrooms,
@@ -349,7 +372,7 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
               ? "granny-flat"
               : "single-storey",
         state: row.division,
-        specTier: tierFilter === "FHB" ? "Smart Series" : tierFilter,
+        specTier,
         basePrice: selectedPrice,
         standardBasePrice: selectedPrice,
       };

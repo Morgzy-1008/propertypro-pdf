@@ -2397,11 +2397,15 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
   const quote: FullQuote = JSON.parse(JSON.stringify(rawQuote));
   if (!quote.design) return quote;
 
-  // Normalize tier to strict H1 Smart, H2 Designer, H3 Luxury
+  // Normalize tier to strict H1 Smart, H2 Designer, H3 Luxury, FHB Start Smart, or IP Investor Pack
   let tier = quote.design.specTier || "H2 Design Inclusions";
   const tierUpper = String(tier).toUpperCase();
   if (tierUpper.includes("H3")) {
     tier = "H3 Luxury Inclusions";
+  } else if (tierUpper.includes("FHB") || tierUpper.includes("START SMART") || tierUpper.includes("FIRST HOME")) {
+    tier = "FHB Start Smart";
+  } else if (tierUpper === "IP" || tierUpper.includes("INVEST")) {
+    tier = "IP Investor Pack";
   } else if (tierUpper.includes("H1")) {
     tier = "H1 Smart Inclusions";
   } else if (tierUpper.includes("H2") || tierUpper.includes("DESIGN")) {
@@ -2465,7 +2469,9 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
     const modCalc = calculateModifiedFloorplanPricing(quote.design);
     quote.design.basePrice = modCalc.modifiedBasePrice;
     quote.design.modifiedDesignM2 = modCalc.modifiedTotalM2;
-    quote.design.promotionsDiscount = getAutomatedPromotionDiscount(modCalc.modifiedTotalM2);
+    if (!quote.design.promotionsDiscount || quote.design.promotionsDiscount <= 0) {
+      quote.design.promotionsDiscount = getAutomatedPromotionDiscount(modCalc.modifiedTotalM2);
+    }
   } else if (quote.design.mode === "standard" || !quote.design.mode) {
     // Re-calibrate against official pricelists
     const div = (quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
@@ -2476,7 +2482,7 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
       (m) => m.name.toLowerCase() === (quote.design.designName || "").toLowerCase()
     );
     if (matched) {
-      const stdPrice = getTierPrice(matched, tier, housingType);
+      const stdPrice = getTierPrice(matched, tier, housingType, div);
       if (stdPrice > 0) {
         quote.design.standardBasePrice = stdPrice;
         quote.design.basePrice = stdPrice;

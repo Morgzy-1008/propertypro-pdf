@@ -157,7 +157,8 @@ export function cleanDesignNameForFhb(str: string): string {
   return str
     .toLowerCase()
     .replace(/\s*\((?:single|two|double)\s*stor(?:y|ey)[^)]*\)/gi, "")
-    .replace(/\bmk\s*ii\b|\bmkii\b/gi, "mk2")
+    .replace(/\bmk\s*(?:2|ii)\b|\bmk2\b|\bmkii\b/gi, "")
+    .replace(/\bdet+ached\b/gi, "detached")
     .replace(/\s*\(?[sSdD]\/[gG]\)?/gi, "")
     .replace(/\b(?:single|double)?\s*garage\b/gi, "")
     .replace(/[^a-z0-9]/g, " ")
@@ -204,7 +205,7 @@ export function findFhbPrice(
   // 2. Mocha 24 attached vs detached garage
   const isMocha24 = /mocha\s*24\b/i.test(name);
   if (isMocha24) {
-    const isDetached = /detach/i.test(name) || /detach/i.test(options?.garage || "");
+    const isDetached = /det+ach/i.test(name) || /det+ach/i.test(options?.garage || "");
     const targetName = isDetached ? "Mocha 24 (Detached Garage)" : "Mocha 24 (Attached Garage)";
     for (const list of candidateLists) {
       const match = list.find((r) => r.name.toLowerCase() === targetName.toLowerCase());

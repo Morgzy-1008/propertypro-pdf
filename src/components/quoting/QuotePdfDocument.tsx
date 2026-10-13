@@ -470,19 +470,18 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
   const isSingleGarageDouble = isDoubleOrSplit && isSg;
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[195px] max-h-[195px] mb-2 flex-none p-2">
+    <div className="w-full relative overflow-hidden bg-slate-100 flex items-center justify-center h-[215px] max-h-[215px] mb-2 flex-none">
       <img
         src={src}
         alt={secondDwelling?.facadeName || "Secondary Residence Architectural Facade"}
         loading="eager"
         crossOrigin="anonymous"
-        className="w-full h-full object-contain object-center drop-shadow-md"
+        className="w-full h-full object-cover object-center"
         style={{
           imageRendering: "auto",
         }}
       />
-      <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5 z-20">
-        <Sparkles className="h-3 w-3 text-amber-400" />
+      <div className="absolute top-3 left-3 bg-white/95 px-2.5 py-1 text-[9.5px] font-bold text-slate-900 uppercase tracking-wider shadow-xs z-20">
         <span>Selected Facade: {secondDwelling?.facadeName || "Classic"}</span>
       </div>
     </div>
@@ -524,7 +523,8 @@ function QuoteSecondFloorplanViewer({ secondDwelling }: { secondDwelling?: Secon
       <img
         src={src}
         alt="Secondary Dwelling Floorplan Drawing"
-        className="max-h-[580px] max-w-[710px] w-full h-full object-contain block mx-auto my-auto drop-shadow-sm transition-all"
+        onError={() => setSrc("")}
+        className="max-h-full max-w-full w-full h-full object-contain block mx-auto my-auto drop-shadow-sm transition-all"
         style={{ imageRendering: "-webkit-optimize-contrast" }}
       />
     </div>
@@ -695,24 +695,25 @@ function getSpecItemEstimatedHeight(item: SpecItem): number {
       ? ""
       : rawDesc;
   const nameLen = (item.name || "").length;
-  // Extra allowance if title is long and wraps onto 2 lines (> 55 chars)
-  const nameExtra = nameLen > 55 ? 12 : 0;
+  // Extra allowance if title wraps onto 2 lines (> 48 chars)
+  const nameExtra = nameLen > 48 ? 17 : 0;
 
+  // Base row height with py-2.5 (20px) + 16.5px line-height + 1px border = 38px
   if (!desc) {
-    return 28 + nameExtra;
+    return 38 + nameExtra;
   }
   const descLen = desc.length;
-  if (descLen <= 60) return 40 + nameExtra;
-  if (descLen <= 120) return 54 + nameExtra;
-  if (descLen <= 180) return 68 + nameExtra;
-  return 82 + nameExtra;
+  if (descLen <= 65) return 55 + nameExtra;
+  if (descLen <= 130) return 70 + nameExtra;
+  if (descLen <= 195) return 85 + nameExtra;
+  return 102 + nameExtra;
 }
 
-const SPEC_GROUP_HEADER_HEIGHT = 44;
-// Page 1 budget: calibrated for comfortable packing without spilling into excess blank pages
-const SPEC_PAGE_1_MAX_HEIGHT = 820;
+const SPEC_GROUP_HEADER_HEIGHT = 50;
+// Page 1 budget: calibrated to actual DOM heights so pages stay strictly <= 1123px
+const SPEC_PAGE_1_MAX_HEIGHT = 815;
 // Continuation page budget
-const SPEC_PAGE_CONT_MAX_HEIGHT = 860;
+const SPEC_PAGE_CONT_MAX_HEIGHT = 830;
 
 function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
   const pages: SpecGroup[][] = [];
@@ -1763,40 +1764,21 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
                 {/* Plan Modifications & Architectural Area Adjustments */}
                 {isModPlan && modPricingCalc && modCostAdjustment !== 0 && (
-                  <>
-                    <tr className="bg-amber-50/70">
-                      <td className="py-2.5 px-4">
-                        <div className="font-extrabold text-slate-950 text-[13px]">
-                          Plan Modifications &amp; Architectural Area Adjustments (Altered: {modPricingCalc.modifiedTotalM2.toFixed(2)} m2):
-                        </div>
-                        <div className="text-[11px] text-slate-600 mt-0.5">
-                          Structural floorplan alterations to standard brochure baseline layout
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-4 text-right font-extrabold text-slate-950 text-xs">
-                        {modCostAdjustment >= 0
-                          ? `+${formatAud(modCostAdjustment)}`
-                          : `-${formatAud(Math.abs(modCostAdjustment))}`}
-                      </td>
-                    </tr>
-                    {modPricingCalc.zones.filter((z) => z.deltaM2 !== 0).map((z) => (
-                      <tr key={z.key} className="bg-white text-xs">
-                        <td className="py-1.5 px-4 pl-7 text-slate-700">
-                          <span className="font-semibold text-slate-950">
-                            • {z.label} {z.deltaM2 > 0 ? "Extension" : "Reduction"}
-                          </span>
-                          <span className="ml-2 text-[10.5px] text-slate-500">
-                            ({z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(2)}` : z.deltaM2.toFixed(2)} m2 @ {formatAud(z.ratePerM2)}/m2)
-                          </span>
-                        </td>
-                        <td className="py-1.5 px-4 text-right font-bold text-slate-900 text-xs">
-                          {z.costAdjustment >= 0
-                            ? `+${formatAud(z.costAdjustment)}`
-                            : `-${formatAud(Math.abs(z.costAdjustment))}`}
-                        </td>
-                      </tr>
-                    ))}
-                  </>
+                  <tr className="bg-amber-50/70">
+                    <td className="py-3 px-4">
+                      <div className="font-extrabold text-slate-950 text-[13px]">
+                        Plan Modifications &amp; Architectural Area Adjustments (Altered: {modPricingCalc.modifiedTotalM2.toFixed(2)} m2):
+                      </div>
+                      <div className="text-[11px] text-slate-600 mt-0.5">
+                        Structural floorplan alterations to standard brochure baseline layout ({modPricingCalc.zones.filter((z) => z.deltaM2 !== 0).length} modified zone{modPricingCalc.zones.filter((z) => z.deltaM2 !== 0).length === 1 ? "" : "s"} — see Specification Schedule)
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                      {modCostAdjustment >= 0
+                        ? `+${formatAud(modCostAdjustment)}`
+                        : `-${formatAud(Math.abs(modCostAdjustment))}`}
+                    </td>
+                  </tr>
                 )}
 
                 {/* 2nd Dwelling / Auxiliary Unit if selected */}
@@ -1969,7 +1951,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               <div className="text-xs font-extrabold text-slate-950 mt-1">
                 Selected Facade: {design.facadeName || "Classic"}
                 {design.widthM && design.lengthM
-                  ? ` • Dimensions: ${design.widthM}m wide x ${design.lengthM}m deep`
+                  ? ` • Dimensions: ${String(design.widthM).replace(/m+$/i, "")}m wide x ${String(design.lengthM).replace(/m+$/i, "")}m deep`
                   : ""}
               </div>
             </div>
@@ -2083,7 +2065,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 <div className="text-xs font-extrabold text-slate-950 mt-1">
                   Selected Facade: {secondDwelling.facadeName || "Classic"}
                   {secondDwelling.widthM && secondDwelling.lengthM && (
-                    <span> • Dimensions: {secondDwelling.widthM} wide x {secondDwelling.lengthM} deep</span>
+                    <span> • Dimensions: {String(secondDwelling.widthM).replace(/m+$/i, "")}m wide x {String(secondDwelling.lengthM).replace(/m+$/i, "")}m deep</span>
                   )}
                 </div>
               </div>
@@ -2141,8 +2123,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               </div>
             </div>
 
-            {/* 3. Floorplan Layout Drawing (Maximized) */}
-            <div className="flex-1 w-full border border-slate-500 p-2 bg-white flex items-center justify-center min-h-[500px] max-h-[560px] overflow-hidden">
+            {/* 3. Floorplan Layout Drawing (Maximized in Crisp Bordered Frame) */}
+            <div className="flex-1 w-full border border-slate-500 p-2 bg-white flex items-center justify-center overflow-hidden mt-auto">
               <QuoteSecondFloorplanViewer secondDwelling={secondDwelling} />
             </div>
           </div>

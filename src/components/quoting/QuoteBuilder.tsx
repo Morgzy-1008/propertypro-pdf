@@ -272,11 +272,26 @@ export function QuoteBuilder() {
         const bridge = JSON.parse(rawPlanBridge);
         if (bridge && (bridge.designName || bridge.design?.designName)) {
           const rawDesignName = bridge.designName || bridge.design?.designName;
-          
+          const incomingBridgeState = bridge.state || bridge.client?.state;
+          if (incomingBridgeState === "NSW" || incomingBridgeState === "QLD") {
+            setActiveDivision(incomingBridgeState);
+          }
+
           // 1. Check if the floorplan is one of Hudson's by reading the design
-          const matchedHudson = findHudsonModelByName(rawDesignName);
+          const matchedHudson = findHudsonModelByName(rawDesignName, incomingBridgeState || getActiveDivision());
           const isHudson = !!matchedHudson;
-          const housingType = matchedHudson ? matchedHudson.housingType : (bridge.housingType || "Single Storey");
+          const rawHousingType = bridge.housingType || "";
+          const normalizedBridgeHousingType =
+            rawHousingType === "double-storey" || rawHousingType === "Double Storey"
+              ? "Double Storey"
+              : rawHousingType === "granny-flat" || rawHousingType === "Granny Flat"
+              ? "Granny Flat"
+              : rawHousingType === "split-level" || rawHousingType === "Split Level"
+              ? "Split Level"
+              : rawHousingType === "dual-oc" || rawHousingType === "Dual Living"
+              ? "Dual Living"
+              : "Single Storey";
+          const housingType = matchedHudson ? matchedHudson.housingType : normalizedBridgeHousingType;
           const canonicalName = matchedHudson ? matchedHudson.row.name : rawDesignName;
           const stdTotalM2 = matchedHudson ? matchedHudson.row.m2 : (Number(bridge.standardDesignM2) || Number(bridge.totalM2) || 195);
           
@@ -311,7 +326,8 @@ export function QuoteBuilder() {
 
           setQuote((prev) => {
             const specTier = bridge.specTier || prev.design.specTier || "H2";
-            const bridgeState = bridge.state || prev.client.state;
+            const bridgeState = incomingBridgeState || prev.client.state;
+            const isFhbTier = /fhb|start smart|smart series/i.test(String(specTier));
             const standardBasePrice =
               Number(bridge.standardBasePrice) ||
               Number(bridge.basePrice) ||
@@ -360,6 +376,8 @@ export function QuoteBuilder() {
               designName: canonicalName,
               housingType,
               specTier,
+              hasExplicitlySelectedTier: Boolean(bridge.specTier) || prev.design.hasExplicitlySelectedTier,
+              ...(isFhbTier ? { landscapingSelected: true, landscapingCost: 0 } : {}),
               designM2: stdTotalM2,
               standardDesignM2: stdTotalM2,
               standardBasePrice,
