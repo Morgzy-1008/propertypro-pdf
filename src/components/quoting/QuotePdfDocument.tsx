@@ -192,19 +192,18 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
   const isSingleGarageDouble = isDoubleOrSplit && isSg;
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[300px] max-h-[300px] mb-2 flex-none p-2">
+    <div className="w-full relative overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center h-[270px] max-h-[270px] mb-2 flex-none">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
         loading="eager"
         crossOrigin="anonymous"
-        className="w-full h-full object-contain object-center drop-shadow-md"
+        className="w-full h-full object-contain object-center"
         style={{
           imageRendering: "auto",
         }}
       />
-      <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5 z-20">
-        <Sparkles className="h-3 w-3 text-amber-400" />
+      <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-xs px-3.5 py-1.5 text-[11px] font-extrabold text-slate-950 shadow-sm border border-slate-200/80 z-20">
         <span>Selected Facade: {design.facadeName || "Classic"}</span>
       </div>
     </div>
@@ -1278,13 +1277,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       : []),
   ];
 
-  const combinedEarthworksAndGeotech = [...earthworksItems, ...geotechnicalSiteItems];
-
   const activeSiteSchedule = [
     {
-      label: "1. Site Earthworks, Foundation & Geotechnical Allowances",
-      total: combinedEarthworksAndGeotech.reduce((s, it) => s + (Number(it.amount) || 0), 0),
-      items: combinedEarthworksAndGeotech,
+      label: "1. Inclusion / Selection Specification for Drafting",
+      total: earthworksItems.reduce((s, it) => s + (Number(it.amount) || 0), 0),
+      items: earthworksItems,
     },
     ...(overlayReportsAndAllowances.length > 0
       ? [
@@ -1300,6 +1297,15 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       total: councilStatutoryItems.reduce((s, it) => s + (Number(it.amount) || 0), 0),
       items: councilStatutoryItems,
     },
+    ...(geotechnicalSiteItems.length > 0
+      ? [
+          {
+            label: "4. Geotechnical & Site Allowances",
+            total: geotechnicalSiteItems.reduce((s, it) => s + (Number(it.amount) || 0), 0),
+            items: geotechnicalSiteItems,
+          },
+        ]
+      : []),
   ];
 
   const isModPlan = !!design.isModifiedFloorplan || design.mode === "modified";
@@ -1447,8 +1453,24 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const bankAccountNumber = company.accountNumber;
   const headOfficeAddress = company.headOfficeAddress;
   const footerLicenceLine = company.isNsw
-    ? "Hudson Homes (NSW) Pty Ltd · ABN 49 163 189 071 · Licence 259372C"
-    : "Hudson Homes (QLD) Pty Ltd · ABN 92 623 431 685 · QBCC Licence 15078318";
+    ? "Hudson Homes Pty Ltd. ABN: 49 163 189 071 • Builder’s Licence: 259372C"
+    : "Hudson Homes (QLD) Pty Ltd. ABN: 92 623 431 685 • QBCC Licence: 15078318";
+
+  const formattedSoilClass = (() => {
+    const raw = (siteConditions.soilClass || "Class M").trim();
+    return raw.toLowerCase().startsWith("class") ? raw : `Class ${raw}`;
+  })();
+
+  const shortInclusionLabel = (() => {
+    const t = (design.specTier || "H2 Design").trim();
+    const u = t.toUpperCase();
+    if (u.includes("IP") || u.includes("INVEST")) return "IP Investor Pack";
+    if (u.includes("FHB") || u.includes("START SMART") || u.includes("FIRST HOME")) return "FHB Start Smart";
+    if (u.includes("H1") || u.includes("SMART")) return "H1 Smart";
+    if (u.includes("H3") || u.includes("LUXURY")) return "H3 Luxury";
+    if (u.includes("H2") || u.includes("DESIGN")) return "H2 Design";
+    return t;
+  })();
 
   return (
     <div
@@ -1456,141 +1478,122 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       style={{ colorScheme: "light" }}
     >
       {/* ========================================================================= */}
-      {/* PAGE 1: OFFICIAL BUILDERS ESTIMATE COVER PAGE                             */}
+      {/* PAGE 1: OFFICIAL MARKETING BUILDERS ESTIMATE COVER PAGE (NO FACADE IMAGE) */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
-        {/* Crisp Vector Top Poly Header Banner */}
-        <div className="absolute top-0 left-0 right-0 h-52 pointer-events-none overflow-hidden">
-          <svg
-            viewBox="0 0 794 200"
-            className="w-full h-full"
-            preserveAspectRatio="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <linearGradient id="polyGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.95" />
-                <stop offset="45%" stopColor="#06b6d4" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.95" />
-              </linearGradient>
-              <linearGradient id="polyGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#ec4899" stopOpacity="0.8" />
-                <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#10b981" stopOpacity="0.8" />
-              </linearGradient>
-              <linearGradient id="polyGrad3" x1="0%" y1="100%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.6" />
-              </linearGradient>
-            </defs>
-            <polygon points="0,0 794,0 794,115 480,165 0,95" fill="url(#polyGrad1)" />
-            <polygon points="220,0 794,0 794,145 320,115" fill="url(#polyGrad2)" />
-            <polygon points="0,0 450,0 300,105 0,80" fill="url(#polyGrad3)" />
-          </svg>
-        </div>
-
-        {/* Top Header Row with Badges & Logo */}
-        <div className="relative z-10 flex items-center justify-between pt-2">
-          <div className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-white/60 flex items-center gap-3">
-            <Logo size={11} modern={false} />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="bg-slate-900/90 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-md border border-slate-700">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              <span>Builders Estimate #{quote.quoteNumber || "MH678"}</span>
-            </div>
-            <div className="bg-emerald-500 text-slate-950 text-[11px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-md">
-              14-Day Price Hold
-            </div>
+      <div
+        data-testid="pdf-page-cover"
+        className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always"
+      >
+        {/* Top-to-Middle Official Marketing Low-Poly Canopy, Stacked Logo & Script Hero Artwork */}
+        <div className="relative w-full flex-none select-none">
+          <img
+            src="/brand/marketing-cover-hero.jpg"
+            alt="Hudson Homes — Your New Home Builders Estimate"
+            loading="eager"
+            crossOrigin="anonymous"
+            className="w-full h-auto block object-contain"
+          />
+          {/* Semantic / Screen-Reader & Automated Test Accessible Title Text */}
+          <div className="sr-only">
+            <h1>YOUR NEW HOME — Builders Estimate</h1>
+            <p>COMPREHENSIVE ARCHITECTURAL TENDER &amp; SITE INVESTMENT BREAKDOWN</p>
+            <span>Builders Estimate #{quote.quoteNumber || "MH678"}</span>
           </div>
         </div>
 
-        {/* Hero Title Section */}
-        <div className="relative z-10 pt-2 text-right pr-6 space-y-0.5">
-          <div className="text-2xl font-extrabold uppercase tracking-widest text-slate-900">
-            YOUR
-          </div>
-          <div className="text-3xl font-extrabold tracking-tight text-slate-900">
-            NEW HOME
-          </div>
-          <div className="text-5xl font-serif italic text-cyan-700 tracking-tight leading-none pt-0.5">
-            Builders Estimate
-          </div>
-          <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 pt-1.5">
-            Comprehensive Architectural Tender &amp; Site Investment Breakdown
-          </div>
-        </div>
-
-        {/* Selected Facade Visual Hero Card */}
-        <div className="relative z-10 my-2">
-          <QuoteCoverFacadeHero design={design} />
-        </div>
-
-        {/* Bottom Presentation Metadata Box */}
-        <div className="relative z-10 bg-slate-50/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-6 shadow-xl space-y-4">
-          <div className="grid grid-cols-2 gap-6 pb-4 border-b border-slate-200">
+        {/* Lower Presentation & Architectural Metadata Section (Marketing First Page Layout) */}
+        <div className="px-14 pb-10 pt-4 flex-1 flex flex-col justify-end">
+          {/* Presented To & Site Address Columns */}
+          <div className="grid grid-cols-2 gap-12 mb-14">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 block">
+              <span
+                className="text-[15px] font-extrabold uppercase tracking-wide block mb-2.5"
+                style={{ color: "#0099d8" }}
+              >
                 PRESENTED TO
               </span>
-              <div className="text-base font-extrabold text-slate-900 mt-0.5">
-                {clientCombinedNames || "Valued Client"}
-              </div>
-              <div className="text-xs text-slate-600 mt-0.5">
-                {client.clientEmail || "client@email.com"}
-                {client.clientPhone && ` · ${client.clientPhone}`}
+              <div
+                className="rounded-xs px-4 py-3.5 min-h-[76px] flex flex-col justify-center border border-[#cbd5f7]"
+                style={{ backgroundColor: "#dfe6fc" }}
+              >
+                <div className="text-base font-extrabold text-slate-950 leading-snug">
+                  {clientCombinedNames || "Valued Client"}
+                </div>
+                {(client.clientEmail || client.clientPhone) && (
+                  <div className="text-xs font-semibold text-slate-700 mt-1">
+                    {[client.clientEmail, client.clientPhone].filter(Boolean).join(" · ")}
+                  </div>
+                )}
               </div>
             </div>
 
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 block">
-                PROPOSED SITE ADDRESS
+              <span
+                className="text-[15px] font-extrabold uppercase tracking-wide block mb-2.5"
+                style={{ color: "#0099d8" }}
+              >
+                SITE ADDRESS
               </span>
-              <div className="text-sm font-bold text-slate-900 mt-0.5">
-                {client.siteAddress || "Site Address TBA"}
-              </div>
-              <div className="text-xs text-slate-600">
-                {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ")}
+              <div
+                className="rounded-xs px-4 py-3.5 min-h-[76px] flex flex-col justify-center border border-[#cbd5f7]"
+                style={{ backgroundColor: "#dfe6fc" }}
+              >
+                <div className="text-sm font-extrabold text-slate-950 leading-snug">
+                  {client.siteAddress || "Site Address TBA"}
+                </div>
+                <div className="text-xs font-semibold text-slate-700 mt-1">
+                  {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ") || quoteStateFull}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 text-xs">
-            <div>
-              <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
-                SELECTED DESIGN:
+          {/* 3-Column Bottom Underlined Specification Strip */}
+          <div className="grid grid-cols-3 gap-7 text-xs mb-10">
+            <div className="border-b-[1.5px] border-slate-800 pb-1.5 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-medium text-slate-800 whitespace-nowrap">
+                Selected Design
               </span>
-              <span className="font-bold text-slate-900 text-sm">
+              <span
+                className="px-3 py-1 rounded-xs font-extrabold text-slate-950 text-xs text-right truncate min-w-[115px]"
+                style={{ backgroundColor: "#dfe6fc" }}
+              >
                 {effectiveDesignName}
               </span>
             </div>
-            <div>
-              <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
-                FACADE STYLE:
-              </span>
-              <span className="font-bold text-slate-900 text-sm">
-                {design.facadeName || "Standard"}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
-                INCLUSIONS TIER:
-              </span>
-              <span className="inline-block bg-emerald-100 text-emerald-900 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
-                {formatInclusionTierTitle(design.specTier)}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        {/* Cover Page Footer */}
-        <div className="relative z-10 pt-4 flex items-center justify-between text-[10px] text-slate-500">
-          <div>
-            {footerLicenceLine}
+            <div className="border-b-[1.5px] border-slate-800 pb-1.5 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-medium text-slate-800 whitespace-nowrap">
+                Facade Style
+              </span>
+              <span
+                className="px-3 py-1 rounded-xs font-extrabold text-slate-950 text-xs text-right truncate min-w-[115px]"
+                style={{ backgroundColor: "#dfe6fc" }}
+              >
+                {design.facadeName || "Classic"}
+              </span>
+            </div>
+
+            <div className="border-b-[1.5px] border-slate-800 pb-1.5 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-medium text-slate-800 whitespace-nowrap">
+                Inclusion Tier
+              </span>
+              <span
+                className="px-3 py-1 rounded-xs font-extrabold text-slate-950 text-xs text-right truncate min-w-[115px]"
+                style={{ backgroundColor: "#dfe6fc" }}
+                title={formatInclusionTierTitle(design.specTier)}
+              >
+                {shortInclusionLabel}
+              </span>
+            </div>
           </div>
-          <div className="font-mono">
-            Estimate #{quote.quoteNumber || "MH678"} · Issued {formattedCreatedDate}
+
+          {/* Subtle Cover Footer */}
+          <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between text-[9.5px] text-slate-500">
+            <div>{footerLicenceLine}</div>
+            <div className="font-mono font-semibold text-slate-600">
+              Estimate #{quote.quoteNumber || "MH678"} · Issued {formattedCreatedDate}
+            </div>
           </div>
         </div>
       </div>
@@ -1598,132 +1601,161 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       {/* ========================================================================= */}
       {/* PAGE 2: EXECUTIVE ESTIMATE & CONSTRUCTION COST SUMMARY                     */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
-          {/* Header */}
-          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-6">
-            <Logo size={10} modern={false} />
-            <div className="text-right text-xs">
-              <div className="font-extrabold text-slate-900 text-sm">Date: {formattedCreatedDate}</div>
-              <div className="text-slate-600 font-mono font-semibold text-xs">Estimate No: {quote.quoteNumber || "MH678"}</div>
-            </div>
+          {/* Top-Right Stacked Hudson Homes Logo (Marketing Page 2 Header) */}
+          <div className="flex items-start justify-end mb-2">
+            <img
+              src="/brand/hudson-stacked-logo.png"
+              alt="Hudson Homes"
+              loading="eager"
+              crossOrigin="anonymous"
+              className="h-20 w-auto object-contain"
+            />
           </div>
 
-          {/* Owner & Job Meta Box */}
-          <div className="mb-6">
-            <div className="text-sm font-black uppercase tracking-wider text-cyan-900 mb-2.5">
+          {/* Owner & Estimate Details (Marketing Underlined Architectural Form Layout) */}
+          <div className="mb-8">
+            <div
+              className="text-[15px] font-extrabold uppercase tracking-wide mb-4"
+              style={{ color: "#0099d8" }}
+            >
               OWNER &amp; ESTIMATE DETAILS
             </div>
-            <div className="border border-slate-200/90 rounded-2xl p-4 bg-slate-50/90 grid grid-cols-2 gap-5 text-xs shadow-xs">
-              <div className="space-y-2">
-                <div>
-                  <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">Owner/s Details:</span>
-                  <span className="font-black text-slate-950 text-sm block mt-0.5">{clientCombinedNames || "Client Name"}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">New Home Consultant:</span>
-                  <span className="font-bold text-slate-950 text-sm block mt-0.5">{client.consultantName || "Morgan Hales"}</span>
-                  <span className="text-slate-600 text-xs block font-medium mt-0.5">
-                    {[client.consultantOffice, client.consultantPhone, client.consultantEmail].filter(Boolean).join(" • ")}
+
+            <div className="space-y-4 text-xs">
+              {/* Row 1: Owner/s Details & New Home Consultant */}
+              <div className="grid grid-cols-2 gap-10">
+                <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-slate-600 font-medium whitespace-nowrap">Owner/s Details</span>
+                  <span className="font-extrabold text-slate-950 text-right truncate">
+                    {clientCombinedNames || "Client Name"}
                   </span>
                 </div>
-                <div>
-                  <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">Proposed Site Address:</span>
-                  <span className="font-bold text-slate-950 text-sm block mt-0.5">{siteAddressFull}</span>
+                <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-slate-600 font-medium whitespace-nowrap">New Home Consultant</span>
+                  <span className="font-extrabold text-slate-950 text-right truncate">
+                    {client.consultantName || "Morgan Hales"}
+                    {client.consultantPhone ? ` · ${client.consultantPhone}` : ""}
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div>
-                  <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">Estimate No / Version:</span>
-                  <span className="font-black text-slate-950 font-mono text-sm block mt-0.5">{quote.quoteNumber || "MH678"} / Version {client.estimateVersion || 1}</span>
+              {/* Row 2: Proposed Site Address */}
+              <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-4">
+                <span className="text-slate-600 font-medium whitespace-nowrap">Proposed Site Address</span>
+                <span className="font-extrabold text-slate-950 text-right truncate">
+                  {siteAddressFull}
+                </span>
+              </div>
+
+              {/* Row 3: Estimate No/ Version & Estimate Valid To */}
+              <div className="grid grid-cols-2 gap-10 pt-1">
+                <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-slate-600 font-medium whitespace-nowrap">Estimate No/ Version</span>
+                  <span className="font-extrabold text-slate-950 font-mono text-right">
+                    {quote.quoteNumber || "MH678"} / Version {client.estimateVersion || 1}
+                  </span>
                 </div>
-                <div>
-                  <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">Estimate Valid To:</span>
-                  <span className="font-extrabold text-amber-800 font-mono text-sm block mt-0.5">{formattedValidDate} (14-day validity)</span>
+                <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-slate-600 font-medium whitespace-nowrap">Estimate Valid To</span>
+                  <span className="font-extrabold text-slate-950 font-mono text-right">
+                    {formattedValidDate} (14-Day Validity)
+                  </span>
                 </div>
-                {client.notes && (
-                  <div>
-                    <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">Consultant Notes:</span>
-                    <span className="text-slate-800 text-xs italic block mt-0.5">{client.notes}</span>
-                  </div>
-                )}
+              </div>
+
+              {/* Row 4: Consultant Notes */}
+              <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-4">
+                <span className="text-slate-600 font-medium whitespace-nowrap">Consultant Notes</span>
+                <span className="font-semibold text-slate-800 text-right truncate">
+                  {client.notes || `${client.consultantOffice || "Display Centre"} · Issued ${formattedCreatedDate}`}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Itemized Construction Cost Table */}
-          <div className="mb-6">
-            <div className="text-sm font-black uppercase tracking-wider text-cyan-900 mb-2.5">
+          {/* Itemized Construction Cost Summary Table (Marketing Page 2 Table Design) */}
+          <div className="mb-7">
+            <div
+              className="text-[15px] font-extrabold uppercase tracking-wide mb-3"
+              style={{ color: "#0099d8" }}
+            >
               ESTIMATED CONSTRUCTION COST SUMMARY
             </div>
 
-            <table className="w-full text-xs border-collapse border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs">
-              <thead className="bg-slate-100 text-slate-800 uppercase text-xs font-black tracking-wider border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4 text-left">Description</th>
-                  <th className="py-3 px-4 text-right w-40">Estimated Amount</th>
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr
+                  className="text-slate-900 uppercase text-[11px] font-extrabold tracking-wider"
+                  style={{ backgroundColor: "#e6e7e8" }}
+                >
+                  <th className="py-2.5 px-4 text-left">DESCRIPTION</th>
+                  <th className="py-2.5 px-4 text-right w-40">AMOUNT</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
-                {/* Base House / Architectural Floorplan - Strictly Standard Brochure Baseline */}
+              <tbody className="divide-y divide-slate-200 border-b border-slate-300">
+                {/* Base House / Architectural Floorplan */}
                 {(() => {
                   const isMod = !!design.isModifiedFloorplan || design.mode === "modified";
                   const modCalc = isMod ? calculateModifiedFloorplanPricing(design) : null;
-                  const stdBaselinePrice = Number(design.standardBasePrice) || (modCalc ? modCalc.standardBasePrice : Number(pricing.baseHousePrice)) || 0;
+                  const stdBaselinePrice =
+                    Number(design.standardBasePrice) ||
+                    (modCalc ? modCalc.standardBasePrice : Number(pricing.baseHousePrice)) ||
+                    0;
 
                   return (
-                    <tr className="font-semibold bg-white">
+                    <tr className="bg-white">
                       <td className="py-3 px-4">
-                        <div className="text-slate-950 font-black text-sm">
+                        <div className="text-slate-950 font-extrabold text-[13px]">
                           {design.mode === "standard" || isMod
                             ? `${effectiveDesignName} with ${formatInclusionTierTitle(design.specTier)}`
                             : `Custom Architectural Floorplan (${design.customSpec?.storeys === "double" ? "Two" : "Single"} Storey)`}
                         </div>
-                        <div className="text-xs text-slate-600 font-medium mt-0.5">
+                        <div className="text-[11px] text-slate-600 mt-0.5">
                           {isMod && modCalc
-                            ? `Standard brochure baseline ${modCalc.standardTotalM2.toFixed(2)} m² (${(modCalc.standardTotalM2 * 0.107639).toFixed(1)} sq) · Modified Total Area ${modCalc.modifiedTotalM2.toFixed(2)} m²`
-                            : `Living area ${totalAreaM2} m² (${(totalAreaM2 * 0.107639).toFixed(1)} sq) · GFA Platform ${pricing.gfaM2} m²`}
+                            ? `Standard brochure baseline ${modCalc.standardTotalM2.toFixed(2)} m2 (${(modCalc.standardTotalM2 * 0.107639).toFixed(1)} sq) · Modified Total Area ${modCalc.modifiedTotalM2.toFixed(2)} m2`
+                            : `Living area ${totalAreaM2} m2 (${(totalAreaM2 * 0.107639).toFixed(1)} sq) · GFA Platform ${pricing.gfaM2} m2`}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-black text-slate-950 text-sm">
+                      <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
                         {formatAud(stdBaselinePrice)}
                       </td>
                     </tr>
                   );
                 })()}
 
+                {/* Facade Surcharge if > 0 */}
                 {pricing.facadePrice > 0 && (
                   <tr className="bg-white">
-                    <td className="py-2.5 px-4 text-slate-800">
-                      <span className="font-bold text-slate-950 text-sm">Selected Facade:</span> <span className="text-sm font-semibold">{design.facadeName}</span>
+                    <td className="py-2.5 px-4">
+                      <div className="font-extrabold text-slate-950 text-[13px]">
+                        Selected Facade Upgrade: {design.facadeName}
+                      </div>
                       {design.isCustomFacade && design.customFacadeDescription && (
-                        <span className="block text-xs text-slate-500 italic mt-0.5">
+                        <div className="text-[11px] text-slate-600 mt-0.5">
                           {design.customFacadeDescription}
-                        </span>
+                        </div>
                       )}
                     </td>
-                    <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900 text-sm">
+                    <td className="py-2.5 px-4 text-right font-extrabold text-slate-950 text-xs">
                       +{formatAud(pricing.facadePrice)}
                     </td>
                   </tr>
                 )}
 
-                {/* Builder Promotion on its own distinct emerald highlighted line */}
+                {/* Builder Promotion in Marketing's Sage Green Highlight */}
                 {pricing.promotionsDiscount > 0 && (
-                  <tr className="text-emerald-900 font-semibold bg-emerald-50/90 border-l-4 border-l-emerald-500">
-                    <td className="py-2.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-emerald-950 text-sm">{pricing.promotionName || "Managers Discount"}</span>
-                        <span className="text-[10px] font-black uppercase bg-emerald-200 text-emerald-950 px-2.5 py-0.5 rounded-full">
-                          Special Savings
-                        </span>
+                  <tr style={{ backgroundColor: "#e8f0d8" }}>
+                    <td className="py-3 px-4">
+                      <div className="font-extrabold text-slate-950 text-[13px]">
+                        {pricing.promotionName || "Hudson Special Builder Promotion"}
                       </div>
-                      <span className="block text-xs text-emerald-800 font-medium mt-0.5">
-                        Special manager discount allowance applied to contract
-                      </span>
+                      <div className="text-[11px] text-slate-600 mt-0.5">
+                        Automated builder promotion applied to base house price
+                      </div>
                     </td>
-                    <td className="py-2.5 px-4 text-right font-mono font-black text-emerald-800 text-sm">
+                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
                       -{formatAud(pricing.promotionsDiscount)}
                     </td>
                   </tr>
@@ -1732,40 +1764,32 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 {/* Plan Modifications & Architectural Area Adjustments */}
                 {isModPlan && modPricingCalc && modCostAdjustment !== 0 && (
                   <>
-                    <tr className="bg-amber-50/70 border-l-4 border-l-amber-500">
-                      <td className="py-2.5 px-4 text-slate-800">
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-slate-950 text-sm">
-                            Plan Modifications &amp; Architectural Area Adjustments:
-                          </span>
-                          <span className="text-[10px] font-black uppercase bg-amber-200 text-amber-950 px-2 py-0.5 rounded font-mono">
-                            Altered: {modPricingCalc.modifiedTotalM2.toFixed(2)} m²
-                          </span>
+                    <tr className="bg-amber-50/70">
+                      <td className="py-2.5 px-4">
+                        <div className="font-extrabold text-slate-950 text-[13px]">
+                          Plan Modifications &amp; Architectural Area Adjustments (Altered: {modPricingCalc.modifiedTotalM2.toFixed(2)} m2):
                         </div>
-                        <span className="block text-xs text-slate-600 mt-0.5">
-                          Structural floorplan alterations to standard brochure baseline layout:
-                        </span>
+                        <div className="text-[11px] text-slate-600 mt-0.5">
+                          Structural floorplan alterations to standard brochure baseline layout
+                        </div>
                       </td>
-                      <td className="py-2.5 px-4 text-right font-mono text-slate-950 font-black text-sm">
+                      <td className="py-2.5 px-4 text-right font-extrabold text-slate-950 text-xs">
                         {modCostAdjustment >= 0
                           ? `+${formatAud(modCostAdjustment)}`
                           : `-${formatAud(Math.abs(modCostAdjustment))}`}
                       </td>
                     </tr>
                     {modPricingCalc.zones.filter((z) => z.deltaM2 !== 0).map((z) => (
-                      <tr key={z.key} className="bg-white text-xs border-l-4 border-l-amber-400">
-                        <td className="py-1.5 px-4 pl-7 text-slate-800">
+                      <tr key={z.key} className="bg-white text-xs">
+                        <td className="py-1.5 px-4 pl-7 text-slate-700">
                           <span className="font-semibold text-slate-950">
                             • {z.label} {z.deltaM2 > 0 ? "Extension" : "Reduction"}
                           </span>
-                          <span className="ml-2 font-mono text-[10.5px] text-slate-500">
-                            ({z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(2)}` : z.deltaM2.toFixed(2)} m² @ {formatAud(z.ratePerM2)}/m²)
-                          </span>
-                          <span className="ml-2 text-[10px] text-slate-400">
-                            (Baseline {z.standardM2.toFixed(2)} m² → Modified {z.modifiedM2.toFixed(2)} m²)
+                          <span className="ml-2 text-[10.5px] text-slate-500">
+                            ({z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(2)}` : z.deltaM2.toFixed(2)} m2 @ {formatAud(z.ratePerM2)}/m2)
                           </span>
                         </td>
-                        <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900 text-xs">
+                        <td className="py-1.5 px-4 text-right font-bold text-slate-900 text-xs">
                           {z.costAdjustment >= 0
                             ? `+${formatAud(z.costAdjustment)}`
                             : `-${formatAud(Math.abs(z.costAdjustment))}`}
@@ -1777,128 +1801,120 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
                 {/* 2nd Dwelling / Auxiliary Unit if selected */}
                 {design.hasSecondDwelling && design.secondDwelling?.enabled && (
-                  <tr className="bg-cyan-50/80 border-l-4 border-l-cyan-600">
+                  <tr className="bg-cyan-50/60">
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-cyan-950 text-sm">
-                          2nd Dwelling / Auxiliary Home ({design.secondDwelling.designName})
-                        </span>
-                        <span className="text-[10px] font-black uppercase bg-cyan-200 text-cyan-950 px-2.5 py-0.5 rounded font-mono">
-                          {design.secondDwelling.designM2} m²
-                        </span>
+                      <div className="font-extrabold text-slate-950 text-[13px]">
+                        2nd Dwelling / Auxiliary Home ({design.secondDwelling.designName} · {design.secondDwelling.designM2} m2):
                       </div>
-                      <span className="block text-xs text-cyan-800 font-medium mt-0.5">
+                      <div className="text-[11px] text-slate-600 mt-0.5">
                         {design.secondDwelling.specTier} • {design.secondDwelling.facadeName} Facade • Architectural layout on Page 4
-                      </span>
+                      </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-mono font-black text-cyan-950 text-sm">
+                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
                       +{formatAud((Number(design.secondDwelling.basePrice) || 0) + (Number(design.secondDwelling.facadePrice) || 0))}
                     </td>
                   </tr>
                 )}
 
-                {/* Site Specific Earthworks & Statutory Inclusions Subtotal */}
+                {/* Standalone Driveway Row (Matching Marketing Page 2) */}
+                {pricing.exposedDrivewayCost > 0 && !design.landscapingSelected && (
+                  <tr className="bg-white">
+                    <td className="py-3 px-4">
+                      <div className="font-extrabold text-slate-950 text-[13px]">
+                        Exposed Aggregate Concrete Driveway &amp; Porch Path ({design.exposedDrivewayM2 || 55} m2):
+                      </div>
+                      <div className="text-[11px] text-slate-600 mt-0.5">
+                        Exposed aggregate concrete paving from council crossover to double garage and front entry porch
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                      +{formatAud(pricing.exposedDrivewayCost)}
+                    </td>
+                  </tr>
+                )}
+
+                {/* Turnkey Landscaping Package Row */}
+                {(pricing.landscapingCost !== 0 || design.landscapingSelected) && (
+                  <tr className="bg-white">
+                    <td className="py-3 px-4">
+                      <div className="font-extrabold text-slate-950 text-[13px]">
+                        Turnkey Landscaping &amp; Paving Package ({design.landscapingLandSize || 450} m2 Lot):
+                      </div>
+                      <div className="text-[11px] text-slate-600 mt-0.5">
+                        Detailed in Advanced Estimate Specification schedule
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                      {pricing.landscapingCost < 0
+                        ? `-${formatAud(Math.abs(pricing.landscapingCost))}`
+                        : pricing.landscapingCost === 0
+                        ? "INCLUDED"
+                        : `+${formatAud(pricing.landscapingCost)}`}
+                    </td>
+                  </tr>
+                )}
+
+                {/* Site Specific Earthworks, Engineering & Statutory Requirements */}
                 {totalSiteAndStatutorySubtotal > 0 && (
                   <tr className="bg-white">
-                    <td className="py-2.5 px-4 text-slate-800">
-                      <span className="font-bold text-slate-950 text-sm">Site Specific Earthworks, Engineering &amp; Statutory Requirements:</span>
-                      <span className="block text-xs text-slate-600 mt-0.5">
-                        Detailed in Advanced Estimate Specification schedule ({siteConditions.soilClass}, {siteConditions.fallMeters}m Fall, {siteConditions.councilRegion})
-                      </span>
+                    <td className="py-3 px-4">
+                      <div className="font-extrabold text-slate-950 text-[13px]">
+                        Site Specific Earthworks, Engineering &amp; Statutory Requirements:
+                      </div>
+                      <div className="text-[11px] text-slate-600 mt-0.5">
+                        Detailed in Advanced Estimate Specification schedule ({formattedSoilClass}, {siteConditions.fallMeters || 0} m Fall, {siteConditions.councilRegion || "Local Council"})
+                      </div>
                     </td>
-                    <td className="py-2.5 px-4 text-right font-mono text-slate-950 font-black text-sm">
+                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
                       +{formatAud(totalSiteAndStatutorySubtotal)}
                     </td>
                   </tr>
                 )}
 
-                {/* Variations & Turnkey Packages Section with Itemized Breakdown */}
-                {(totalVariationsAndPackagesAmount !== 0 || variationGroups.some((g) => g.items.length > 0) || pricing.landscapingCost !== 0 || design.landscapingSelected || (pricing.exposedDrivewayCost > 0 && !design.landscapingSelected)) && (
-                  <>
-                    <tr className="bg-slate-50 border-t border-slate-300">
-                      <td className="py-2.5 px-4 text-slate-800">
-                        <span className="font-bold text-slate-950 text-sm">Estimate Variations, Upgrades &amp; Turnkey Packages:</span>
-                        <span className="block text-xs text-slate-600 mt-0.5">
-                          Specification breakdown detailed below and in Section Schedule:
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-4 text-right font-mono text-cyan-950 font-black text-sm">
-                        {totalVariationsAndPackagesAmount > 0
-                          ? `+${formatAud(totalVariationsAndPackagesAmount)}`
-                          : totalVariationsAndPackagesAmount < 0
-                          ? `-${formatAud(Math.abs(totalVariationsAndPackagesAmount))}`
-                          : "$0"}
-                      </td>
-                    </tr>
-
-                    {/* Turnkey Landscaping Package if selected or non-zero allowance */}
-                    {(pricing.landscapingCost !== 0 || design.landscapingSelected) && (
-                      <tr className="bg-white text-xs border-l-4 border-l-emerald-500">
-                        <td className="py-1.5 px-4 pl-7 text-slate-800">
-                          <span className="font-semibold text-slate-950">
-                            • Turnkey Landscaping &amp; Paving Package
-                            {pricing.landscapingCost < 0
-                              ? " Allowance Credit"
-                              : pricing.landscapingCost > 0
-                              ? " Allowance Surcharge"
-                              : ""}
-                          </span>
-                          <span className="ml-2 font-mono text-[10.5px] text-slate-500">({design.landscapingLandSize || 450} m² Lot)</span>
-                        </td>
-                        <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900 text-xs">
-                          {pricing.landscapingCost < 0
-                            ? `-${formatAud(Math.abs(pricing.landscapingCost))}`
-                            : pricing.landscapingCost === 0
-                            ? "INCLUDED"
-                            : `+${formatAud(pricing.landscapingCost)}`}
-                        </td>
-                      </tr>
-                    )}
-
-                    {/* Standalone Driveway if selected */}
-                    {pricing.exposedDrivewayCost > 0 && !design.landscapingSelected && (
-                      <tr className="bg-white text-xs border-l-4 border-l-cyan-600">
-                        <td className="py-1.5 px-4 pl-7 text-slate-800">
-                          <span className="font-semibold text-slate-950">• Exposed Aggregate Concrete Driveway &amp; Porch Path</span>
-                          <span className="ml-2 font-mono text-[10.5px] text-slate-500">({design.exposedDrivewayM2 || 55} m²)</span>
-                        </td>
-                        <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900 text-xs">
-                          +{formatAud(pricing.exposedDrivewayCost)}
-                        </td>
-                      </tr>
-                    )}
-
-                    {/* Selected Variations Breakdown */}
-                    {variationGroups.flatMap((g) => g.items).map((it) => (
-                      <tr key={it.id} className="bg-white text-xs border-l-4 border-l-cyan-600">
-                        <td className="py-1.5 px-4 pl-7 text-slate-800">
-                          <span className="font-semibold text-slate-950">• {it.name}</span>
-                          {it.qtyLabel && it.qtyLabel !== "1 Item" && (
-                            <span className="ml-2 font-mono text-[10.5px] text-slate-500">({it.qtyLabel})</span>
+                {/* Estimate Variations & Custom Upgrades */}
+                {(totalVariationsAmount !== 0 || variationGroups.some((g) => g.items.length > 0)) && (
+                  <tr className="bg-white">
+                    <td className="py-3 px-4">
+                      <div className="font-extrabold text-slate-950 text-[13px]">
+                        Estimate Variations &amp; Custom Upgrades:
+                      </div>
+                      <div className="text-[11px] text-slate-600 mt-0.5">
+                        Detailed in Advanced Estimate Specification schedule
+                        {variationGroups.flatMap((g) => g.items).length <= 4 &&
+                          variationGroups.flatMap((g) => g.items).length > 0 && (
+                            <span className="block text-[10.5px] text-slate-500 mt-0.5">
+                              {variationGroups
+                                .flatMap((g) => g.items)
+                                .map((it) => it.name)
+                                .join(" · ")}
+                            </span>
                           )}
-                        </td>
-                        <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900 text-xs">
-                          {it.amount === 0 ? "INCLUDED" : it.amount < 0 ? `-${formatAud(Math.abs(it.amount))}` : `+${formatAud(it.amount)}`}
-                        </td>
-                      </tr>
-                    ))}
-                  </>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                      {totalVariationsAmount > 0
+                        ? `+${formatAud(totalVariationsAmount)}`
+                        : totalVariationsAmount < 0
+                        ? `-${formatAud(Math.abs(totalVariationsAmount))}`
+                        : "$0"}
+                    </td>
+                  </tr>
                 )}
 
-                {/* Total Cost Line */}
+                {/* Total Cost Line (Marketing Dark Charcoal Bar) */}
                 <tr
-                  className="border-t-2 border-slate-900 bg-slate-900 text-white font-extrabold text-sm"
-                  style={{ backgroundColor: "#0f172a" }}
+                  className="text-white font-extrabold"
+                  style={{ backgroundColor: "#58595b" }}
                 >
                   <td
-                    className="py-4 px-4 uppercase tracking-wider text-white font-black text-xs"
-                    style={{ color: "#ffffff", backgroundColor: "#0f172a" }}
+                    className="py-3.5 px-4 uppercase tracking-wide text-white font-extrabold text-xs"
+                    style={{ color: "#ffffff", backgroundColor: "#58595b" }}
                   >
                     TOTAL ESTIMATED BUILDERS INVESTMENT (INC. GST)
                   </td>
                   <td
-                    className="py-4 px-4 text-right font-mono text-lg font-black text-amber-400"
-                    style={{ color: "#fbbf24", backgroundColor: "#0f172a" }}
+                    className="py-3.5 px-4 text-right text-base font-extrabold text-white"
+                    style={{ color: "#ffffff", backgroundColor: "#58595b" }}
                   >
                     {formatAud(pricing.grossEstimatedInvestment)}
                   </td>
@@ -1907,29 +1923,30 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             </table>
           </div>
 
-          {/* Letter / Notes Summary */}
-          <div className="border border-slate-300 rounded-2xl p-4 bg-slate-50 text-xs text-slate-800 leading-relaxed space-y-1.5 shadow-xs">
-            <div className="font-black text-slate-950 text-xs uppercase tracking-wide">Executive Estimate Notice:</div>
-            <p className="font-medium text-slate-800">
+          {/* Executive Estimate Notice (Clean Unboxed Marketing Typography) */}
+          <div className="text-xs text-slate-700 leading-relaxed space-y-2 pt-1">
+            <div className="font-extrabold text-slate-900 text-xs">Executive Estimate Notice:</div>
+            <p className="text-[11.5px] text-slate-700">
               Thank you for the opportunity to present this Builders Estimate for your new Hudson home. This quotation remains valid for 14 days from the date of issue.
             </p>
-            <p className="text-[11px] text-slate-700 italic font-semibold">
+            <p className="text-[10.5px] text-slate-600 italic">
               *** This document represents a preliminary Builders Estimate and is subject to geotechnical soil classification, registered contour survey, and developer covenant approval. ***
             </p>
           </div>
         </div>
 
-        {/* Page 2 Footer */}
-        <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
-          <div>
-            {footerLicenceLine}
-          </div>
+        {/* Page 2 Marketing Footer with Customer Initial Box */}
+        <div className="pt-4 flex items-center justify-between text-[9.5px] text-slate-600">
+          <div>{footerLicenceLine}</div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
-              <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
+            <div
+              className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
+              style={{ backgroundColor: "#e6e7e8" }}
+            >
+              <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
+              <div className="bg-white w-20 h-5" />
             </div>
-            <div className="font-mono">Page 2 of {totalPages}</div>
+            <div className="font-mono text-[9px] text-slate-400">Page 2 of {totalPages}</div>
           </div>
         </div>
       </div>
@@ -1937,115 +1954,113 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       {/* ========================================================================= */}
       {/* PAGE 3: DEDICATED ARCHITECTURAL FACADE RENDER & MAXIMIZED FLOORPLAN       */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Header */}
-          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-2 mb-2 flex-none">
+          {/* Marketing Page 3 Header */}
+          <div className="flex items-start justify-between border-b border-slate-500 pb-3 mb-2.5 flex-none">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
+              <div className="text-[11px] font-normal uppercase tracking-wider text-slate-600">
                 ARCHITECTURAL ELEVATION &amp; FLOORPLAN SPECIFICATIONS
               </div>
-              <div className="mt-1">
-                <h2 className="text-2xl font-black text-slate-950 tracking-tight leading-tight flex items-baseline gap-2.5 flex-wrap">
-                  <span className="uppercase">
-                    {effectiveDesignName || (design.mode === "standard" ? "HUDSON HOMES ARCHITECTURAL PLAN" : "CUSTOM ARCHITECTURAL FLOORPLAN")}
-                  </span>
-                  {design.specTier && (
-                    <>
-                      <span className="text-slate-300 font-light text-xl select-none">―</span>
-                      <span className="text-2xl font-black text-cyan-700 tracking-tight uppercase">
-                        {formatInclusionTierTitle(design.specTier)}
-                      </span>
-                    </>
-                  )}
-                </h2>
+              <h2 className="text-2xl font-extrabold text-slate-950 tracking-tight uppercase mt-0.5">
+                {effectiveDesignName || (design.mode === "standard" ? "HUDSON HOMES ARCHITECTURAL PLAN" : "CUSTOM ARCHITECTURAL FLOORPLAN")}
+                {design.specTier ? ` - ${formatInclusionTierTitle(design.specTier).replace(/\s*\(\d{4}\)/, "").toUpperCase()}` : ""}
+              </h2>
+              <div className="text-xs font-extrabold text-slate-950 mt-1">
+                Selected Facade: {design.facadeName || "Classic"}
+                {design.widthM && design.lengthM
+                  ? ` • Dimensions: ${design.widthM}m wide x ${design.lengthM}m deep`
+                  : ""}
               </div>
             </div>
             <div className="text-right flex-none">
-              <span className="text-[9px] text-slate-500 block uppercase tracking-wider font-semibold">Total Area</span>
-              <span className="text-sm font-extrabold text-cyan-700 font-mono">
-                {totalAreaM2} m² ({(totalAreaM2 * 0.107639).toFixed(1)} sq)
+              <span className="text-xs text-slate-600 block uppercase tracking-wider">TOTAL AREA</span>
+              <span className="text-base font-extrabold text-slate-950 block mt-1">
+                {totalAreaM2} M2 ({(totalAreaM2 * 0.107639).toFixed(1)} SQ)
               </span>
             </div>
           </div>
 
-          {/* 2-Row Unified Architectural Configuration & Room Sizing Schedule */}
+          {/* Area Schedule Row Directly Above Facade Image (Marketing Page 3 Layout) */}
           {(() => {
-            const isMod = !!design.isModifiedFloorplan;
             const modCalc = calculateModifiedFloorplanPricing(design);
             return (
-              <div
-                className={`border rounded-xl px-3 py-2 mb-2 flex-none shadow-xs ${
-                  isMod
-                    ? "bg-slate-50/95 border-amber-300/80"
-                    : "bg-slate-50/95 border-slate-200"
-                }`}
-              >
-                {/* Row 1: Home Specifications & Key Dimensions */}
-                <div className="grid grid-cols-4 gap-2 pb-1.5 border-b border-slate-200 text-center text-xs">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-slate-600 text-[10px] font-bold uppercase tracking-wide">Bedrooms:</span>
-                    <span className="font-black text-slate-950 text-xs whitespace-nowrap">{design.beds || (design as any).bedrooms || 4} Beds</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-slate-600 text-[10px] font-bold uppercase tracking-wide">Bathrooms:</span>
-                    <span className="font-black text-slate-950 text-xs whitespace-nowrap">{design.baths || (design as any).bathrooms || 2} Baths</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-slate-600 text-[10px] font-bold uppercase tracking-wide">Garage:</span>
-                    <span className="font-black text-slate-950 text-xs whitespace-nowrap">{design.cars || (design as any).garage || 2} Cars</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-1.5">
-                    <span className="text-slate-600 text-[10px] font-bold uppercase tracking-wide">GFA Platform:</span>
-                    <span className="font-black text-slate-950 text-xs whitespace-nowrap">{pricing.gfaM2}&nbsp;m²</span>
-                  </div>
-                </div>
-
-                {/* Row 2: Room & Zone Area Breakdown */}
-                <div className="pt-1.5 flex flex-wrap items-center justify-start gap-1.5 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs py-1.5 mb-2 flex-none">
+                <span className="text-slate-600 font-normal">Area Schedule:</span>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
                   {modCalc.zones.map((z) => (
-                    <span
-                      key={z.key}
-                      className="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-[10.5px] bg-white px-2 py-0.5 rounded-md border border-slate-200/90 shadow-2xs"
-                    >
-                      <span className="font-sans text-slate-600 text-[10px] font-semibold">
-                        {z.label.replace(" Area", "").replace(" (Optional)", "")}:
+                    <span key={z.key} className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+                      <span className="text-slate-600">
+                        {z.label.replace(" Area", "").replace(" (Optional)", "")}
                       </span>
-                      <span className="font-black text-slate-900 whitespace-nowrap">
-                        {z.modifiedM2.toFixed(1)}&nbsp;m²
-                      </span>
+                      <strong className="font-extrabold text-slate-950">
+                        {z.modifiedM2.toFixed(1)} m2
+                      </strong>
                       {z.deltaM2 !== 0 && (
-                        <span className={`text-[9px] font-bold px-1 rounded ${z.deltaM2 > 0 ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700"}`}>
-                          {z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(1)}` : z.deltaM2.toFixed(1)}
+                        <span className="text-[9.5px] font-bold text-amber-800">
+                          ({z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(1)}` : z.deltaM2.toFixed(1)})
                         </span>
                       )}
                     </span>
                   ))}
                 </div>
+                <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+                  <span className="text-slate-600 uppercase">TOTAL</span>
+                  <strong className="font-extrabold text-slate-950">{totalAreaM2.toFixed(1)} m2</strong>
+                </span>
               </div>
             );
           })()}
 
-          {/* 1. Chosen Facade Render (Towards the top of the page, high quality & enhanced) */}
+          {/* 1. Chosen Facade Render */}
           <QuoteFacadeViewer design={design} />
 
-          {/* 2. Architectural Floorplan Layout Drawing (Maximized to fill the lower page area shifted all the way down) */}
-          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1 bg-white flex items-center justify-center overflow-hidden shadow-inner mt-auto">
+          {/* 2. 4-Column Key Specs Strip Between Facade & Floorplan (Marketing Page 3 Layout) */}
+          <div className="grid grid-cols-4 gap-6 py-2.5 mb-2 flex-none">
+            <div>
+              <span className="text-[11px] text-slate-500 block">Bedrooms</span>
+              <span className="text-base font-bold text-slate-900">
+                {design.beds || (design as any).bedrooms || 4} Beds
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-500 block">Bathrooms</span>
+              <span className="text-base font-bold text-slate-900">
+                {design.baths || (design as any).bathrooms || 2} Baths
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-500 block">Garage</span>
+              <span className="text-base font-bold text-slate-900">
+                {design.cars || (design as any).garage || 2} Cars
+              </span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-500 block">GFA Platform</span>
+              <span className="text-base font-bold text-slate-900">
+                {pricing.gfaM2} m²
+              </span>
+            </div>
+          </div>
+
+          {/* 3. Architectural Floorplan Layout Drawing (Maximized in Crisp Bordered Frame) */}
+          <div className="flex-1 w-full border border-slate-500 p-2 bg-white flex items-center justify-center overflow-hidden mt-auto">
             <QuoteFloorplanViewer design={design} />
           </div>
         </div>
 
-        {/* Page 3 Footer */}
-        <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500 flex-none mt-2">
-          <div>
-            {footerLicenceLine}
-          </div>
+        {/* Page 3 Marketing Footer */}
+        <div className="pt-3 flex items-center justify-between text-[9.5px] text-slate-600 flex-none mt-2">
+          <div>{footerLicenceLine}</div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
-              <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
+            <div
+              className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
+              style={{ backgroundColor: "#e6e7e8" }}
+            >
+              <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
+              <div className="bg-white w-20 h-5" />
             </div>
-            <div className="font-mono">Page 3 of {totalPages}</div>
+            <div className="font-mono text-[9px] text-slate-400">Page 3 of {totalPages}</div>
           </div>
         </div>
       </div>
@@ -2054,98 +2069,96 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       {/* PAGE 4 (OPTIONAL): 2ND DWELLING / GRANNY FLAT ARCHITECTURAL FLOORPLAN      */}
       {/* ========================================================================= */}
       {hasSecondDwelling && secondDwelling && (
-        <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+        <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
-            <div className="flex items-start justify-between border-b-2 border-slate-900 pb-2 mb-2 flex-none">
+            <div className="flex items-start justify-between border-b border-slate-500 pb-3 mb-2.5 flex-none">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
+                <div className="text-[11px] font-normal uppercase tracking-wider text-slate-600">
                   2ND DWELLING / AUXILIARY RESIDENCE ARCHITECTURAL SPECIFICATION
                 </div>
-                <h2 className="text-xl font-extrabold text-slate-900 leading-tight mt-0.5">
-                  {secondDwelling.designName} — {secondDwelling.specTier}
+                <h2 className="text-2xl font-extrabold text-slate-950 uppercase mt-0.5">
+                  {secondDwelling.designName} - {secondDwelling.specTier}
                 </h2>
-                <div className="text-[11px] text-slate-600 mt-0.5">
-                  Selected Facade: <span className="font-semibold text-slate-900">{secondDwelling.facadeName || "Classic"}</span>
+                <div className="text-xs font-extrabold text-slate-950 mt-1">
+                  Selected Facade: {secondDwelling.facadeName || "Classic"}
                   {secondDwelling.widthM && secondDwelling.lengthM && (
-                    <span> · Dimensions: {secondDwelling.widthM} wide × {secondDwelling.lengthM} deep</span>
+                    <span> • Dimensions: {secondDwelling.widthM} wide x {secondDwelling.lengthM} deep</span>
                   )}
                 </div>
               </div>
               <div className="text-right flex-none">
-                <span className="text-[9px] text-slate-500 block uppercase tracking-wider font-semibold">2nd Dwelling Area</span>
-                <span className="text-sm font-extrabold text-cyan-700 font-mono">
-                  {secondDwelling.designM2} m² ({(secondDwelling.designM2 * 0.107639).toFixed(1)} sq)
+                <span className="text-xs text-slate-600 block uppercase tracking-wider">2ND DWELLING AREA</span>
+                <span className="text-base font-extrabold text-slate-950 block mt-1">
+                  {secondDwelling.designM2} M2 ({(secondDwelling.designM2 * 0.107639).toFixed(1)} SQ)
                 </span>
               </div>
             </div>
 
-            {/* 2-Row Unified Secondary Residence Specifications & Room Sizing Schedule */}
-            <div className="border rounded-xl p-2.5 mb-2.5 flex-none shadow-xs bg-cyan-50/70 border-cyan-200 text-cyan-950">
-              {/* Row 1: Key Configuration */}
-              <div className="grid grid-cols-4 gap-2 pb-2 border-b border-cyan-200/80 text-center text-xs">
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className="text-cyan-900 text-[10px] font-medium uppercase tracking-wide">Bedrooms:</span>
-                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{secondDwelling.beds || 2} Beds</span>
-                </div>
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className="text-cyan-900 text-[10px] font-medium uppercase tracking-wide">Bathrooms:</span>
-                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{secondDwelling.baths || 1} Bath</span>
-                </div>
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className="text-cyan-900 text-[10px] font-medium uppercase tracking-wide">Parking:</span>
-                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{secondDwelling.cars || 0} Cars</span>
-                </div>
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className="text-cyan-900 text-[10px] font-medium uppercase tracking-wide">Dwelling:</span>
-                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{secondDwelling.housingType}</span>
-                </div>
+            {/* Area Schedule Row */}
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs py-1.5 mb-2 flex-none">
+              <span className="text-slate-600 font-normal">Area Schedule:</span>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                <span>
+                  <span className="text-slate-600">Living </span>
+                  <strong className="font-extrabold text-slate-950">
+                    {(secondDwelling.modifiedAreas?.livingM2 || secondDwelling.standardAreas?.livingM2 || Math.round(secondDwelling.designM2 * 0.85)).toFixed(1)} m2
+                  </strong>
+                </span>
+                <span>
+                  <span className="text-slate-600">Porch / Outdoor </span>
+                  <strong className="font-extrabold text-slate-950">
+                    {(secondDwelling.modifiedAreas?.porchM2 || secondDwelling.standardAreas?.porchM2 || Math.round(secondDwelling.designM2 * 0.15)).toFixed(1)} m2
+                  </strong>
+                </span>
               </div>
-
-              {/* Row 2: Room & Zone Sizing Schedule */}
-              <div className="pt-2 flex flex-wrap items-center justify-between gap-x-3.5 gap-y-1.5 text-xs">
-                <div className="flex items-center gap-1">
-                  <span className="text-cyan-900 uppercase font-black tracking-wider text-[10px]">
-                    Secondary Residence Floor Schedule:
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px]">
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="font-sans text-cyan-900 text-[10px] font-semibold">Living:</span>
-                    <strong className="text-slate-900 font-bold whitespace-nowrap">{(secondDwelling.modifiedAreas?.livingM2 || secondDwelling.standardAreas?.livingM2 || Math.round(secondDwelling.designM2 * 0.85)).toFixed(1)}&nbsp;m²</strong>
-                  </span>
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="font-sans text-cyan-900 text-[10px] font-semibold">Porch / Outdoor:</span>
-                    <strong className="text-slate-900 font-bold whitespace-nowrap">{(secondDwelling.modifiedAreas?.porchM2 || secondDwelling.standardAreas?.porchM2 || Math.round(secondDwelling.designM2 * 0.15)).toFixed(1)}&nbsp;m²</strong>
-                  </span>
-                  <span className="border-l border-cyan-300 pl-3 inline-flex items-center gap-1 whitespace-nowrap">
-                    <span className="font-sans text-cyan-950 text-[10.5px] font-black">Total GFA:</span>
-                    <span className="font-black text-cyan-900 whitespace-nowrap text-xs">{secondDwelling.designM2.toFixed(1)}&nbsp;m²</span>
-                  </span>
-                </div>
-              </div>
+              <span>
+                <span className="text-slate-600 uppercase">TOTAL </span>
+                <strong className="font-extrabold text-slate-950">{secondDwelling.designM2.toFixed(1)} m2</strong>
+              </span>
             </div>
 
             {/* 1. Chosen Facade Render for Secondary Dwelling */}
             <QuoteSecondFacadeViewer secondDwelling={secondDwelling} />
 
-            {/* 2. Floorplan Layout Drawing (Maximized) */}
-            <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1 bg-white flex items-center justify-center min-h-[520px] max-h-[580px] overflow-hidden shadow-inner">
+            {/* 2. 4-Column Key Configuration */}
+            <div className="grid grid-cols-4 gap-6 py-2.5 mb-2 flex-none">
+              <div>
+                <span className="text-[11px] text-slate-500 block">Bedrooms</span>
+                <span className="text-base font-bold text-slate-900">{secondDwelling.beds || 2} Beds</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-500 block">Bathrooms</span>
+                <span className="text-base font-bold text-slate-900">{secondDwelling.baths || 1} Bath</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-500 block">Garage</span>
+                <span className="text-base font-bold text-slate-900">{secondDwelling.cars || 0} Cars</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-slate-500 block">Dwelling Type</span>
+                <span className="text-base font-bold text-slate-900">{secondDwelling.housingType}</span>
+              </div>
+            </div>
+
+            {/* 3. Floorplan Layout Drawing (Maximized) */}
+            <div className="flex-1 w-full border border-slate-500 p-2 bg-white flex items-center justify-center min-h-[500px] max-h-[560px] overflow-hidden">
               <QuoteSecondFloorplanViewer secondDwelling={secondDwelling} />
             </div>
           </div>
 
-          {/* Page 4 Footer */}
-          <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500 flex-none mt-2">
-            <div>
-              {footerLicenceLine}
-            </div>
+          {/* Page 4 Marketing Footer */}
+          <div className="pt-3 flex items-center justify-between text-[9.5px] text-slate-600 flex-none mt-2">
+            <div>{footerLicenceLine}</div>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
-                <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
+              <div
+                className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
+                style={{ backgroundColor: "#e6e7e8" }}
+              >
+                <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
+                <div className="bg-white w-20 h-5" />
               </div>
-              <div className="font-mono">Page 4 of {totalPages}</div>
+              <div className="font-mono text-[9px] text-slate-400">Page 4 of {totalPages}</div>
             </div>
           </div>
         </div>
@@ -2161,133 +2174,110 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         return (
           <div
             key={`spec-page-${pageIdx}`}
-            className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always"
+            className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always"
           >
             <div>
-              {/* Header */}
-              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
+              {/* Marketing Spec Page Header */}
+              <div className="flex items-start justify-between border-b border-slate-500 pb-3 mb-2.5">
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-widest text-cyan-700">
+                  <div className="text-[11px] font-normal uppercase tracking-wider text-slate-600">
                     {isFirstSpecPage
                       ? "SITE ENGINEERING, STATUTORY & VARIATIONS SCHEDULE"
                       : "SPECIFICATION VARIATIONS & UPGRADES (CONTINUED)"}
                   </div>
-                  <h2 className="text-xl font-extrabold text-slate-900 mt-0.5">
+                  <h2 className="text-2xl font-extrabold text-slate-950 uppercase tracking-tight mt-0.5">
                     {isFirstSpecPage
-                      ? "Advanced Estimate Specification"
-                      : `Advanced Estimate Specification (Page ${pageIdx + 1})`}
+                      ? "ADVANCED ESTIMATE SPECIFICATION"
+                      : `ADVANCED ESTIMATE SPECIFICATION (PAGE ${pageIdx + 1})`}
                   </h2>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-bold">
-                    PAGE SUB-TOTAL
+                  <span className="text-[11px] text-slate-600 block uppercase tracking-wider">
+                    {isFirstSpecPage && specPages.length === 1
+                      ? "SPECIFICATION & VARIATIONS TOTAL"
+                      : isFirstSpecPage
+                      ? "SPECIFICATION & VARIATIONS TOTAL"
+                      : "PAGE SUBTOTAL"}
                   </span>
-                  <span className="text-base font-black text-cyan-800 font-mono">
+                  <span className="text-lg font-extrabold text-slate-950 block mt-0.5">
                     {(() => {
-                      const pageSubTotal = pageGroups.reduce((s, g) => s + g.total, 0);
-                      return pageSubTotal > 0
-                        ? `+${formatAud(pageSubTotal)}`
-                        : pageSubTotal < 0
-                        ? `-${formatAud(Math.abs(pageSubTotal))}`
+                      const displayTotal = isFirstSpecPage
+                        ? totalSpecAndVariations
+                        : pageGroups.reduce((s, g) => s + g.total, 0);
+                      return displayTotal > 0
+                        ? `+${formatAud(displayTotal)}`
+                        : displayTotal < 0
+                        ? `-${formatAud(Math.abs(displayTotal))}`
                         : "$0";
                     })()}
                   </span>
                 </div>
               </div>
 
-              {/* Sub-header info bar on first spec page */}
-              {isFirstSpecPage && (
-                <div className="bg-slate-50 border border-slate-200/90 rounded-xl px-4 py-2.5 mb-4 grid grid-cols-4 gap-3 text-xs shadow-xs">
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block truncate">
-                      Council Jurisdiction
-                    </span>
-                    <span className="text-slate-900 font-bold block truncate text-xs" title={siteConditions.councilRegion}>
-                      {siteConditions.councilRegion || "Standard Jurisdiction"}
-                    </span>
-                  </div>
-                  <div className="text-center min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Soil Class
-                    </span>
-                    <span className="text-slate-900 font-bold block text-xs whitespace-nowrap">
-                      Class {siteConditions.soilClass || "M"}
-                    </span>
-                  </div>
-                  <div className="text-center min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Topography Fall
-                    </span>
-                    <span className="text-slate-900 font-bold block text-xs whitespace-nowrap">
-                      {siteConditions.fallMeters ?? 0}m Fall
-                    </span>
-                  </div>
-                  <div className="text-right min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Building Pad (GFA)
-                    </span>
-                    <span className="text-slate-950 font-mono font-black block text-xs whitespace-nowrap">
-                      {pricing.gfaM2} m²
-                    </span>
-                  </div>
+              {/* Single-Line Site Metadata Strip (Marketing Pages 4 & 5 Layout) */}
+              <div className="flex items-center justify-between text-xs py-1.5 mb-3.5 text-slate-700">
+                <div>
+                  <span className="font-bold text-slate-900">Council Jurisdiction </span>
+                  <span>{siteConditions.councilRegion || "Standard Jurisdiction"}</span>
                 </div>
-              )}
+                <div>
+                  <span className="font-bold text-slate-900">Soil </span>
+                  <span>{formattedSoilClass}</span>
+                </div>
+                <div>
+                  <span className="font-bold text-slate-900">Topography Fall </span>
+                  <span>{siteConditions.fallMeters ?? 0}m</span>
+                </div>
+                <div>
+                  <span className="font-bold text-slate-900">Building Pad </span>
+                  <strong className="font-extrabold text-slate-950">{pricing.gfaM2} m2</strong>
+                  <span> GFA</span>
+                </div>
+              </div>
 
-              {/* Specification Tables */}
-              <div className="space-y-3.5">
+              {/* Specification Tables (Marketing Clean Grey Header Bars & Tabular Rows) */}
+              <div className="space-y-4">
                 {pageGroups.map((group) => (
-                  <div
-                    key={group.label}
-                    className="border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs bg-white"
-                  >
-                    <div className="bg-gradient-to-r from-slate-100 via-slate-50 to-white px-4 py-2.5 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-800">
-                      <div className="flex items-center gap-2">
-                        {getCategoryIcon(group.label)}
-                        <span className="uppercase tracking-wider text-xs font-black text-slate-950">
-                          {group.label}
-                        </span>
-                      </div>
-                      <span className="font-mono text-cyan-900 font-black text-xs bg-white px-3 py-0.5 rounded-full border border-slate-200/80 shadow-2xs">
+                  <div key={group.label} className="bg-white">
+                    <div
+                      className="px-4 py-2 flex justify-between items-center text-[11px] font-extrabold text-slate-950 uppercase tracking-wider"
+                      style={{ backgroundColor: "#e6e7e8" }}
+                    >
+                      <span>{group.label}</span>
+                      <span>
                         {group.total === 0
-                          ? "INCLUDED ($0)"
+                          ? "INCLUDED"
                           : group.total < 0
                           ? `-${formatAud(Math.abs(group.total))}`
                           : `+${formatAud(group.total)}`}
                       </span>
                     </div>
                     <table className="w-full text-xs border-collapse">
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody className="divide-y divide-slate-200 border-b border-slate-200">
                         {group.items.map((it) => (
-                          <tr key={it.id} className="hover:bg-slate-50/50">
+                          <tr key={it.id}>
                             <td className="py-2.5 px-4">
-                              <div className="font-bold text-slate-950 text-xs leading-snug flex items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 rounded-full bg-cyan-600 flex-none" />
+                              <div className="font-extrabold text-slate-950 text-xs leading-snug">
                                 {it.name}
                               </div>
                               {it.description &&
                                 it.description.trim() &&
                                 it.description !== "Custom client variation request" &&
                                 it.description !== "Client Custom Variation" && (
-                                <div className="text-[11px] text-slate-600 mt-0.5 leading-snug pl-3">
-                                  {it.description}
-                                </div>
-                              )}
+                                  <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                                    {it.description}
+                                  </div>
+                                )}
                             </td>
-                            <td className="py-2.5 px-3 text-center w-32 flex-none">
-                              <span className="inline-block bg-slate-100 text-slate-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">
-                                {it.qtyLabel}
-                              </span>
+                            <td className="py-2.5 px-3 text-center w-36 flex-none text-[11px] text-slate-700 font-medium">
+                              {it.qtyLabel}
                             </td>
-                            <td className="py-2.5 px-4 text-right font-mono font-black w-32 text-xs flex-none">
-                              {it.amount === 0 ? (
-                                <span className="inline-block bg-emerald-50 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded font-black text-[9.5px]">
-                                  INCLUDED
-                                </span>
-                              ) : (
-                                <span className={it.amount < 0 ? "text-rose-700 font-black" : "text-cyan-950 font-black"}>
-                                  {it.amount < 0 ? `-${formatAud(Math.abs(it.amount))}` : `+${formatAud(it.amount)}`}
-                                </span>
-                              )}
+                            <td className="py-2.5 px-4 text-right font-extrabold w-28 text-xs flex-none text-slate-950">
+                              {it.amount === 0
+                                ? "INCLUDED"
+                                : it.amount < 0
+                                ? `-${formatAud(Math.abs(it.amount))}`
+                                : `+${formatAud(it.amount)}`}
                             </td>
                           </tr>
                         ))}
@@ -2298,17 +2288,18 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               </div>
             </div>
 
-            {/* Spec Page Footer */}
-            <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
-              <div>
-                {footerLicenceLine}
-              </div>
+            {/* Spec Page Marketing Footer */}
+            <div className="pt-3 flex items-center justify-between text-[9.5px] text-slate-600">
+              <div>{footerLicenceLine}</div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
-                  <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
+                <div
+                  className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
+                  style={{ backgroundColor: "#e6e7e8" }}
+                >
+                  <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
+                  <div className="bg-white w-20 h-5" />
                 </div>
-                <div className="font-mono">
+                <div className="font-mono text-[9px] text-slate-400">
                   Page {pageNumber} of {totalPages}
                 </div>
               </div>
@@ -2318,459 +2309,290 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       })}
 
       {/* ========================================================================= */}
-      {/* PAGE 5+: EXPANDED FULL-PAGE STANDARD INCLUSIONS SCHEDULE (WEBSITE STYLED) */}
+      {/* PAGE 6: STANDARD INCLUSIONS SPECIFICATION SCHEDULE (MARKETING STYLED)     */}
       {/* ========================================================================= */}
-      <div data-testid="pdf-page-inclusions" className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div
+        data-testid="pdf-page-inclusions"
+        className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-7 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always"
+      >
         <div>
-          {/* Header */}
           {(() => {
             const isNswInclusions = quoteState === "NSW";
             const tierNormUpper = (design.specTier || "H2").toUpperCase();
             const isIPInclusions = tierNormUpper.includes("IP") || tierNormUpper.includes("INVEST");
-            const isFHBInclusions = tierNormUpper.includes("FHB") || tierNormUpper.includes("START SMART") || tierNormUpper.includes("FIRST HOME") || tierNormUpper.includes("SS");
-            const isH3Inclusions = !isIPInclusions && !isFHBInclusions && (tierNormUpper.includes("H3") || tierNormUpper.includes("LUXURY"));
-            const isH1Inclusions = !isIPInclusions && !isFHBInclusions && (tierNormUpper.includes("H1") || tierNormUpper.includes("SMART"));
+            const isFHBInclusions =
+              tierNormUpper.includes("FHB") ||
+              tierNormUpper.includes("START SMART") ||
+              tierNormUpper.includes("FIRST HOME") ||
+              tierNormUpper.includes("SS");
+            const isH3Inclusions =
+              !isIPInclusions && !isFHBInclusions && (tierNormUpper.includes("H3") || tierNormUpper.includes("LUXURY"));
+            const isH1Inclusions =
+              !isIPInclusions && !isFHBInclusions && (tierNormUpper.includes("H1") || tierNormUpper.includes("SMART"));
             const isH2Inclusions = !isIPInclusions && !isFHBInclusions && !isH3Inclusions && !isH1Inclusions;
+
+            const categories = [
+              {
+                title: `CERTIFICATION AND APPROVALS (${isNswInclusions ? "NSW STATUTORY" : "QLD STATUTORY"})`,
+                items: [
+                  "Site contour survey by registered surveyor & physical set out",
+                  isNswInclusions
+                    ? "DA / CDC preparation, architectural plans & council fees"
+                    : "Building Application (BA) preparation, lodgement & certifier fees",
+                  "Structural engineering design for concrete slab & footing",
+                  isNswInclusions
+                    ? "Construction Certificate (CC) & structural engineer certification"
+                    : "Form 15 Pre-nail frame/truss layout & Form 16 Structural certs",
+                  isNswInclusions
+                    ? "BASIX Energy Assessment Report & thermal efficiency cert"
+                    : "Glazing acoustics Form 15 & 7-Star NatHERS assessment ($0 fee)",
+                  isNswInclusions
+                    ? "Principal Certifying Authority (PCA) inspections & Final OC"
+                    : "Final Occupation Certificate (Form 21) upon completion",
+                ],
+              },
+              {
+                title: "SITE COSTS, PREPARATION & FOUNDATION",
+                items: [
+                  "Bulk earthworks & levelling up to 1.0m fall across building pad",
+                  "Engineered waffle pod concrete slab on ground including alfresco",
+                  isNswInclusions
+                    ? "Reinforced concrete bored piering allowance included in site costs"
+                    : "Roof edge safety rail & scaffolding to strict WHS compliance",
+                  "Connect sewer, water, power & storm water services to mains",
+                  isNswInclusions
+                    ? "Termimesh / Kordon physical stainless steel termite barrier (50-yr)"
+                    : "Part A & Part B Termite Management System with warranty",
+                  "Smooth power-trowelled finish to garage and internal living areas",
+                ],
+              },
+              {
+                title: "EXTERNAL FEATURES, ROOF & GLAZING",
+                items: [
+                  isNswInclusions
+                    ? isH3Inclusions
+                      ? "Choice of Bristile flat designer concrete tiles or Colorbond® steel roof"
+                      : isH2Inclusions
+                      ? "Bristile designer concrete roof tiles + sarking (Colorbond® steel option)"
+                      : "Bristile / Monier classic concrete roof tiles + reflective foil sarking"
+                    : isH3Inclusions
+                    ? "Colorbond® steel roofing or Bristile designer flat concrete tiles"
+                    : "Colorbond® corrugated steel roofing with medium duty reflective foil",
+                  "Colorbond® fascia and gutters with painted UPVC downpipes",
+                  "Engineered T2 treated timber roof trusses and wall framing",
+                  isH3Inclusions
+                    ? "Hume 1200mm wide designer entrance pivot door with Trilock"
+                    : isH2Inclusions
+                    ? "Hume Newington 2040mm solid core front entry door with double lock"
+                    : isIPInclusions
+                    ? "Hume solid core front entry door with deadlock & weather seal"
+                    : "Hume Newington 2040mm solid core front door with lever lockset",
+                  isH3Inclusions
+                    ? "Powder coated aluminium windows with awning feature & flyscreens"
+                    : isIPInclusions
+                    ? "Powder coated aluminium windows with barrier screens & window locks"
+                    : "Powder coated aluminium windows & flyscreens with fibreglass mesh",
+                  "2 external garden taps & energy-efficient heat pump hot water system",
+                ],
+              },
+              {
+                title: "INTERNAL CEILINGS, WALLS & DOORS",
+                items: [
+                  isH3Inclusions
+                    ? "2,740mm (9ft) raised ceiling height to ground floor / single storey"
+                    : isH2Inclusions
+                    ? "2,590mm ceiling height throughout"
+                    : "2,440mm standard ceiling height throughout",
+                  isH3Inclusions
+                    ? "Hume Linear HLR270 2340mm internal doors with Dulux gloss enamel"
+                    : isH2Inclusions
+                    ? "Hume Linear 2040mm internal doors with Dulux gloss enamel"
+                    : "Hume 2040mm internal doors with Gainsborough passage sets",
+                  "Dulux multi-coat paint system to all internal walls and ceilings",
+                  isH3Inclusions
+                    ? "2400mm high frameless mirror sliding robe doors with shelving"
+                    : isH2Inclusions
+                    ? "Frameless mirror or vinyl sliding wardrobe doors"
+                    : "Built-in wardrobes with vinyl sliding doors, shelf & rail",
+                  "67x18mm skirting & architraves with Dulux painted full gloss enamel",
+                  isNswInclusions
+                    ? "R4.0 glasswool ceiling batts (excl garage) & R2.0 external wall batts"
+                    : "Glass wool insulation batts to external walls & ceilings",
+                ],
+              },
+              {
+                title: "GOURMET KITCHEN & APPLIANCES",
+                items: [
+                  isH3Inclusions
+                    ? "40mm mitred edge engineered stone benchtops with waterfall edge"
+                    : isH2Inclusions || isIPInclusions
+                    ? "20mm stone kitchen benchtops"
+                    : isFHBInclusions
+                    ? "Modern 20mm stone or durable laminate kitchen benchtops"
+                    : "Durable laminate kitchen benchtops (20mm stone upgrade optional)",
+                  isH3Inclusions || isH2Inclusions
+                    ? "Fully lined overhead cupboards with plaster bulkhead feature"
+                    : "Fully lined melamine cabinetry with overhead cupboards & drawers",
+                  "Bank of 4 soft-close cutlery drawers and matching pot drawers",
+                  isH3Inclusions
+                    ? "Fisher & Paykel 900mm luxury electric oven, cooktop & canopy hood"
+                    : isH2Inclusions
+                    ? "Fisher & Paykel 900mm luxury stainless steel electric oven & 900mm cooktop"
+                    : "Haier / Westinghouse 600mm stainless steel oven, cooktop & hood",
+                  "Fisher & Paykel stainless steel dishwasher & built-in microwave oven",
+                  isH3Inclusions || isH2Inclusions
+                    ? "Clark Polar undermount/drop-in sink with Liano I designer pull-out mixer"
+                    : "Clark double bowl stainless steel sink with chrome mixer tapware",
+                ],
+              },
+              {
+                title: "BATHROOM, ENSUITE & POWDER ROOM",
+                items: [
+                  isH3Inclusions
+                    ? "Wall-hung floating vanities with 20mm stone & counter basins"
+                    : isH2Inclusions || isIPInclusions
+                    ? "Contemporary floating vanities with 20mm stone benchtops"
+                    : "Contemporary laminate vanity units with vitreous china basins",
+                  isH3Inclusions
+                    ? "10mm frameless glass shower screen with pivot door & smart waste"
+                    : "Semi-frameless shower screens with clear safety glass",
+                  isH3Inclusions || isH2Inclusions
+                    ? "Caroma Aura 1,775mm freestanding white bathtub & Caroma tapware"
+                    : "Quality acrylic inset or freestanding bathtub with chrome waste",
+                  "Wall-faced closed coupled toilet suites with soft-close seats",
+                  isH3Inclusions
+                    ? "FULL HEIGHT ceramic wall tiling to ensuite & bathroom wet areas"
+                    : "Ceramic wall tiles to 2,100mm in shower recess",
+                  "Smart tile floor wastes & tiled shower recess niche",
+                ],
+              },
+              {
+                title: "LAUNDRY & INTERNAL FLOOR COVERINGS",
+                items: [
+                  isH3Inclusions || isH2Inclusions
+                    ? "Built-in laundry cabinet (up to 1,200mm) with 20mm stone top & Clark 45L drop-in tub"
+                    : "45L stainless steel laundry tub with powder-coated cabinet & bypass",
+                  isH3Inclusions
+                    ? "Choice of 8.5mm Hybrid Timber or 600x600mm Gold porcelain floor tiles"
+                    : "Floor tiles to entry, hallway, kitchen, family & meals",
+                  "Quality carpet with underlay to all bedrooms and media rooms",
+                  "Main floor outdoor ceramic tiling to under-roof alfresco",
+                ],
+              },
+              {
+                title: `AIR-CONDITIONING & ELECTRICAL${isIPInclusions || isFHBInclusions ? " (TURNKEY)" : ""}`,
+                items: [
+                  isH3Inclusions
+                    ? "Fully Zoned Multi-Head Ducted Reverse Cycle Air Conditioning (MyAir5)"
+                    : isH2Inclusions
+                    ? "Day/Night Ducted Air-Conditioning System (Living & Bedroom Zones)"
+                    : isIPInclusions
+                    ? "Reverse Cycle Air Conditioning (Ducted or Split System) for tenants"
+                    : "Reverse Cycle Split-System Air Conditioner to Main Living + bedroom fans",
+                  "LED downlights throughout plus ceiling fan/lights to all bedrooms",
+                  isIPInclusions
+                    ? "100% Turnkey: Exposed aggregate / colour concrete driveway & crossover"
+                    : isFHBInclusions
+                    ? "First Home Buyer: Concrete driveway, path, turf, clothesline & letterbox"
+                    : "Energy-efficient electrical fitout",
+                  "Interconnected hardwired photoelectric smoke detectors",
+                  isIPInclusions
+                    ? "1.8m treated pine fencing with side gate, clothesline, letterbox & turf"
+                    : isFHBInclusions
+                    ? "Optimised for First Home Owner Grant ($30k QLD / $10k NSW) & stamp relief"
+                    : "NBN pre-wiring with telephone & data points to living",
+                  isIPInclusions
+                    ? "Block-out roller blinds to all openable windows & sliding glass doors"
+                    : "External weatherproof double power point to under-roof alfresco",
+                ],
+              },
+            ];
 
             return (
               <>
-                <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
+                {/* Marketing Page 6 Header */}
+                <div className="flex items-start justify-between border-b border-slate-500 pb-2 mb-2">
                   <div>
-                    <div className="text-xs font-bold uppercase tracking-widest text-cyan-700">
+                    <div className="text-[11px] font-normal uppercase tracking-wider text-slate-600">
                       STANDARD INCLUSIONS SPECIFICATION SCHEDULE • {isNswInclusions ? "NEW SOUTH WALES" : "QUEENSLAND"}
                     </div>
-                    <h2 className="text-xl font-extrabold text-slate-900 mt-0.5">
-                      {formatInclusionTierTitle(design.specTier)}
+                    <h2 className="text-xl font-extrabold text-slate-950 uppercase tracking-tight mt-0.5">
+                      {formatInclusionTierTitle(design.specTier).toUpperCase()}
                     </h2>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-cyan-800 bg-cyan-50 px-3 py-1.5 rounded-full border border-cyan-300 shadow-sm flex items-center gap-1.5">
-                      <Building className="h-3.5 w-3.5 text-cyan-700" />
-                      {isNswInclusions ? "NSW Schedule (Concrete Tile STD)" : "QLD Schedule (Colorbond® STD)"}
-                    </span>
-                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-3.5 py-1.5 rounded-full border border-emerald-300 shadow-sm flex items-center gap-1.5">
-                      <Check className="h-3.5 w-3.5 text-emerald-700" />
-                      {isIPInclusions ? "100% Turnkey Investor Pack" : isFHBInclusions ? "FHOG & Turnkey Ready" : "Fully Included in Base Builders Estimate"}
-                    </span>
+                  <div className="text-right text-[10.5px] uppercase tracking-wider text-slate-600 leading-snug pt-0.5">
+                    <div>FULLY INCLUDED IN BASE</div>
+                    <div>BUILDERS ESTIMATE</div>
                   </div>
                 </div>
 
-                {/* Comprehensive 8-Category Inclusions Grid with Website Rich Aesthetic */}
-                <div className="space-y-2.5 text-[9.5px] leading-snug">
-                  {/* Certification & Approvals */}
-                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                        <FileCheck2 className="h-3.5 w-3.5 text-cyan-700" />
-                        CERTIFICATION AND APPROVALS ({isNswInclusions ? "NSW STATUTORY" : "QLD STATUTORY"})
-                      </span>
-                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-                    </div>
-                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Site contour survey by registered surveyor &amp; physical set out</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "DA / CDC preparation, architectural plans & council fees" : "Building Application (BA) preparation, lodgement & certifier fees"}</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Structural engineering design for concrete slab &amp; footing</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "Construction Certificate (CC) & structural engineer certification" : "Form 15 Pre-nail frame/truss layout & Form 16 Structural certs"}</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "BASIX Energy Assessment Report & thermal efficiency cert" : "Glazing acoustics Form 15 & 7-Star NatHERS assessment ($0 fee)"}</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "Principal Certifying Authority (PCA) inspections & Final OC" : "Final building certifier inspection & Form 21 Occupancy Cert"}</span></div>
-                    </div>
-                  </div>
-
-                  {/* Site Costs, Preparation & Foundation */}
-                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                        <Layers className="h-3.5 w-3.5 text-cyan-700" />
-                        SITE COSTS, PREPARATION &amp; FOUNDATION
-                      </span>
-                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-                    </div>
-                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Bulk earthworks &amp; levelling up to 1.0m fall across building pad</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Class M engineered reinforced waffle pod slab including alfresco</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "Reinforced concrete bored piering allowance included in site costs" : "Site-specific concrete piering provision (piering quoted per soil report)"}</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Connect sewer, water, power &amp; storm water services to mains</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{isNswInclusions ? "Termimesh / Kordon physical stainless steel termite barrier (50-yr)" : "Part A & Part B Termite Management System with warranty"}</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Roof edge safety rail &amp; scaffolding; smooth trowelled slab finish</span></div>
-                    </div>
-                  </div>
-
-                  {/* External Features, Roof & Windows */}
-                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                        <Building className="h-3.5 w-3.5 text-cyan-700" />
-                        EXTERNAL FEATURES, ROOF &amp; GLAZING
-                      </span>
-                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-                    </div>
-                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span className="font-semibold text-slate-900">
-                          {isNswInclusions
-                            ? isH3Inclusions
-                              ? "Choice of Bristile flat designer concrete tiles or Colorbond® steel roof"
-                              : isH2Inclusions
-                              ? "Bristile designer concrete roof tiles + sarking (Colorbond® steel option)"
-                              : "Bristile / Monier classic concrete roof tiles + reflective foil sarking"
-                            : isH3Inclusions
-                            ? "Colorbond® steel roofing or Bristile designer flat concrete tiles"
-                            : "Genuine BlueScope Colorbond® corrugated steel roofing + reflective foil"}
+                {/* 8 Inclusions Categories in Marketing's Clean Grey Header Bar + Checkmark Grid */}
+                <div className="space-y-1.5 text-[9.5px] leading-tight">
+                  {categories.map((cat) => (
+                    <div key={cat.title}>
+                      <div
+                        className="px-3 py-1 flex items-center justify-between mb-0.5"
+                        style={{ backgroundColor: "#e6e7e8" }}
+                      >
+                        <span className="font-extrabold uppercase tracking-wider text-slate-950 text-[10px]">
+                          {cat.title}
+                        </span>
+                        <span
+                          className="font-extrabold uppercase tracking-wider text-[9.5px]"
+                          style={{ color: "#38b28b" }}
+                        >
+                          INCLUDED
                         </span>
                       </div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Colorbond® fascia and quad gutters with painted UPVC downpipes</span></div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Engineered T2 treated termite-resistant timber framing and trusses</span></div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "Hume 1200mm wide designer entrance pivot door with Trilock"
-                            : isH2Inclusions
-                            ? "Hume Newington 2040mm solid core front entrance door with Trilock"
-                            : isIPInclusions
-                            ? "Hume solid core front entry door with deadlock & weather seal"
-                            : "Hume Newington 2040mm solid core front door with lever lockset"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "Powder coated aluminium windows with awning feature & flyscreens"
-                            : isIPInclusions
-                            ? "Powder coated aluminium windows with barrier screens & window locks"
-                            : "Powder coated aluminium windows & flyscreens with fibreglass mesh"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>2 external brass garden taps &amp; energy-efficient heat pump hot water</span></div>
-                    </div>
-                  </div>
-
-                  {/* Internal Ceilings, Walls & Doors */}
-                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                        <Home className="h-3.5 w-3.5 text-cyan-700" />
-                        INTERNAL CEILINGS, WALLS &amp; DOORS
-                      </span>
-                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-                    </div>
-                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "2,740mm (9ft) raised ceiling height to ground floor / single storey"
-                            : isH2Inclusions
-                            ? "2,590mm (8ft 6in) raised ceiling height throughout"
-                            : "2,440mm (8ft) standard ceiling height throughout"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "Hume Linear HLR270 2340mm internal doors with designer lever handles"
-                            : isH2Inclusions
-                            ? "Hume Linear 2040mm internal doors with designer lever handles"
-                            : "Hume 2040mm internal doors with Gainsborough passage sets"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Dulux / Taubmans 3-coat paint system to all internal walls &amp; ceilings</span></div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "2400mm high frameless mirror sliding robe doors with shelving"
-                            : isH2Inclusions
-                            ? "Frameless mirror or vinyl sliding robe doors with shelf & rail"
-                            : "Built-in wardrobes with vinyl sliding doors, shelf & rail"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>67x18mm skirting &amp; architraves with gloss enamel; 90mm cove cornice</span></div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isNswInclusions
-                            ? "R4.0 glasswool ceiling batts (excl garage) & R2.0 external wall batts"
-                            : "R3.5 / R4.1 Bradford Gold ceiling batts & R2.0 external wall insulation"}
-                        </span>
+                      <div className="grid grid-cols-2 gap-x-5 divide-y divide-slate-100 px-1">
+                        {cat.items.map((itemText, idx) => (
+                          <div key={idx} className="flex items-start gap-1.5 py-0.5 text-slate-800">
+                            <Check
+                              className="h-3 w-3 flex-none mt-0.5"
+                              style={{ color: "#38b28b" }}
+                            />
+                            <span>{itemText}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
-
-                  {/* Gourmet Kitchen & Luxury Appliances */}
-                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                        <Sparkles className="h-3.5 w-3.5 text-cyan-700" />
-                        GOURMET KITCHEN &amp; APPLIANCES
-                      </span>
-                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-                    </div>
-                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "40mm mitred edge engineered stone benchtops with waterfall edge"
-                            : isH2Inclusions || isIPInclusions
-                            ? "20mm engineered stone kitchen benchtops with pencil round edge"
-                            : isFHBInclusions
-                            ? "Modern 20mm stone or durable laminate kitchen benchtops with rolled edge"
-                            : "Durable laminate kitchen benchtops (20mm stone upgrade optional)"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions || isH2Inclusions
-                            ? "Overhead cupboards with bulkhead & soft-close cutlery/pot drawers"
-                            : "Fully lined melamine cabinetry with overhead cupboards & drawers"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "Fisher & Paykel 900mm luxury electric oven, cooktop & canopy hood"
-                            : isH2Inclusions
-                            ? "Fisher & Paykel / Westinghouse 900mm luxury electric oven & cooktop"
-                            : isIPInclusions || isFHBInclusions
-                            ? "Haier / Westinghouse 600mm stainless steel oven, cooktop & hood"
-                            : "Haier 600mm stainless steel electric oven, ceramic cooktop & hood"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Stainless steel multi-function dishwasher with water-saving rating</span></div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "Clark Polar double undermount sink with Liano II pull-out mixer"
-                            : isH2Inclusions
-                            ? "Clark double bowl stainless drop-in sink with gooseneck mixer"
-                            : "Clark 1.5 or double bowl stainless sink with flickmixer tapware"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Walk-in or built-in pantry with 4 white shelves &amp; microwave provision</span></div>
-                    </div>
-                  </div>
-
-                  {/* Bathrooms, Ensuite & Powder Room */}
-                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                        <Waves className="h-3.5 w-3.5 text-cyan-700" />
-                        BATHROOM, ENSUITE &amp; POWDER ROOM
-                      </span>
-                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-                    </div>
-                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "Wall-hung floating vanities with 20mm stone & counter basins"
-                            : isH2Inclusions || isIPInclusions
-                            ? "Contemporary floating vanities with 20mm stone benchtops"
-                            : "Contemporary laminate vanity units with vitreous china basins"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "10mm frameless glass shower screen with pivot door & smart waste"
-                            : "Semi-frameless shower screens with clear toughened safety glass"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions || isH2Inclusions
-                            ? "Caroma Aura / Urbane 1,775mm freestanding acrylic bathtub"
-                            : "Quality acrylic inset or freestanding bathtub with chrome waste"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Wall-faced closed coupled toilet suites with soft-close seats</span></div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "FULL HEIGHT ceramic wall tiling to ensuite & bathroom wet areas"
-                            : isH2Inclusions
-                            ? "2,100mm wall tiles in shower recess, 500mm hob & 200mm vanity"
-                            : "2,100mm wall tiles to shower recess with vanity & bath splashback"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Chrome double towel rails, toilet roll holders &amp; smart tile wastes</span></div>
-                    </div>
-                  </div>
-
-                  {/* Laundry & Interior Floor Coverings */}
-                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                        <Award className="h-3.5 w-3.5 text-cyan-700" />
-                        LAUNDRY &amp; INTERNAL FLOOR COVERINGS
-                      </span>
-                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-                    </div>
-                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions || isH2Inclusions
-                            ? "Built-in 1,200mm laundry cabinet with 20mm stone top & 45L drop-in tub"
-                            : "45L stainless steel laundry tub with powder-coated cabinet & bypass"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "Choice of 8.5mm Hybrid Timber or 600x600mm Gold porcelain floor tiles"
-                            : isH2Inclusions
-                            ? "Floor tiles (up to 450x450mm) to entry, hallway, kitchen, family & meals"
-                            : isIPInclusions
-                            ? "Hard-wearing ceramic floor tiles to main living zones & carpet to beds"
-                            : isFHBInclusions
-                            ? "Ceramic floor tiles to living, entry & kitchen; quality carpet to beds"
-                            : "Ceramic floor tiles to entry, kitchen & meals; carpet to bedrooms"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Quality residential carpet with cushion underlay to all bedrooms &amp; robes</span></div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions || isH2Inclusions
-                            ? "Main floor outdoor ceramic tiling to under-roof alfresco & porch"
-                            : "Under-roof alfresco and porch with broom finish or ceramic tiles"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Air-Conditioning, Electrical & Turnkey Amenities */}
-                  <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
-                    <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                      <span className="tracking-wide flex items-center gap-1 text-slate-900">
-                        <Sparkles className="h-3.5 w-3.5 text-cyan-700" />
-                        AIR-CONDITIONING, ELECTRICAL &amp; {isIPInclusions || isFHBInclusions ? "TURNKEY EXTRAS" : "FINISHES"}
-                      </span>
-                      <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
-                    </div>
-                    <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions
-                            ? "Fully Zoned Multi-Head Ducted Reverse Cycle Air Conditioning (MyAir5)"
-                            : isH2Inclusions
-                            ? "Day/Night Ducted Air Conditioning System (Living & Bedroom Zones)"
-                            : isIPInclusions
-                            ? "Reverse Cycle Air Conditioning (Ducted or Split System) for tenants"
-                            : isFHBInclusions
-                            ? "Reverse Cycle Split-System Air Conditioner to Main Living + bedroom fans"
-                            : "Reverse Cycle Split System Air-Conditioner to Living Room"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isH3Inclusions || isH2Inclusions
-                            ? "Extensive LED downlights throughout living zones, porch & alfresco"
-                            : "Energy-efficient LED downlights / oyster lights & bedroom fans"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isIPInclusions
-                            ? "100% Turnkey: Exposed aggregate / colour concrete driveway & crossover"
-                            : isFHBInclusions
-                            ? "First Home Buyer: Concrete driveway, path, turf, clothesline & letterbox"
-                            : isH3Inclusions
-                            ? "1.5kW Solar PV Power System with single-phase inverter"
-                            : "NBN pre-wiring with TV antenna point, phone & hardwired data point"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isIPInclusions
-                            ? "1.8m treated pine fencing with side gate, clothesline, letterbox & turf"
-                            : isFHBInclusions
-                            ? "Optimised for First Home Owner Grant ($30k QLD / $10k NSW) & stamp relief"
-                            : "Interconnected hardwired photoelectric smoke detectors & safety switches"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isIPInclusions
-                            ? "Block-out roller blinds to all openable windows & sliding glass doors"
-                            : isFHBInclusions
-                            ? "Block-out roller blinds package available; complete move-in finish"
-                            : "Power points, TV points and exterior waterproof double GPO to alfresco"}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5">
-                        <Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" />
-                        <span>
-                          {isIPInclusions
-                            ? "Interconnected 240V smoke detectors & safety switches throughout"
-                            : isFHBInclusions
-                            ? "Interconnected 240V smoke detectors & safety switches throughout"
-                            : "NBN pre-wiring with telephone & high-speed data points to living"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </>
             );
           })()}
 
-          {/* Interactive QR Code Card for Full Inclusions Brochure */}
-          <div className="mt-3.5 bg-gradient-to-r from-slate-900 via-slate-950 to-cyan-950 text-white rounded-2xl p-3 px-4 flex items-center justify-between gap-4 shadow-md border border-cyan-800/80">
-            <div className="space-y-1 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="bg-amber-400 text-slate-950 font-black text-[9px] uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-                  OFFICIAL BROCHURE
-                </span>
-                <span className="text-xs font-black uppercase tracking-wider text-cyan-200">
-                  VIEW FULL STANDARD INCLUSIONS BROCHURE
-                </span>
+          {/* Compact Official Brochure QR Strip */}
+          <div className="mt-2 bg-slate-100 border border-slate-300 px-3.5 py-1.5 flex items-center justify-between gap-4">
+            <div className="space-y-0.5 flex-1">
+              <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-900">
+                VIEW FULL STANDARD INCLUSIONS BROCHURE ONLINE
               </div>
-              <p className="text-[10px] text-slate-200 leading-snug">
-                Scan the QR code to explore comprehensive room-by-room specifications, fixtures, designer finishes, and luxury upgrade packages directly on the official Hudson Homes portal.
+              <p className="text-[9px] text-slate-600">
+                Scan the QR code to explore room-by-room specifications and finishes at{" "}
+                <span className="font-mono font-bold text-slate-800">hudsonhomes.com.au/inclusions-packages/</span>
               </p>
-              <div className="text-[9.5px] font-mono text-cyan-300 font-bold">
-                hudsonhomes.com.au/inclusions-packages/
-              </div>
             </div>
-            <div className="flex flex-col items-center justify-center bg-white p-2 rounded-xl flex-none shadow-sm text-center">
-              <QrCode value="https://www.hudsonhomes.com.au/inclusions-packages/" size={17} />
-              <span className="text-[7.5px] font-black uppercase text-slate-900 font-mono mt-1 tracking-wider">
-                SCAN TO VIEW
-              </span>
+            <div className="bg-white p-0.5 border border-slate-200 flex-none">
+              <QrCode value="https://www.hudsonhomes.com.au/inclusions-packages/" size={11} />
             </div>
           </div>
         </div>
 
-        {/* Inclusions Page Footer */}
-        <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
-          <div>
-            {footerLicenceLine}
-          </div>
+        {/* Page 6 Marketing Footer */}
+        <div className="pt-2 flex items-center justify-between text-[9.5px] text-slate-600 flex-none">
+          <div>{footerLicenceLine}</div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
-              <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
+            <div
+              className="px-3 py-1 rounded-xs flex items-center gap-2.5"
+              style={{ backgroundColor: "#e6e7e8" }}
+            >
+              <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
+              <div className="bg-white w-20 h-4" />
             </div>
-            <div className="font-mono">Page {(hasSecondDwelling ? 4 : 3) + specPages.length + 1} of {totalPages}</div>
+            <div className="font-mono text-[9px] text-slate-400">
+              Page {(hasSecondDwelling ? 4 : 3) + specPages.length + 1} of {totalPages}
+            </div>
           </div>
         </div>
       </div>
@@ -2778,228 +2600,252 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       {/* ========================================================================= */}
       {/* FINAL PAGE: LIFETIME GUARANTEE, DEPOSIT & OFFICIAL NAB BANK TRANSFER      */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-8 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm]">
-        <div className="space-y-3.5">
-          {/* Top Brand & License Row */}
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-            <Logo size={10} modern={false} />
-            <div className="text-[10px] text-slate-500 font-medium">
-              Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder’s Licence: 259372C
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm]">
+        <div>
+          {/* Top Full-Bleed Marketing Lifetime Structural Integrity Guarantee Banner */}
+          <div className="w-full relative flex-none mb-5">
+            <img
+              src="/brand/marketing-guarantee-banner.jpg"
+              alt="Hudson Homes — Lifetime Structural Integrity Guarantee"
+              loading="eager"
+              crossOrigin="anonymous"
+              className="w-full h-auto block object-cover"
+            />
+            <div className="sr-only">
+              <h3>LIFETIME STRUCTURAL INTEGRITY GUARANTEE</h3>
+              <p>
+                Every Hudson home is engineered and constructed to the highest standards of Australian building compliance.
+                We proudly back our workmanship with a Lifetime Structural Integrity Guarantee for total peace of mind.
+              </p>
+              <span>100% AUSTRALIAN OWNED - LIFETIME STRUCTURAL GUARANTEE - ISO 9001 CERTIFIED - 12-MONTH DEFECT PERIOD</span>
             </div>
           </div>
 
-          {/* Top Lifetime Structural Guarantee Banner - Matching Inspo Styling */}
-          <div
-            className="lifetime-guarantee-banner bg-slate-900 text-white rounded-2xl p-5 shadow-lg text-center space-y-2 border border-amber-500/30"
-            style={{ backgroundColor: "#0f172a", color: "#ffffff", borderColor: "rgba(245, 158, 11, 0.4)" }}
-          >
-            <div
-              className="text-xs font-black tracking-[0.35em] text-white uppercase"
-              style={{ color: "#ffffff" }}
-            >
-              L I F E T I M E &nbsp; S T R U C T U R A L
-            </div>
-            <h3
-              className="text-2xl font-black uppercase tracking-wider leading-tight"
-              style={{ color: "#fbbf24" }}
-            >
-              INTEGRITY GUARANTEE
-            </h3>
-            <p className="text-xs text-slate-200 max-w-xl mx-auto leading-relaxed" style={{ color: "#e2e8f0" }}>
-              Every Hudson home is engineered and constructed to the highest standards of Australian building compliance.
-              We proudly back our workmanship with a{" "}
-              <strong className="font-black text-amber-300" style={{ color: "#fde047" }}>
-                Lifetime Structural Integrity Guarantee
-              </strong>{" "}
-              covering foundation slabs, footings, structural framing, and load-bearing masonry for total peace of mind.
-            </p>
-            <div
-              className="pt-1.5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[10.5px] font-bold uppercase tracking-wider border-t border-slate-800"
-              style={{ color: "#fbbf24" }}
-            >
-              <span>★ 100% Australian Owned</span>
-              <span>★ Lifetime Structural Guarantee</span>
-              <span>★ ISO 9001 Certified</span>
-              <span>★ 12-Month Defect Period</span>
-            </div>
-          </div>
-
-          {/* Initial Deposit Allocation Box */}
-          <div className="border border-emerald-500/40 rounded-2xl p-4 bg-emerald-50/40 space-y-2.5 shadow-xs">
-            <div className="flex items-center justify-between border-b border-emerald-200 pb-2">
-              <div>
-                <span className="text-xs font-black text-emerald-900 uppercase tracking-wider block">
-                  INITIAL DEPOSIT TO PROCEED
-                </span>
-                <span className="text-base font-black text-slate-950 flex items-center gap-2 mt-0.5">
-                  {client.depositType === "kdrb"
-                    ? "Knock-Down Rebuild (KDRB) Site Allocation"
-                    : client.depositType === "brownfield"
-                    ? "Brownfield Site Allocation"
-                    : "Greenfield Site Allocation"}
-                  {client.custom3dTourSelected && (
-                    <span className="text-xs font-bold text-cyan-800 bg-cyan-100 border border-cyan-300 px-2 py-0.5 rounded-full font-mono">
-                      + Custom 3D Virtual Tour
-                    </span>
-                  )}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block">
-                  Deposit Amount
-                </span>
-                <span className="text-3xl font-black text-emerald-700 font-mono">
-                  {formatAud(pricing.initialDepositAmount || (client.custom3dTourSelected ? (client.depositType === "kdrb" || client.depositType === "brownfield" ? 4100 : 2450) : (client.depositType === "kdrb" || client.depositType === "brownfield" ? 3300 : 1650)))}
-                </span>
-              </div>
-            </div>
-
-            <div className="text-xs text-slate-900">
-              <div className="font-black text-emerald-950 mb-1.5 flex items-center gap-1.5">
-                <FileCheck2 className="h-4 w-4 text-emerald-700" />
-                Preliminary Work Completed as a result of the Initial Deposit:
-              </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-900 font-bold">
-                <div>• On-site Investigation Report</div>
-                <div>• Geotechnical Soil Test</div>
-                <div>• Wind Classification Report</div>
-                <div>• Registered Contour Survey</div>
-                <div>• Developer Covenant Compliance Check</div>
-                <div>• Drafted Plans &amp; Elevations by in-house draftsmen</div>
-                {client.custom3dTourSelected && (
-                  <div className="col-span-2 text-cyan-900 font-bold bg-cyan-50 border border-cyan-200 px-2 py-1 rounded mt-0.5">
-                    • 3D Interactive Virtual Tour of Customized Design prior to Building Contract (Custom $800 Fee Included)
-                  </div>
-                )}
-                <div className="col-span-2">• Completed Formal Tender Pricing by in-house estimator</div>
-              </div>
-              {client.custom3dTourSelected && (
-                <div className="text-[10px] text-slate-500 pt-1 italic">
-                  *Note: The $800 Custom 3D Virtual Tour fee forms part of your initial deposit and is credited in full toward your total contract investment.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* NAB Direct Transfer Banking Box with Real Dynamic QR Code */}
-          <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center justify-between gap-5 shadow-xs">
-            <div className="space-y-2 text-xs flex-1">
-              <div className="font-black text-cyan-950 uppercase tracking-wider text-xs flex items-center gap-1.5">
-                <Building className="h-4 w-4 text-cyan-700" />
-                {bankHeaderTitle}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="px-12 space-y-5">
+            {/* Initial Deposit Allocation Box (Marketing Page 7 Layout) */}
+            <div>
+              <div
+                className="px-5 py-3 flex items-center justify-between mb-3"
+                style={{ backgroundColor: "#e6e7e8" }}
+              >
                 <div>
-                  <span className="text-slate-500 text-[10px] font-bold uppercase block">Account Name:</span>
-                  <span className="font-extrabold text-slate-950 text-xs">{bankAccountName}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[10px] font-bold uppercase block">Bank:</span>
-                  <span className="font-extrabold text-slate-950 text-xs">National Australia Bank (NAB)</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[10px] font-bold uppercase block">BSB Number:</span>
-                  <span className="font-black text-slate-950 font-mono text-sm tracking-wider">{bankBsb}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[10px] font-bold uppercase block">Account Number:</span>
-                  <span className="font-black text-slate-950 font-mono text-sm tracking-wider">{bankAccountNumber}</span>
-                </div>
-              </div>
-
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="text-slate-500 text-[10px] font-bold uppercase block">EFT Payment Remittance Reference:</span>
-                  <span className="font-black text-cyan-900 font-mono text-sm">
-                    {client.clientName ? `${client.clientName.split(" ").pop()}-${quote.quoteNumber || "MH678"}` : `Client-${quote.quoteNumber || "MH678"}`}
+                  <span className="text-[10px] font-medium text-slate-700 uppercase tracking-wider block">
+                    INITIAL DEPOSIT TO PROCEED
+                  </span>
+                  <span className="text-base font-extrabold text-slate-950 flex items-center gap-2 mt-0.5">
+                    {client.depositType === "kdrb"
+                      ? "Knock-Down Rebuild (KDRB) Site Allocation"
+                      : client.depositType === "brownfield"
+                      ? "Brownfield Site Allocation"
+                      : "Greenfield Site Allocation"}
+                    {client.custom3dTourSelected && (
+                      <span className="text-[10.5px] font-bold text-cyan-900 bg-white px-2 py-0.5 rounded-xs border border-slate-300">
+                        + Custom 3D Virtual Tour
+                      </span>
+                    )}
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-500 uppercase font-mono font-bold">Currency: AUD</span>
+                <div className="text-right">
+                  <span className="text-[10px] font-medium text-slate-700 uppercase tracking-wider block">
+                    DEPOSIT AMOUNT
+                  </span>
+                  <span
+                    className="text-2xl font-extrabold block leading-none mt-0.5"
+                    style={{ color: "#43b592" }}
+                  >
+                    {formatAud(
+                      pricing.initialDepositAmount ||
+                        (client.custom3dTourSelected
+                          ? client.depositType === "kdrb" || client.depositType === "brownfield"
+                            ? 4100
+                            : 2450
+                          : client.depositType === "kdrb" || client.depositType === "brownfield"
+                          ? 3300
+                          : 1650)
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-xs text-slate-900 px-1">
+                <div className="font-extrabold text-slate-950 mb-2">
+                  Preliminary Work Completed as a result of the Initial Deposit
+                </div>
+                <div className="grid grid-cols-2 gap-x-10 text-[11px] text-slate-800">
+                  <div className="border-b border-slate-200 py-1.5">• On-site Investigation Report</div>
+                  <div className="border-b border-slate-200 py-1.5">• Geotechnical Soil Test</div>
+                  <div className="border-b border-slate-200 py-1.5">• Wind Classification Report</div>
+                  <div className="border-b border-slate-200 py-1.5">• Registered Contour Survey</div>
+                  <div className="border-b border-slate-200 py-1.5">• Developer Covenant Compliance Check</div>
+                  <div className="border-b border-slate-200 py-1.5">• Drafted Plans &amp; Elevations by in-house draftsmen</div>
+                  <div className="border-b border-slate-200 py-1.5">• Completed Formal Tender Pricing by in-house estimator</div>
+                  {client.custom3dTourSelected && (
+                    <div className="border-b border-slate-200 py-1.5 font-bold text-cyan-900">
+                      • 3D Interactive Virtual Tour of Customized Design ($800 Included)
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Dynamic Payment QR Code Box */}
-            <div className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-xl text-center flex-none shadow-xs">
-              <PaymentQrCode
-                accountName={bankAccountName}
-                bsb={bankBsb}
-                accountNumber={bankAccountNumber}
-                amount={pricing.initialDepositAmount || 1650}
-                reference={client.clientName ? `${client.clientName.split(" ").pop()}-${quote.quoteNumber || "MH678"}` : `Client-${quote.quoteNumber || "MH678"}`}
-                size={90}
-              />
-              <span className="text-[9px] font-bold text-slate-700 mt-1 uppercase font-mono tracking-wider">
-                Scan to view banking details
-              </span>
-            </div>
-          </div>
+            {/* NAB Direct Transfer Banking Box with Dynamic QR Code (Marketing Page 7 Layout) */}
+            <div className="border border-slate-600 p-5 flex items-center justify-between gap-6 bg-white">
+              <div className="flex-1">
+                <div className="font-extrabold text-slate-950 uppercase tracking-wider text-xs mb-3">
+                  {bankHeaderTitle}
+                </div>
 
-          {/* Customer & Consultant Authorization Signatures */}
-          <div className="grid grid-cols-2 gap-6 pt-1">
-            <div className="space-y-3">
-              <div className="text-xs font-black uppercase text-slate-700 tracking-wider">
-                CLIENT 1 SIGNATURE:
-              </div>
-              <div className="border-b-2 border-slate-900 h-8 flex items-end pb-1 text-slate-400 italic text-xs">
-                {/* Space for physical or digital signing */}
-              </div>
-              <div className="text-xs">
-                <span className="font-black text-slate-950 block text-sm">{client.clientName || "Primary Applicant"}</span>
-                <span className="text-xs text-slate-600 font-medium">Date: ____ / _____ / 2026</span>
-              </div>
-
-              {client.hasClient2 && (
-                <div className="pt-1.5 space-y-3">
-                  <div className="text-xs font-black uppercase text-slate-700 tracking-wider">
-                    CLIENT 2 SIGNATURE:
+                <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-xs">
+                  <div>
+                    <span className="text-slate-400 text-[11px] block">Account Name</span>
+                    <span className="font-bold text-slate-950 text-sm">{bankAccountName}</span>
                   </div>
-                  <div className="border-b-2 border-slate-900 h-8 flex items-end pb-1 text-slate-400 italic text-xs">
-                    {/* Space for Client 2 signature */}
+                  <div>
+                    <span className="text-slate-400 text-[11px] block">Bank</span>
+                    <span className="font-bold text-slate-950 text-sm">National Australia Bank (NAB)</span>
                   </div>
-                  <div className="text-xs">
-                    <span className="font-black text-slate-950 block text-sm">{client.client2Name || "Secondary Applicant"}</span>
-                    <span className="text-xs text-slate-600 font-medium">Date: ____ / _____ / 2026</span>
+                  <div>
+                    <span className="text-slate-400 text-[11px] block">BSB Number</span>
+                    <span className="font-bold text-slate-950 text-sm">{bankBsb}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[11px] block">Account Number:</span>
+                    <span className="font-bold text-slate-950 text-sm">{bankAccountNumber}</span>
                   </div>
                 </div>
-              )}
+
+                <div className="border-t border-slate-500 my-3.5" />
+
+                <div className="grid grid-cols-2 gap-x-8 text-xs">
+                  <div>
+                    <span className="text-slate-400 text-[11px] block">EFT Payment Remittance Reference</span>
+                    <span className="font-bold text-slate-950 text-sm">
+                      {client.clientName
+                        ? `${client.clientName.split(" ").pop()}-${quote.quoteNumber || "MH678"}`
+                        : `Client-${quote.quoteNumber || "MH678"}`}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[11px] block">Currency</span>
+                    <span className="font-bold text-slate-950 text-sm">AUD</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Payment QR Code Box */}
+              <div
+                className="flex flex-col items-center justify-center p-3 w-36 h-36 text-center flex-none"
+                style={{ backgroundColor: "#ededee" }}
+              >
+                <PaymentQrCode
+                  accountName={bankAccountName}
+                  bsb={bankBsb}
+                  accountNumber={bankAccountNumber}
+                  amount={pricing.initialDepositAmount || 1650}
+                  reference={
+                    client.clientName
+                      ? `${client.clientName.split(" ").pop()}-${quote.quoteNumber || "MH678"}`
+                      : `Client-${quote.quoteNumber || "MH678"}`
+                  }
+                  size={96}
+                />
+                <span className="text-[8.5px] font-semibold text-slate-600 mt-1 uppercase tracking-wider">
+                  QR Payment
+                </span>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="text-xs font-black uppercase text-slate-700 tracking-wider">
-                AUTHORISED NEW HOME CONSULTANT:
-              </div>
-              <div className="border-b-2 border-slate-900 h-8 flex items-end pb-1 text-slate-400 italic text-xs">
-                {/* Space for consultant signing */}
-              </div>
-              <div className="text-xs">
-                <span className="font-black text-slate-950 block text-sm">{client.consultantName || "Morgan Hales"}</span>
-                <span className="text-xs text-slate-600 font-medium">
-                  {[client.consultantOffice, client.consultantPhone, client.consultantEmail].filter(Boolean).join(" • ")}
-                </span>
-                <span className="text-xs text-slate-600 font-semibold block">Date: {formattedCreatedDate}</span>
+            {/* Customer & Consultant Authorization Signatures (Marketing Page 7 Layout) */}
+            <div className="grid grid-cols-2 gap-12 pt-1 text-xs">
+              <div className="space-y-5">
+                {/* Client 1 Signature */}
+                <div>
+                  <div className="font-extrabold uppercase text-slate-950 tracking-wider text-xs mb-2">
+                    CLIENT 1 SIGNATURE
+                  </div>
+                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                    Signed
+                  </div>
+                  <div className="border-b border-slate-600 py-1.5 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Print Name</span>
+                    <span className="font-semibold text-slate-900">{client.clientName || ""}</span>
+                  </div>
+                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                    Date
+                  </div>
+                </div>
+
+                {/* Client 2 Signature */}
+                <div>
+                  <div className="font-extrabold uppercase text-slate-950 tracking-wider text-xs mb-2">
+                    CLIENT 2 SIGNATURE
+                  </div>
+                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                    Signed
+                  </div>
+                  <div className="border-b border-slate-600 py-1.5 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Print Name</span>
+                    <span className="font-semibold text-slate-900">
+                      {client.hasClient2 ? client.client2Name : ""}
+                    </span>
+                  </div>
+                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                    Date
+                  </div>
+                </div>
               </div>
 
-              <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 text-[10px] text-slate-600 space-y-0.5">
-                <div className="font-black text-slate-800">{bankAccountName}</div>
-                <div>{headOfficeAddress}</div>
-                <div>Phone: 1300 246 200 · Fax: 1300 246 300 · www.hudsonhomes.com.au</div>
+              <div className="flex flex-col justify-between">
+                <div>
+                  <div className="font-extrabold uppercase text-slate-950 tracking-wider text-xs mb-2">
+                    AUTHORISED NEW HOME CONSULTANT
+                  </div>
+                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                    Signed
+                  </div>
+                  <div className="border-b border-slate-600 py-1.5 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Print Name</span>
+                    <span className="font-semibold text-slate-900">
+                      {client.consultantName || "Morgan Hales"}
+                    </span>
+                  </div>
+                  <div className="pt-2 text-[11px] text-slate-600 space-y-0.5">
+                    <div>
+                      {[client.consultantOffice || "Flagstone Display Home", client.consultantPhone || "0417 571 864", client.consultantEmail]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </div>
+                    <div>Date: {formattedCreatedDate}</div>
+                  </div>
+                </div>
+
+                <div
+                  className="p-3.5 text-[10.5px] text-slate-600 space-y-0.5 mt-4"
+                  style={{ backgroundColor: "#ededee" }}
+                >
+                  <div className="font-extrabold text-slate-950 uppercase">{bankAccountName}</div>
+                  <div>{headOfficeAddress}</div>
+                  <div>Phone: 1300 246 200 · Fax: 1300 246 300 · www.hudsonhomes.com.au</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Final Page Footer */}
-        <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
-          <div>
-            {footerLicenceLine}
-          </div>
+        {/* Final Page Marketing Footer */}
+        <div className="px-12 pb-8 pt-3 flex items-center justify-between text-[9.5px] text-slate-600">
+          <div>{footerLicenceLine}</div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
-              <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
+            <div
+              className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
+              style={{ backgroundColor: "#e6e7e8" }}
+            >
+              <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
+              <div className="bg-white w-20 h-5" />
             </div>
-            <div className="font-mono">Page {totalPages} of {totalPages}</div>
+            <div className="font-mono text-[9px] text-slate-400">
+              Page {totalPages} of {totalPages}
+            </div>
           </div>
         </div>
       </div>

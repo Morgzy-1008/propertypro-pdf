@@ -2550,6 +2550,24 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
         subtotal: (it.quantity ?? 1) * unitRate,
       };
     });
+  } else {
+    quote.lineItems = [];
+  }
+
+  if (!quote.design.customSpec) {
+    quote.design.customSpec = {
+      groundLivingM2: 0,
+      firstLivingM2: 0,
+      garageM2: 0,
+      alfrescoM2: 0,
+      porchM2: 0,
+      balconyM2: 0,
+      storeys: "single",
+      groundRateM2: 0,
+      upperRateM2: 0,
+      ancillaryRateM2: 0,
+      scaffoldingAllowance: 0,
+    };
   }
 
   // 6. Recalculate complete financial summary
