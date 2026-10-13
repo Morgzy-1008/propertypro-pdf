@@ -44,7 +44,7 @@ export const V2_STEPS: V2StepConfig[] = [
     number: 5,
     label: "Review & Export",
     shortLabel: "Review",
-    description: "Turnkey investment hero & instant PDF",
+    description: "Live Builders Estimate PDF & Export",
   },
 ];
 
