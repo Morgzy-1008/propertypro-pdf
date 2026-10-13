@@ -145,6 +145,9 @@ export interface LandScoutFilterState {
   maxLandSize?: number;
   minFrontage?: number;
   isRegisteredOnly?: boolean;
+  registrationFilter?: "all" | "registered" | "unregistered";
+  slopeCategory?: "all" | "flat" | "moderate" | "steep";
+  priceTier?: "all" | "under_400k" | "400k_600k" | "600k_800k" | "800k_plus" | "custom";
   availabilityOnly?: boolean;
   strongBuysOnly?: boolean;
   sortBy: "deal_score" | "price_asc" | "price_desc" | "size_desc" | "frontage_desc" | "newest";

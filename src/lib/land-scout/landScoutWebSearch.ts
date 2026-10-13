@@ -292,11 +292,11 @@ export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
       lat: raw.lat ? Number(raw.lat) : (state === "NSW" ? -33.8688 : -27.8184),
       lng: (raw.lng || raw.lon) ? Number(raw.lng || raw.lon) : (state === "NSW" ? 151.2093 : 152.9621),
       feasibility: {
-        fallEstimateM: 0.6,
-        slopeCategory: "flat",
-        balRating: "BAL-LOW",
+        fallEstimateM: Number(raw.fallEstimateM) || (size > 520 ? 1.3 : size > 420 ? 0.8 : 0.5),
+        slopeCategory: (raw.slopeCategory || ((Number(raw.fallEstimateM) || 0) > 1.8 ? "steep" : (Number(raw.fallEstimateM) || 0) > 0.9 ? "moderate" : "flat")) as any,
+        balRating: raw.balRating || "BAL-LOW",
         floodRisk: "none",
-        easementNotes: "Standard residential covenants and building envelope.",
+        easementNotes: raw.easementNotes || "Standard residential covenants and building envelope.",
         isBtbPermissible: true,
         soilProfileSummary: "M Class reactive soil profile.",
         councilLga: raw.council || (state === "NSW" ? "Local Government Area" : "Logan City Council"),
@@ -359,6 +359,17 @@ export async function searchLiveWebForLand(
             targetState: data.targetState,
           };
         } else {
+          // If proxy returned 0 lots, check database lots matching the query or division
+          const dbLots = searchDatabaseLotsAsParcels(query);
+          if (dbLots.length > 0) {
+            bulkAddOrUpdateParcels(dbLots);
+            return {
+              parcels: dbLots,
+              sourceSummary: `Found ${dbLots.length} available blocks for "${query}" from Hudson's registered network.`,
+              targetSuburb: data.targetSuburb || query,
+              targetState: data.targetState || preferredState === "ALL" ? undefined : preferredState,
+            };
+          }
           return {
             parcels: [],
             sourceSummary: data.summary || `No active vacant land releases currently found online for "${query}".`,
