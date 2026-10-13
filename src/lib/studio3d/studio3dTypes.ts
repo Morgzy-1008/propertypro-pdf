@@ -143,6 +143,38 @@ export interface BuildingSchedule {
   cars: number;
 }
 
+export type FacadeType = "modern" | "hamptons" | "executive" | "contempo" | "bronte";
+
+export type FenceStyle =
+  | "colorbond_monument"
+  | "colorbond_woodland"
+  | "treated_pine"
+  | "rendered_brick";
+
+export interface BoundaryConfig {
+  showFencing: boolean;
+  fenceStyle: FenceStyle;
+  fenceHeightM: number;       // standard 1.80m Australian residential boundary fence
+  lotWidthM: number;          // e.g. 15.0m
+  lotLengthM: number;         // e.g. 30.0m
+  frontSetbackM: number;      // standard 4.5m
+  rearSetbackM: number;       // standard 3.5m
+  leftSetbackM: number;       // standard 1.2m
+  rightSetbackM: number;      // standard 1.0m (or 0m for zero lot line)
+  hasSideGates: boolean;      // pedestrian access gates on side return fence
+}
+
+export interface MaterialPaletteConfig {
+  facade: FacadeType;
+  brickStyle: "austral_urban_one" | "austral_everyday_life" | "austral_whitsunday" | "monument_dark";
+  renderColor: "crisp_white" | "monument" | "cashmere" | "warm_stone";
+  claddingType: "scyon_linea_white" | "cedar_shiplap" | "vertical_groove" | "none";
+  roofColor: "monument" | "surfmist" | "shale_grey" | "basalt" | "terracotta_tile";
+  windowFrameColor: "monument" | "pearl_white" | "surfmist" | "anodised_silver";
+  garageDoorColor: "monument" | "surfmist" | "timber_look" | "basalt";
+  drivewayFinish: "exposed_aggregate" | "charcoal_stamped" | "plain_concrete";
+}
+
 export interface BuildingDesign3D {
   id: string;
   name: string;
@@ -159,6 +191,9 @@ export interface BuildingDesign3D {
   openings: Opening3D[];
   fixtures: Fixture3D[];
   roof: RoofConfig;
+  facade?: FacadeType;
+  boundary?: BoundaryConfig;
+  materials?: MaterialPaletteConfig;
   notes?: string[];
   annotations?: string[];
 }

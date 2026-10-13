@@ -11,9 +11,17 @@ import {
   Room3D,
   Opening3D,
   RoofConfig,
+  BoundaryConfig,
+  MaterialPaletteConfig,
+  FacadeType,
+  FenceStyle,
 } from "./studio3dTypes";
 import { generateProceduralHipRoof } from "./parametricRoofEngine";
 import { ensureCompleteWallNetwork } from "./wallNetworkEngine";
+import {
+  DEFAULT_BOUNDARY_CONFIG,
+  DEFAULT_MATERIAL_CONFIG,
+} from "./designs3dRegistry";
 
 export type CameraMode = "orbit" | "walkthrough";
 
@@ -53,9 +61,11 @@ export class ThreeStudioSceneManager {
   private keysPressed: Record<string, boolean> = {};
 
   // Groups
+  private boundaryGroup = new THREE.Group();
   private buildingGroup = new THREE.Group();
   private roofGroup = new THREE.Group();
   private fixturesGroup = new THREE.Group();
+  private facadeGroup = new THREE.Group();
 
   // Cached materials
   private materials: Record<string, THREE.Material> = {};
@@ -90,9 +100,11 @@ export class ThreeStudioSceneManager {
     this.setupMaterials();
 
     // 5. Build Environment & Building
+    this.scene.add(this.boundaryGroup);
     this.scene.add(this.buildingGroup);
     this.scene.add(this.fixturesGroup);
     this.scene.add(this.roofGroup);
+    this.scene.add(this.facadeGroup);
 
     if (this.design) {
       this.rebuildScene();
@@ -134,10 +146,227 @@ export class ThreeStudioSceneManager {
     this.scene.add(fillLight);
   }
 
+  private createAustralBrickTexture(brickStyle?: string): THREE.CanvasTexture | null {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    let brickColors = ["#6b7280", "#57534e", "#78716c", "#4b5563"]; // Urban One
+    let mortarColor = "#cbd5e1";
+    if (brickStyle === "austral_everyday_life") {
+      brickColors = ["#9a3412", "#7c2d12", "#b45309", "#854d0e", "#a16207"];
+      mortarColor = "#e2e8f0";
+    } else if (brickStyle === "austral_whitsunday") {
+      brickColors = ["#e7e5e4", "#d6d3d1", "#f5f5f4", "#a8a29e"];
+      mortarColor = "#f8fafc";
+    } else if (brickStyle === "monument_dark") {
+      brickColors = ["#262626", "#1c1917", "#27272a", "#3f3f46"];
+      mortarColor = "#0f172a";
+    }
+
+    ctx.fillStyle = mortarColor;
+    ctx.fillRect(0, 0, 512, 512);
+
+    const rowH = 32;
+    const brickW = 64;
+    const mortarGap = 3;
+
+    for (let y = 0; y < 512; y += rowH) {
+      const isShifted = (Math.round(y / rowH) % 2 === 1);
+      const startX = isShifted ? -brickW / 2 : 0;
+      for (let x = startX; x < 512 + brickW; x += brickW) {
+        const colIdx = Math.floor(Math.random() * brickColors.length);
+        ctx.fillStyle = brickColors[colIdx];
+        ctx.fillRect(x + mortarGap, y + mortarGap, brickW - mortarGap * 2, rowH - mortarGap * 2);
+
+        for (let n = 0; n < 8; n++) {
+          ctx.fillStyle = Math.random() > 0.5 ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)";
+          ctx.fillRect(
+            x + mortarGap + Math.random() * (brickW - mortarGap * 2),
+            y + mortarGap + Math.random() * (rowH - mortarGap * 2),
+            3,
+            2
+          );
+        }
+      }
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(4, 3);
+    return tex;
+  }
+
+  private createScyonCladdingTexture(): THREE.CanvasTexture | null {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(0, 0, 256, 256);
+
+    const boardH = 32;
+    for (let y = 0; y < 256; y += boardH) {
+      const grad = ctx.createLinearGradient(0, y, 0, y + boardH);
+      grad.addColorStop(0, "#ffffff");
+      grad.addColorStop(0.85, "#f1f5f9");
+      grad.addColorStop(1, "#cbd5e1");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, y, 256, boardH - 2);
+
+      ctx.fillStyle = "#64748b";
+      ctx.fillRect(0, y + boardH - 2, 256, 2);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 2);
+    return tex;
+  }
+
+  private createExposedAggregateTexture(): THREE.CanvasTexture | null {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.fillStyle = "#64748b";
+    ctx.fillRect(0, 0, 256, 256);
+
+    const pebbleColors = ["#ffffff", "#cbd5e1", "#334155", "#1e293b", "#d97706", "#78716c"];
+    for (let i = 0; i < 1200; i++) {
+      ctx.fillStyle = pebbleColors[Math.floor(Math.random() * pebbleColors.length)];
+      const size = 1 + Math.random() * 2.5;
+      ctx.beginPath();
+      ctx.arc(Math.random() * 256, Math.random() * 256, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = "#1e293b";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(128, 0);
+    ctx.lineTo(128, 256);
+    ctx.moveTo(0, 128);
+    ctx.lineTo(256, 128);
+    ctx.stroke();
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(3, 3);
+    return tex;
+  }
+
+  private createColorbondFenceTexture(colorHex: string): THREE.CanvasTexture | null {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.fillStyle = colorHex;
+    ctx.fillRect(0, 0, 128, 128);
+
+    const ribW = 32;
+    for (let x = 0; x < 128; x += ribW) {
+      const grad = ctx.createLinearGradient(x, 0, x + ribW, 0);
+      grad.addColorStop(0, "rgba(0,0,0,0.45)");
+      grad.addColorStop(0.3, "rgba(255,255,255,0.22)");
+      grad.addColorStop(0.7, "rgba(255,255,255,0.06)");
+      grad.addColorStop(1, "rgba(0,0,0,0.5)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(x, 0, ribW, 128);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(4, 1);
+    return tex;
+  }
+
+  private createTimberFenceTexture(): THREE.CanvasTexture | null {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.fillStyle = "#92400e";
+    ctx.fillRect(0, 0, 256, 256);
+
+    const palingW = 32;
+    for (let x = 0; x < 256; x += palingW) {
+      ctx.fillStyle = (Math.floor(x / palingW) % 2 === 0) ? "#a16207" : "#b45309";
+      ctx.fillRect(x + 1, 0, palingW - 2, 256);
+
+      for (let s = 0; s < 4; s++) {
+        ctx.fillStyle = "rgba(69, 26, 3, 0.15)";
+        ctx.fillRect(x + 3 + Math.random() * (palingW - 6), 0, 2, 256);
+      }
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(x, 0, 2, 256);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(3, 1);
+    return tex;
+  }
+
+  private createSectionalGarageTexture(): THREE.CanvasTexture | null {
+    if (typeof document === "undefined") return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(0, 0, 256, 256);
+
+    const panelH = 64;
+    for (let y = 0; y < 256; y += panelH) {
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(8, y + 6, 240, panelH - 12);
+
+      ctx.fillStyle = "rgba(0,0,0,0.65)";
+      ctx.fillRect(0, y + panelH - 3, 256, 3);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1, 1);
+    return tex;
+  }
+
   private setupMaterials(): void {
     let timberTexture: THREE.CanvasTexture | null = null;
     let carpetTexture: THREE.CanvasTexture | null = null;
     let tileTexture: THREE.CanvasTexture | null = null;
+    const brickStyle = this.design?.materials?.brickStyle || "austral_urban_one";
+    const brickTexture = this.createAustralBrickTexture(brickStyle);
+    const claddingTexture = this.createScyonCladdingTexture();
+    const aggregateDrivewayTexture = this.createExposedAggregateTexture();
+    const colorbondFenceTexture = this.createColorbondFenceTexture("#2b2e35");
+    const timberFenceTexture = this.createTimberFenceTexture();
+    const garageDoorTexture = this.createSectionalGarageTexture();
 
     if (typeof document !== "undefined") {
       // 1. Procedural Oak Timber Floor Texture
@@ -146,9 +375,8 @@ export class ThreeStudioSceneManager {
       timberCanvas.height = 256;
       const tCtx = timberCanvas.getContext("2d");
       if (tCtx) {
-        tCtx.fillStyle = "#b48455"; // Warm natural oak
+        tCtx.fillStyle = "#b48455";
         tCtx.fillRect(0, 0, 256, 256);
-        // Plank lines
         tCtx.strokeStyle = "#805229";
         tCtx.lineWidth = 2;
         for (let y = 0; y < 256; y += 32) {
@@ -157,7 +385,6 @@ export class ThreeStudioSceneManager {
           tCtx.lineTo(256, y);
           tCtx.stroke();
         }
-        // Staggered butt joints
         for (let y = 0; y < 256; y += 32) {
           const offset = (y % 64 === 0) ? 64 : 128;
           for (let x = offset; x < 256; x += 128) {
@@ -179,7 +406,7 @@ export class ThreeStudioSceneManager {
       carpetCanvas.height = 128;
       const cCtx = carpetCanvas.getContext("2d");
       if (cCtx) {
-        cCtx.fillStyle = "#8a8f98"; // Warm heather grey
+        cCtx.fillStyle = "#8a8f98";
         cCtx.fillRect(0, 0, 128, 128);
         for (let i = 0; i < 400; i++) {
           cCtx.fillStyle = Math.random() > 0.5 ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)";
@@ -197,9 +424,9 @@ export class ThreeStudioSceneManager {
       tileCanvas.height = 128;
       const tlCtx = tileCanvas.getContext("2d");
       if (tlCtx) {
-        tlCtx.fillStyle = "#e2e8f0"; // Bright porcelain
+        tlCtx.fillStyle = "#e2e8f0";
         tlCtx.fillRect(0, 0, 128, 128);
-        tlCtx.strokeStyle = "#94a3b8"; // Grout line
+        tlCtx.strokeStyle = "#94a3b8";
         tlCtx.lineWidth = 3;
         tlCtx.strokeRect(0, 0, 128, 128);
       }
@@ -238,19 +465,49 @@ export class ThreeStudioSceneManager {
       roughness: 0.6,
     });
 
-    // 6. Exterior Brick
+    // 6. Exterior Brick (Authentic Austral Stretcher Bond)
     this.materials.brick = new THREE.MeshStandardMaterial({
-      color: 0xa87a5b, // Classic Australian brick hue
+      ...(brickTexture ? { map: brickTexture } : { color: 0x6b7280 }),
       roughness: 0.75,
     });
 
-    // 7. Interior Wall Paint
+    // 7. Scyon Linea Horizontal Cladding
+    this.materials.cladding = new THREE.MeshStandardMaterial({
+      ...(claddingTexture ? { map: claddingTexture } : { color: 0xf8fafc }),
+      roughness: 0.55,
+    });
+
+    // 8. Exposed Aggregate Driveway
+    this.materials.aggregateDriveway = new THREE.MeshStandardMaterial({
+      ...(aggregateDrivewayTexture ? { map: aggregateDrivewayTexture } : { color: 0x64748b }),
+      roughness: 0.7,
+    });
+
+    // 9. Boundary Fencing (Colorbond Monument & Treated Pine)
+    this.materials.colorbondFence = new THREE.MeshStandardMaterial({
+      ...(colorbondFenceTexture ? { map: colorbondFenceTexture } : { color: 0x2b2e35 }),
+      roughness: 0.45,
+      metalness: 0.25,
+    });
+    this.materials.timberFence = new THREE.MeshStandardMaterial({
+      ...(timberFenceTexture ? { map: timberFenceTexture } : { color: 0xa16207 }),
+      roughness: 0.75,
+    });
+
+    // 10. Sectional Garage Door
+    this.materials.garageDoor = new THREE.MeshStandardMaterial({
+      ...(garageDoorTexture ? { map: garageDoorTexture } : { color: 0x1e293b }),
+      roughness: 0.4,
+      metalness: 0.4,
+    });
+
+    // 11. Interior Wall Paint
     this.materials.interiorWall = new THREE.MeshStandardMaterial({
-      color: 0xf1f5f9, // Warm off-white alabaster
+      color: 0xf1f5f9,
       roughness: 0.6,
     });
 
-    // 8. Glass & Windows
+    // 12. Glass & Windows
     this.materials.glass = new THREE.MeshPhysicalMaterial({
       color: 0xc8e6f5,
       transmission: 0.85,
@@ -260,26 +517,67 @@ export class ThreeStudioSceneManager {
       ior: 1.5,
     });
 
-    // 9. Window & Door Aluminium Frames (Monument)
+    this.materials.frostedGlass = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      transmission: 0.65,
+      opacity: 0.8,
+      transparent: true,
+      roughness: 0.35,
+    });
+
+    // 13. Window & Door Aluminium Frames (Monument)
     this.materials.frame = new THREE.MeshStandardMaterial({
       color: 0x1e293b,
       roughness: 0.4,
       metalness: 0.5,
     });
 
-    // 10. Architectural Timber Barn Door
+    // 14. Facade Renders & Details
+    this.materials.renderMonument = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.65,
+    });
+    this.materials.renderWhite = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.55,
+    });
+    this.materials.stoneCap = new THREE.MeshStandardMaterial({
+      color: 0xd6d3d1,
+      roughness: 0.4,
+    });
+    this.materials.cedarBatten = new THREE.MeshStandardMaterial({
+      color: 0xb45309,
+      roughness: 0.45,
+    });
+    this.materials.stainlessSteel = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      roughness: 0.15,
+      metalness: 0.9,
+    });
+
+    // 15. Cadastral Survey Boundary Pegs
+    this.materials.surveyPeg = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.5,
+    });
+    this.materials.surveyPegTop = new THREE.MeshStandardMaterial({
+      color: 0xef4444,
+      roughness: 0.4,
+    });
+
+    // 16. Architectural Timber Barn Door
     this.materials.barnDoorWood = new THREE.MeshStandardMaterial({
-      color: 0x78350f, // Deep rustic walnut
+      color: 0x78350f,
       roughness: 0.55,
     });
     this.materials.barnDoorIron = new THREE.MeshStandardMaterial({
-      color: 0x0f172a, // Matte black steel track
+      color: 0x0f172a,
       roughness: 0.3,
       metalness: 0.8,
     });
   }
 
-  public rebuildScene(): void {
+  public rebuildScene(preserveCamera = false): void {
     if (!this.design) {
       this.buildEmptyStudio();
       return;
@@ -291,6 +589,9 @@ export class ThreeStudioSceneManager {
     }
 
     // Clear previous geometry
+    while (this.boundaryGroup.children.length > 0) {
+      this.boundaryGroup.remove(this.boundaryGroup.children[0]);
+    }
     while (this.buildingGroup.children.length > 0) {
       this.buildingGroup.remove(this.buildingGroup.children[0]);
     }
@@ -300,43 +601,76 @@ export class ThreeStudioSceneManager {
     while (this.roofGroup.children.length > 0) {
       this.roofGroup.remove(this.roofGroup.children[0]);
     }
+    while (this.facadeGroup.children.length > 0) {
+      this.facadeGroup.remove(this.facadeGroup.children[0]);
+    }
 
     // Set orbit target to center of building and update camera
     const centerX = this.design.widthM / 2;
     const centerZ = this.design.lengthM / 2;
     this.orbitTarget.set(centerX, 1.2, centerZ);
     if (this.cameraMode === "orbit") {
-      const maxDim = Math.max(this.design.widthM, this.design.lengthM);
-      this.orbitDistance = Math.max(16, maxDim * 1.35);
+      if (!preserveCamera) {
+        const maxDim = Math.max(this.design.widthM, this.design.lengthM);
+        this.orbitDistance = Math.max(16, maxDim * 1.35);
+      }
       this.updateOrbitCamera();
     }
 
     // 1. Build Ground, Driveway, and Concrete Slab
     this.buildGroundAndSlab();
 
-    // 2. Build Room Floors
+    // 2. Build Lot Boundaries, Cadastral Pegs, and 1.8m Australian Fencing
+    this.buildBoundariesAndFences();
+
+    // 3. Build Room Floors
     this.buildRoomFloors();
 
-    // 3. Build Walls with accurate Door & Window cutouts
+    // 4. Build Walls with accurate Door & Window cutouts
     this.buildWallsAndOpenings();
 
-    // 4. Build Interior Fixtures (Kitchen island, vanities, baths, cinema seats, mud nook)
+    // 5. Build Architectural Facade Features (Columns, Gables, Portico)
+    this.buildFacadeFeatures();
+
+    // 6. Build Interior Fixtures (Kitchen island, vanities, baths, cinema seats, mud nook)
     this.buildFixtures();
 
-    // 5. Build Parametric Hip Roof
+    // 7. Build Parametric Hip Roof
     this.buildRoof();
   }
 
   private buildGroundAndSlab(): void {
     if (!this.design) return;
-    // Manicured Green Turf Ground
-    const groundGeom = new THREE.PlaneGeometry(80, 80);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e3a1e, roughness: 0.9 });
+    const boundary = this.design.boundary || DEFAULT_BOUNDARY_CONFIG;
+    const setbackFront = boundary.frontSetbackM || 4.5;
+    const setbackRear = boundary.rearSetbackM || 3.5;
+    const setbackLeft = boundary.leftSetbackM || 1.2;
+    const setbackRight = boundary.rightSetbackM || 1.0;
+
+    const lotLeft = -setbackLeft;
+    const lotRight = this.design.widthM + setbackRight;
+    const lotFront = -setbackFront;
+    const lotRear = this.design.lengthM + setbackRear;
+    const lotW = lotRight - lotLeft;
+    const lotL = lotRear - lotFront;
+
+    // Outer Regional Ground
+    const groundGeom = new THREE.PlaneGeometry(100, 100);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x1a331a, roughness: 0.95 });
     const groundMesh = new THREE.Mesh(groundGeom, groundMat);
     groundMesh.rotation.x = -Math.PI / 2;
-    groundMesh.position.y = -0.05;
+    groundMesh.position.y = -0.06;
     groundMesh.receiveShadow = true;
     this.buildingGroup.add(groundMesh);
+
+    // Manicured Emerald Lot Turf Pad (exact lot boundary)
+    const lotTurfGeom = new THREE.PlaneGeometry(lotW, lotL);
+    const lotTurfMat = new THREE.MeshStandardMaterial({ color: 0x244e24, roughness: 0.9 });
+    const lotTurfMesh = new THREE.Mesh(lotTurfGeom, lotTurfMat);
+    lotTurfMesh.rotation.x = -Math.PI / 2;
+    lotTurfMesh.position.set(lotLeft + lotW / 2, -0.02, lotFront + lotL / 2);
+    lotTurfMesh.receiveShadow = true;
+    this.buildingGroup.add(lotTurfMesh);
 
     // Concrete Slab Foundation (300mm FFL)
     const slabW = this.design.widthM;
@@ -348,21 +682,306 @@ export class ThreeStudioSceneManager {
     slabMesh.receiveShadow = true;
     this.buildingGroup.add(slabMesh);
 
-    // Concrete Driveway to Garage
-    const drivewayGeom = new THREE.BoxGeometry(6.5, 0.05, 12);
-    const drivewayMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.7 });
-    const drivewayMesh = new THREE.Mesh(drivewayGeom, drivewayMat);
-    drivewayMesh.position.set(slabW - 3.5, 0.02, -6);
+    // Exposed Aggregate Concrete Driveway to Garage
+    const garageOpening = (this.design.openings || []).find((op) => op.type === "garage_door");
+    const garageX = garageOpening ? garageOpening.position[0] : (slabW - 3.5);
+    const driveW = garageOpening ? Math.max(5.4, garageOpening.width + 0.6) : 6.0;
+    const driveL = Math.abs(lotFront) + 2.0; // extends to boundary line
+    const drivewayGeom = new THREE.BoxGeometry(driveW, 0.05, driveL);
+    const drivewayMesh = new THREE.Mesh(drivewayGeom, this.materials.aggregateDriveway);
+    drivewayMesh.position.set(garageX, 0.025, lotFront / 2 - 1.0);
     drivewayMesh.receiveShadow = true;
     this.buildingGroup.add(drivewayMesh);
 
     // Paved Front Walkway to Porch
-    const pathGeom = new THREE.BoxGeometry(1.8, 0.06, 8);
-    const pathMat = new THREE.MeshStandardMaterial({ color: 0xcfd8dc, roughness: 0.6 });
-    const pathMesh = new THREE.Mesh(pathGeom, pathMat);
-    pathMesh.position.set(6.5, 0.03, -4);
+    const porch = (this.design.rooms || []).find((r) => r.name === "Porch");
+    const pathX = porch ? porch.center[0] : 6.5;
+    const pathL = Math.abs(lotFront) + 1.0;
+    const pathGeom = new THREE.BoxGeometry(1.6, 0.06, pathL);
+    const pathMesh = new THREE.Mesh(pathGeom, this.materials.stoneCap);
+    pathMesh.position.set(pathX, 0.03, lotFront / 2 - 0.5);
     pathMesh.receiveShadow = true;
     this.buildingGroup.add(pathMesh);
+
+    // Landscaped Garden Mulch Bed between Walkway and Driveway
+    if (Math.abs(garageX - pathX) > 2.5) {
+      const bedW = Math.abs(garageX - pathX) - (driveW / 2 + 0.8);
+      if (bedW > 0.5) {
+        const bedGeom = new THREE.BoxGeometry(bedW, 0.04, pathL - 1.5);
+        const bedMat = new THREE.MeshStandardMaterial({ color: 0x3f2715, roughness: 0.95 }); // dark rich mulch
+        const bedMesh = new THREE.Mesh(bedGeom, bedMat);
+        bedMesh.position.set((pathX + garageX) / 2, 0.02, lotFront / 2);
+        this.buildingGroup.add(bedMesh);
+      }
+    }
+  }
+
+  private buildBoundariesAndFences(): void {
+    if (!this.design) return;
+    const boundary = this.design.boundary || DEFAULT_BOUNDARY_CONFIG;
+    const setbackFront = boundary.frontSetbackM || 4.5;
+    const setbackRear = boundary.rearSetbackM || 3.5;
+    const setbackLeft = boundary.leftSetbackM || 1.2;
+    const setbackRight = boundary.rightSetbackM || 1.0;
+
+    const lotLeft = -setbackLeft;
+    const lotRight = this.design.widthM + setbackRight;
+    const lotFront = -setbackFront;
+    const lotRear = this.design.lengthM + setbackRear;
+    const fenceH = boundary.fenceHeightM || 1.80;
+
+    // 1. Cadastral Survey Boundary Pegs (4 lot corners)
+    const corners = [
+      [lotLeft, lotFront],
+      [lotRight, lotFront],
+      [lotLeft, lotRear],
+      [lotRight, lotRear],
+    ];
+    corners.forEach(([cx, cz]) => {
+      const pegGeom = new THREE.BoxGeometry(0.06, 0.35, 0.06);
+      const pegMesh = new THREE.Mesh(pegGeom, this.materials.surveyPeg);
+      pegMesh.position.set(cx, 0.175, cz);
+      this.boundaryGroup.add(pegMesh);
+
+      const topGeom = new THREE.BoxGeometry(0.065, 0.06, 0.065);
+      const topMesh = new THREE.Mesh(topGeom, this.materials.surveyPegTop);
+      topMesh.position.set(cx, 0.33, cz);
+      this.boundaryGroup.add(topMesh);
+    });
+
+    // 2. Lot Boundary Perimeter Cadastral Line
+    const linePoints = [
+      new THREE.Vector3(lotLeft, 0.015, lotFront),
+      new THREE.Vector3(lotRight, 0.015, lotFront),
+      new THREE.Vector3(lotRight, 0.015, lotRear),
+      new THREE.Vector3(lotLeft, 0.015, lotRear),
+      new THREE.Vector3(lotLeft, 0.015, lotFront),
+    ];
+    const lineGeom = new THREE.BufferGeometry().setFromPoints(linePoints);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 2, transparent: true, opacity: 0.65 });
+    const boundaryLine = new THREE.Line(lineGeom, lineMat);
+    this.boundaryGroup.add(boundaryLine);
+
+    if (!boundary.showFencing) return;
+
+    // 3. Fencing Style Selection
+    let fenceMat = this.materials.colorbondFence;
+    let postMat = this.materials.frame;
+    if (boundary.fenceStyle === "treated_pine") {
+      fenceMat = this.materials.timberFence;
+      postMat = this.materials.barnDoorWood;
+    } else if (boundary.fenceStyle === "rendered_brick") {
+      fenceMat = this.materials.brick;
+      postMat = this.materials.renderMonument;
+    }
+
+    const addFenceRun = (x1: number, z1: number, x2: number, z2: number) => {
+      const p1 = new THREE.Vector2(x1, z1);
+      const p2 = new THREE.Vector2(x2, z2);
+      const len = p1.distanceTo(p2);
+      if (len < 0.1) return;
+
+      const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+      const midX = (p1.x + p2.x) / 2;
+      const midZ = (p1.y + p2.y) / 2;
+
+      const panelGeom = new THREE.BoxGeometry(len, fenceH - 0.08, 0.04);
+      const panelMesh = new THREE.Mesh(panelGeom, fenceMat);
+      panelMesh.position.set(midX, (fenceH - 0.08) / 2, midZ);
+      panelMesh.rotation.y = -angle;
+      panelMesh.castShadow = true;
+      panelMesh.receiveShadow = true;
+      this.boundaryGroup.add(panelMesh);
+
+      const capGeom = new THREE.BoxGeometry(len, 0.06, 0.07);
+      const capMesh = new THREE.Mesh(capGeom, postMat);
+      capMesh.position.set(midX, fenceH - 0.03, midZ);
+      capMesh.rotation.y = -angle;
+      capMesh.castShadow = true;
+      this.boundaryGroup.add(capMesh);
+
+      const numPosts = Math.max(1, Math.round(len / 2.4));
+      for (let i = 0; i <= numPosts; i++) {
+        const t = i / numPosts;
+        const postX = p1.x + Math.cos(angle) * (len * t);
+        const postZ = p1.y + Math.sin(angle) * (len * t);
+        const postGeom = new THREE.BoxGeometry(0.08, fenceH + 0.06, 0.08);
+        const postMesh = new THREE.Mesh(postGeom, postMat);
+        postMesh.position.set(postX, (fenceH + 0.06) / 2, postZ);
+        postMesh.rotation.y = -angle;
+        postMesh.castShadow = true;
+        this.boundaryGroup.add(postMesh);
+      }
+    };
+
+    // A. Rear Boundary Fence
+    addFenceRun(lotLeft, lotRear, lotRight, lotRear);
+
+    // B. Left Boundary Fence
+    addFenceRun(lotLeft, lotRear, lotLeft, 0.0);
+
+    // C. Right Boundary Fence
+    addFenceRun(lotRight, lotRear, lotRight, 0.0);
+
+    // D. Left Side Return Wing Fence with 900mm Pedestrian Gate
+    const wingZ = 1.8;
+    if (boundary.hasSideGates && Math.abs(lotLeft) >= 1.0) {
+      const gateWidth = 0.90;
+      const wingFenceEnd = -gateWidth;
+      addFenceRun(lotLeft, wingZ, wingFenceEnd, wingZ);
+
+      // 900mm Pedestrian Side Access Gate
+      const gateMidX = wingFenceEnd + gateWidth / 2;
+      const gateGeom = new THREE.BoxGeometry(gateWidth - 0.04, fenceH - 0.12, 0.035);
+      const gateMesh = new THREE.Mesh(gateGeom, fenceMat);
+      gateMesh.position.set(gateMidX, (fenceH - 0.12) / 2, wingZ);
+      gateMesh.castShadow = true;
+      this.boundaryGroup.add(gateMesh);
+
+      const frameGeom = new THREE.BoxGeometry(gateWidth - 0.02, 0.05, 0.045);
+      const topFrame = new THREE.Mesh(frameGeom, postMat);
+      topFrame.position.set(gateMidX, fenceH - 0.12, wingZ);
+      this.boundaryGroup.add(topFrame);
+      const botFrame = new THREE.Mesh(frameGeom, postMat);
+      botFrame.position.set(gateMidX, 0.06, wingZ);
+      this.boundaryGroup.add(botFrame);
+
+      const latchGeom = new THREE.BoxGeometry(0.04, 0.14, 0.08);
+      const latchMesh = new THREE.Mesh(latchGeom, this.materials.barnDoorIron);
+      latchMesh.position.set(wingFenceEnd + gateWidth - 0.08, 1.05, wingZ);
+      this.boundaryGroup.add(latchMesh);
+    } else {
+      addFenceRun(lotLeft, wingZ, 0, wingZ);
+    }
+
+    // E. Right Side Return Wing Fence
+    addFenceRun(this.design.widthM, wingZ, lotRight, wingZ);
+  }
+
+  private buildFacadeFeatures(): void {
+    if (!this.design) return;
+    const facade: FacadeType = this.design.facade || this.design.materials?.facade || "modern";
+    const ceilingH = this.design.ceilingHeightM;
+    const ffl = 0.30;
+    const porchH = ceilingH;
+
+    const porch = (this.design.rooms || []).find((r) => r.name === "Porch");
+    const porchP1 = porch && porch.polygon && porch.polygon.length > 0 ? porch.polygon[0] : [5.6, 0.0];
+    const porchP2 = porch && porch.polygon && porch.polygon.length > 1 ? porch.polygon[1] : [7.4, 0.0];
+    const colX = porchP1[0];
+    const colZ = porchP1[1];
+
+    if (facade === "hamptons") {
+      // HAMPTONS COASTAL FACADE
+      // 1. Painted White Timber Post with Capital & Plinth
+      const postGeom = new THREE.BoxGeometry(0.12, porchH, 0.12);
+      const postMesh = new THREE.Mesh(postGeom, this.materials.renderWhite);
+      postMesh.position.set(colX, ffl + porchH / 2, colZ);
+      postMesh.castShadow = true;
+      this.facadeGroup.add(postMesh);
+
+      const capGeom = new THREE.BoxGeometry(0.18, 0.08, 0.18);
+      const capMesh = new THREE.Mesh(capGeom, this.materials.renderWhite);
+      capMesh.position.set(colX, ffl + porchH - 0.04, colZ);
+      this.facadeGroup.add(capMesh);
+
+      const plinthGeom = new THREE.BoxGeometry(0.20, 0.25, 0.20);
+      const plinthMesh = new THREE.Mesh(plinthGeom, this.materials.renderWhite);
+      plinthMesh.position.set(colX, ffl + 0.125, colZ);
+      this.facadeGroup.add(plinthMesh);
+
+      // 2. Scyon Linea Cladding Front Gable Peak
+      const gableW = Math.max(3.2, Math.abs(porchP2[0] - porchP1[0]) + 1.2);
+      const gableH = 1.35;
+      const gableGeom = new THREE.ConeGeometry(gableW / 2, gableH, 4);
+      const gableMesh = new THREE.Mesh(gableGeom, this.materials.cladding);
+      gableMesh.rotation.y = Math.PI / 4;
+      gableMesh.position.set((porchP1[0] + porchP2[0]) / 2, ffl + porchH + gableH / 2, colZ - 0.05);
+      gableMesh.scale.set(1, 1, 0.08);
+      this.facadeGroup.add(gableMesh);
+
+      const trimGeom = new THREE.BoxGeometry(gableW * 0.75, 0.08, 0.06);
+      const trimMesh = new THREE.Mesh(trimGeom, this.materials.renderWhite);
+      trimMesh.position.set((porchP1[0] + porchP2[0]) / 2, ffl + porchH + 0.04, colZ);
+      this.facadeGroup.add(trimMesh);
+
+    } else if (facade === "executive") {
+      // EXECUTIVE GRANDE FACADE
+      // 1. Substantial 470mm x 470mm Austral Face Brick Pier
+      const pierGeom = new THREE.BoxGeometry(0.47, porchH, 0.47);
+      const pierMesh = new THREE.Mesh(pierGeom, this.materials.brick);
+      pierMesh.position.set(colX, ffl + porchH / 2, colZ);
+      pierMesh.castShadow = true;
+      this.facadeGroup.add(pierMesh);
+
+      const stoneCapGeom = new THREE.BoxGeometry(0.53, 0.09, 0.53);
+      const stoneCapMesh = new THREE.Mesh(stoneCapGeom, this.materials.stoneCap);
+      stoneCapMesh.position.set(colX, ffl + porchH - 0.045, colZ);
+      this.facadeGroup.add(stoneCapMesh);
+
+      const beamW = Math.abs(porchP2[0] - porchP1[0]) + 0.6;
+      const beamGeom = new THREE.BoxGeometry(beamW, 0.28, 0.35);
+      const beamMesh = new THREE.Mesh(beamGeom, this.materials.renderMonument);
+      beamMesh.position.set((porchP1[0] + porchP2[0]) / 2, ffl + porchH - 0.14, colZ);
+      beamMesh.castShadow = true;
+      this.facadeGroup.add(beamMesh);
+
+    } else if (facade === "contempo") {
+      // CONTEMPO TIMBER FACADE
+      // 1. Vertical Cedar Batten Screen (5 slender battens)
+      const battenCount = 5;
+      const screenW = 1.0;
+      for (let i = 0; i < battenCount; i++) {
+        const bx = colX - screenW / 2 + (i / (battenCount - 1)) * screenW;
+        const battenGeom = new THREE.BoxGeometry(0.05, porchH, 0.04);
+        const battenMesh = new THREE.Mesh(battenGeom, this.materials.cedarBatten);
+        battenMesh.position.set(bx, ffl + porchH / 2, colZ);
+        battenMesh.castShadow = true;
+        this.facadeGroup.add(battenMesh);
+      }
+
+      const canopyW = Math.abs(porchP2[0] - porchP1[0]) + 0.8;
+      const canopyGeom = new THREE.BoxGeometry(canopyW, 0.15, 1.4);
+      const canopyMesh = new THREE.Mesh(canopyGeom, this.materials.renderMonument);
+      canopyMesh.position.set((porchP1[0] + porchP2[0]) / 2, ffl + porchH, colZ + 0.6);
+      canopyMesh.castShadow = true;
+      this.facadeGroup.add(canopyMesh);
+
+    } else if (facade === "bronte") {
+      // BRONTE DESIGNER FACADE
+      const colGeom = new THREE.BoxGeometry(0.14, porchH, 0.14);
+      const colMesh = new THREE.Mesh(colGeom, this.materials.renderWhite);
+      colMesh.position.set(colX, ffl + porchH / 2, colZ);
+      colMesh.castShadow = true;
+      this.facadeGroup.add(colMesh);
+
+      const collarGeom = new THREE.BoxGeometry(0.16, 0.18, 0.16);
+      const collarMesh = new THREE.Mesh(collarGeom, this.materials.renderMonument);
+      collarMesh.position.set(colX, ffl + 0.09, colZ);
+      this.facadeGroup.add(collarMesh);
+
+      const slabW = Math.abs(porchP2[0] - porchP1[0]) + 0.6;
+      const slabGeom = new THREE.BoxGeometry(slabW, 0.12, 1.6);
+      const slabMesh = new THREE.Mesh(slabGeom, this.materials.renderWhite);
+      slabMesh.position.set((porchP1[0] + porchP2[0]) / 2, ffl + porchH, colZ + 0.6);
+      slabMesh.castShadow = true;
+      this.facadeGroup.add(slabMesh);
+
+    } else {
+      // MODERN METRO FACADE
+      const pierGeom = new THREE.BoxGeometry(0.35, porchH, 0.35);
+      const pierMesh = new THREE.Mesh(pierGeom, this.materials.renderMonument);
+      pierMesh.position.set(colX, ffl + porchH / 2, colZ);
+      pierMesh.castShadow = true;
+      this.facadeGroup.add(pierMesh);
+
+      const beamW = Math.abs(porchP2[0] - porchP1[0]) + 0.5;
+      const beamGeom = new THREE.BoxGeometry(beamW, 0.22, 0.25);
+      const beamMesh = new THREE.Mesh(beamGeom, this.materials.renderWhite);
+      beamMesh.position.set((porchP1[0] + porchP2[0]) / 2, ffl + porchH - 0.11, colZ);
+      beamMesh.castShadow = true;
+      this.facadeGroup.add(beamMesh);
+    }
   }
 
   private buildRoomFloors(): void {
@@ -517,68 +1136,182 @@ export class ThreeStudioSceneManager {
     const x = op.position[0];
     const z = op.position[1];
 
+    const facade: FacadeType = this.design?.facade || this.design?.materials?.facade || "modern";
+
     if (op.type === "barn_door") {
       // High-Detail Timber Barn Door with Top Black Steel Roller Track
-      // 1. Top Track Rail
       const trackGeom = new THREE.CylinderGeometry(0.015, 0.015, op.width * 1.8, 16);
       const trackMesh = new THREE.Mesh(trackGeom, this.materials.barnDoorIron);
       trackMesh.rotation.z = Math.PI / 2;
       trackMesh.position.set(0, op.headHeight + 0.08, 0.06);
       group.add(trackMesh);
 
-      // 2. Door Slab (Warm Rustic Timber with cross bracing)
       const slabGeom = new THREE.BoxGeometry(op.width, op.height, 0.04);
       const slabMesh = new THREE.Mesh(slabGeom, this.materials.barnDoorWood);
       slabMesh.position.set(0, op.height / 2, 0.06);
       slabMesh.castShadow = true;
       group.add(slabMesh);
 
-      // 3. Black Iron Rollers
       const roller1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 16), this.materials.barnDoorIron);
       roller1.position.set(-op.width * 0.35, op.headHeight + 0.08, 0.06);
       group.add(roller1);
       const roller2 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 16), this.materials.barnDoorIron);
       roller2.position.set(op.width * 0.35, op.headHeight + 0.08, 0.06);
       group.add(roller2);
+
     } else if (op.type === "garage_door") {
-      // 4-Panel Sectional Garage Door
+      // High-Detail 4-Panel Sectional Garage Door
       const doorGeom = new THREE.BoxGeometry(op.width, op.height, 0.05);
-      const doorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.4 });
-      const doorMesh = new THREE.Mesh(doorGeom, doorMat);
+      const doorMesh = new THREE.Mesh(doorGeom, this.materials.garageDoor);
       doorMesh.position.set(0, op.height / 2, 0);
+      doorMesh.castShadow = true;
       group.add(doorMesh);
+
+      // Perimeter Weatherstrip Trim
+      const trimTopGeom = new THREE.BoxGeometry(op.width + 0.06, 0.04, 0.07);
+      const trimTopMesh = new THREE.Mesh(trimTopGeom, this.materials.frame);
+      trimTopMesh.position.set(0, op.height + 0.02, 0.01);
+      group.add(trimTopMesh);
+
     } else if (op.type === "stacker_door" || op.type === "sliding_door") {
-      // 2-Panel or 3-Panel Aluminium Stacker Sliding Glass Door
+      // 2-Panel or 3-Panel Stacker / Sliding Glass Door with Floor Track
       const frameGeom = new THREE.BoxGeometry(op.width, op.height, 0.12);
       const frameMesh = new THREE.Mesh(frameGeom, this.materials.frame);
       frameMesh.position.set(0, op.height / 2, 0);
       group.add(frameMesh);
 
-      const glassGeom = new THREE.BoxGeometry(op.width - 0.08, op.height - 0.08, 0.02);
-      const glassMesh = new THREE.Mesh(glassGeom, this.materials.glass);
-      glassMesh.position.set(0, op.height / 2, 0);
-      group.add(glassMesh);
+      // Recessed Floor Track
+      const trackGeom = new THREE.BoxGeometry(op.width + 0.04, 0.03, 0.14);
+      const trackMesh = new THREE.Mesh(trackGeom, this.materials.frame);
+      trackMesh.position.set(0, 0.015, 0);
+      group.add(trackMesh);
+
+      // Multiple Glazed Sliding Sashes
+      const isStacker = op.type === "stacker_door" || op.width >= 3.0;
+      const panelCount = isStacker ? 3 : 2;
+      const panelW = (op.width - 0.08) / panelCount;
+      for (let p = 0; p < panelCount; p++) {
+        const pX = -((op.width - 0.08) / 2) + panelW / 2 + p * panelW;
+        const pZ = (p % 2 === 0 ? 0.02 : -0.02);
+
+        const glassGeom = new THREE.BoxGeometry(panelW - 0.04, op.height - 0.10, 0.015);
+        const glassMesh = new THREE.Mesh(glassGeom, this.materials.glass);
+        glassMesh.position.set(pX, op.height / 2, pZ);
+        group.add(glassMesh);
+
+        // Stile frame bar
+        const stileGeom = new THREE.BoxGeometry(0.04, op.height - 0.06, 0.035);
+        const stileMesh = new THREE.Mesh(stileGeom, this.materials.frame);
+        stileMesh.position.set(pX + panelW / 2 - 0.02, op.height / 2, pZ);
+        group.add(stileMesh);
+      }
+
     } else if (op.type === "window") {
-      // Glazed Aluminium Window with Frame and Sill
-      const frameGeom = new THREE.BoxGeometry(op.width, op.height, 0.12);
+      // Architectural Window with Projecting 50mm Sill Ledge
+      const sillGeom = new THREE.BoxGeometry(op.width + 0.08, 0.05, 0.09);
+      const sillMesh = new THREE.Mesh(sillGeom, this.materials.stoneCap);
+      sillMesh.position.set(0, op.sillHeight - 0.025, 0.06);
+      sillMesh.castShadow = true;
+      group.add(sillMesh);
+
+      // Outer Perimeter Aluminium Frame
+      const frameGeom = new THREE.BoxGeometry(op.width, op.height, 0.10);
       const frameMesh = new THREE.Mesh(frameGeom, this.materials.frame);
       frameMesh.position.set(0, op.sillHeight + op.height / 2, 0);
       group.add(frameMesh);
 
+      // Glazing Pane
       const glassGeom = new THREE.BoxGeometry(op.width - 0.08, op.height - 0.08, 0.02);
       const glassMesh = new THREE.Mesh(glassGeom, this.materials.glass);
       glassMesh.position.set(0, op.sillHeight + op.height / 2, 0);
       group.add(glassMesh);
+
+      // Center Sash Mullion
+      const mullionGeom = new THREE.BoxGeometry(0.035, op.height - 0.06, 0.035);
+      const mullionMesh = new THREE.Mesh(mullionGeom, this.materials.frame);
+      mullionMesh.position.set(0, op.sillHeight + op.height / 2, 0.015);
+      group.add(mullionMesh);
+
+      // Hamptons Colonial Glazing Bars (Crisp White Cross Grid)
+      if (facade === "hamptons") {
+        const barMat = this.materials.renderWhite;
+        [-op.height * 0.22, op.height * 0.22].forEach((offsetY) => {
+          const hBarGeom = new THREE.BoxGeometry(op.width - 0.08, 0.018, 0.018);
+          const hBarMesh = new THREE.Mesh(hBarGeom, barMat);
+          hBarMesh.position.set(0, op.sillHeight + op.height / 2 + offsetY, 0.018);
+          group.add(hBarMesh);
+        });
+      }
+
     } else if (op.type === "archway") {
-      // Open architectural portal archway - no solid door panel
       return;
+
     } else {
-      // Standard Hinged Door Panel
-      const doorGeom = new THREE.BoxGeometry(op.width, op.height, 0.04);
-      const doorMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.6 });
-      const doorMesh = new THREE.Mesh(doorGeom, doorMat);
-      doorMesh.position.set(0, op.height / 2, 0);
-      group.add(doorMesh);
+      // HINGED DOORS: Front Entry vs Standard Hinged
+      const isFrontEntry = op.isExterior && (op.code.includes("EXT") || op.label.toLowerCase().includes("entry"));
+
+      if (isFrontEntry) {
+        // Grand Front Entry Door (1020mm Pivot Door with Frosted Sidelight)
+        const frameGeom = new THREE.BoxGeometry(op.width, op.height, 0.12);
+        const frameMesh = new THREE.Mesh(frameGeom, this.materials.frame);
+        frameMesh.position.set(0, op.height / 2, 0);
+        group.add(frameMesh);
+
+        const hasSidelight = op.width >= 1.0;
+        const doorSlabW = hasSidelight ? 0.82 : op.width - 0.06;
+        const sidelightW = hasSidelight ? op.width - 0.88 : 0;
+        const doorSlabX = hasSidelight ? (op.width / 2 - doorSlabW / 2) : 0;
+
+        // Front Door Slab
+        let doorMat = this.materials.renderMonument;
+        if (facade === "hamptons") doorMat = this.materials.renderWhite;
+        if (facade === "contempo") doorMat = this.materials.cedarBatten;
+
+        const doorGeom = new THREE.BoxGeometry(doorSlabW, op.height - 0.06, 0.045);
+        const doorMesh = new THREE.Mesh(doorGeom, doorMat);
+        doorMesh.position.set(doorSlabX, op.height / 2, 0.01);
+        doorMesh.castShadow = true;
+        group.add(doorMesh);
+
+        // Frosted Sidelight Window Panel
+        if (hasSidelight) {
+          const sideX = -op.width / 2 + sidelightW / 2 + 0.03;
+          const sideGeom = new THREE.BoxGeometry(sidelightW, op.height - 0.08, 0.02);
+          const sideMesh = new THREE.Mesh(sideGeom, this.materials.frostedGlass);
+          sideMesh.position.set(sideX, op.height / 2, 0);
+          group.add(sideMesh);
+        }
+
+        // Architectural 1200mm Vertical Stainless Steel Pull Handle
+        const handleX = doorSlabX - doorSlabW / 2 + 0.10;
+        const handleGeom = new THREE.CylinderGeometry(0.014, 0.014, 1.20, 16);
+        const handleMesh = new THREE.Mesh(handleGeom, this.materials.stainlessSteel);
+        handleMesh.position.set(handleX, 1.05, 0.065);
+        group.add(handleMesh);
+
+        // Standoff mount brackets
+        [-0.50, 0.50].forEach((offsetY) => {
+          const mountGeom = new THREE.CylinderGeometry(0.01, 0.01, 0.04, 16);
+          const mountMesh = new THREE.Mesh(mountGeom, this.materials.stainlessSteel);
+          mountMesh.rotation.x = Math.PI / 2;
+          mountMesh.position.set(handleX, 1.05 + offsetY, 0.04);
+          group.add(mountMesh);
+        });
+
+      } else {
+        // Standard Hinged Door (Internal or Garage External)
+        const doorGeom = new THREE.BoxGeometry(op.width, op.height, 0.04);
+        const doorMat = op.isExterior ? this.materials.renderMonument : this.materials.interiorWall;
+        const doorMesh = new THREE.Mesh(doorGeom, doorMat);
+        doorMesh.position.set(0, op.height / 2, 0);
+        group.add(doorMesh);
+
+        // Chrome Door Lever Handle
+        const leverGeom = new THREE.BoxGeometry(0.12, 0.02, 0.05);
+        const leverMesh = new THREE.Mesh(leverGeom, this.materials.stainlessSteel);
+        leverMesh.position.set(op.width * 0.35, 1.0, 0.03);
+        group.add(leverMesh);
+      }
     }
 
     group.position.set(x, ffl, z);
@@ -811,7 +1544,83 @@ export class ThreeStudioSceneManager {
     this.updateOrbitCamera();
   }
 
+  public setElevationView(view: "north" | "south" | "east" | "west" | "perspective" | "dollhouse"): void {
+    this.cameraMode = "orbit";
+    if (view === "dollhouse") {
+      this.setRoofMode(true, true);
+      this.setPresetView("isometric");
+      return;
+    }
+    if (view === "perspective") {
+      this.setRoofMode(true, false);
+      this.setPresetView("isometric");
+      return;
+    }
+    // Direct Elevation View (orthographic angle)
+    this.setRoofMode(true, false);
+    const center = this.design
+      ? new THREE.Vector3(this.design.widthM / 2, (this.design.ceilingHeightM + 1.2) / 2, this.design.lengthM / 2)
+      : new THREE.Vector3(0, 1.2, 0);
+    this.orbitTarget.copy(center);
+
+    const maxDim = this.design ? Math.max(this.design.widthM, this.design.lengthM) : 22;
+    this.orbitDistance = maxDim * 1.55;
+
+    switch (view) {
+      case "north": // Front (street side looking South at Front Facade)
+        this.orbitTheta = Math.PI;
+        this.orbitPhi = Math.PI / 2 - 0.001;
+        break;
+      case "south": // Rear (backyard looking North at Rear Wall)
+        this.orbitTheta = 0;
+        this.orbitPhi = Math.PI / 2 - 0.001;
+        break;
+      case "west": // Left
+        this.orbitTheta = -Math.PI / 2;
+        this.orbitPhi = Math.PI / 2 - 0.001;
+        break;
+      case "east": // Right
+        this.orbitTheta = Math.PI / 2;
+        this.orbitPhi = Math.PI / 2 - 0.001;
+        break;
+    }
+    this.updateOrbitCamera();
+  }
+
+  public updateFacade(facade: FacadeType): void {
+    if (!this.design) return;
+    this.design.facade = facade;
+    if (this.design.materials) {
+      this.design.materials.facade = facade;
+    }
+    this.setupMaterials();
+    this.rebuildScene(true);
+  }
+
+  public updateBoundary(boundary: Partial<BoundaryConfig>): void {
+    if (!this.design) return;
+    this.design.boundary = {
+      ...(this.design.boundary || DEFAULT_BOUNDARY_CONFIG),
+      ...boundary,
+    };
+    this.setupMaterials();
+    this.rebuildScene(true);
+  }
+
+  public updateMaterials(materials: Partial<MaterialPaletteConfig>): void {
+    if (!this.design) return;
+    this.design.materials = {
+      ...(this.design.materials || DEFAULT_MATERIAL_CONFIG),
+      ...materials,
+    };
+    this.setupMaterials();
+    this.rebuildScene(true);
+  }
+
   public buildEmptyStudio(): void {
+    while (this.boundaryGroup.children.length > 0) {
+      this.boundaryGroup.remove(this.boundaryGroup.children[0]);
+    }
     while (this.buildingGroup.children.length > 0) {
       this.buildingGroup.remove(this.buildingGroup.children[0]);
     }
@@ -820,6 +1629,9 @@ export class ThreeStudioSceneManager {
     }
     while (this.roofGroup.children.length > 0) {
       this.roofGroup.remove(this.roofGroup.children[0]);
+    }
+    while (this.facadeGroup.children.length > 0) {
+      this.facadeGroup.remove(this.facadeGroup.children[0]);
     }
 
     if (this.emptyGrid) {
@@ -838,16 +1650,20 @@ export class ThreeStudioSceneManager {
   }
 
   public updateDesign(newDesign: BuildingDesign3D | null): void {
+    const isNewPlan = !this.design || !newDesign || this.design.id !== newDesign.id;
     this.design = newDesign ? ensureCompleteWallNetwork(newDesign) : null;
     if (this.design) {
       const centerX = this.design.widthM / 2;
       const centerZ = this.design.lengthM / 2;
       this.orbitTarget.set(centerX, 1.2, centerZ);
-      const maxDim = Math.max(this.design.widthM, this.design.lengthM);
-      this.orbitDistance = Math.max(16, maxDim * 1.35);
-      this.orbitTheta = Math.PI / 4;
-      this.orbitPhi = Math.PI / 3.2;
-      this.rebuildScene();
+      if (isNewPlan) {
+        const maxDim = Math.max(this.design.widthM, this.design.lengthM);
+        this.orbitDistance = Math.max(16, maxDim * 1.35);
+        this.orbitTheta = Math.PI / 4;
+        this.orbitPhi = Math.PI / 3.2;
+      }
+      this.setupMaterials();
+      this.rebuildScene(!isNewPlan);
       this.updateOrbitCamera();
     } else {
       this.buildEmptyStudio();

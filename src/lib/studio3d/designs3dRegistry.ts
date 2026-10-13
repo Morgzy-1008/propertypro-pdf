@@ -4,8 +4,38 @@
  * and modified plans including "Tiffany 22 Custom for Juliana".
  */
 
-import { BuildingDesign3D, RoofConfig } from "./studio3dTypes";
+import {
+  BuildingDesign3D,
+  RoofConfig,
+  BoundaryConfig,
+  MaterialPaletteConfig,
+  FacadeType,
+} from "./studio3dTypes";
 import { ensureCompleteWallNetwork } from "./wallNetworkEngine";
+
+export const DEFAULT_BOUNDARY_CONFIG: BoundaryConfig = {
+  showFencing: true,
+  fenceStyle: "colorbond_monument",
+  fenceHeightM: 1.80,
+  lotWidthM: 16.0,
+  lotLengthM: 32.0,
+  frontSetbackM: 4.5,
+  rearSetbackM: 3.5,
+  leftSetbackM: 1.2,
+  rightSetbackM: 1.0,
+  hasSideGates: true,
+};
+
+export const DEFAULT_MATERIAL_CONFIG: MaterialPaletteConfig = {
+  facade: "modern",
+  brickStyle: "austral_urban_one",
+  renderColor: "crisp_white",
+  claddingType: "scyon_linea_white",
+  roofColor: "monument",
+  windowFrameColor: "monument",
+  garageDoorColor: "monument",
+  drivewayFinish: "exposed_aggregate",
+};
 
 const DEFAULT_HIP_ROOF: RoofConfig = {
   type: "hip",
@@ -485,6 +515,21 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
         isExterior: true,
         elevationFacing: "west",
       },
+      // 12b. BED 3 REAR WINDOW: SW 12.15
+      {
+        id: "w_bed3_rear",
+        type: "window",
+        code: "SW 12.15",
+        label: "Bed 3 Rear Window 1200h × 1500w",
+        position: [1.0, 16.62],
+        wallOrientation: "horizontal",
+        width: 1.50,
+        height: 1.20,
+        sillHeight: 0.90,
+        headHeight: 2.10,
+        isExterior: true,
+        elevationFacing: "south",
+      },
       // 13. GARAGE REAR ACCESS DOOR
       {
         id: "d_garage_rear",
@@ -757,6 +802,9 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       ...DEFAULT_HIP_ROOF,
       ridgeHeightM: 5.12,
     },
+    facade: "modern",
+    boundary: { ...DEFAULT_BOUNDARY_CONFIG },
+    materials: { ...DEFAULT_MATERIAL_CONFIG },
   },
 
   // 2. TIFFANY 22 (Standard Brochure Plan)
@@ -839,6 +887,11 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       { id: "d3", type: "sliding_door", code: "D03", label: "Alfresco Sliding Door 2100h × 2400w", position: [7.3, 14.5], wallOrientation: "vertical", width: 2.40, height: 2.10, sillHeight: 0, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
       { id: "w2", type: "window", code: "W02", label: "Living Window 1200h × 1810w", position: [10.9, 16.35], wallOrientation: "horizontal", width: 1.81, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "south" },
       { id: "w3", type: "window", code: "W03", label: "Dining Window 1200h × 1570w", position: [14.51, 9.0], wallOrientation: "vertical", width: 1.57, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "east" },
+      { id: "w_media_side", type: "window", code: "W04", label: "Media Room Window 1200h × 1810w", position: [0.0, 6.5], wallOrientation: "vertical", width: 1.81, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "w_bed4_side", type: "window", code: "W05", label: "Bed 4 Window 1200h × 1570w", position: [0.0, 10.0], wallOrientation: "vertical", width: 1.57, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "w_bed3_side", type: "window", code: "W06", label: "Bed 3 Window 1200h × 1570w", position: [0.0, 13.0], wallOrientation: "vertical", width: 1.57, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "w_bed3_rear", type: "window", code: "W07", label: "Bed 3 Rear Window 1200h × 1570w", position: [1.0, 16.35], wallOrientation: "horizontal", width: 1.57, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "south" },
+      { id: "d_garage_rear", type: "door", code: "D_GAR_EXT", label: "Garage External Door 820w", position: [14.51, 4.5], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0.0, headHeight: 2.04, isExterior: true, elevationFacing: "east" },
       // Internal Doors
       { id: "td_ensuite", type: "door", code: "D_ENS", label: "Master Ensuite Door", position: [5.0, 2.0], wallOrientation: "horizontal", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
       { id: "td_media", type: "door", code: "D_MED", label: "Media Room Door", position: [4.5, 6.5], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
@@ -858,6 +911,9 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       ...DEFAULT_HIP_ROOF,
       ridgeHeightM: 5.05,
     },
+    facade: "modern",
+    boundary: { ...DEFAULT_BOUNDARY_CONFIG },
+    materials: { ...DEFAULT_MATERIAL_CONFIG },
   },
 
   // 3. JASPER 26 (Large Master Design)
@@ -935,6 +991,11 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       { id: "jw_liv", type: "stacker_door", code: "STACKER 21.36", label: "4-Panel Stacker Door to Alfresco", position: [7.0, 20.5], wallOrientation: "vertical", width: 3.60, height: 2.10, sillHeight: 0, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
       { id: "jw_bed_win", type: "window", code: "SW 12.18", label: "Master Suite Window", position: [0.0, 8.5], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
       { id: "jw_rear_win", type: "window", code: "SW 12.24", label: "Living Rear Window", position: [3.5, 22.85], wallOrientation: "horizontal", width: 2.40, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "south" },
+      { id: "jw_bed4_win", type: "window", code: "SW 12.18", label: "Bed 4 Window 1200h × 1800w", position: [0.0, 12.75], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "jw_bed3_win", type: "window", code: "SW 12.18", label: "Bed 3 Window 1200h × 1800w", position: [0.0, 16.25], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "jw_theatre_side", type: "window", code: "SW 12.18", label: "Theatre Side Window 1200h × 1800w", position: [11.87, 8.35], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "east" },
+      { id: "jw_dining_side", type: "window", code: "SW 12.18", label: "Dining Side Window 1200h × 1800w", position: [11.87, 16.75], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "east" },
+      { id: "jd_garage_ext", type: "door", code: "EXT 820", label: "Garage External Door 820w", position: [11.87, 4.0], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: true, elevationFacing: "east" },
       { id: "jd_theatre", type: "door", code: "D_THTR", label: "Home Theatre Door", position: [5.87, 8.0], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
       { id: "jd_master", type: "door", code: "D_MSTR", label: "Master Suite Door", position: [2.5, 6.0], wallOrientation: "horizontal", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
       { id: "jd_bed4", type: "door", code: "D_J_B4", label: "Bed 4 Door", position: [3.3, 12.0], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
@@ -951,6 +1012,9 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       ...DEFAULT_HIP_ROOF,
       ridgeHeightM: 5.35,
     },
+    facade: "executive",
+    boundary: { ...DEFAULT_BOUNDARY_CONFIG },
+    materials: { ...DEFAULT_MATERIAL_CONFIG },
   },
 
   // 4. AMBER 21 (Popular 21-Square Design)
@@ -1017,6 +1081,13 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       { id: "ad2", type: "garage_door", code: "GD1", label: "Garage Door", position: [7.67, 0.0], wallOrientation: "horizontal", width: 4.80, height: 2.10, sillHeight: 0, headHeight: 2.10, isExterior: true, elevationFacing: "north" },
       { id: "ad3", type: "sliding_door", code: "SD 21.24", label: "Alfresco Sliding Door", position: [6.5, 18.0], wallOrientation: "vertical", width: 2.40, height: 2.10, sillHeight: 0, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
       { id: "aw1_win", type: "window", code: "SW 12.18", label: "Master Bedroom Window", position: [2.25, 0.0], wallOrientation: "horizontal", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "north" },
+      { id: "aw_mstr_side", type: "window", code: "SW 12.15", label: "Master Side Window", position: [0.0, 7.25], wallOrientation: "vertical", width: 1.50, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "aw_bed4_side", type: "window", code: "SW 12.15", label: "Bed 4 Window", position: [0.0, 11.15], wallOrientation: "vertical", width: 1.50, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "aw_bed3_side", type: "window", code: "SW 12.15", label: "Bed 3 Window", position: [0.0, 14.4], wallOrientation: "vertical", width: 1.50, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "aw_kitchen_side", type: "window", code: "FW 06.18", label: "Kitchen Feature Window", position: [10.55, 8.5], wallOrientation: "vertical", width: 1.80, height: 0.60, sillHeight: 1.50, headHeight: 2.10, isExterior: true, elevationFacing: "east" },
+      { id: "aw_dining_side", type: "window", code: "SW 12.18", label: "Dining Side Window", position: [10.55, 13.5], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "east" },
+      { id: "ad_gar_ext", type: "door", code: "EXT 820", label: "Garage Side Door 820w", position: [10.55, 4.0], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: true, elevationFacing: "east" },
+      { id: "aw_living_rear", type: "window", code: "SW 12.24", label: "Living Rear Window", position: [3.25, 20.15], wallOrientation: "horizontal", width: 2.40, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "south" },
       { id: "ad_master", type: "door", code: "D_AMB_MSTR", label: "Master Bedroom Door", position: [2.0, 5.0], wallOrientation: "horizontal", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
       { id: "ad_ensuite", type: "door", code: "D_AMB_ENS", label: "Ensuite Door", position: [2.5, 6.2], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
       { id: "ad_bed4", type: "door", code: "D_AMB_B4", label: "Bed 4 Door", position: [3.2, 10.5], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
@@ -1032,6 +1103,9 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       ...DEFAULT_HIP_ROOF,
       ridgeHeightM: 4.90,
     },
+    facade: "modern",
+    boundary: { ...DEFAULT_BOUNDARY_CONFIG },
+    materials: { ...DEFAULT_MATERIAL_CONFIG },
   },
 
   // 5. AZURE 25 (Signature 25-Square Master Design)
@@ -1099,6 +1173,14 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       { id: "azd1", type: "door", code: "EXT 1020", label: "Entry Door", position: [1.1, 0.0], wallOrientation: "horizontal", width: 1.02, height: 2.10, sillHeight: 0, headHeight: 2.10, isExterior: true, elevationFacing: "north" },
       { id: "azd2", type: "garage_door", code: "GARAGE 4821", label: "Double Garage Door", position: [8.8, 0.0], wallOrientation: "horizontal", width: 4.80, height: 2.10, sillHeight: 0, headHeight: 2.10, isExterior: true, elevationFacing: "north" },
       { id: "azd3", type: "stacker_door", code: "STACKER 21.30", label: "3-Panel Stacker Door", position: [7.0, 19.5], wallOrientation: "vertical", width: 3.00, height: 2.10, sillHeight: 0, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "azw_master_front", type: "window", code: "SW 12.18", label: "Master Suite Front Window", position: [3.8, 0.0], wallOrientation: "horizontal", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "north" },
+      { id: "azw_master_side", type: "window", code: "SW 12.18", label: "Master Suite Side Window", position: [0.0, 8.0], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "azw_bed4_side", type: "window", code: "SW 12.18", label: "Bed 4 Window", position: [0.0, 12.25], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "azw_bed3_side", type: "window", code: "SW 12.18", label: "Bed 3 Window", position: [0.0, 15.75], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "west" },
+      { id: "azw_living_rear", type: "window", code: "SW 12.24", label: "Living Rear Window", position: [3.5, 21.5], wallOrientation: "horizontal", width: 2.40, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "south" },
+      { id: "azw_dining_side", type: "window", code: "SW 12.18", label: "Dining Side Window", position: [12.1, 14.75], wallOrientation: "vertical", width: 1.80, height: 1.20, sillHeight: 0.90, headHeight: 2.10, isExterior: true, elevationFacing: "east" },
+      { id: "azw_kitchen_side", type: "window", code: "FW 06.18", label: "Kitchen Feature Window", position: [12.1, 9.1], wallOrientation: "vertical", width: 1.80, height: 0.60, sillHeight: 1.50, headHeight: 2.10, isExterior: true, elevationFacing: "east" },
+      { id: "azd_gar_ext", type: "door", code: "EXT 820", label: "Garage External Door 820w", position: [12.1, 4.0], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: true, elevationFacing: "east" },
       { id: "azd_master", type: "door", code: "D_AZ_MSTR", label: "Master Bedroom Door", position: [2.2, 5.5], wallOrientation: "horizontal", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
       { id: "azd_ensuite", type: "door", code: "D_AZ_ENS", label: "Ensuite Door", position: [2.8, 6.8], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
       { id: "azd_bed4", type: "door", code: "D_AZ_B4", label: "Bed 4 Door", position: [3.4, 12.0], wallOrientation: "vertical", width: 0.82, height: 2.04, sillHeight: 0, headHeight: 2.04, isExterior: false },
@@ -1114,6 +1196,9 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       ...DEFAULT_HIP_ROOF,
       ridgeHeightM: 5.20,
     },
+    facade: "modern",
+    boundary: { ...DEFAULT_BOUNDARY_CONFIG },
+    materials: { ...DEFAULT_MATERIAL_CONFIG },
   },
 };
 

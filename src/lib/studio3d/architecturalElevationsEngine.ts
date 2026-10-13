@@ -40,6 +40,7 @@ export function generateArchitecturalElevations(
     { label: "RIDGE HEIGHT", code: "RL", rlValue: Number((fflOffset + ridgeH).toFixed(3)), yPosition: ridgeH, isMajor: true },
     { label: "EAVES / FASCIA LINE", code: "RL", rlValue: Number((fflOffset + eavesH).toFixed(3)), yPosition: eavesH, isMajor: false },
     { label: `CEILING LEVEL (${Math.round(ceilingH * 1000)}mm)`, code: "CL", rlValue: Number((fflOffset + ceilingH).toFixed(3)), yPosition: ceilingH, isMajor: true },
+    { label: "1.80m BOUNDARY FENCE LINE", code: "BFL", rlValue: 1.800, yPosition: 1.80 - fflOffset, isMajor: false },
     { label: "FINISHED FLOOR LEVEL (FFL)", code: "FFL", rlValue: Number(fflOffset.toFixed(3)), yPosition: 0, isMajor: true },
     { label: "NATURAL GROUND LEVEL (NGL)", code: "NGL", rlValue: 0.000, yPosition: -fflOffset, isMajor: true },
   ];
@@ -309,6 +310,77 @@ function renderSingleElevation(
       `);
     }
   });
+
+  // 7b. Front Facade Features (Columns, Scyon Cladding Gables, Porticos)
+  const facadeStyle = design.facade || design.materials?.facade || "modern";
+  if (view === "north") {
+    if (facadeStyle === "hamptons" || facadeStyle === "bronte") {
+      const gableBaseY = eavesY;
+      const gableApexY = eavesY - 45;
+      const porchCenterX = originX + 260;
+      svgParts.push(`
+        <!-- Hamptons / Bronte Front Gable Feature -->
+        <polygon points="${porchCenterX - 80},${gableBaseY} ${porchCenterX},${gableApexY} ${porchCenterX + 80},${gableBaseY}" fill="#f8fafc" stroke="#0f172a" stroke-width="1.8" />
+        <line x1="${porchCenterX - 60}" y1="${gableBaseY - 12}" x2="${porchCenterX + 60}" y2="${gableBaseY - 12}" stroke="#64748b" stroke-width="1" />
+        <line x1="${porchCenterX - 40}" y1="${gableBaseY - 24}" x2="${porchCenterX + 40}" y2="${gableBaseY - 24}" stroke="#64748b" stroke-width="1" />
+        <line x1="${porchCenterX - 20}" y1="${gableBaseY - 34}" x2="${porchCenterX + 20}" y2="${gableBaseY - 34}" stroke="#64748b" stroke-width="1" />
+        <text x="${porchCenterX}" y="${gableApexY - 8}" text-anchor="middle" font-family="sans-serif" font-size="8.5" font-weight="bold" fill="#0284c7">
+          SCYON LINEA GABLE CLADDING
+        </text>
+        <!-- Painted Timber Column Post with Capital & Plinth -->
+        <rect x="${porchCenterX - 75}" y="${wallTopY}" width="9" height="${wallHeightPx}" fill="#ffffff" stroke="#0f172a" stroke-width="1.4" />
+        <rect x="${porchCenterX - 78}" y="${wallTopY}" width="15" height="5" fill="#ffffff" stroke="#0f172a" stroke-width="1" />
+        <rect x="${porchCenterX - 79}" y="${originY - 12}" width="17" height="12" fill="#ffffff" stroke="#0f172a" stroke-width="1" />
+      `);
+    } else if (facadeStyle === "executive") {
+      const porchCenterX = originX + 260;
+      svgParts.push(`
+        <!-- Executive Grande Austral Brick Pier & Beam -->
+        <rect x="${porchCenterX - 85}" y="${wallTopY}" width="20" height="${wallHeightPx}" fill="url(#cadBrick)" stroke="#0f172a" stroke-width="1.8" />
+        <rect x="${porchCenterX - 88}" y="${wallTopY}" width="26" height="6" fill="#cbd5e1" stroke="#0f172a" stroke-width="1.2" />
+        <rect x="${porchCenterX - 85}" y="${wallTopY}" width="120" height="14" fill="#1e293b" stroke="#0f172a" stroke-width="1.2" />
+        <text x="${porchCenterX - 30}" y="${wallTopY - 6}" font-family="sans-serif" font-size="8" font-weight="bold" fill="#0284c7">
+          470mm BRICK PIER & PORTICO BEAM
+        </text>
+      `);
+    } else if (facadeStyle === "contempo") {
+      const porchCenterX = originX + 260;
+      svgParts.push(`
+        <!-- Contempo Vertical Cedar Battens Screen -->
+        <g stroke="#b45309" stroke-width="2.2">
+          <line x1="${porchCenterX - 80}" y1="${originY}" x2="${porchCenterX - 80}" y2="${wallTopY}" />
+          <line x1="${porchCenterX - 74}" y1="${originY}" x2="${porchCenterX - 74}" y2="${wallTopY}" />
+          <line x1="${porchCenterX - 68}" y1="${originY}" x2="${porchCenterX - 68}" y2="${wallTopY}" />
+          <line x1="${porchCenterX - 62}" y1="${originY}" x2="${porchCenterX - 62}" y2="${wallTopY}" />
+          <line x1="${porchCenterX - 56}" y1="${originY}" x2="${porchCenterX - 56}" y2="${wallTopY}" />
+        </g>
+        <text x="${porchCenterX - 68}" y="${wallTopY - 6}" font-family="sans-serif" font-size="8" font-weight="bold" fill="#b45309">
+          CEDAR BATTEN SCREEN
+        </text>
+      `);
+    }
+  }
+
+  // 7c. 1.80m Boundary Fencing Lines & Callouts
+  const leftBoundX = originX - (design.boundary?.leftSetbackM || 1.2) * scale;
+  const rightBoundX = originX + slabWidthPx + (design.boundary?.rightSetbackM || 1.0) * scale;
+  const fenceHeightPx = 1.80 * scale;
+  const fenceTopY = nglY - fenceHeightPx;
+
+  svgParts.push(`
+    <!-- Left Boundary 1.8m Fence Line -->
+    <rect x="${leftBoundX - 4}" y="${fenceTopY}" width="8" height="${fenceHeightPx}" fill="#334155" fill-opacity="0.35" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="3,2" />
+    <line x1="${leftBoundX}" y1="${nglY}" x2="${leftBoundX}" y2="${fenceTopY - 14}" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="4,2" />
+    <text x="${leftBoundX}" y="${fenceTopY - 18}" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="bold" fill="#f59e0b">
+      1.8m BOUNDARY FENCE
+    </text>
+    <!-- Right Boundary 1.8m Fence Line -->
+    <rect x="${rightBoundX - 4}" y="${fenceTopY}" width="8" height="${fenceHeightPx}" fill="#334155" fill-opacity="0.35" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="3,2" />
+    <line x1="${rightBoundX}" y1="${nglY}" x2="${rightBoundX}" y2="${fenceTopY - 14}" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="4,2" />
+    <text x="${rightBoundX}" y="${fenceTopY - 18}" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="bold" fill="#f59e0b">
+      1.8m BOUNDARY FENCE
+    </text>
+  `);
 
   // 8. Overall Dimension Lines (Bottom)
   const dimY = originY + fflOffset * scale + 35;

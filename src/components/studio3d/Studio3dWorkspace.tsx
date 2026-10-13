@@ -31,6 +31,7 @@ import {
   RotateCcw,
   RotateCw,
   ShieldCheck,
+  Palette,
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -41,12 +42,18 @@ import {
   CeilingHeightPreset,
   BuildingDesign3D,
   RoofConfig,
+  FacadeType,
+  FenceStyle,
+  BoundaryConfig,
+  MaterialPaletteConfig,
 } from "@/lib/studio3d/studio3dTypes";
 import {
   DESIGNS_3D_REGISTRY,
   get3DDesign,
   ALL_DESIGN_KEYS,
   ensureCompleteWallNetwork,
+  DEFAULT_BOUNDARY_CONFIG,
+  DEFAULT_MATERIAL_CONFIG,
 } from "@/lib/studio3d/designs3dRegistry";
 import { calculateWallNetworkMetrics } from "@/lib/studio3d/wallNetworkEngine";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
@@ -73,6 +80,12 @@ export function Studio3dWorkspace() {
 
   // Navigation & Tabs
   const [activeTab, setActiveTab] = useState<"3d_studio" | "elevations_cad" | "customizer">("3d_studio");
+
+  // Realism, Facade & Boundary States
+  const [activeFacade, setActiveFacade] = useState<FacadeType>("modern");
+  const [showFencing, setShowFencing] = useState<boolean>(true);
+  const [fenceStyle, setFenceStyle] = useState<FenceStyle>("colorbond_monument");
+  const [activeElevationMode, setActiveElevationMode] = useState<"perspective" | "dollhouse" | "north" | "south" | "east" | "west">("perspective");
 
   // Camera & Viewer Controls
   const [cameraMode, setCameraMode] = useState<CameraMode>("orbit");
@@ -118,7 +131,7 @@ export function Studio3dWorkspace() {
       }
     } else {
       sceneManagerRef.current.updateDesign(design);
-      if (design) {
+      if (design && (activeElevationMode === "perspective" || activeElevationMode === "dollhouse")) {
         const show = roofMode !== "hidden";
         const cutaway = roofMode === "cutaway";
         sceneManagerRef.current.setRoofMode(show, cutaway);
@@ -182,6 +195,12 @@ export function Studio3dWorkspace() {
     const d = get3DDesign(key);
     setDesign(d);
     setCeilingPreset(Math.round(d.ceilingHeightM * 1000) as CeilingHeightPreset);
+    if (d.facade) setActiveFacade(d.facade);
+    if (d.boundary) {
+      setShowFencing(d.boundary.showFencing ?? true);
+      setFenceStyle(d.boundary.fenceStyle ?? "colorbond_monument");
+    }
+    setActiveElevationMode("perspective");
     if (sceneManagerRef.current) {
       sceneManagerRef.current.updateDesign(d);
     }
@@ -193,10 +212,120 @@ export function Studio3dWorkspace() {
     setSelectedDesignKey("");
     setDesign(null);
     setCurrentRoomName("");
+    setActiveElevationMode("perspective");
     if (sceneManagerRef.current) {
       sceneManagerRef.current.updateDesign(null);
     }
     toast.info("3D Studio reset to floorplan selection");
+  };
+
+  // Facade switch handler
+  const handleFacadeChange = (facade: FacadeType) => {
+    setActiveFacade(facade);
+    if (design) {
+      const updated: BuildingDesign3D = {
+        ...design,
+        facade,
+        materials: {
+          ...(design.materials || DEFAULT_MATERIAL_CONFIG),
+          facade,
+        },
+      };
+      setDesign(updated);
+    }
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.updateFacade(facade);
+    }
+    const facadeNames: Record<FacadeType, string> = {
+      modern: "Modern Metro",
+      hamptons: "Hamptons Coastal",
+      executive: "Executive Grande",
+      contempo: "Contempo Timber",
+      bronte: "Bronte Designer",
+    };
+    toast.success(`Facade updated to ${facadeNames[facade] || facade}`);
+  };
+
+  // Boundary fencing toggle
+  const handleToggleFencing = () => {
+    const newShow = !showFencing;
+    setShowFencing(newShow);
+    if (design) {
+      const updated: BuildingDesign3D = {
+        ...design,
+        boundary: {
+          ...(design.boundary || DEFAULT_BOUNDARY_CONFIG),
+          showFencing: newShow,
+          fenceStyle,
+        },
+      };
+      setDesign(updated);
+    }
+    if (sceneManagerRef.current && design) {
+      sceneManagerRef.current.updateBoundary({ showFencing: newShow, fenceStyle });
+    }
+    toast.info(newShow ? "1.8m Australian boundary fencing displayed" : "Boundary fencing hidden");
+  };
+
+  // Boundary fence style change
+  const handleFenceStyleChange = (style: FenceStyle) => {
+    setFenceStyle(style);
+    if (design) {
+      const updated: BuildingDesign3D = {
+        ...design,
+        boundary: {
+          ...(design.boundary || DEFAULT_BOUNDARY_CONFIG),
+          showFencing,
+          fenceStyle: style,
+        },
+      };
+      setDesign(updated);
+    }
+    if (sceneManagerRef.current && design) {
+      sceneManagerRef.current.updateBoundary({ showFencing, fenceStyle: style });
+    }
+    const fenceLabels: Record<FenceStyle, string> = {
+      colorbond_monument: "Colorbond Monument (Default)",
+      colorbond_woodland: "Colorbond Woodland Grey",
+      treated_pine: "Treated Pine Timber (1.8m Palings)",
+      rendered_brick: "Rendered Low Wall with Piers",
+    };
+    toast.success(`Fence style updated: ${fenceLabels[style] || style}`);
+  };
+
+  // 1-Click Architectural Elevation Camera Shortcuts
+  const handleElevationView = (view: "north" | "south" | "east" | "west" | "perspective" | "dollhouse") => {
+    setActiveElevationMode(view);
+    setCameraMode("orbit");
+    if (view === "north" || view === "south" || view === "east" || view === "west") {
+      setRoofMode("exterior");
+    } else if (view === "dollhouse") {
+      setRoofMode("cutaway");
+    }
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.setElevationView(view);
+    }
+    const viewLabels: Record<string, string> = {
+      north: "Front Elevation (North)",
+      south: "Rear Elevation (South)",
+      west: "Left Side Elevation (West)",
+      east: "Right Side Elevation (East)",
+      perspective: "3D Orbit Perspective",
+      dollhouse: "Dollhouse Cutaway Mode",
+    };
+    toast.info(`Camera aligned to ${viewLabels[view]}`);
+  };
+
+  // Interactive Material Palette customizer
+  const handleMaterialChange = (updates: Partial<MaterialPaletteConfig>) => {
+    if (!design) return;
+    const currentMaterials = design.materials || DEFAULT_MATERIAL_CONFIG;
+    const newMaterials = { ...currentMaterials, ...updates };
+    setDesign({ ...design, materials: newMaterials });
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.updateMaterials(updates);
+    }
+    toast.success("Architectural materials & finishes updated");
   };
 
   // Teleport to room
@@ -436,7 +565,7 @@ export function Studio3dWorkspace() {
         </div>
       </header>
 
-      {/* 2. SUB-HEADER TOOLBAR: Design Selector, Ceiling Heights, Roof Toggle */}
+      {/* 2. SUB-HEADER TOOLBAR: Design Selector, Facade Options, Boundaries, Ceiling Heights, Roof Toggle */}
       <div className={`px-4 sm:px-6 py-2.5 border-b ${isLight ? "bg-slate-100/90 border-slate-200" : "bg-slate-900/60 border-slate-800/80"} flex flex-wrap items-center justify-between gap-3 text-xs`}>
         {/* Left: Design Selector & Reset */}
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -489,6 +618,75 @@ export function Studio3dWorkspace() {
           )}
         </div>
 
+        {/* Facade Options Switcher */}
+        <div className={`flex items-center gap-1 flex-wrap ${!design ? "opacity-40 pointer-events-none" : ""}`}>
+          <span className="font-semibold text-slate-400 mr-1">Facade:</span>
+          {(
+            [
+              { id: "modern", name: "Modern Metro" },
+              { id: "hamptons", name: "Hamptons Coastal" },
+              { id: "executive", name: "Executive Grande" },
+              { id: "contempo", name: "Contempo Timber" },
+              { id: "bronte", name: "Bronte Designer" },
+            ] as const
+          ).map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              disabled={!design}
+              onClick={() => handleFacadeChange(f.id)}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                activeFacade === f.id && design
+                  ? "bg-amber-500 text-slate-950 shadow-sm"
+                  : isLight
+                  ? "bg-white hover:bg-slate-200 text-slate-700 border border-slate-200"
+                  : "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+              }`}
+            >
+              {f.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Boundaries & 1.8m Fencing Controls */}
+        <div className={`flex items-center gap-1.5 flex-wrap ${!design ? "opacity-40 pointer-events-none" : ""}`}>
+          <span className="font-semibold text-slate-400">Boundaries:</span>
+          <button
+            type="button"
+            disabled={!design}
+            onClick={handleToggleFencing}
+            className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              showFencing && design
+                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                : isLight
+                ? "bg-white hover:bg-slate-200 text-slate-500 border border-slate-200"
+                : "bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700"
+            }`}
+            title="Toggle 1.8m Australian boundary fence and cadastral pegs"
+          >
+            <ShieldCheck className="h-3 w-3" />
+            <span>1.8m Fence: {showFencing ? "ON" : "OFF"}</span>
+          </button>
+          {showFencing && (
+            <select
+              value={fenceStyle}
+              disabled={!design}
+              onChange={(e) => handleFenceStyleChange(e.target.value as FenceStyle)}
+              className={`py-1 px-2 rounded-md text-[11px] font-bold border cursor-pointer ${
+                isLight
+                  ? "bg-white border-slate-300 text-slate-800 shadow-sm"
+                  : "bg-slate-800 border-slate-700 text-slate-200 shadow-inner"
+              }`}
+              title="Select Australian boundary fencing style"
+            >
+              <option value="colorbond_monument">Colorbond Monument</option>
+              <option value="colorbond_woodland">Colorbond Woodland Grey</option>
+              <option value="treated_pine">Treated Pine Palings (1.8m)</option>
+              <option value="rendered_brick">Rendered Low Wall with Piers</option>
+            </select>
+          )}
+        </div>
+
         {/* Center: Ceiling Height Switcher (2440 / 2590 / 2740 / 2900mm) */}
         <div className={`flex items-center gap-1.5 flex-wrap ${!design ? "opacity-40 pointer-events-none" : ""}`}>
           <span className="font-semibold text-slate-400">Ceiling:</span>
@@ -498,7 +696,7 @@ export function Studio3dWorkspace() {
               type="button"
               disabled={!design}
               onClick={() => handleCeilingChange(h)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+              className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                 ceilingPreset === h && design
                   ? "bg-amber-500 text-slate-950 shadow-sm"
                   : isLight
@@ -519,17 +717,17 @@ export function Studio3dWorkspace() {
               type="button"
               disabled={!design}
               onClick={() => setRoofMode("cutaway")}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+              className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                 roofMode === "cutaway" && design ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"
               }`}
             >
-              Dollhouse (Cutaway)
+              Dollhouse
             </button>
             <button
               type="button"
               disabled={!design}
               onClick={() => setRoofMode("exterior")}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+              className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                 roofMode === "exterior" && design ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"
               }`}
             >
@@ -539,11 +737,11 @@ export function Studio3dWorkspace() {
               type="button"
               disabled={!design}
               onClick={() => setRoofMode("hidden")}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+              className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                 roofMode === "hidden" && design ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white"
               }`}
             >
-              Roof Off
+              Off
             </button>
           </div>
         </div>
@@ -781,58 +979,88 @@ export function Studio3dWorkspace() {
                 </button>
               </div>
 
-              {/* Orbit Camera Angle Presets */}
+              {/* Orbit & 1-Click Architectural Elevation Camera Shortcuts */}
               {cameraMode === "orbit" && (
-                <div className="p-1.5 rounded-2xl bg-slate-950/70 backdrop-blur-md border border-slate-800/80 shadow-lg flex items-center gap-1 text-[11px]">
-                  <span className="text-[10px] font-bold text-slate-400 px-2 uppercase">Angle:</span>
+                <div className="p-1.5 rounded-2xl bg-slate-950/85 backdrop-blur-md border border-slate-800/80 shadow-lg flex items-center gap-1 text-[11px] flex-wrap max-w-xl">
+                  <span className="text-[10px] font-bold text-slate-400 px-2 uppercase">Elevations:</span>
                   <button
                     type="button"
-                    onClick={() => handlePresetAngle("isometric")}
-                    className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                    onClick={() => handleElevationView("perspective")}
+                    className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer transition-all flex items-center gap-1 ${
+                      activeElevationMode === "perspective"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
+                        : "bg-slate-800/80 hover:bg-slate-700 text-slate-200"
+                    }`}
+                    title="Standard 3D Orbit Perspective"
                   >
-                    Isometric
+                    <span>🌐</span> 3D Orbit
                   </button>
                   <button
                     type="button"
-                    onClick={() => handlePresetAngle("top")}
-                    className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                    onClick={() => handleElevationView("dollhouse")}
+                    className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer transition-all flex items-center gap-1 ${
+                      activeElevationMode === "dollhouse"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
+                        : "bg-slate-800/80 hover:bg-slate-700 text-slate-200"
+                    }`}
+                    title="Cutaway Dollhouse (Isometric Mode)"
                   >
-                    Top Plan
+                    <span>🔍</span> Dollhouse
                   </button>
                   <button
                     type="button"
-                    onClick={() => handlePresetAngle("front")}
-                    className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                    onClick={() => handleElevationView("north")}
+                    className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer transition-all flex items-center gap-1 ${
+                      activeElevationMode === "north"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
+                        : "bg-slate-800/80 hover:bg-slate-700 text-slate-200"
+                    }`}
+                    title="Front Elevation (North facing - True Facade CAD Projection)"
                   >
-                    North
+                    <span>🏛️</span> Front (North)
                   </button>
                   <button
                     type="button"
-                    onClick={() => handlePresetAngle("rear")}
-                    className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                    onClick={() => handleElevationView("south")}
+                    className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer transition-all flex items-center gap-1 ${
+                      activeElevationMode === "south"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
+                        : "bg-slate-800/80 hover:bg-slate-700 text-slate-200"
+                    }`}
+                    title="Rear Elevation (South facing - Alfresco & Yard View)"
                   >
-                    South
+                    <span>🏡</span> Rear (South)
                   </button>
                   <button
                     type="button"
-                    onClick={() => handlePresetAngle("left")}
-                    className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                    onClick={() => handleElevationView("west")}
+                    className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer transition-all flex items-center gap-1 ${
+                      activeElevationMode === "west"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
+                        : "bg-slate-800/80 hover:bg-slate-700 text-slate-200"
+                    }`}
+                    title="Left Side Elevation (West facing)"
                   >
-                    West
+                    <span>📐</span> Left (West)
                   </button>
                   <button
                     type="button"
-                    onClick={() => handlePresetAngle("right")}
-                    className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                    onClick={() => handleElevationView("east")}
+                    className={`px-2.5 py-1 rounded-lg font-semibold cursor-pointer transition-all flex items-center gap-1 ${
+                      activeElevationMode === "east"
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
+                        : "bg-slate-800/80 hover:bg-slate-700 text-slate-200"
+                    }`}
+                    title="Right Side Elevation (East facing)"
                   >
-                    East
+                    <span>📐</span> Right (East)
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Floating Top-Right HUD: Design Specs & Current Room Badge */}
+          {/* Floating Top-Right HUD: Design Specs, Facade & Boundary Status */}
           {design && (
             <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2 pointer-events-none">
               {/* Live Room Locator Badge */}
@@ -843,15 +1071,22 @@ export function Studio3dWorkspace() {
               </div>
 
               {/* Quick Specs Chip */}
-              <div className="px-3 py-2 rounded-xl bg-slate-950/80 backdrop-blur-md border border-slate-800 shadow-lg text-[11px] text-slate-300 flex flex-col items-end gap-0.5">
-                <div className="font-extrabold text-white text-xs">
-                  {design.name} {design.variantName ? `(${design.variantName})` : ""}
+              <div className="px-3.5 py-2.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-800 shadow-xl text-[11px] text-slate-300 flex flex-col items-end gap-1">
+                <div className="font-extrabold text-white text-xs flex items-center gap-1.5">
+                  <span>{design.name} {design.variantName ? `(${design.variantName})` : ""}</span>
+                  <span className="text-amber-400 capitalize px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-[10px]">
+                    {activeFacade.replace(/-/g, " ")} Facade
+                  </span>
                 </div>
                 <div>
                   Total Area: <strong className="text-amber-400">{design.schedule.totalM2} m²</strong> | Living: {design.schedule.livingM2} m²
                 </div>
-                <div className="text-[10px] text-slate-400 font-mono">
-                  Ceiling: {Math.round(design.ceilingHeightM * 1000)}mm | Pitch: 22.5° Hip | Eaves: 450mm
+                <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2">
+                  <span>Ceiling: {Math.round(design.ceilingHeightM * 1000)}mm</span>
+                  <span>•</span>
+                  <span>1.8m Fencing: {showFencing ? "Active" : "Off"}</span>
+                  <span>•</span>
+                  <span>Pitch: 22.5°</span>
                 </div>
               </div>
             </div>
@@ -1271,39 +1506,166 @@ export function Studio3dWorkspace() {
                   </label>
                 </div>
 
-                {/* Architectural Parameters Card */}
-                <div className={`p-5 rounded-2xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"} shadow-xl flex flex-col gap-3 text-xs`}>
-                  <h3 className="text-base font-extrabold flex items-center gap-2">
-                    <Sliders className="h-5 w-5 text-amber-500" />
-                    Architectural Parameters
-                  </h3>
+                {/* Interactive Materials & Architectural Finishes Customizer Card */}
+                <div className={`p-5 rounded-2xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"} shadow-xl flex flex-col gap-4 text-xs`}>
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+                    <h3 className="text-base font-extrabold flex items-center gap-2">
+                      <Palette className="h-5 w-5 text-amber-500" />
+                      Materials & Facade Finishes
+                    </h3>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold uppercase">
+                      Live 3D Sync
+                    </span>
+                  </div>
 
+                  {/* 1. Facade Style Selector */}
                   <div className="flex flex-col gap-1.5">
-                    <span className="font-semibold text-slate-400">Roof Pitch</span>
-                    <div className="p-2 rounded-lg bg-slate-950/40 border border-slate-800 font-mono text-amber-400 font-bold">
-                      22.5° Standard Australian Hip Line
+                    <label className="font-bold text-slate-300 flex items-center justify-between">
+                      <span>Front Facade Architecture</span>
+                      <span className="text-[10px] text-amber-400 font-mono capitalize">{activeFacade.replace(/-/g, " ")}</span>
+                    </label>
+                    <select
+                      value={activeFacade}
+                      onChange={(e) => handleFacadeChange(e.target.value as FacadeType)}
+                      className={`w-full py-1.5 px-2.5 rounded-lg font-bold border cursor-pointer ${
+                        isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-800 text-white"
+                      }`}
+                    >
+                      <option value="modern">Modern Metro (Rendered Portico & Clean Lines)</option>
+                      <option value="hamptons">Hamptons Coastal (Scyon Gables & Colonial Glazing)</option>
+                      <option value="executive">Executive Grande (Brick Piers & Stone Capitals)</option>
+                      <option value="contempo">Contempo Timber (Cedar Battens & Monument Finishes)</option>
+                      <option value="bronte">Bronte Designer (Twin Designer Posts & Feature Entry)</option>
+                    </select>
+                  </div>
+
+                  {/* 2. Austral Face Brickwork */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-bold text-slate-300 flex items-center justify-between">
+                      <span>Austral Face Brickwork</span>
+                      <span className="text-[10px] text-slate-400 font-mono">10mm Recessed Mortar</span>
+                    </label>
+                    <select
+                      value={design.materials?.brickStyle || "austral_urban_one"}
+                      onChange={(e) => handleMaterialChange({ brickStyle: e.target.value as any })}
+                      className={`w-full py-1.5 px-2.5 rounded-lg font-bold border cursor-pointer ${
+                        isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-800 text-white"
+                      }`}
+                    >
+                      <option value="austral_urban_one">Austral Urban One (Silver Grey Stretcher Bond)</option>
+                      <option value="austral_everyday_life">Austral Everyday Life (Earth Red / Terracotta Blend)</option>
+                      <option value="austral_whitsunday">Austral Whitsunday (Chalk White Coastal)</option>
+                      <option value="monument_dark">Austral Industrial Monument (Dark Charcoal)</option>
+                    </select>
+                  </div>
+
+                  {/* 3. Scyon Linea Weatherboard Cladding */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-bold text-slate-300 flex items-center justify-between">
+                      <span>Feature Cladding & Gable Finish</span>
+                      <span className="text-[10px] text-slate-400 font-mono">Horizontal Lap Siding</span>
+                    </label>
+                    <select
+                      value={design.materials?.claddingType || "scyon_linea_white"}
+                      onChange={(e) => handleMaterialChange({ claddingType: e.target.value as any })}
+                      className={`w-full py-1.5 px-2.5 rounded-lg font-bold border cursor-pointer ${
+                        isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-800 text-white"
+                      }`}
+                    >
+                      <option value="scyon_linea_white">Scyon Linea (Dulux Crisp White 150mm Planks)</option>
+                      <option value="cedar_shiplap">Natural Western Red Cedar Shiplap</option>
+                      <option value="vertical_groove">Modern Vertical Groove Architectural Cladding</option>
+                      <option value="none">Full Brickwork / No Cladding</option>
+                    </select>
+                  </div>
+
+                  {/* 4. Colorbond Roofing */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-bold text-slate-300 flex items-center justify-between">
+                      <span>Roof Finish (Australian 22.5° Hip)</span>
+                      <span className="text-[10px] text-slate-400 font-mono">Corrugated Steel / Tiles</span>
+                    </label>
+                    <select
+                      value={design.materials?.roofColor || "monument"}
+                      onChange={(e) => handleMaterialChange({ roofColor: e.target.value as any })}
+                      className={`w-full py-1.5 px-2.5 rounded-lg font-bold border cursor-pointer ${
+                        isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-800 text-white"
+                      }`}
+                    >
+                      <option value="monument">Colorbond Monument (Matt Rib Dark Charcoal)</option>
+                      <option value="surfmist">Colorbond Surfmist (Thermal Off-White)</option>
+                      <option value="shale_grey">Colorbond Shale Grey (Classic Light Slate)</option>
+                      <option value="basalt">Colorbond Basalt (Deep Mineral Grey)</option>
+                      <option value="terracotta_tile">Terracotta Designer Roof Tiles</option>
+                    </select>
+                  </div>
+
+                  {/* 5. Driveway & Surrounds */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-bold text-slate-300 flex items-center justify-between">
+                      <span>Driveway & Exterior Surrounds</span>
+                      <span className="text-[10px] text-slate-400 font-mono">100mm Concrete Slab</span>
+                    </label>
+                    <select
+                      value={design.materials?.drivewayFinish || "exposed_aggregate"}
+                      onChange={(e) => handleMaterialChange({ drivewayFinish: e.target.value as any })}
+                      className={`w-full py-1.5 px-2.5 rounded-lg font-bold border cursor-pointer ${
+                        isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-800 text-white"
+                      }`}
+                    >
+                      <option value="exposed_aggregate">Charcoal Exposed Aggregate (Pebble Fleck)</option>
+                      <option value="charcoal_stamped">Stamped Slate Ashlar Pattern</option>
+                      <option value="plain_concrete">Plain Broom Finish Concrete</option>
+                    </select>
+                  </div>
+
+                  {/* 6. Boundary Fencing & Cadastral Pegs */}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-slate-800/80">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                        <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                        1.8m Australian Boundary Fence
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleToggleFencing}
+                        className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                          showFencing
+                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                            : "bg-slate-800 text-slate-400 border border-slate-700"
+                        }`}
+                      >
+                        {showFencing ? "Enabled" : "Disabled"}
+                      </button>
+                    </div>
+
+                    {showFencing && (
+                      <select
+                        value={fenceStyle}
+                        onChange={(e) => handleFenceStyleChange(e.target.value as FenceStyle)}
+                        className={`w-full py-1.5 px-2.5 rounded-lg font-bold border cursor-pointer ${
+                          isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-800 text-white"
+                        }`}
+                      >
+                        <option value="colorbond_monument">Colorbond Monument (1.8m Sheets + Caps)</option>
+                        <option value="colorbond_woodland">Colorbond Woodland Grey</option>
+                        <option value="treated_pine">Treated Pine Timber (1.8m Palings)</option>
+                        <option value="rendered_brick">Rendered Low Wall with Piers</option>
+                      </select>
+                    )}
+
+                    <div className="text-[10px] text-slate-400 leading-relaxed">
+                      Includes 1.8m rear & side boundary fences, cadastral survey pegs at lot corners, side return wing fences, and 900mm pedestrian access gate with latch.
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-semibold text-slate-400">Eaves Overhang</span>
-                    <div className="p-2 rounded-lg bg-slate-950/40 border border-slate-800 font-mono text-slate-200 font-bold">
-                      450mm Perimeter Overhang
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-semibold text-slate-400">Roof Finish</span>
-                    <div className="p-2 rounded-lg bg-slate-950/40 border border-slate-800 font-bold text-slate-200">
-                      Colorbond Monument (Matt Rib)
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-semibold text-slate-400">Exterior Walls</span>
-                    <div className="p-2 rounded-lg bg-slate-950/40 border border-slate-800 font-bold text-slate-200">
-                      Austral Face Brickwork (250mm Veneer)
-                    </div>
+                  {/* 7. Engineering Specs */}
+                  <div className="p-3 rounded-xl bg-slate-950/40 border border-slate-800 flex flex-col gap-1 text-[10px] text-slate-400 font-mono">
+                    <div>Roof Pitch: 22.5° Australian Standard Hip</div>
+                    <div>Perimeter Eaves: 450mm Overhang</div>
+                    <div>Ceiling: {Math.round(design.ceilingHeightM * 1000)}mm Finished Height</div>
+                    <div>External Walls: 250mm Austral Brickwork Veneer</div>
+                    <div>Internal Walls: 90mm Stud Partitions to Exact Scale</div>
                   </div>
                 </div>
               </div>
