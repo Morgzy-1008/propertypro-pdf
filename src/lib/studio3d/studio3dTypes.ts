@@ -54,7 +54,17 @@ export type OpeningType =
   | "barn_door"
   | "cavity_slider"
   | "garage_door"
-  | "archway";
+  | "archway"
+  | "open_hamper";
+
+export interface OpenHamperSegment {
+  id: string;
+  start: [number, number]; // [x, z] in meters
+  end: [number, number];   // [x, z] in meters
+  thickness: number;       // 0.09m (90mm dashed line: 70mm frame + 10mm plaster each side)
+  bulkheadHeightM?: number; // clear walk-through height to underside of hamper (default 2.10m)
+  label: string;
+}
 
 export interface Opening3D {
   id: string;
@@ -68,6 +78,10 @@ export interface Opening3D {
   sillHeight: number;      // in meters from FFL (headHeight - height)
   headHeight: number;      // in meters from FFL (standard 2.10m)
   hingeSide?: "left" | "right";
+  hingePoint?: [number, number];  // exact [x, z] hinge pivot in meters
+  closedPoint?: [number, number]; // exact [x, z] latch jamb in meters
+  openPoint?: [number, number];   // exact [x, z] open door leaf tip in meters
+  bifoldPeak?: [number, number];  // exact [x, z] bifold fold vertex in meters
   isExterior?: boolean;
   elevationFacing?: "north" | "south" | "east" | "west";
 }
@@ -88,12 +102,22 @@ export interface Room3D {
 export type FixtureType =
   | "kitchen_island"
   | "kitchen_cabinetry"
+  | "kitchen_sink"
+  | "dishwasher"
+  | "cooktop_oven"
+  | "fridge_space"
+  | "pantry_shelving"
   | "butler_pantry"
+  | "study_desk"
   | "vanity_single"
   | "vanity_double"
   | "shower"
   | "bath"
   | "toilet"
+  | "laundry_tub"
+  | "washing_machine"
+  | "linen_joinery"
+  | "robe_joinery"
   | "bed_queen"
   | "bed_double"
   | "sofa_sectional"
@@ -284,6 +308,15 @@ export interface BuildingDesign3D {
   rooms: Room3D[];
   walls: WallSegment[];
   openings: Opening3D[];
+  openHampers?: OpenHamperSegment[]; // 90mm dashed lines (open hampers, not doors or full walls)
+  exactStructuralWalls?: boolean;    // true when walls are 1:1 calibrated to the CAD floorplan
+  floorplanImageUrl?: string;        // e.g. '/floorplans/AMBER 21.png'
+  floorplanCrop?: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
   fixtures: Fixture3D[];
   roof: RoofConfig;
   facade?: FacadeType;

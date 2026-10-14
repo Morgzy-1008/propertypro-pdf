@@ -112,10 +112,12 @@ export function Studio3dWorkspace() {
     "generic" | "tailored"
   >("tailored");
   const [showFencing, setShowFencing] = useState<boolean>(true);
+  const [showBlueprintUnderlay, setShowBlueprintUnderlay] =
+    useState<boolean>(true);
   const [fenceStyle, setFenceStyle] =
     useState<FenceStyle>("colorbond_monument");
   const [activeElevationMode, setActiveElevationMode] = useState<
-    "perspective" | "dollhouse" | "north" | "south" | "east" | "west"
+    "perspective" | "dollhouse" | "top" | "north" | "south" | "east" | "west"
   >("perspective");
 
   // Camera & Viewer Controls
@@ -467,9 +469,30 @@ export function Studio3dWorkspace() {
     toast.success(`Fence style updated: ${fenceLabels[style] || style}`);
   };
 
+  // 2D Floorplan Blueprint Underlay toggle
+  const handleToggleBlueprintUnderlay = () => {
+    const next = !showBlueprintUnderlay;
+    setShowBlueprintUnderlay(next);
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.setBlueprintUnderlay(next);
+    }
+    toast.info(
+      next
+        ? "1:100 2D Floorplan Blueprint Underlay enabled under 3D walls"
+        : "2D Floorplan Blueprint Underlay hidden"
+    );
+  };
+
   // 1-Click Architectural Elevation Camera Shortcuts
   const handleElevationView = (
-    view: "north" | "south" | "east" | "west" | "perspective" | "dollhouse"
+    view:
+      | "north"
+      | "south"
+      | "east"
+      | "west"
+      | "perspective"
+      | "dollhouse"
+      | "top"
   ) => {
     setActiveElevationMode(view);
     setCameraMode("orbit");
@@ -482,9 +505,15 @@ export function Studio3dWorkspace() {
       setRoofMode("exterior");
     } else if (view === "dollhouse") {
       setRoofMode("cutaway");
+    } else if (view === "top") {
+      setRoofMode("hidden");
     }
     if (sceneManagerRef.current) {
-      sceneManagerRef.current.setElevationView(view);
+      if (view === "top") {
+        sceneManagerRef.current.setPresetView("top");
+      } else {
+        sceneManagerRef.current.setElevationView(view);
+      }
     }
     const viewLabels: Record<string, string> = {
       north: "Front Elevation (North)",
@@ -493,6 +522,7 @@ export function Studio3dWorkspace() {
       east: "Right Side Elevation (East)",
       perspective: "3D Orbit Perspective",
       dollhouse: "Dollhouse Cutaway Mode",
+      top: "Top-Down 1:100 Structural Plan Check",
     };
     toast.info(`Camera aligned to ${viewLabels[view]}`);
   };
@@ -885,6 +915,26 @@ export function Studio3dWorkspace() {
           >
             <Sofa className="h-3.5 w-3.5 text-amber-500" />
             <span>Benchtops, Sinks, Vanities & Furniture</span>
+          </button>
+
+          {/* 2D Floorplan Blueprint Underlay Toggle */}
+          <button
+            type="button"
+            disabled={!design}
+            onClick={handleToggleBlueprintUnderlay}
+            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+              showBlueprintUnderlay && design
+                ? isLight
+                  ? "bg-blue-50 text-blue-700 border-blue-300"
+                  : "bg-blue-500/20 text-blue-400 border-blue-500/40"
+                : isLight
+                ? "bg-white hover:bg-slate-100 text-slate-600 border-slate-300"
+                : "bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700"
+            }`}
+            title="Show/Hide 1:100 2D Floorplan Blueprint Underlay directly beneath 3D walls"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            <span>2D Plan Underlay: {showBlueprintUnderlay ? "ON" : "OFF"}</span>
           </button>
 
           {/* 1.8m Fencing Toggle */}
@@ -1952,6 +2002,7 @@ export function Studio3dWorkspace() {
                     [
                       { id: "perspective", label: "3D Orbit", icon: "🌐" },
                       { id: "dollhouse", label: "Dollhouse", icon: "🔍" },
+                      { id: "top", label: "1:100 Plan", icon: "📏" },
                       { id: "north", label: "Front (North)", icon: "🏛️" },
                       { id: "south", label: "Rear (South)", icon: "🏡" },
                       { id: "west", label: "Left (West)", icon: "📐" },
@@ -2037,6 +2088,59 @@ export function Studio3dWorkspace() {
                   <span>•</span>
                   <span>{ fitout.benchtopThicknessMm }mm Stone</span>
                 </div>
+                {wallMetrics && (
+                  <div
+                    className={`mt-1 pt-1.5 border-t w-full flex flex-col gap-1 text-[10px] font-mono ${
+                      isLight ? "border-slate-200" : "border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5 font-bold text-red-700 dark:text-red-400">
+                        <span className="inline-block w-2.5 h-2.5 rounded-xs bg-red-600" />
+                        250mm External Brick:
+                      </span>
+                      <span className="font-bold">
+                        {wallMetrics.externalWallCount} walls ({wallMetrics.externalWallLinearM}m)
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5 font-bold text-blue-700 dark:text-blue-400">
+                        <span className="inline-block w-2.5 h-2.5 rounded-xs bg-blue-600 border-x-2 border-white" />
+                        90mm Internal (70+2×10):
+                      </span>
+                      <span className="font-bold">
+                        {wallMetrics.internalWallCount} walls ({wallMetrics.internalWallLinearM}m)
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+                        <span className="inline-block w-2.5 h-2.5 rounded-xs border border-dashed border-emerald-600 bg-emerald-500/20" />
+                        90mm Open Hampers:
+                      </span>
+                      <span className="font-bold">
+                        {wallMetrics.openHamperCount} portals ({wallMetrics.openHamperLinearM}m)
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
+                        <span className="inline-block w-2.5 h-2.5 rounded-xs bg-amber-500" />
+                        Doors & Garage Door:
+                      </span>
+                      <span className="font-bold">
+                        {(design.openings || []).filter((o) => o.type !== "window").length} doors + {(design.openings || []).filter((o) => o.type === "window").length} windows
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5 font-bold text-pink-700 dark:text-pink-400">
+                        <span className="inline-block w-2.5 h-2.5 rounded-xs bg-pink-500" />
+                        Recognised Internals:
+                      </span>
+                      <span className="font-bold">
+                        {(design.fixtures || []).length} joinery & fixtures
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

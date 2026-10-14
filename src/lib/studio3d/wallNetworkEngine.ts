@@ -232,6 +232,9 @@ export function deriveInternalWallsFromRooms(
  */
 export function ensureCompleteWallNetwork(design: BuildingDesign3D): BuildingDesign3D {
   if (!design || !design.rooms) return design;
+  if (design.exactStructuralWalls) {
+    return design;
+  }
 
   const currentWalls = [...(design.walls || [])];
   const derived = deriveInternalWallsFromRooms(
@@ -253,33 +256,52 @@ export function ensureCompleteWallNetwork(design: BuildingDesign3D): BuildingDes
 }
 
 /**
- * Calculates wall network metrics (linear meters of internal stud walls vs perimeter masonry)
+ * Calculates wall network metrics (linear meters of 90mm internal stud walls,
+ * 250mm perimeter face brick masonry, and 90mm dashed open hampers)
  * for structural validation and CAD reporting.
  */
 export function calculateWallNetworkMetrics(design: BuildingDesign3D): {
   internalWallLinearM: number;
   externalWallLinearM: number;
+  openHamperLinearM: number;
+  internalWallCount: number;
+  externalWallCount: number;
+  openHamperCount: number;
   totalWallCount: number;
   roomCount: number;
 } {
   const completeDesign = ensureCompleteWallNetwork(design);
   const walls = completeDesign.walls || [];
+  const hampers = completeDesign.openHampers || [];
 
   let internalM = 0;
   let externalM = 0;
+  let internalCount = 0;
+  let externalCount = 0;
+  let hamperM = 0;
 
   walls.forEach((w) => {
     const len = pointDist(w.start, w.end);
     if (w.isExterior) {
       externalM += len;
+      externalCount++;
     } else {
       internalM += len;
+      internalCount++;
     }
+  });
+
+  hampers.forEach((h) => {
+    hamperM += pointDist(h.start, h.end);
   });
 
   return {
     internalWallLinearM: Number(internalM.toFixed(2)),
     externalWallLinearM: Number(externalM.toFixed(2)),
+    openHamperLinearM: Number(hamperM.toFixed(2)),
+    internalWallCount: internalCount,
+    externalWallCount: externalCount,
+    openHamperCount: hampers.length,
     totalWallCount: walls.length,
     roomCount: completeDesign.rooms?.length || 0,
   };

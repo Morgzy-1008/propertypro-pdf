@@ -199,6 +199,10 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
     },
   };
 
+  if (design.exactStructuralWalls) {
+    return design;
+  }
+
   const outdoorRooms = (design.rooms || []).filter(
     (r) => r.name === "Porch" || r.name === "Alfresco"
   );
@@ -325,30 +329,90 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
     return w;
   });
 
-  // Ensure front Entry door is placed on the Entry-to-Porch wall (not floating on open Porch edge)
+  // Snap near-orthogonal walls from custom/imperfect plans so slight hand-drawn/PDF skews (< 3.5°) align cleanly
+  const snappedWalls = upgradedWalls.map((w) => {
+    const dx = w.end[0] - w.start[0];
+    const dz = w.end[1] - w.start[1];
+    const len = Math.hypot(dx, dz);
+    if (len > 0.15) {
+      if (Math.abs(dz) / len < 0.06) {
+        const avgZ = Math.round(((w.start[1] + w.end[1]) / 2) * 100) / 100;
+        return { ...w, start: [w.start[0], avgZ] as [number, number], end: [w.end[0], avgZ] as [number, number] };
+      }
+      if (Math.abs(dx) / len < 0.06) {
+        const avgX = Math.round(((w.start[0] + w.end[0]) / 2) * 100) / 100;
+        return { ...w, start: [avgX, w.start[1]] as [number, number], end: [avgX, w.end[1]] as [number, number] };
+      }
+    }
+    return w;
+  });
+
+  // Ensure front Entry door is placed on the Entry-to-Porch wall AND scale all internal doors universally
+  // (870mm standard internal doors, 720mm bathroom/WC/linen doors) with 3D hingePoint/closedPoint/openPoint
   const porchRoom = outdoorRooms.find((r) => r.name === "Porch");
   const entryRoom = indoorRooms.find((r) => r.name === "Entry" || r.name === "Hallway");
   const updatedOpenings = (design.openings || []).map((op) => {
+    let nextOp = { ...op };
     if (
       porchRoom &&
       entryRoom &&
-      op.type === "door" &&
-      op.isExterior &&
-      (op.code.includes("EXT") || op.code === "D01" || op.code === "D1" || op.label.toLowerCase().includes("entry"))
+      nextOp.type === "door" &&
+      nextOp.isExterior &&
+      (nextOp.code.includes("EXT") || nextOp.code === "D01" || nextOp.code === "D1" || nextOp.label.toLowerCase().includes("entry"))
     ) {
       const pb = getBox(porchRoom);
-      if (op.position[1] <= 0.15 && pb.maxY > 0.5) {
-        return {
-          ...op,
+      if (nextOp.position[1] <= 0.15 && pb.maxY > 0.5) {
+        nextOp = {
+          ...nextOp,
           position: [(pb.minX + pb.maxX) / 2, pb.maxY] as [number, number],
           wallOrientation: "horizontal" as const,
         };
       }
     }
-    return op;
+
+    // Universal Door Sizing & 3D Swing Arc Synthesis for any plan without explicit hingePoint
+    if (nextOp.type === "door" && !nextOp.hingePoint && !nextOp.bifoldPeak) {
+      const lbl = `${nextOp.code} ${nextOp.label}`.toLowerCase();
+      const isBathOrLinen =
+        lbl.includes("bath") ||
+        lbl.includes("ens") ||
+        lbl.includes("wc") ||
+        lbl.includes("linen") ||
+        lbl.includes("powder");
+      const scaledW = nextOp.isExterior
+        ? Math.max(0.82, nextOp.width)
+        : isBathOrLinen
+        ? 0.72
+        : 0.87;
+      const halfW = scaledW / 2;
+      const [ox, oz] = nextOp.position;
+      const isHoriz = nextOp.wallOrientation !== "vertical";
+
+      if (isHoriz) {
+        const swingSign = oz < design.lengthM / 2 ? 1 : -1;
+        nextOp = {
+          ...nextOp,
+          width: scaledW,
+          hingePoint: [ox - halfW, oz],
+          closedPoint: [ox + halfW, oz],
+          openPoint: [ox - halfW, oz + swingSign * scaledW],
+        };
+      } else {
+        const swingSign = ox < design.widthM / 2 ? -1 : 1;
+        nextOp = {
+          ...nextOp,
+          width: scaledW,
+          hingePoint: [ox, oz - halfW],
+          closedPoint: [ox, oz + halfW],
+          openPoint: [ox + swingSign * scaledW, oz - halfW],
+        };
+      }
+    }
+
+    return nextOp;
   });
 
-  // 2. Ensure complete interior fitout fixtures (benchtops, sinks, vanities, showers, baths, toilets, beds, sofas, dining)
+  // 2. Ensure complete interior fitout fixtures (benchtops, sinks, vanities, showers, baths, toilets, laundry tub & future WM space)
   const fixtures: Fixture3D[] = [...(design.fixtures || [])];
   const hasFixtureInRoom = (roomName: string, type?: Fixture3D["type"]) =>
     fixtures.some(
@@ -366,17 +430,31 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
 
     if (room.name === "Kitchen") {
       if (!hasFixtureInRoom("Kitchen", "kitchen_island")) {
+        const islandW = Math.min(2.8, Math.max(2.0, rw * 0.58));
         fixtures.push({
           id: `auto_island_${room.id}`,
           type: "kitchen_island",
           roomName: "Kitchen",
           position: [cx, 0.45, cz],
           rotationY: rw >= rl ? 0 : Math.PI / 2,
-          width: Math.min(2.8, Math.max(2.0, rw * 0.58)),
-          depth: 0.95,
+          width: islandW,
+          depth: 0.90,
           height: 0.9,
-          label: "Waterfall Stone Island Benchtop with Double Undermount Sink & Gooseneck Mixer",
+          label: "Waterfall Stone Island Benchtop",
         });
+        if (!hasFixtureInRoom("Kitchen", "kitchen_sink")) {
+          fixtures.push({
+            id: `auto_ksink_${room.id}`,
+            type: "kitchen_sink",
+            roomName: "Kitchen",
+            position: [cx - islandW * 0.14, 0.90, cz + 0.08],
+            rotationY: rw >= rl ? 0 : Math.PI / 2,
+            width: 1.07,
+            depth: 0.48,
+            height: 0.04,
+            label: "Double Bowl Undermount Sink & Drainer",
+          });
+        }
       }
       if (!hasFixtureInRoom("Kitchen", "kitchen_cabinetry")) {
         const isNearEast = Math.abs(rb.maxX - design.widthM) < 0.5;
@@ -392,7 +470,7 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
           width: Math.min(3.2, Math.max(2.2, (isNearEast ? rl : rw) * 0.68)),
           depth: 0.65,
           height: 0.9,
-          label: "Rear Stone Benchtop, 900mm Induction Cooktop, Underbench Oven & Overhead Joinery",
+          label: "Rear Stone Benchtop, 900mm Cooktop, Underbench Oven & Overhead Joinery",
         });
       }
     } else if (room.name === "Butler Pantry" && !hasFixtureInRoom("Butler Pantry")) {
@@ -458,7 +536,7 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
           width: Math.min(1.65, Math.max(1.3, rw * 0.65)),
           depth: 0.78,
           height: 0.58,
-          label: "1700mm Freestanding Oval Bathtub with Floor Spout",
+          label: "1700mm Inset/Freestanding Bathtub",
         });
       }
       if (!hasFixtureInRoom("Bath", "vanity_single") && !hasFixtureInRoom("Bath", "vanity_double")) {
@@ -489,15 +567,26 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
       }
     } else if (room.name === "Laundry" && !hasFixtureInRoom("Laundry")) {
       fixtures.push({
-        id: `auto_laun_${room.id}`,
-        type: "butler_pantry",
+        id: `auto_ltub_${room.id}`,
+        type: "laundry_tub",
         roomName: "Laundry",
-        position: [cx, 0.45, rb.maxY - 0.38],
-        rotationY: 0,
-        width: Math.min(1.8, Math.max(1.1, rw * 0.68)),
-        depth: 0.6,
+        position: [rb.minX + 0.42, 0.45, rb.maxY - 0.36],
+        rotationY: Math.PI,
+        width: 0.60,
+        depth: 0.48,
         height: 0.9,
-        label: "Custom Laundry Laminate Benchtop & Drop-in 45L Stainless Tub",
+        label: "Laundry 45L Stainless Tub & Sink Cabinetry",
+      });
+      fixtures.push({
+        id: `auto_lwm_${room.id}`,
+        type: "washing_machine",
+        roomName: "Laundry",
+        position: [rb.minX + 1.15, 0.02, rb.maxY - 0.42],
+        rotationY: Math.PI,
+        width: 0.74,
+        depth: 0.67,
+        height: 0.04,
+        label: "Future Washing Machine Space (Dashed Provision)",
       });
     } else if (room.name === "Master Bed" && room.customLabel !== "W.I.R" && !hasFixtureInRoom("Master Bed", "bed_queen")) {
       fixtures.push({
@@ -524,7 +613,7 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
         width: 1.45,
         depth: 1.95,
         height: 0.62,
-        label: `${room.name} Double Bed & Built-in Robe`,
+        label: `${room.name} Double Bed & Sliding Built-in Robe`,
       });
     } else if (room.name === "Living") {
       if (!hasFixtureInRoom("Living", "sofa_sectional")) {
@@ -582,7 +671,7 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
 
   const complete = ensureCompleteWallNetwork({
     ...design,
-    walls: upgradedWalls,
+    walls: snappedWalls,
     openings: updatedOpenings,
     fixtures,
   });

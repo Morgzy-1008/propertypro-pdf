@@ -1,7 +1,9 @@
 /**
- * Parametric Australian Hip Roof Generator
- * Builds high-fidelity 3D WebGL geometries for Colorbond and Tile hip roofs
- * with 450mm eaves overhang, 22.5° pitch, fascia boards, and quad gutters.
+ * Parametric Australian Hip-and-Valley Roof Generator
+ * Builds high-fidelity 3D WebGL geometries for Standard Hip-and-Valley Roofs
+ * tailored to stepped residential floorplan footprints (including main body,
+ * projecting front bedroom/garage/porch wings, and rear master/alfresco wings)
+ * with 450mm eaves overhang, 22.5° pitch, hip/ridge capping, fascia boards, and quad gutters.
  */
 
 import * as THREE from "three";
@@ -19,8 +21,120 @@ export interface RoofGeometryResult {
   };
 }
 
+interface FootprintSpan {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+}
+
 /**
- * Procedurally generates 3D Australian Hip Roof meshes.
+ * Extracts stepped horizontal footprint spans along the Z axis from rooms and exterior walls,
+ * so the roof generator automatically tailors a multi-wing Hip-and-Valley roofline to any plan.
+ */
+function extractSteppedFootprintSpans(design: BuildingDesign3D): FootprintSpan[] {
+  const sampleCount = 60;
+  let globalMinX = 0;
+  let globalMaxX = design.widthM;
+  let globalMinZ = 0;
+  let globalMaxZ = design.lengthM;
+
+  if (design.walls && design.walls.length > 0) {
+    const xs = design.walls.flatMap((w) => [w.start[0], w.end[0]]);
+    const zs = design.walls.flatMap((w) => [w.start[1], w.end[1]]);
+    globalMinX = Math.min(...xs);
+    globalMaxX = Math.max(...xs);
+    globalMinZ = Math.min(...zs);
+    globalMaxZ = Math.max(...zs);
+  }
+  if (design.rooms && design.rooms.length > 0) {
+    const rxs = design.rooms.flatMap((r) => r.polygon.map((p) => p[0]));
+    const rzs = design.rooms.flatMap((r) => r.polygon.map((p) => p[1]));
+    globalMinX = Math.min(globalMinX, ...rxs);
+    globalMaxX = Math.max(globalMaxX, ...rxs);
+    globalMinZ = Math.min(globalMinZ, ...rzs);
+    globalMaxZ = Math.max(globalMaxZ, ...rzs);
+  }
+
+  const totalZ = Math.max(1, globalMaxZ - globalMinZ);
+  const dz = totalZ / sampleCount;
+  const rawSlices: FootprintSpan[] = [];
+
+  for (let i = 0; i < sampleCount; i++) {
+    const zA = globalMinZ + i * dz;
+    const zB = zA + dz;
+    const zMid = (zA + zB) / 2;
+
+    let sMinX = Infinity;
+    let sMaxX = -Infinity;
+
+    // 1. Check rooms covering zMid
+    for (const room of design.rooms || []) {
+      const zs = room.polygon.map((p) => p[1]);
+      const xs = room.polygon.map((p) => p[0]);
+      const rMinZ = Math.min(...zs);
+      const rMaxZ = Math.max(...zs);
+      if (zMid >= rMinZ - 0.15 && zMid <= rMaxZ + 0.15) {
+        sMinX = Math.min(sMinX, ...xs);
+        sMaxX = Math.max(sMaxX, ...xs);
+      }
+    }
+
+    // 2. Check exterior walls covering zMid
+    for (const wall of design.walls || []) {
+      if (!wall.isExterior) continue;
+      const wMinZ = Math.min(wall.start[1], wall.end[1]);
+      const wMaxZ = Math.max(wall.start[1], wall.end[1]);
+      const halfT = (wall.thickness || 0.25) / 2;
+      if (zMid >= wMinZ - 0.15 && zMid <= wMaxZ + 0.15) {
+        sMinX = Math.min(sMinX, wall.start[0] - halfT, wall.end[0] - halfT);
+        sMaxX = Math.max(sMaxX, wall.start[0] + halfT, wall.end[0] + halfT);
+      }
+    }
+
+    if (sMinX < sMaxX) {
+      rawSlices.push({ x0: sMinX, x1: sMaxX, z0: zA, z1: zB });
+    }
+  }
+
+  if (rawSlices.length === 0) {
+    return [{ x0: globalMinX, x1: globalMaxX, z0: globalMinZ, z1: globalMaxZ }];
+  }
+
+  // Merge adjacent slices with matching [x0, x1] within 0.35m tolerance
+  const merged: FootprintSpan[] = [];
+  for (const s of rawSlices) {
+    const prev = merged[merged.length - 1];
+    if (
+      prev &&
+      Math.abs(prev.x0 - s.x0) < 0.35 &&
+      Math.abs(prev.x1 - s.x1) < 0.35
+    ) {
+      prev.x0 = Math.min(prev.x0, s.x0);
+      prev.x1 = Math.max(prev.x1, s.x1);
+      prev.z1 = s.z1;
+    } else {
+      merged.push({ ...s });
+    }
+  }
+
+  // Filter out tiny sliver spans (< 0.8m in Z) by absorbing into neighbor
+  const cleaned: FootprintSpan[] = [];
+  for (let i = 0; i < merged.length; i++) {
+    const cur = merged[i];
+    if (cur.z1 - cur.z0 < 0.8 && cleaned.length > 0) {
+      cleaned[cleaned.length - 1].z1 = cur.z1;
+    } else {
+      cleaned.push(cur);
+    }
+  }
+
+  return cleaned;
+}
+
+/**
+ * Procedurally generates 3D Standard Australian Hip-and-Valley Roof meshes
+ * tailored to the stepped building footprint.
  */
 export function generateProceduralHipRoof(
   design: BuildingDesign3D,
@@ -31,67 +145,54 @@ export function generateProceduralHipRoof(
     ...customConfig,
   };
 
+  const ffl = 0.30; // Foundation slab top height
   const ceilingH = design.ceilingHeightM;
   const eavesOverhang = config.eavesOverhangM || 0.45;
   const pitchRad = ((config.pitchDeg || 22.5) * Math.PI) / 180;
+  const eavesH = ffl + ceilingH + 0.04; // Sits directly on top of wall top plate
 
-  // 1. Calculate building perimeter bounding box
-  let minX = 0;
-  let maxX = design.widthM;
-  let minZ = 0;
-  let maxZ = design.lengthM;
+  // 1. Extract stepped footprint spans along Z
+  const spans = extractSteppedFootprintSpans(design);
+  const globalMinZ = spans[0].z0;
+  const globalMaxZ = spans[spans.length - 1].z1;
 
-  if (design.walls && design.walls.length > 0) {
-    const xs = design.walls.flatMap((w) => [w.start[0], w.end[0]]);
-    const zs = design.walls.flatMap((w) => [w.start[1], w.end[1]]);
-    minX = Math.min(...xs);
-    maxX = Math.max(...xs);
-    minZ = Math.min(...zs);
-    maxZ = Math.max(...zs);
+  // Convert stepped spans into intersecting rectangular hip-roof wings.
+  // Each wing extends inward into wider adjacent wings so its secondary hip ridge
+  // terminates cleanly into the main roof slope to form true 45° valleys!
+  const wings: FootprintSpan[] = spans.map((s) => {
+    const spanW = s.x1 - s.x0;
+    const embedDepth = Math.max(spanW * 0.85, 3.2);
+    let wZ0 = s.z0;
+    let wZ1 = s.z1;
+
+    // Can we extend North (-Z) into a wider span that covers [s.x0, s.x1]?
+    for (let j = 0; j < spans.length; j++) {
+      const other = spans[j];
+      if (other.z1 <= s.z0 + 0.05 && other.x0 <= s.x0 + 0.35 && other.x1 >= s.x1 - 0.35) {
+        wZ0 = Math.max(other.z0, s.z0 - embedDepth);
+      }
+      if (other.z0 >= s.z1 - 0.05 && other.x0 <= s.x0 + 0.35 && other.x1 >= s.x1 - 0.35) {
+        wZ1 = Math.min(other.z1, s.z1 + embedDepth);
+      }
+    }
+
+    return {
+      x0: s.x0 - eavesOverhang,
+      x1: s.x1 + eavesOverhang,
+      z0: wZ0 - eavesOverhang,
+      z1: wZ1 + eavesOverhang,
+    };
+  });
+
+  // Also ensure a primary full-length wing over the widest core span
+  let widestSpan = spans[0];
+  for (const s of spans) {
+    if (s.x1 - s.x0 > widestSpan.x1 - widestSpan.x0) {
+      widestSpan = s;
+    }
   }
 
-  // Eaves perimeter (bounding box + 450mm overhang)
-  const eMinX = minX - eavesOverhang;
-  const eMaxX = maxX + eavesOverhang;
-  const eMinZ = minZ - eavesOverhang;
-  const eMaxZ = maxZ + eavesOverhang;
-
-  const width = eMaxX - eMinX;
-  const length = eMaxZ - eMinZ;
-
-  const eavesH = ceilingH + 0.12; // Wall top plate + truss seating
-  const halfSpan = Math.min(width, length) / 2;
-  const rise = halfSpan * Math.tan(pitchRad);
-  const ridgeH = eavesH + rise;
-
-  // 2. Ridge endpoints
-  let r1: [number, number, number];
-  let r2: [number, number, number];
-
-  const centerX = (eMinX + eMaxX) / 2;
-  const centerZ = (eMinZ + eMaxZ) / 2;
-
-  if (length >= width) {
-    // Ridge runs parallel to Z (front to back)
-    const ridgeMinZ = eMinZ + halfSpan;
-    const ridgeMaxZ = eMaxZ - halfSpan;
-    r1 = [centerX, ridgeH, ridgeMinZ];
-    r2 = [centerX, ridgeH, ridgeMaxZ];
-  } else {
-    // Ridge runs parallel to X (side to side)
-    const ridgeMinX = eMinX + halfSpan;
-    const ridgeMaxX = eMaxX - halfSpan;
-    r1 = [ridgeMinX, ridgeH, centerZ];
-    r2 = [ridgeMaxX, ridgeH, centerZ];
-  }
-
-  // 3. Eaves 4 Corners
-  const cFL: [number, number, number] = [eMinX, eavesH, eMinZ]; // Front-Left
-  const cFR: [number, number, number] = [eMaxX, eavesH, eMinZ]; // Front-Right
-  const cRR: [number, number, number] = [eMaxX, eavesH, eMaxZ]; // Rear-Right
-  const cRL: [number, number, number] = [eMinX, eavesH, eMaxZ]; // Rear-Left
-
-  // 4. Construct 3D Roof Triangles & Quads (BufferGeometry)
+  // 2. Construct 3D Roof Facets + Hip/Ridge Capping for all wings
   const positions: number[] = [];
   const normals: number[] = [];
   const uvs: number[] = [];
@@ -125,26 +226,95 @@ export function generateProceduralHipRoof(
     addTriangle(p1, p3, p4);
   }
 
-  if (length >= width) {
-    // 4 Facets for Z-parallel ridge:
-    // Front Hip (Triangle): cFL, cFR, r1
-    addTriangle(cFL, cFR, r1);
-    // Rear Hip (Triangle): cRR, cRL, r2
-    addTriangle(cRR, cRL, r2);
-    // Right Slope (Trapezoid): cFR, cRR, r2, r1
-    addQuad(cFR, cRR, r2, r1);
-    // Left Slope (Trapezoid): cRL, cFL, r1, r2
-    addQuad(cRL, cFL, r1, r2);
-  } else {
-    // 4 Facets for X-parallel ridge:
-    // Left Hip (Triangle): cRL, cFL, r1
-    addTriangle(cRL, cFL, r1);
-    // Right Hip (Triangle): cFR, cRR, r2
-    addTriangle(cFR, cRR, r2);
-    // Front Slope (Trapezoid): cFL, cFR, r2, r1
-    addQuad(cFL, cFR, r2, r1);
-    // Rear Slope (Trapezoid): cRR, cRL, r1, r2
-    addQuad(cRR, cRL, r1, r2);
+  function addRidgeCapBar(pA: [number, number, number], pB: [number, number, number]) {
+    const vA = new THREE.Vector3(...pA);
+    const vB = new THREE.Vector3(...pB);
+    const dir = new THREE.Vector3().subVectors(vB, vA);
+    if (dir.length() < 0.05) return;
+    const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize().multiplyScalar(0.09);
+    const lift = 0.032;
+
+    const topA: [number, number, number] = [vA.x, vA.y + lift, vA.z];
+    const topB: [number, number, number] = [vB.x, vB.y + lift, vB.z];
+    const leftA: [number, number, number] = [vA.x + perp.x, vA.y - 0.01, vA.z + perp.z];
+    const leftB: [number, number, number] = [vB.x + perp.x, vB.y - 0.01, vB.z + perp.z];
+    const rightA: [number, number, number] = [vA.x - perp.x, vA.y - 0.01, vA.z - perp.z];
+    const rightB: [number, number, number] = [vB.x - perp.x, vB.y - 0.01, vB.z - perp.z];
+
+    addQuad(leftA, leftB, topB, topA);
+    addQuad(topA, topB, rightB, rightA);
+  }
+
+  let maxRidgeH = eavesH;
+  let mainR1: [number, number, number] = [design.widthM / 2, eavesH + 2.0, globalMinZ];
+  let mainR2: [number, number, number] = [design.widthM / 2, eavesH + 2.0, globalMaxZ];
+
+  for (const w of wings) {
+    const eMinX = w.x0;
+    const eMaxX = w.x1;
+    const eMinZ = w.z0;
+    const eMaxZ = w.z1;
+
+    const width = eMaxX - eMinX;
+    const length = eMaxZ - eMinZ;
+    const halfSpan = Math.min(width, length) / 2;
+    const rise = halfSpan * Math.tan(pitchRad);
+    const ridgeH = eavesH + rise;
+
+    const centerX = (eMinX + eMaxX) / 2;
+    const centerZ = (eMinZ + eMaxZ) / 2;
+
+    let r1: [number, number, number];
+    let r2: [number, number, number];
+
+    if (length >= width) {
+      const ridgeMinZ = eMinZ + halfSpan;
+      const ridgeMaxZ = eMaxZ - halfSpan;
+      r1 = [centerX, ridgeH, ridgeMinZ];
+      r2 = [centerX, ridgeH, ridgeMaxZ];
+    } else {
+      const ridgeMinX = eMinX + halfSpan;
+      const ridgeMaxX = eMaxX - halfSpan;
+      r1 = [ridgeMinX, ridgeH, centerZ];
+      r2 = [ridgeMaxX, ridgeH, centerZ];
+    }
+
+    if (ridgeH >= maxRidgeH) {
+      maxRidgeH = ridgeH;
+      mainR1 = r1;
+      mainR2 = r2;
+    }
+
+    const cFL: [number, number, number] = [eMinX, eavesH, eMinZ];
+    const cFR: [number, number, number] = [eMaxX, eavesH, eMinZ];
+    const cRR: [number, number, number] = [eMaxX, eavesH, eMaxZ];
+    const cRL: [number, number, number] = [eMinX, eavesH, eMaxZ];
+
+    if (length >= width) {
+      addTriangle(cFL, cFR, r1);
+      addTriangle(cRR, cRL, r2);
+      addQuad(cFR, cRR, r2, r1);
+      addQuad(cRL, cFL, r1, r2);
+    } else {
+      addTriangle(cRL, cFL, r1);
+      addTriangle(cFR, cRR, r2);
+      addQuad(cFL, cFR, r2, r1);
+      addQuad(cRR, cRL, r1, r2);
+    }
+
+    // Add 3D Hip & Ridge Capping Bars along the 4 hips and central ridge of this wing
+    addRidgeCapBar(r1, r2);
+    if (length >= width) {
+      addRidgeCapBar(cFL, r1);
+      addRidgeCapBar(cFR, r1);
+      addRidgeCapBar(cRL, r2);
+      addRidgeCapBar(cRR, r2);
+    } else {
+      addRidgeCapBar(cFL, r1);
+      addRidgeCapBar(cRL, r1);
+      addRidgeCapBar(cFR, r2);
+      addRidgeCapBar(cRR, r2);
+    }
   }
 
   const roofGeom = new THREE.BufferGeometry();
@@ -152,7 +322,7 @@ export function generateProceduralHipRoof(
   roofGeom.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
   roofGeom.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
 
-  // Procedural corrugated Colorbond texture canvas
+  // Procedural corrugated Colorbond / Tile texture canvas
   let roofTexture: THREE.CanvasTexture | null = null;
   if (typeof document !== "undefined") {
     const canvas = document.createElement("canvas");
@@ -162,7 +332,6 @@ export function generateProceduralHipRoof(
     if (ctx) {
       ctx.fillStyle = config.colorHex || "#2b2e35";
       ctx.fillRect(0, 0, 128, 128);
-      // Fine Colorbond rib profile shadows
       for (let i = 0; i < 128; i += 8) {
         ctx.fillStyle = "rgba(0,0,0,0.18)";
         ctx.fillRect(i, 0, 3, 128);
@@ -179,7 +348,7 @@ export function generateProceduralHipRoof(
   const roofMat = new THREE.MeshStandardMaterial({
     ...(roofTexture ? { map: roofTexture } : {}),
     color: new THREE.Color(config.colorHex || "#2b2e35"),
-    roughness: 0.65,
+    roughness: 0.62,
     metalness: 0.25,
     side: THREE.DoubleSide,
     transparent: config.transparency > 0,
@@ -190,24 +359,58 @@ export function generateProceduralHipRoof(
   roofMesh.castShadow = true;
   roofMesh.receiveShadow = true;
 
-  // 5. Fascia board band (180mm height around the eaves perimeter)
+  // 3. Build Stepped Eaves Perimeter Polygon (following the exact stepped building boundary!)
+  const eavesLoop: [number, number][] = [];
+  const eSpans = spans.map((s, idx) => ({
+    x0: s.x0 - eavesOverhang,
+    x1: s.x1 + eavesOverhang,
+    z0: idx === 0 ? s.z0 - eavesOverhang : s.z0,
+    z1: idx === spans.length - 1 ? s.z1 + eavesOverhang : s.z1,
+  }));
+
+  // Trace down Right side (North to South)
+  for (let i = 0; i < eSpans.length; i++) {
+    const s = eSpans[i];
+    if (i === 0) {
+      eavesLoop.push([s.x0, s.z0]);
+      eavesLoop.push([s.x1, s.z0]);
+    } else {
+      const prev = eSpans[i - 1];
+      const stepZ = s.x1 > prev.x1 ? s.z0 - eavesOverhang : s.z0 + eavesOverhang;
+      eavesLoop.push([prev.x1, stepZ]);
+      eavesLoop.push([s.x1, stepZ]);
+    }
+    if (i === eSpans.length - 1) {
+      eavesLoop.push([s.x1, s.z1]);
+    }
+  }
+
+  // Trace up Left side (South to North)
+  for (let i = eSpans.length - 1; i >= 0; i--) {
+    const s = eSpans[i];
+    if (i === eSpans.length - 1) {
+      eavesLoop.push([s.x0, s.z1]);
+    } else {
+      const next = eSpans[i + 1];
+      const stepZ = s.x0 < next.x0 ? next.z0 + eavesOverhang : next.z0 - eavesOverhang;
+      eavesLoop.push([next.x0, stepZ]);
+      eavesLoop.push([s.x0, stepZ]);
+    }
+    if (i === 0) {
+      eavesLoop.push([s.x0, s.z0]);
+    }
+  }
+
+  // 4. Stepped Fascia Board Band (180mm height around stepped eaves perimeter)
   const fasciaGeom = new THREE.BufferGeometry();
   const fasciaPositions: number[] = [];
   const fBottom = eavesH - 0.18;
   const fTop = eavesH;
 
-  const fPts: [number, number][] = [
-    [eMinX, eMinZ],
-    [eMaxX, eMinZ],
-    [eMaxX, eMaxZ],
-    [eMinX, eMaxZ],
-    [eMinX, eMinZ],
-  ];
-
-  for (let i = 0; i < 4; i++) {
-    const pA = fPts[i];
-    const pB = fPts[i + 1];
-    // Quad from pA to pB between fBottom and fTop
+  for (let i = 0; i < eavesLoop.length - 1; i++) {
+    const pA = eavesLoop[i];
+    const pB = eavesLoop[i + 1];
+    if (Math.hypot(pB[0] - pA[0], pB[1] - pA[1]) < 0.01) continue;
     const v1: [number, number, number] = [pA[0], fBottom, pA[1]];
     const v2: [number, number, number] = [pB[0], fBottom, pB[1]];
     const v3: [number, number, number] = [pB[0], fTop, pB[1]];
@@ -227,24 +430,16 @@ export function generateProceduralHipRoof(
   });
   const fasciaMesh = new THREE.Mesh(fasciaGeom, fasciaMat);
 
-  // 6. Colorbond Quad Gutter (slight outward extrusion hugging fascia top)
+  // 5. Stepped Colorbond Quad Gutter
   const gutterGeom = new THREE.BufferGeometry();
   const gutterPositions: number[] = [];
-  const gTop = eavesH + 0.05;
-  const gBot = eavesH - 0.12;
-  const gOffset = 0.04;
+  const gTop = eavesH + 0.04;
+  const gBot = eavesH - 0.11;
 
-  const gPts: [number, number][] = [
-    [eMinX - gOffset, eMinZ - gOffset],
-    [eMaxX + gOffset, eMinZ - gOffset],
-    [eMaxX + gOffset, eMaxZ + gOffset],
-    [eMinX - gOffset, eMaxZ + gOffset],
-    [eMinX - gOffset, eMinZ - gOffset],
-  ];
-
-  for (let i = 0; i < 4; i++) {
-    const pA = gPts[i];
-    const pB = gPts[i + 1];
+  for (let i = 0; i < eavesLoop.length - 1; i++) {
+    const pA = eavesLoop[i];
+    const pB = eavesLoop[i + 1];
+    if (Math.hypot(pB[0] - pA[0], pB[1] - pA[1]) < 0.01) continue;
     const v1: [number, number, number] = [pA[0], gBot, pA[1]];
     const v2: [number, number, number] = [pB[0], gBot, pB[1]];
     const v3: [number, number, number] = [pB[0], gTop, pB[1]];
@@ -269,8 +464,8 @@ export function generateProceduralHipRoof(
     roofMesh,
     fasciaMesh,
     gutterMesh,
-    ridgeHeightM: ridgeH,
+    ridgeHeightM: maxRidgeH,
     eavesHeightM: eavesH,
-    ridgeEndpoints: { p1: r1, p2: r2 },
+    ridgeEndpoints: { p1: mainR1, p2: mainR2 },
   };
 }
