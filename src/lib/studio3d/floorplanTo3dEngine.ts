@@ -44,6 +44,7 @@ import {
 } from "@/lib/pricelist.nsw.data";
 import { getStandardAreaBreakdown } from "@/lib/quoting/quoteEngine";
 import { plansForDesign } from "@/components/flyer/floorplans";
+import { HUDSON_FLOORPLANS } from "@/components/flyer/floorplans.data";
 import type { PlanModificationAnalysis } from "@/lib/quoting/quoteTypes";
 
 export const DEFAULT_FITOUT_CONFIG: InteriorFitoutConfig = {
@@ -85,6 +86,7 @@ export interface StandardCatalogueDesignItem {
   cars: number;
   widthM: number;
   lengthM: number;
+  floorplanUrl?: string;
 }
 
 export type StandardHudsonDesignOption = StandardCatalogueDesignItem;
@@ -167,6 +169,7 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
         cars,
         widthM: Math.round(widthM * 100) / 100,
         lengthM: Math.round(lengthM * 100) / 100,
+        floorplanUrl: planMeta?.url,
       });
     }
   };
@@ -179,6 +182,36 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
   addRows(NSW_DOUBLE_STOREY_PRICES, "Double Storey");
   addRows(NSW_DUAL_OC_PRICES, "Dual Living");
   addRows(NSW_SPLIT_LEVEL_PRICES, "Split Level");
+
+  // Also ensure every floorplan in HUDSON_FLOORPLANS is present with exact CAD width & length
+  for (const fp of HUDSON_FLOORPLANS) {
+    const key = fp.label.trim().toLowerCase();
+    if (map.has(key)) continue;
+    const totalM2 = parseFloat(fp.size) || 215;
+    const isGranny = /^aqua\b/i.test(fp.label);
+    const housingType = isGranny ? "Granny Flat" : "Single Storey";
+    const areas = getStandardAreaBreakdown(fp.label, housingType, totalM2);
+    const parsedW = parseFloat(String(fp.houseWidth || fp.width || ""));
+    const parsedL = parseFloat(String(fp.houseLength || fp.depth || ""));
+    const widthM = !isNaN(parsedW) && parsedW >= 6 ? parsedW : 11.5;
+    const lengthM = !isNaN(parsedL) && parsedL >= 8 ? parsedL : 20.0;
+    map.set(key, {
+      id: key.replace(/[^a-z0-9]+/g, "-"),
+      name: fp.label,
+      housingType,
+      totalM2: Math.round(totalM2 * 100) / 100,
+      livingM2: Math.round((areas.livingM2 || totalM2 * 0.74) * 100) / 100,
+      garageM2: Math.round((areas.garageM2 ?? (isGranny ? 0 : 36.5)) * 100) / 100,
+      alfrescoM2: Math.round((areas.alfrescoM2 ?? 12.0) * 100) / 100,
+      porchM2: Math.round((areas.porchM2 ?? 3.2) * 100) / 100,
+      bedrooms: Number(fp.beds) || 4,
+      bathrooms: Number(fp.baths) || 2,
+      cars: Number(fp.cars) || 2,
+      widthM: Math.round(widthM * 100) / 100,
+      lengthM: Math.round(lengthM * 100) / 100,
+      floorplanUrl: fp.url,
+    });
+  }
 
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -689,27 +722,20 @@ export function build3DDesignForStandardModel(
 ): BuildingDesign3D {
   const clean = designName.trim().toLowerCase();
 
-  // Check if matches one of the 5 curated blueprints first
+  // Only return pre-calibrated Amber 21 or Juliana special directly
   if (clean.includes("juliana")) {
     return ensureOutdoorZonesOpenAndFurnished(DESIGNS_3D_REGISTRY["tiffany-22-custom-juliana"]);
   }
-  if (clean.startsWith("tiffany")) {
-    return ensureOutdoorZonesOpenAndFurnished(DESIGNS_3D_REGISTRY["tiffany-22"]);
-  }
-  if (clean.startsWith("jasper")) {
-    return ensureOutdoorZonesOpenAndFurnished(DESIGNS_3D_REGISTRY["jasper-26"]);
-  }
-  if (clean.startsWith("amber")) {
+  if (clean === "amber 21" || clean === "amber-21") {
     return ensureOutdoorZonesOpenAndFurnished(DESIGNS_3D_REGISTRY["amber-21"]);
-  }
-  if (clean.startsWith("azure")) {
-    return ensureOutdoorZonesOpenAndFurnished(DESIGNS_3D_REGISTRY["azure-25"]);
   }
 
   // Look up exact specifications from full Hudson Homes catalogue
   const allCatalogue = getAllHudsonStandardDesigns();
+  const normClean = clean.replace(/[^a-z0-9]+/g, " ").trim();
   const matched =
-    allCatalogue.find((d) => d.name.toLowerCase() === clean) ||
+    allCatalogue.find((d) => d.name.toLowerCase() === clean || d.id === clean) ||
+    allCatalogue.find((d) => d.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === normClean) ||
     allCatalogue.find((d) => clean.includes(d.name.toLowerCase()) || d.name.toLowerCase().includes(clean));
 
   const spec: StandardCatalogueDesignItem = matched || {
@@ -728,16 +754,13 @@ export function build3DDesignForStandardModel(
     lengthM: 20.5,
   };
 
+  const planMeta = plansForDesign(spec.name)[0] || plansForDesign(designName)[0];
+  const floorplanImageUrl =
+    planMeta?.url || spec.floorplanUrl || `/floorplans/${spec.name.toUpperCase()}.png`;
+
   // Scale our architectural template proportionally to `spec.widthM` and `spec.lengthM`
-  // Choose template topology based on width & size
-  const baseTemplate =
-    spec.widthM >= 13.5
-      ? DESIGNS_3D_REGISTRY["tiffany-22"]
-      : spec.totalM2 >= 235
-      ? DESIGNS_3D_REGISTRY["jasper-26"]
-      : spec.totalM2 >= 215
-      ? DESIGNS_3D_REGISTRY["azure-25"]
-      : DESIGNS_3D_REGISTRY["amber-21"];
+  // as an immediate synchronous placeholder until `vectorizeFloorplanForDesign` resolves (~150ms)
+  const baseTemplate = DESIGNS_3D_REGISTRY["amber-21"];
 
   const scaleX = spec.widthM / baseTemplate.widthM;
   const scaleZ = spec.lengthM / baseTemplate.lengthM;
@@ -796,6 +819,11 @@ export function build3DDesignForStandardModel(
     widthM: spec.widthM,
     lengthM: spec.lengthM,
     ceilingHeightM: spec.totalM2 >= 220 ? 2.59 : 2.44,
+    floorplanImageUrl,
+    floorplanCrop: undefined,
+    openHampers: [],
+    exactStructuralWalls: false,
+    facade: "modern",
     schedule: {
       livingM2: spec.livingM2,
       garageM2: spec.garageM2,
@@ -809,24 +837,29 @@ export function build3DDesignForStandardModel(
     rooms: scaledRooms,
     walls: scaledWalls,
     openings: scaledOpenings,
-    fixtures: [], // Populated to exact scaled room bounds by ensureOutdoorZonesOpenAndFurnished
+    fixtures: [],
     boundary: {
       ...DEFAULT_BOUNDARY_CONFIG,
       lotWidthM: Math.max(14.0, Math.ceil(spec.widthM + 2.4)),
       lotLengthM: Math.max(28.0, Math.ceil(spec.lengthM + 8.0)),
     },
     materials: { ...DEFAULT_MATERIAL_CONFIG },
-    fitout: { ...DEFAULT_FITOUT_CONFIG },
-    customFacade: { ...DEFAULT_CUSTOM_FACADE_CONFIG },
+    fitout: { ...DEFAULT_FITOUT_CONFIG, showFurniture: false },
+    customFacade: {
+      ...DEFAULT_CUSTOM_FACADE_CONFIG,
+      mode: "tailored",
+      facadePreset: "modern",
+      rooflineStyle: "hip_22_5",
+    },
     notes: [
       `Standard Hudson Homes ${spec.housingType} design: ${spec.name}`,
       `CAD Area Schedule: Total ${spec.totalM2} m² (Living ${spec.livingM2} m², Garage ${spec.garageM2} m², Alfresco ${spec.alfrescoM2} m², Porch ${spec.porchM2} m²)`,
       `Overall Footprint: ${spec.widthM}m Width × ${spec.lengthM}m Depth`,
-      "Recognised internal 90mm stud partition walls, 250mm external brick veneer, open Porch & Alfresco with corner piers, and full interior joinery fitout",
+      "1:100 Runtime CAD Vectorized: 250mm-350mm external brick veneer, 90mm internal stud partitions, open hampers, hinged/sliding doors, windows, kitchen sink & stepped hip-valley roof",
     ],
   };
 
-  return ensureOutdoorZonesOpenAndFurnished(generated);
+  return generated;
 }
 
 /**

@@ -1091,57 +1091,33 @@ export class ThreeStudioSceneManager {
         if (pt[1] > maxZ) maxZ = pt[1];
       }
       if (isSouthFront) {
-        // In Amber 21 Classic, Alfresco is at Rear-Right of North wing: outer open corner is [maxX - 0.125, minZ + 0.125]
-        const outerCornerX = maxX - 0.125;
-        const outerCornerZ = minZ + 0.125;
-        const houseSideX = minX;
-        const houseSideZ = maxZ;
-
-        // 250mm x 250mm Face Brick Corner Pier matching floorplan
-        const alfPierGeom = new THREE.BoxGeometry(0.25, porchH, 0.25);
-        const alfPierMesh = new THREE.Mesh(alfPierGeom, this.materials.brick);
-        alfPierMesh.position.set(outerCornerX, ffl + porchH / 2, outerCornerZ);
-        alfPierMesh.castShadow = true;
-        alfPierMesh.receiveShadow = true;
-        this.facadeGroup.add(alfPierMesh);
-
-        // Top structural brick cap on Alfresco pier
-        const pierCapGeom = new THREE.BoxGeometry(0.25, 0.016, 0.25);
-        const pierCapMat = new THREE.MeshBasicMaterial({ color: 0xb91c1c });
-        const pierCapMesh = new THREE.Mesh(pierCapGeom, pierCapMat);
-        pierCapMesh.position.set(outerCornerX, ffl + porchH + 0.008, outerCornerZ);
-        this.facadeGroup.add(pierCapMesh);
-
-        // Overhead Alfresco Lintel Beams
-        const rearSpanW = Math.abs(outerCornerX - houseSideX) + 0.25;
-        const rearBeamGeom = new THREE.BoxGeometry(rearSpanW, 0.24, 0.25);
-        const rearBeamMesh = new THREE.Mesh(rearBeamGeom, this.materials.renderWhite);
-        rearBeamMesh.position.set((houseSideX + outerCornerX) / 2, ffl + porchH - 0.12, outerCornerZ);
-        this.facadeGroup.add(rearBeamMesh);
-
-        const sideSpanD = Math.abs(houseSideZ - outerCornerZ) + 0.25;
-        const sideBeamGeom = new THREE.BoxGeometry(0.25, 0.24, sideSpanD);
-        const sideBeamMesh = new THREE.Mesh(sideBeamGeom, this.materials.renderWhite);
-        sideBeamMesh.position.set(outerCornerX, ffl + porchH - 0.12, (houseSideZ + outerCornerZ) / 2);
-        this.facadeGroup.add(sideBeamMesh);
-
-        // Front Porch Twin Square Posts (▪ ▪ at bottom-right of Porch in Amber 21 Classic)
-        if (porch && porch.polygon.length >= 4) {
-          let pMinX = Infinity, pMaxX = -Infinity, pMinZ = Infinity, pMaxZ = -Infinity;
-          for (const pt of porch.polygon) {
-            if (pt[0] < pMinX) pMinX = pt[0];
-            if (pt[0] > pMaxX) pMaxX = pt[0];
-            if (pt[1] < pMinZ) pMinZ = pt[1];
-            if (pt[1] > pMaxZ) pMaxZ = pt[1];
-          }
-          const postGeom = new THREE.BoxGeometry(0.09, porchH, 0.09);
-          [pMaxX - 0.32, pMaxX - 0.12].forEach((px) => {
-            const pMesh = new THREE.Mesh(postGeom, this.materials.frame);
-            pMesh.position.set(px, ffl + porchH / 2, pMaxZ - 0.12);
-            pMesh.castShadow = true;
-            this.facadeGroup.add(pMesh);
-          });
+        if (this.design.id === "amber-21") {
+          // Amber 21 pier and porch posts are built with exact 1:100 coordinates in buildRoomFloors()
+          return;
         }
+        // Only a corner Alfresco (on the North-East or North-West edge of the building) has a freestanding outer corner pier
+        const openCorners: [number, number][] = [];
+        const wM = this.design.widthM;
+        if (maxX >= wM - 0.5 && minX > 0.5) {
+          openCorners.push([maxX - 0.175, minZ + 0.175]);
+        } else if (minX <= 0.5 && maxX < wM - 0.5) {
+          openCorners.push([minX + 0.175, minZ + 0.175]);
+        }
+
+        openCorners.forEach(([cornerX, cornerZ]) => {
+          const alfPierGeom = new THREE.BoxGeometry(0.35, porchH, 0.35);
+          const alfPierMesh = new THREE.Mesh(alfPierGeom, this.materials.brick);
+          alfPierMesh.position.set(cornerX, ffl + porchH / 2, cornerZ);
+          alfPierMesh.castShadow = true;
+          alfPierMesh.receiveShadow = true;
+          this.facadeGroup.add(alfPierMesh);
+
+          const pierCapGeom = new THREE.BoxGeometry(0.35, 0.016, 0.35);
+          const pierCapMat = new THREE.MeshBasicMaterial({ color: 0xb91c1c });
+          const pierCapMesh = new THREE.Mesh(pierCapGeom, pierCapMat);
+          pierCapMesh.position.set(cornerX, ffl + porchH + 0.008, cornerZ);
+          this.facadeGroup.add(pierCapMesh);
+        });
       } else {
         const isLeftSide = minX <= 0.6;
         const outerCornerX = isLeftSide ? minX + 0.19 : maxX - 0.19;
@@ -1237,30 +1213,32 @@ export class ThreeStudioSceneManager {
       }
 
       // Build Alfresco NE 350x350mm Brick Pier & Porch SE Twin 90x90mm Posts shown on Amber 21 floorplan
-      const ceilingH = this.design.ceilingHeightM || 2.44;
-      const ffl = 0.30;
-      const alfPierGeom = new THREE.BoxGeometry(0.35, ceilingH, 0.35);
-      const alfPier = new THREE.Mesh(alfPierGeom, this.materials.brick);
-      alfPier.position.set(6.845, ffl + ceilingH / 2, 0.175);
-      alfPier.castShadow = true;
-      this.buildingGroup.add(alfPier);
+      if (this.design.id === "amber-21") {
+        const ceilingH = this.design.ceilingHeightM || 2.44;
+        const ffl = 0.30;
+        const alfPierGeom = new THREE.BoxGeometry(0.35, ceilingH, 0.35);
+        const alfPier = new THREE.Mesh(alfPierGeom, this.materials.brick);
+        alfPier.position.set(6.845, ffl + ceilingH / 2, 0.175);
+        alfPier.castShadow = true;
+        this.buildingGroup.add(alfPier);
 
-      const alfPierCap = new THREE.Mesh(
-        new THREE.BoxGeometry(0.35, 0.016, 0.35),
-        new THREE.MeshBasicMaterial({ color: 0xb91c1c })
-      );
-      alfPierCap.position.set(6.845, ffl + ceilingH + 0.008, 0.175);
-      this.buildingGroup.add(alfPierCap);
-
-      [4.59, 4.78].forEach((px) => {
-        const post = new THREE.Mesh(
-          new THREE.BoxGeometry(0.09, ceilingH, 0.09),
-          this.materials.frame
+        const alfPierCap = new THREE.Mesh(
+          new THREE.BoxGeometry(0.35, 0.016, 0.35),
+          new THREE.MeshBasicMaterial({ color: 0xb91c1c })
         );
-        post.position.set(px, ffl + ceilingH / 2, 19.91);
-        post.castShadow = true;
-        this.buildingGroup.add(post);
-      });
+        alfPierCap.position.set(6.845, ffl + ceilingH + 0.008, 0.175);
+        this.buildingGroup.add(alfPierCap);
+
+        [4.59, 4.78].forEach((px) => {
+          const post = new THREE.Mesh(
+            new THREE.BoxGeometry(0.09, ceilingH, 0.09),
+            this.materials.frame
+          );
+          post.position.set(px, ffl + ceilingH / 2, 19.91);
+          post.castShadow = true;
+          this.buildingGroup.add(post);
+        });
+      }
       return;
     }
 

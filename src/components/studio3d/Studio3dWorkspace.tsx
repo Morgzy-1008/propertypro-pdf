@@ -71,6 +71,7 @@ import {
   exportElevationsPdf,
   ArchitecturalElevationSheet,
 } from "@/lib/studio3d/architecturalElevationsEngine";
+import { vectorizeFloorplanForDesign } from "@/lib/studio3d/runtimeFloorplanVectorizer";
 
 export function Studio3dWorkspace() {
   const { mode } = useTheme();
@@ -189,17 +190,33 @@ export function Studio3dWorkspace() {
     } else {
       sceneManagerRef.current.setLightMode(isLight);
       sceneManagerRef.current.updateDesign(design);
-      if (
-        design &&
-        (activeElevationMode === "perspective" ||
-          activeElevationMode === "dollhouse")
-      ) {
+      if (design) {
         const show = roofMode !== "hidden";
         const cutaway = roofMode === "cutaway";
         sceneManagerRef.current.setRoofMode(show, cutaway);
+        if (activeElevationMode === "top") {
+          sceneManagerRef.current.setPresetView("top");
+        } else if (activeElevationMode !== "perspective") {
+          sceneManagerRef.current.setElevationView(activeElevationMode);
+        }
       }
     }
   }, [design]);
+
+  // Automatically vectorize any loaded floorplan image at 1:100 scale if not yet vectorized
+  useEffect(() => {
+    if (!design || design.exactStructuralWalls || !design.floorplanImageUrl) return;
+    let cancelled = false;
+    vectorizeFloorplanForDesign(design).then((vectorized) => {
+      if (cancelled) return;
+      if (vectorized.exactStructuralWalls) {
+        setDesign((prev) => (prev && prev.id === design.id ? vectorized : prev));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [design?.id, design?.floorplanImageUrl, design?.exactStructuralWalls]);
 
   // Sync Normal (Light) vs Dark mode with Three.js WebGL scene immediately
   useEffect(() => {
@@ -261,30 +278,35 @@ export function Studio3dWorkspace() {
   };
 
   // Switch active design by ID or name
-  const handleSelectDesign = (keyOrName: string) => {
+  const handleSelectDesign = async (keyOrName: string) => {
     if (!keyOrName) {
       handleResetToBlank();
       return;
     }
     setSelectedDesignKey(keyOrName);
-    const d = build3DDesignForStandardModel(keyOrName);
-    setDesign(d);
+    const raw = build3DDesignForStandardModel(keyOrName);
     setLastModAnalysis(null);
     setCeilingPreset(
-      Math.round(d.ceilingHeightM * 1000) as CeilingHeightPreset
+      Math.round(raw.ceilingHeightM * 1000) as CeilingHeightPreset
     );
-    if (d.facade) setActiveFacade(d.facade);
-    if (d.boundary) {
-      setShowFencing(d.boundary.showFencing ?? true);
-      setFenceStyle(d.boundary.fenceStyle ?? "colorbond_monument");
+    if (raw.facade) setActiveFacade(raw.facade);
+    if (raw.boundary) {
+      setShowFencing(raw.boundary.showFencing ?? true);
+      setFenceStyle(raw.boundary.fenceStyle ?? "colorbond_monument");
     }
     setActiveElevationMode("perspective");
     setShowSearchDropdown(false);
+
+    // Vectorize the 1:100 architectural floorplan PNG immediately so 3D walls, doors, windows & hampers align 1:1
+    const d = raw.exactStructuralWalls
+      ? raw
+      : await vectorizeFloorplanForDesign(raw);
+    setDesign(d);
     if (sceneManagerRef.current) {
       sceneManagerRef.current.updateDesign(d);
     }
     toast.success(
-      `Imported ${d.name} (${d.schedule.totalM2} m²) — ${d.rooms.length} rooms, open Porch/Alfresco & interior joinery loaded`
+      `Imported ${d.name} (${d.schedule.totalM2} m²) — ${d.walls.length} 1:100 walls, ${d.openings.length} doors/windows & open Porch/Alfresco loaded`
     );
   };
 
@@ -633,13 +655,23 @@ export function Studio3dWorkspace() {
         /juliana/i.test(file.name) ||
         /juliana/i.test((analysis as any).summary || (analysis as any).notes?.join(" ") || "");
 
-      const base3D = isJulianaSpecial
+      const isImageFile =
+        file.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(file.name);
+      const uploadedImageUrl = isImageFile ? URL.createObjectURL(file) : undefined;
+
+      const rawBase3D = isJulianaSpecial
         ? get3DDesign("tiffany-22-custom-juliana")
         : build3DDesignForStandardModel(resolvedBaseName);
 
-      const modified3D = ensureCompleteWallNetwork(
-        applyPlanModificationsTo3DDesign(base3D, analysis)
-      );
+      const base3D = isJulianaSpecial
+        ? rawBase3D
+        : await vectorizeFloorplanForDesign(rawBase3D, uploadedImageUrl);
+
+      const modified3D = base3D.exactStructuralWalls
+        ? base3D
+        : ensureCompleteWallNetwork(
+            applyPlanModificationsTo3DDesign(base3D, analysis)
+          );
 
       setDesign(modified3D);
       setSelectedDesignKey(modified3D.id);

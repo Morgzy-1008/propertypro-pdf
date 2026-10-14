@@ -68,8 +68,19 @@ function extractSteppedFootprintSpans(design: BuildingDesign3D): FootprintSpan[]
     let sMinX = Infinity;
     let sMaxX = -Infinity;
 
-    // 1. Check rooms covering zMid
+    const useExactWallsOnlyForIndoors = Boolean(
+      design.exactStructuralWalls && design.id !== "amber-21"
+    );
+
+    // 1. Check rooms covering zMid (for exact-wall vectorized designs, only outdoor roofed zones expand beyond exterior walls)
     for (const room of design.rooms || []) {
+      if (
+        useExactWallsOnlyForIndoors &&
+        room.name !== "Alfresco" &&
+        room.name !== "Porch"
+      ) {
+        continue;
+      }
       const zs = room.polygon.map((p) => p[1]);
       const xs = room.polygon.map((p) => p[0]);
       const rMinZ = Math.min(...zs);
@@ -80,15 +91,26 @@ function extractSteppedFootprintSpans(design: BuildingDesign3D): FootprintSpan[]
       }
     }
 
-    // 2. Check exterior walls covering zMid
+    // 2. Check all structural walls covering zMid (every wall in the house is under the roof!)
     for (const wall of design.walls || []) {
-      if (!wall.isExterior) continue;
       const wMinZ = Math.min(wall.start[1], wall.end[1]);
       const wMaxZ = Math.max(wall.start[1], wall.end[1]);
       const halfT = (wall.thickness || 0.25) / 2;
       if (zMid >= wMinZ - 0.15 && zMid <= wMaxZ + 0.15) {
         sMinX = Math.min(sMinX, wall.start[0] - halfT, wall.end[0] - halfT);
         sMaxX = Math.max(sMaxX, wall.start[0] + halfT, wall.end[0] + halfT);
+      }
+    }
+
+    // 3. Also check all openings covering zMid so windows/doors on vertical walls never indent the roof
+    for (const op of design.openings || []) {
+      const isVert = op.wallOrientation === "vertical";
+      const halfSpan = (op.width || 1.2) / 2;
+      const oMinZ = isVert ? op.position[1] - halfSpan : op.position[1] - 0.15;
+      const oMaxZ = isVert ? op.position[1] + halfSpan : op.position[1] + 0.15;
+      if (zMid >= oMinZ - 0.25 && zMid <= oMaxZ + 0.25) {
+        sMinX = Math.min(sMinX, op.position[0] - 0.125);
+        sMaxX = Math.max(sMaxX, op.position[0] + 0.125);
       }
     }
 
