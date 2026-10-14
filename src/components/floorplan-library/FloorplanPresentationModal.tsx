@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { FloorplanLibraryItem } from "@/lib/floorplan-library/floorplanLibraryEngine";
+import { getActiveStaffUser } from "@/lib/authSession";
+import { canAccess3dStudio } from "@/lib/access";
 
 interface FloorplanPresentationModalProps {
   item: FloorplanLibraryItem | null;
@@ -286,13 +288,15 @@ export function FloorplanPresentationModal({
               <Compass className="h-3.5 w-3.5 text-cyan-400" />
               <span>Site</span>
             </Link>
-            <Link
-              to="/3d-studio"
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-amber-500/25"
-            >
-              <Box className="h-3.5 w-3.5" />
-              <span>3D & Elevations</span>
-            </Link>
+            {canAccess3dStudio(getActiveStaffUser()) && (
+              <Link
+                to="/3d-studio"
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-amber-500/25"
+              >
+                <Box className="h-3.5 w-3.5" />
+                <span>3D & Elevations</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>

@@ -203,6 +203,19 @@ export function isMorganHales(staffUser?: {
 }
 
 /**
+ * 3D Studio & Architectural Elevations access.
+ * Strictly restricted exclusively to Morgan Hales until explicitly deployed publicly.
+ */
+export function canAccess3dStudio(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  return isMorganHales(staffUser);
+}
+
+/**
  * Access control for Hudson Land Scout (Vacant Land Intelligence & Acquisition).
  * Accessible to all authenticated Hudson staff.
  */

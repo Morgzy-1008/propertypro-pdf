@@ -48,6 +48,7 @@ import {
   KNOWN_STAFF_PROFILES,
   getActiveStaffUser,
   setActiveStaffUser,
+  switchActiveStaffProfile,
   type StaffProfile,
 } from "@/lib/authSession";
 import { setActiveDivision } from "@/lib/divisionContext";
@@ -117,23 +118,9 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
   };
 
   const handleSwitchToStaff = (staff: StaffProfile) => {
-    if (staff.email !== "morgan.hales@hudsonhomes.com.au") {
-      localStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
-    } else {
-      localStorage.removeItem("hudson_admin_impersonator");
-    }
-    setActiveStaffUser(staff);
-    if (staff.division) {
-      setActiveDivision(staff.division);
-    } else if (staff.state === "NSW") {
-      setActiveDivision("NSW");
-    } else if (staff.state === "QLD") {
-      setActiveDivision("QLD");
-    }
     toast.success(`Switched login to ${staff.name} (${staff.title || staff.role})`);
     onClose();
-    window.dispatchEvent(new Event("hudson_auth_state_changed"));
-    window.dispatchEvent(new Event("storage"));
+    switchActiveStaffProfile(staff);
   };
 
   return createPortal(

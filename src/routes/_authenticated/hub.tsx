@@ -28,13 +28,14 @@ import {
   onStaffUserChanged,
   KNOWN_STAFF_PROFILES,
   setActiveStaffUser,
+  returnToMorganAdmin,
   type StaffProfile,
 } from "@/lib/authSession";
 import { getPendingAccessRequests, getUnreadAlertCount, onAdminAlertsChanged } from "@/lib/adminAlerts";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { ProfileSwitcherModal } from "@/components/auth/ProfileSwitcherModal";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
-import { canAccessFloorplanEditor, isMorganHales } from "@/lib/access";
+import { canAccessFloorplanEditor, isMorganHales, canAccess3dStudio } from "@/lib/access";
 import { HubAiAssistant } from "@/components/hub/HubAiAssistant";
 import { isLocalhost } from "@/lib/isLocalhost";
 
@@ -295,8 +296,11 @@ function WelcomeHubPage() {
 
   const isImpersonating =
     typeof window !== "undefined" &&
-    (sessionStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au" ||
-      localStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au");
+    Boolean(
+      sessionStorage.getItem("hudson_admin_impersonator") ||
+      localStorage.getItem("hudson_admin_impersonator")
+    ) &&
+    !isMorganHales(staffUser);
 
   const [hubBgOpacity, setHubBgOpacity] = useState<number>(() => {
     if (typeof window !== "undefined") {
@@ -438,22 +442,7 @@ function WelcomeHubPage() {
               <button
                 type="button"
                 data-testid="banner-return-morgan-btn"
-                onClick={() => {
-                  const morgan = KNOWN_STAFF_PROFILES.find((p) => p.id === "morgan-hales");
-                  if (morgan) {
-                    sessionStorage.removeItem("hudson_admin_impersonator");
-                    localStorage.removeItem("hudson_admin_impersonator");
-                    sessionStorage.setItem(
-                      "hudson_login_toast",
-                      JSON.stringify({ name: "Morgan Hales", type: "returned" })
-                    );
-                    setActiveStaffUser(morgan, true);
-                    if (morgan.division) {
-                      localStorage.setItem("hudson_active_division", morgan.division);
-                    }
-                    window.location.href = `/hub?returned=admin&_t=${Date.now()}`;
-                  }
-                }}
+                onClick={returnToMorganAdmin}
                 className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
               >
                 <UserCheck className="h-4 w-4" />
@@ -478,6 +467,29 @@ function WelcomeHubPage() {
           <p className={`text-sm sm:text-base font-medium max-w-xl mx-auto mt-1 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
             Select a Hudson workspace portal or query the intelligence copilot below.
           </p>
+
+          {/* Quick Profile Switcher for Morgan Hales / Admin */}
+          {isMorgan && !isImpersonating && (
+            <div className="mt-3.5 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                data-testid="hub-quick-switch-profile-btn"
+                onClick={() => setIsProfileSwitcherOpen(true)}
+                className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer border ${
+                  isLight
+                    ? "bg-amber-100/90 hover:bg-amber-200 border-amber-300 text-amber-950 shadow-amber-500/10"
+                    : "bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/40 text-amber-300 shadow-amber-500/10"
+                }`}
+                title="Switch view to test and experience the portal as any New Home Consultant or Marketing staff member"
+              >
+                <Users className="h-3.5 w-3.5 text-amber-500" />
+                <span>Switch Colleague Profile View</span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-black">
+                  ADMIN
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Hudson Homes Personal AI Assistant */}
@@ -553,12 +565,14 @@ function WelcomeHubPage() {
             isComingSoon={false}
           />
 
-          {/* Portal 06: 3D Studio & Architectural Elevations (Accessible to all logins) */}
-          <PortalCard
-            to="/3d-studio"
-            title="3D Studio & Architectural Elevations"
-            isLight={isLight}
-          />
+          {/* Portal 06: 3D Studio & Architectural Elevations (Strictly restricted to Morgan Hales until public deployment) */}
+          {canAccess3dStudio(staffUser) && (
+            <PortalCard
+              to="/3d-studio"
+              title="3D Studio & Architectural Elevations"
+              isLight={isLight}
+            />
+          )}
 
           {/* Portal 07: Submit Your Tender Request (Only accessible by Morgan Hales; Coming Soon for others) */}
           <PortalCard

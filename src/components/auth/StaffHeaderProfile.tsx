@@ -6,6 +6,8 @@ import {
   clearActiveStaffUser,
   onStaffUserChanged,
   isStaffSessionActive,
+  switchActiveStaffProfile,
+  returnToMorganAdmin,
   KNOWN_STAFF_PROFILES,
   type StaffProfile,
 } from "@/lib/authSession";
@@ -33,7 +35,7 @@ import { DivisionSwitcher } from "./DivisionSwitcher";
 import { ProfileSwitcherModal } from "./ProfileSwitcherModal";
 import { setActiveDivision } from "@/lib/divisionContext";
 import { useTheme } from "@/lib/theme";
-import { canAccessBrainDump } from "@/lib/access";
+import { canAccessBrainDump, isMorganHales } from "@/lib/access";
 
 interface StaffHeaderProfileProps {
   isLight?: boolean;
@@ -69,90 +71,27 @@ export function StaffHeaderProfile({
     };
   }, []);
 
-  const isMorgan =
-    activeUser?.id === "morgan-hales" ||
-    activeUser?.email?.toLowerCase() === "morgan.hales@hudsonhomes.com.au" ||
-    activeUser?.role === "admin";
+  const isMorgan = isMorganHales(activeUser) || activeUser?.role === "admin";
 
   const isImpersonating =
     typeof window !== "undefined" &&
-    (sessionStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au" ||
-      localStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au");
+    Boolean(
+      sessionStorage.getItem("hudson_admin_impersonator") ||
+      localStorage.getItem("hudson_admin_impersonator")
+    ) &&
+    !isMorganHales(activeUser);
 
   // Always enable profile switching so admin / tester is never trapped
   const canSwitchProfiles = true;
 
   const handleSwitchToProfile = (profile: StaffProfile) => {
-    try {
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
-        localStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
-        try {
-          sessionStorage.setItem(
-            "hudson_login_toast",
-            JSON.stringify({ name: profile.name, type: "switched", title: profile.title })
-          );
-        } catch {}
-      }
-      setActiveStaffUser(profile, true);
-      const targetDiv = profile.division || (profile.state === "NSW" ? "NSW" : "QLD");
-      setActiveDivision(targetDiv);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("hudson_active_division", targetDiv);
-      }
-      setIsDropdownOpen(false);
-
-      const path = typeof window !== "undefined" ? window.location.pathname : "/hub";
-      const isRestrictedForMarketing =
-        path.includes("quote") ||
-        path.includes("crm") ||
-        path.includes("tender") ||
-        path.includes("site-studio") ||
-        path.includes("floorplan-editor");
-
-      const targetPath = (profile.role === "marketing" && isRestrictedForMarketing) ? "/hub" : path;
-      const targetUrl = `${targetPath}?switched=${encodeURIComponent(profile.id)}&_t=${Date.now()}`;
-
-      if (typeof window !== "undefined") {
-        window.location.href = targetUrl;
-      }
-    } catch (e) {
-      console.error("Profile switch error:", e);
-      if (typeof window !== "undefined") {
-        window.location.reload();
-      }
-    }
+    setIsDropdownOpen(false);
+    switchActiveStaffProfile(profile);
   };
 
   const handleReturnToMorgan = () => {
-    try {
-      const morgan = KNOWN_STAFF_PROFILES.find((p) => p.id === "morgan-hales");
-      if (morgan) {
-        if (typeof window !== "undefined") {
-          sessionStorage.removeItem("hudson_admin_impersonator");
-          localStorage.removeItem("hudson_admin_impersonator");
-          try {
-            sessionStorage.setItem(
-              "hudson_login_toast",
-              JSON.stringify({ name: "Morgan Hales", type: "returned" })
-            );
-          } catch {}
-        }
-        setActiveStaffUser(morgan, true);
-        if (morgan.division) {
-          localStorage.setItem("hudson_active_division", morgan.division);
-        }
-        setIsDropdownOpen(false);
-        if (typeof window !== "undefined") {
-          window.location.href = `/hub?returned=admin&_t=${Date.now()}`;
-        }
-      }
-    } catch (e) {
-      console.error("Return to admin error:", e);
-      if (typeof window !== "undefined") {
-        window.location.reload();
-      }
-    }
+    setIsDropdownOpen(false);
+    returnToMorganAdmin();
   };
 
   const handleSignOut = () => {

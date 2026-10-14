@@ -12,10 +12,12 @@ import {
   KNOWN_STAFF_PROFILES,
   getActiveStaffUser,
   setActiveStaffUser,
+  switchActiveStaffProfile,
+  returnToMorganAdmin,
   type StaffProfile,
 } from "@/lib/authSession";
 import { setActiveDivision } from "@/lib/divisionContext";
-import { getApprovedStaffEmails } from "@/lib/access";
+import { getApprovedStaffEmails, isMorganHales } from "@/lib/access";
 import {
   Users,
   Search,
@@ -96,92 +98,20 @@ export function ProfileSwitcherModal({
   });
 
   const handleSwitch = (profile: StaffProfile) => {
-    try {
-      if (typeof window !== "undefined") {
-        // Always store Morgan as the admin impersonator so switching back is always guaranteed
-        sessionStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
-        localStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
-        try {
-          sessionStorage.setItem(
-            "hudson_login_toast",
-            JSON.stringify({ name: profile.name, type: "switched", title: profile.title })
-          );
-        } catch {}
-      }
-
-      // Persist active staff profile
-      setActiveStaffUser(profile, true);
-
-      // Synchronize division context (QLD vs NSW)
-      const targetDiv = profile.division || (profile.state === "NSW" ? "NSW" : "QLD");
-      setActiveDivision(targetDiv);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("hudson_active_division", targetDiv);
-      }
-
-      toast.success(`Switched login view to ${profile.name}`, {
-        description: `Now previewing as ${profile.title} (${profile.displayCentre}).`,
-      });
-
-      if (onSwitched) onSwitched(profile);
-      onClose();
-
-      const path = typeof window !== "undefined" ? window.location.pathname : "/hub";
-      const isRestrictedForMarketing =
-        path.includes("quote") ||
-        path.includes("crm") ||
-        path.includes("tender") ||
-        path.includes("site-studio") ||
-        path.includes("floorplan-editor");
-
-      let targetPath = path;
-      if (path === "/auth" || path === "/" || (profile.role === "marketing" && isRestrictedForMarketing)) {
-        targetPath = "/hub";
-      }
-      const targetUrl = `${targetPath}?switched=${encodeURIComponent(profile.id)}&_t=${Date.now()}`;
-
-      if (typeof window !== "undefined") {
-        window.location.href = targetUrl;
-      }
-    } catch (e) {
-      console.error("Profile switch error:", e);
-      if (typeof window !== "undefined") {
-        window.location.reload();
-      }
-    }
+    toast.success(`Switched login view to ${profile.name}`, {
+      description: `Now previewing as ${profile.title} (${profile.displayCentre}).`,
+    });
+    if (onSwitched) onSwitched(profile);
+    onClose();
+    switchActiveStaffProfile(profile);
   };
 
   const handleReturnToMorgan = () => {
-    try {
-      const morgan = KNOWN_STAFF_PROFILES.find((p) => p.id === "morgan-hales") || KNOWN_STAFF_PROFILES[0];
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem("hudson_admin_impersonator");
-        localStorage.removeItem("hudson_admin_impersonator");
-        try {
-          sessionStorage.setItem(
-            "hudson_login_toast",
-            JSON.stringify({ name: "Morgan Hales", type: "returned" })
-          );
-        } catch {}
-      }
-      setActiveStaffUser(morgan, true);
-      setActiveDivision(morgan.division || "QLD");
-      if (typeof window !== "undefined") {
-        localStorage.setItem("hudson_active_division", morgan.division || "QLD");
-      }
-      toast.success("Returned to Morgan Hales (Admin)", {
-        description: "Full administrative controls restored.",
-      });
-      onClose();
-      if (typeof window !== "undefined") {
-        window.location.href = `/hub?returned=admin&_t=${Date.now()}`;
-      }
-    } catch (e) {
-      console.error("Return to admin error:", e);
-      if (typeof window !== "undefined") {
-        window.location.reload();
-      }
-    }
+    toast.success("Returned to Morgan Hales (Admin)", {
+      description: "Full administrative controls restored.",
+    });
+    onClose();
+    returnToMorganAdmin();
   };
 
   return (
@@ -207,7 +137,7 @@ export function ProfileSwitcherModal({
             </div>
 
             {/* Quick Reset to Morgan if currently previewing someone else */}
-            {activeUser?.id !== "morgan-hales" && (
+            {!isMorganHales(activeUser) && (
               <button
                 type="button"
                 onClick={handleReturnToMorgan}
@@ -220,7 +150,7 @@ export function ProfileSwitcherModal({
           </div>
 
           {/* Quick Return button on mobile */}
-          {activeUser?.id !== "morgan-hales" && (
+          {!isMorganHales(activeUser) && (
             <div className="sm:hidden pt-2">
               <button
                 type="button"

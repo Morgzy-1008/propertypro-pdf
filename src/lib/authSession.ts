@@ -1,4 +1,4 @@
-import { isAllowedEmail } from "./access";
+import { isAllowedEmail, isMorganHales } from "./access";
 import { normalizeStaffEmail } from "./userCredentials";
 
 export interface StaffProfile {
@@ -254,11 +254,20 @@ export function getActiveStaffUser(): StaffProfile {
     }
 
     // 2. Storage
-    const raw =
+    let raw =
       localStorage.getItem(STORAGE_KEY_AUTH_USER) ||
       sessionStorage.getItem(STORAGE_KEY_AUTH_USER) ||
       localStorage.getItem("hudson_auth_user") ||
       sessionStorage.getItem("hudson_auth_user");
+
+    if (!raw && typeof document !== "undefined") {
+      const match = document.cookie.match(/hudson_hub_auth_user=([^;]+)/);
+      if (match && match[1]) {
+        try {
+          raw = decodeURIComponent(match[1]);
+        } catch {}
+      }
+    }
 
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -484,4 +493,80 @@ export function canViewRemuneration(user: StaffProfile | null | undefined): bool
     REMUNERATION_AUTHORIZED_EMAILS.includes(email) ||
     REMUNERATION_AUTHORIZED_IDS.includes(id)
   );
+}
+
+/**
+ * Centrally and reliably switches the active logged-in staff profile across all storage mechanisms,
+ * session cookies, reactive event listeners, division states, and router history.
+ */
+export function switchActiveStaffProfile(profile: StaffProfile): void {
+  try {
+    const isMorgan = isMorganHales(profile);
+    if (typeof window !== "undefined") {
+      if (isMorgan) {
+        sessionStorage.removeItem("hudson_admin_impersonator");
+        localStorage.removeItem("hudson_admin_impersonator");
+        try {
+          sessionStorage.setItem(
+            "hudson_login_toast",
+            JSON.stringify({ name: profile.name, type: "returned" })
+          );
+        } catch {}
+      } else {
+        sessionStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
+        localStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
+        try {
+          sessionStorage.setItem(
+            "hudson_login_toast",
+            JSON.stringify({ name: profile.name, type: "switched", title: profile.title })
+          );
+        } catch {}
+      }
+    }
+
+    setActiveStaffUser(profile, true);
+    const targetDiv = profile.division || (profile.state === "NSW" ? "NSW" : "QLD");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("hudson_active_division", targetDiv);
+      sessionStorage.setItem("hudson_active_division", targetDiv);
+    }
+
+    const path = typeof window !== "undefined" ? window.location.pathname : "/hub";
+    const isRestrictedForMarketing =
+      path.includes("quote") ||
+      path.includes("crm") ||
+      path.includes("tender") ||
+      path.includes("site-studio") ||
+      path.includes("floorplan-editor") ||
+      path.includes("3d-studio") ||
+      path.includes("elevations-3d");
+
+    let targetPath = path;
+    if (path === "/auth" || path === "/" || (profile.role === "marketing" && isRestrictedForMarketing)) {
+      targetPath = "/hub";
+    }
+    // Also if switching away from Morgan and on 3d-studio or elevations-3d, redirect to hub
+    if (!isMorgan && (path.includes("3d-studio") || path.includes("elevations-3d"))) {
+      targetPath = "/hub";
+    }
+
+    const targetUrl = `${targetPath}?switched=${encodeURIComponent(profile.id)}&_t=${Date.now()}`;
+
+    if (typeof window !== "undefined") {
+      window.location.href = targetUrl;
+    }
+  } catch (e) {
+    console.error("switchActiveStaffProfile error:", e);
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
+  }
+}
+
+/**
+ * Returns to Morgan Hales (System Admin) profile and clears all impersonation indicators.
+ */
+export function returnToMorganAdmin(): void {
+  const morgan = KNOWN_STAFF_PROFILES.find((p) => p.id === "morgan-hales") || KNOWN_STAFF_PROFILES[0];
+  switchActiveStaffProfile(morgan);
 }
