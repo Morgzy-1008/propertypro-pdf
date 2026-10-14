@@ -761,36 +761,45 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
   };
 
   return (
-    <div className="w-full">
-      {/* Sleek Aesthetic Message Bar */}
+    <div className="w-full relative group">
+      {/* Layer 1: Ambient Outer Radiant Gold Glow */}
+      <div className="absolute -inset-1 rounded-[24px] bg-gradient-to-r from-amber-400 via-brand-gold to-yellow-500 opacity-25 group-hover:opacity-65 blur-xl transition-all duration-500 pointer-events-none -z-10" />
+
+      {/* Layer 2: Precision Laser Gold Perimeter Outline */}
+      <div className="absolute -inset-[1px] rounded-[21px] bg-gradient-to-r from-amber-400 via-brand-gold to-yellow-500 opacity-40 group-hover:opacity-90 transition-opacity duration-300 pointer-events-none -z-10" />
+
+      {/* Sleek Aesthetic Message Bar Core */}
       <div
-        className={`relative rounded-2xl border transition-all duration-300 shadow-xl overflow-hidden ${
+        className={`relative rounded-[20px] transition-all duration-300 shadow-2xl overflow-hidden backdrop-blur-2xl ${
           isLight
-            ? "border-slate-200/90 bg-white shadow-slate-200/50 hover:border-brand-gold/50 focus-within:border-brand-gold focus-within:ring-2 focus-within:ring-brand-gold/20"
-            : "border-slate-800/90 bg-gradient-to-b from-slate-900/95 to-slate-900/60 backdrop-blur-xl shadow-black/40 hover:border-brand-gold/40 focus-within:border-brand-gold/70 focus-within:shadow-brand-gold/10"
+            ? "bg-white/92 shadow-amber-500/10 hover:bg-white text-slate-900 border border-amber-500/35"
+            : "bg-slate-950/85 shadow-black/80 hover:bg-slate-900/90 text-white border border-amber-500/35"
         }`}
       >
-        {/* Subtle Ambient Top Border Accent */}
-        <div className="absolute top-0 left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-brand-gold to-transparent opacity-90" />
+        {/* Top Edge Optical Laser Highlight */}
+        <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+
+        {/* Specular Ambient Corner Bloom */}
+        <div className="absolute -top-10 -right-10 h-36 w-36 rounded-full bg-gradient-to-br from-amber-500/25 via-brand-gold/15 to-transparent blur-3xl opacity-30 group-hover:opacity-65 transition-opacity duration-500 pointer-events-none" />
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSend(query);
           }}
-          className="flex items-center gap-2.5 p-2 sm:p-3"
+          className="relative z-10 flex items-center gap-2.5 p-2.5 sm:p-3"
         >
           {/* AI Badge Icon */}
           <div
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold select-none flex-shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold select-none shrink-0 ${
               isLight
-                ? "bg-amber-50 text-amber-900 border border-amber-200/80 shadow-2xs"
-                : "bg-gradient-to-r from-amber-950/80 to-slate-900 border border-brand-gold/30 text-amber-300 shadow-inner"
+                ? "bg-amber-500/15 text-amber-950 border border-amber-500/35 shadow-xs"
+                : "bg-gradient-to-r from-amber-500/20 via-brand-gold/15 to-yellow-500/20 border border-amber-500/40 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]"
             }`}
           >
-            <Sparkles className="h-4 w-4 text-brand-gold animate-pulse" />
-            <span className="font-mono tracking-tight text-xs font-bold">Hudson AI</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <Sparkles className="h-4 w-4 text-amber-500 dark:text-amber-400 animate-pulse shrink-0" />
+            <span className="font-mono tracking-tight text-xs font-black">Hudson AI</span>
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
           </div>
 
           {/* Main Aesthetic Input Field */}
@@ -804,20 +813,20 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
             className={`flex-1 bg-transparent px-3 py-2.5 text-sm sm:text-base outline-none transition-colors ${
               isLight
                 ? "text-slate-900 placeholder:text-slate-400 font-medium"
-                : "text-white placeholder:text-slate-500 font-normal"
+                : "text-white placeholder:text-slate-400 font-normal"
             } disabled:opacity-60`}
           />
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 pr-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pr-1">
             {messages.length > 0 && (
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
                 className={`p-2.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
                   isLight
-                    ? "border-slate-200 hover:bg-slate-100 text-slate-600"
-                    : "border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+                    ? "border-amber-500/30 hover:bg-amber-500/10 text-slate-700"
+                    : "border-amber-500/30 hover:bg-amber-500/15 text-amber-300"
                 }`}
                 title={isExpanded ? "Collapse conversation" : "Expand conversation"}
               >
@@ -828,15 +837,17 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
             <button
               type="submit"
               disabled={!query.trim() || isLoading}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black tracking-tight transition-all duration-200 cursor-pointer ${
                 query.trim() && !isLoading
-                  ? "bg-gradient-to-r from-amber-500 via-brand-gold to-amber-600 text-slate-950 shadow-md shadow-brand-gold/25 hover:scale-[1.02] active:scale-[0.98]"
-                  : "bg-slate-800/40 text-slate-500 border border-slate-800/80 cursor-not-allowed"
+                  ? "bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.02] active:scale-[0.98]"
+                  : isLight
+                  ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                  : "bg-slate-900/60 text-slate-500 border border-slate-800/80 cursor-not-allowed"
               }`}
             >
               {isLoading ? (
                 <>
-                  <Cpu className="h-4 w-4 animate-spin text-amber-400" />
+                  <Cpu className="h-4 w-4 animate-spin text-slate-950" />
                   <span className="hidden sm:inline">Verifying...</span>
                 </>
               ) : (
