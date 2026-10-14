@@ -64,6 +64,8 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
     widthM: 14.80,
     lengthM: 16.62,
     ceilingHeightM: 2.59, // H2 Designer ceiling height (with 2900mm living/cinema feature)
+    floorplanImageUrl: "/floorplans/TIFFANY 22.png",
+    exactStructuralWalls: true,
     schedule: {
       livingM2: 158.49,
       garageM2: 38.84,
@@ -141,11 +143,11 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
         id: "study_wil",
         name: "Study/WIL",
         customLabel: "Study / WIL",
-        polygon: [[7.4, 6.2], [9.2, 6.2], [9.2, 9.2], [7.4, 9.2]],
-        center: [8.3, 7.7],
+        polygon: [[7.4, 6.2], [8.8, 6.2], [8.8, 9.2], [7.4, 9.2]],
+        center: [8.1, 7.7],
         floorFinish: "timber",
-        areaM2: 5.40,
-        dimensionsText: "1.8 × 3.0m",
+        areaM2: 4.20,
+        dimensionsText: "1.4 × 3.0m",
         isModified: true,
       },
       // Cinema Room with Barn Door (Front Left / Mid Left)
@@ -199,11 +201,11 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
         id: "butlers_pantry",
         name: "Butler Pantry",
         customLabel: "Butler's Pantry (CSD 820)",
-        polygon: [[9.2, 6.2], [11.5, 6.2], [11.5, 9.2], [9.2, 9.2]],
-        center: [10.35, 7.7],
+        polygon: [[8.8, 6.0], [11.5, 6.0], [11.5, 9.2], [8.8, 9.2]],
+        center: [10.15, 7.6],
         floorFinish: "tiles",
-        areaM2: 6.90,
-        dimensionsText: "2.3 × 3.0m",
+        areaM2: 8.64,
+        dimensionsText: "2.7 × 3.2m",
         isModified: true,
       },
       // Kitchen (Central open plan)
@@ -238,15 +240,15 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
         ceilingHeight: 2.90,
         isModified: true,
       },
-      // Alfresco (Rear Outdoor Living)
+      // Alfresco (Rear Outdoor Living — cleanly aligned behind Bathroom & Laundry)
       {
         id: "alfresco",
         name: "Alfresco",
-        polygon: [[2.0, 13.0], [7.4, 13.0], [7.4, 16.62], [2.0, 16.62]],
-        center: [4.7, 14.81],
+        polygon: [[3.5, 14.2], [7.4, 14.2], [7.4, 16.62], [3.5, 16.62]],
+        center: [5.45, 15.41],
         floorFinish: "decking",
         areaM2: 11.32,
-        dimensionsText: "5.4 × 2.1m",
+        dimensionsText: "3.9 × 2.4m",
       },
       // Bed 4 (Mid Left)
       {
@@ -262,11 +264,11 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       {
         id: "bed_3",
         name: "Bed 3",
-        polygon: [[0.0, 11.8], [3.5, 11.8], [3.5, 14.8], [0.0, 14.8]],
-        center: [1.75, 13.3],
+        polygon: [[0.0, 11.8], [3.5, 11.8], [3.5, 16.62], [0.0, 16.62]],
+        center: [1.75, 14.21],
         floorFinish: "carpet",
-        areaM2: 10.50,
-        dimensionsText: "3.3 × 3.2m",
+        areaM2: 11.20,
+        dimensionsText: "3.5 × 3.2m",
       },
       // Bed 2 (Rear Center Left)
       {
@@ -300,7 +302,7 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       },
     ],
     walls: [
-      // EXTERIOR PERIMETER WALLS (Clockwise from top-left)
+      // EXTERIOR PERIMETER WALLS (Clockwise from top-left, open at Porch & Alfresco outer edges)
       { id: "ext_front_left", start: [0.0, 0.0], end: [5.6, 0.0], thickness: 0.25, isExterior: true, material: "brick_austral" },
       { id: "ext_porch_back", start: [5.6, 0.0], end: [5.6, 1.5], thickness: 0.25, isExterior: true, material: "render_monument" },
       { id: "ext_entry_front", start: [5.6, 1.5], end: [7.4, 1.5], thickness: 0.25, isExterior: true, material: "brick_austral" },
@@ -308,34 +310,30 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
       { id: "ext_garage_front", start: [7.4, 0.0], end: [14.8, 0.0], thickness: 0.25, isExterior: true, material: "brick_austral" },
       { id: "ext_right_side", start: [14.8, 0.0], end: [14.8, 16.62], thickness: 0.25, isExterior: true, material: "brick_austral" },
       { id: "ext_rear_living", start: [14.8, 16.62], end: [7.4, 16.62], thickness: 0.25, isExterior: true, material: "brick_austral" },
-      { id: "ext_rear_alfresco", start: [7.4, 16.62], end: [2.0, 16.62], thickness: 0.25, isExterior: true, material: "render_monument" },
-      { id: "ext_rear_bed3", start: [2.0, 16.62], end: [0.0, 16.62], thickness: 0.25, isExterior: true, material: "brick_austral" },
+      { id: "ext_rear_bed3", start: [3.5, 16.62], end: [0.0, 16.62], thickness: 0.25, isExterior: true, material: "brick_austral" },
       { id: "ext_left_side", start: [0.0, 16.62], end: [0.0, 0.0], thickness: 0.25, isExterior: true, material: "brick_austral" },
 
-      // KEY INTERNAL PARTITIONS
+      // KEY INTERNAL PARTITIONS (90mm painted stud walls)
       { id: "int_master_entry", start: [4.5, 0.0], end: [4.5, 5.0], thickness: 0.09, isExterior: false },
       { id: "int_wir_ensuite", start: [4.5, 3.2], end: [5.6, 3.2], thickness: 0.09, isExterior: false },
       { id: "int_entry_hall", start: [5.6, 1.5], end: [5.6, 6.0], thickness: 0.09, isExterior: false },
       { id: "int_cinema_top", start: [0.0, 5.0], end: [4.5, 5.0], thickness: 0.09, isExterior: false },
       { id: "int_cinema_bottom", start: [0.0, 8.8], end: [4.5, 8.8], thickness: 0.09, isExterior: false },
-      { id: "int_cinema_hall_wall", start: [4.5, 5.0], end: [4.5, 8.8], thickness: 0.09, isExterior: false }, // Barn door on this wall!
-      { id: "int_garage_inner", start: [8.8, 0.0], end: [8.8, 6.0], thickness: 0.25, isExterior: true },
-      { id: "int_garage_rear", start: [8.8, 6.0], end: [14.8, 6.0], thickness: 0.25, isExterior: true },
+      { id: "int_cinema_hall_wall", start: [4.5, 5.0], end: [4.5, 8.8], thickness: 0.09, isExterior: false },
+      { id: "int_garage_inner", start: [8.8, 0.0], end: [8.8, 9.2], thickness: 0.09, isExterior: false },
+      { id: "int_garage_rear", start: [8.8, 6.0], end: [14.8, 6.0], thickness: 0.09, isExterior: false },
       { id: "int_mud_nook", start: [7.4, 4.5], end: [8.8, 4.5], thickness: 0.09, isExterior: false },
-      { id: "int_mud_hallway", start: [7.4, 4.5], end: [7.4, 6.2], thickness: 0.09, isExterior: false },
+      { id: "int_mud_hallway", start: [7.4, 4.5], end: [7.4, 9.2], thickness: 0.09, isExterior: false },
       { id: "int_study_mud", start: [7.4, 6.2], end: [8.8, 6.2], thickness: 0.09, isExterior: false },
-      { id: "int_study_hallway", start: [7.4, 6.2], end: [7.4, 9.2], thickness: 0.09, isExterior: false },
-      { id: "int_butlers_wall", start: [9.2, 6.2], end: [9.2, 9.2], thickness: 0.09, isExterior: false },
-      { id: "int_butlers_dining", start: [11.5, 6.2], end: [11.5, 9.2], thickness: 0.09, isExterior: false },
+      { id: "int_butlers_dining", start: [11.5, 6.0], end: [11.5, 9.2], thickness: 0.09, isExterior: false },
+      { id: "int_butlers_kitchen", start: [7.4, 9.2], end: [11.5, 9.2], thickness: 0.09, isExterior: false },
       { id: "int_hallway_bed2", start: [4.5, 8.8], end: [7.4, 8.8], thickness: 0.09, isExterior: false },
-      { id: "int_bed_hallway", start: [3.5, 8.8], end: [3.5, 14.8], thickness: 0.09, isExterior: false },
+      { id: "int_bed_hallway", start: [3.5, 8.8], end: [3.5, 16.62], thickness: 0.09, isExterior: false },
       { id: "int_bed4_bed3", start: [0.0, 11.8], end: [3.5, 11.8], thickness: 0.09, isExterior: false },
       { id: "int_bed2_bath_laundry", start: [3.5, 11.8], end: [7.4, 11.8], thickness: 0.09, isExterior: false },
       { id: "int_bath_laundry", start: [5.5, 11.8], end: [5.5, 14.2], thickness: 0.09, isExterior: false },
       { id: "int_bath_laundry_rear", start: [3.5, 14.2], end: [7.4, 14.2], thickness: 0.25, isExterior: true },
-      { id: "int_bed3_alfresco", start: [2.0, 14.8], end: [3.5, 14.8], thickness: 0.25, isExterior: true },
-      { id: "int_alfresco_return", start: [2.0, 14.8], end: [2.0, 16.62], thickness: 0.25, isExterior: true },
-      { id: "int_living_alfresco", start: [7.4, 13.0], end: [7.4, 16.62], thickness: 0.25, isExterior: true }, // Stacker door here
+      { id: "int_living_alfresco", start: [7.4, 13.0], end: [7.4, 16.62], thickness: 0.25, isExterior: true },
     ],
     openings: [
       // 1. FRONT ENTRY DOOR: EXT 1020

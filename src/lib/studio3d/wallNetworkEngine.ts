@@ -14,7 +14,7 @@ import {
   Opening3D,
 } from "./studio3dTypes";
 
-const EPSILON = 0.08; // 80mm tolerance for coordinate matching
+const EPSILON = 0.22; // 220mm tolerance so room inner faces (0.25m) coincide with 250mm wall centerlines (0.125m)
 
 /**
  * Checks if two line segments overlap or coincide within architectural tolerance.
@@ -24,14 +24,15 @@ export function isSegmentCoincident(
   s1Start: [number, number],
   s1End: [number, number],
   s2Start: [number, number],
-  s2End: [number, number]
+  s2End: [number, number],
+  customTol = EPSILON
 ): boolean {
   const dForward =
     pointDist(s1Start, s2Start) + pointDist(s1End, s2End);
   const dReverse =
     pointDist(s1Start, s2End) + pointDist(s1End, s2Start);
 
-  if (dForward < EPSILON * 2 || dReverse < EPSILON * 2) {
+  if (dForward < customTol * 2 || dReverse < customTol * 2) {
     return true;
   }
 
@@ -51,7 +52,7 @@ export function isSegmentCoincident(
   const d1 = distPointToLine(s1Start, s2Start, s2End);
   const d2 = distPointToLine(s1End, s2Start, s2End);
 
-  if (d1 < EPSILON && d2 < EPSILON) {
+  if (d1 < customTol && d2 < customTol) {
     // Check projection overlap along s2
     const tStart = projectPointOnLine(s1Start, s2Start, s2End);
     const tEnd = projectPointOnLine(s1End, s2Start, s2End);
@@ -69,8 +70,8 @@ export function isSegmentCoincident(
 
     const overlapMeters = overlapFraction * len2;
     const minLen = Math.min(len1, len2);
-    // Requires significant overlap (at least 20cm or 60% of shorter segment)
-    return overlapMeters >= 0.20 || overlapMeters >= minLen * 0.6;
+    // Requires significant overlap (at least 18cm or 50% of shorter segment)
+    return overlapMeters >= 0.18 || overlapMeters >= minLen * 0.5;
   }
 
   return false;
@@ -124,6 +125,56 @@ function canonicalSegmentKey(p1: [number, number], p2: [number, number]): string
 }
 
 /**
+ * Deduplicates and merges any overlapping or parallel-adjacent wall segments
+ * so no design can ever have double/overlapping walls.
+ */
+export function deduplicateWallSegments(walls: WallSegment[]): WallSegment[] {
+  if (!walls || walls.length <= 1) return walls || [];
+
+  // Sort so exterior / thicker / longer walls win priority when deduplicating
+  const sorted = [...walls].sort((a, b) => {
+    if (a.isExterior !== b.isExterior) return a.isExterior ? -1 : 1;
+    if (Math.abs(b.thickness - a.thickness) > 0.02) return b.thickness - a.thickness;
+    return pointDist(b.start, b.end) - pointDist(a.start, a.end);
+  });
+
+  const kept: WallSegment[] = [];
+  for (const w of sorted) {
+    const len = pointDist(w.start, w.end);
+    if (len < 0.12) continue;
+
+    let mergedIntoExisting = false;
+    for (let i = 0; i < kept.length; i++) {
+      const k = kept[i];
+      const tol = k.isExterior || w.isExterior ? 0.22 : 0.16;
+      if (isSegmentCoincident(w.start, w.end, k.start, k.end, tol)) {
+        // If w extends beyond k along the same axis, expand k's span to cover both cleanly
+        const isHoriz = Math.abs(k.end[1] - k.start[1]) <= Math.abs(k.end[0] - k.start[0]);
+        if (isHoriz) {
+          const minX = Math.min(k.start[0], k.end[0], w.start[0], w.end[0]);
+          const maxX = Math.max(k.start[0], k.end[0], w.start[0], w.end[0]);
+          const y = k.start[1];
+          kept[i] = { ...k, start: [minX, y], end: [maxX, y] };
+        } else {
+          const minY = Math.min(k.start[1], k.end[1], w.start[1], w.end[1]);
+          const maxY = Math.max(k.start[1], k.end[1], w.start[1], w.end[1]);
+          const x = k.start[0];
+          kept[i] = { ...k, start: [x, minY], end: [x, maxY] };
+        }
+        mergedIntoExisting = true;
+        break;
+      }
+    }
+
+    if (!mergedIntoExisting) {
+      kept.push(w);
+    }
+  }
+
+  return kept;
+}
+
+/**
  * Algorithmically derives all internal partition walls from room boundary polygons
  * where an explicit wall was not already supplied.
  * Guarantees no duplicate overlapping walls and enforces 90mm stud scale.
@@ -171,7 +222,7 @@ export function deriveInternalWallsFromRooms(
 
     // Check if already covered by an existing or previously derived wall
     const alreadyCovered = allCurrentWalls.some((w) =>
-      isSegmentCoincident(s, e, w.start, w.end)
+      isSegmentCoincident(s, e, w.start, w.end, w.isExterior ? 0.22 : 0.16)
     );
 
     if (alreadyCovered) {
@@ -184,7 +235,7 @@ export function deriveInternalWallsFromRooms(
       for (let i = 0; i < r.polygon.length; i++) {
         const p1 = r.polygon[i];
         const p2 = r.polygon[(i + 1) % r.polygon.length];
-        if (isSegmentCoincident(s, e, p1, p2)) return true;
+        if (isSegmentCoincident(s, e, p1, p2, 0.12)) return true;
       }
       return false;
     });
@@ -194,7 +245,6 @@ export function deriveInternalWallsFromRooms(
 
     const isOutdoorRoom = edge.room.name === "Porch" || edge.room.name === "Alfresco";
     const bordersOutdoorRoom = neighborRooms.some((r) => r.name === "Porch" || r.name === "Alfresco");
-    const bordersGarage = neighborRooms.some((r) => r.name === "Garage");
 
     // Outdoor perimeter edges (e.g. open sides of Porch/Alfresco) do not need solid walls
     if (isOutdoorRoom && isPerimeter) {
@@ -202,9 +252,9 @@ export function deriveInternalWallsFromRooms(
     }
 
     // Wall thickness & properties:
-    // - 0.25m (250mm) for exterior envelope and garage separation barriers
-    // - 0.09m (90mm) for standard Australian residential interior timber stud partitions
-    const isExteriorBarrier = isPerimeter || bordersGarage || (bordersOutdoorRoom && !isOutdoorRoom);
+    // - 0.25m (250mm) for exterior envelope and outdoor boundaries
+    // - 0.09m (90mm) for standard Australian residential interior timber stud partitions (including painted internal garage walls)
+    const isExteriorBarrier = isPerimeter || (bordersOutdoorRoom && !isOutdoorRoom);
     const thickness = isExteriorBarrier ? 0.25 : 0.09;
     const material = isExteriorBarrier ? "brick_austral" : "plaster_white";
 
@@ -226,17 +276,19 @@ export function deriveInternalWallsFromRooms(
 }
 
 /**
- * Ensures a BuildingDesign3D has a 100% complete, fully-scaled internal wall network.
- * If any internal walls separating bedrooms, bathrooms, hallways, or living spaces
- * are missing, this function algorithmically populates them with millimeter precision.
+ * Ensures a BuildingDesign3D has a 100% complete, fully-scaled internal wall network
+ * with zero overlapping or duplicate walls.
  */
 export function ensureCompleteWallNetwork(design: BuildingDesign3D): BuildingDesign3D {
   if (!design || !design.rooms) return design;
   if (design.exactStructuralWalls) {
-    return design;
+    return {
+      ...design,
+      walls: deduplicateWallSegments(design.walls || []),
+    };
   }
 
-  const currentWalls = [...(design.walls || [])];
+  const currentWalls = deduplicateWallSegments([...(design.walls || [])]);
   const derived = deriveInternalWallsFromRooms(
     design.rooms,
     currentWalls,
@@ -245,13 +297,9 @@ export function ensureCompleteWallNetwork(design: BuildingDesign3D): BuildingDes
     design.lengthM || 16.62
   );
 
-  if (derived.length === 0) {
-    return design;
-  }
-
   return {
     ...design,
-    walls: [...currentWalls, ...derived],
+    walls: deduplicateWallSegments([...currentWalls, ...derived]),
   };
 }
 

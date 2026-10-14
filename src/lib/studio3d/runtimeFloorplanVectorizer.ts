@@ -18,6 +18,7 @@
  *      so the 3D slab, ceiling, and stepped hip-and-valley roofline match the exact house silhouette.
  */
 
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import {
   BuildingDesign3D,
   WallSegment,
@@ -26,11 +27,92 @@ import {
   Room3D,
 } from "./studio3dTypes";
 import { DEFAULT_FITOUT_CONFIG, DEFAULT_CUSTOM_FACADE_CONFIG } from "./floorplanTo3dEngine";
+import { deduplicateWallSegments } from "./wallNetworkEngine";
+import { resolveLocalFloorplanUrl } from "@/components/flyer/floorplans";
+import { scoreFloorplanPage } from "@/lib/pdfPages";
 
-const CACHE_VERSION = "v11_universal_1to100";
+const CACHE_VERSION = "v12_universal_zero_overlap";
 const MEMORY_CACHE = new Map<string, VectorizedFloorplanPatch>();
 const IDB_NAME = "hudson_studio3d_vectorizer_cache";
 const IDB_STORE = "vectorized_plans";
+
+/**
+ * Converts any uploaded Floorplan File (PDF or PNG/JPG/WebP image) into a high-resolution
+ * image URL suitable for 1:100 CAD vectorization in the browser.
+ */
+export async function renderFileToHighResFloorplanUrl(
+  file: File,
+  fallbackDataUrl?: string
+): Promise<string | undefined> {
+  if (typeof window === "undefined") return fallbackDataUrl;
+  const isImage =
+    file.type.startsWith("image/") || /\.(png|jpe?g|webp|bmp)$/i.test(file.name);
+  if (isImage) {
+    return URL.createObjectURL(file);
+  }
+
+  const isPdf =
+    file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+  if (!isPdf) {
+    return fallbackDataUrl;
+  }
+
+  try {
+    if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+      try {
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          "pdfjs-dist/build/pdf.worker.min.mjs",
+          import.meta.url
+        ).href;
+      } catch {
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      }
+    }
+    const data = new Uint8Array(await file.arrayBuffer());
+    const doc = await pdfjs.getDocument({ data }).promise;
+    let bestPageNum = 1;
+    let bestScore = -999;
+
+    const maxCheck = Math.min(doc.numPages, 8);
+    for (let i = 1; i <= maxCheck; i++) {
+      try {
+        const page = await doc.getPage(i);
+        const tc = await page.getTextContent();
+        const text = (tc.items || [])
+          .map((it: any) => (it && typeof it.str === "string" ? it.str : ""))
+          .join(" ");
+        const { score } = scoreFloorplanPage(text);
+        if (score > bestScore) {
+          bestScore = score;
+          bestPageNum = i;
+        }
+      } catch {
+        // ignore text scoring error on page
+      }
+    }
+
+    const page = await doc.getPage(bestPageNum);
+    const baseVp = page.getViewport({ scale: 1 });
+    const targetMaxDim = 4370;
+    const scale = Math.min(
+      3.5,
+      Math.max(2.0, targetMaxDim / Math.max(baseVp.width, baseVp.height))
+    );
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return fallbackDataUrl;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas.toDataURL("image/png");
+  } catch (err) {
+    console.warn("[RuntimeFloorplanVectorizer] High-res PDF render fallback:", err);
+    return fallbackDataUrl;
+  }
+}
 
 export interface VectorizedFloorplanPatch {
   floorplanImageUrl: string;
@@ -119,7 +201,9 @@ export async function vectorizeFloorplanForDesign(
   baseDesign: BuildingDesign3D,
   overrideImageUrl?: string
 ): Promise<BuildingDesign3D> {
-  const imageUrl = overrideImageUrl || baseDesign.floorplanImageUrl;
+  const imageUrl =
+    overrideImageUrl ||
+    resolveLocalFloorplanUrl(baseDesign.name, baseDesign.floorplanImageUrl);
   if (!imageUrl || typeof document === "undefined") {
     return baseDesign;
   }
@@ -134,7 +218,7 @@ export async function vectorizeFloorplanForDesign(
     return baseDesign;
   }
 
-  const cacheKey = `${CACHE_VERSION}::${baseDesign.id}::${imageUrl}::${baseDesign.widthM.toFixed(2)}x${baseDesign.lengthM.toFixed(2)}`;
+  const cacheKey = `${CACHE_VERSION}::${baseDesign.id}::${imageUrl.slice(0, 180)}::${baseDesign.widthM.toFixed(2)}x${baseDesign.lengthM.toFixed(2)}`;
   const cached = await getCachedPatch(cacheKey);
   if (cached) {
     return applyVectorizedPatch(baseDesign, cached);
@@ -147,7 +231,7 @@ export async function vectorizeFloorplanForDesign(
       baseDesign.lengthM,
       baseDesign
     );
-    if (patch && patch.walls.length >= 12) {
+    if (patch && patch.walls.length >= 10) {
       await setCachedPatch(cacheKey, patch);
       return applyVectorizedPatch(baseDesign, patch);
     }
@@ -192,8 +276,16 @@ async function runCanvasFloorplanVectorizer(
   baseDesign: BuildingDesign3D
 ): Promise<VectorizedFloorplanPatch | null> {
   const candidates: string[] = [];
-  if (rawImageUrl.startsWith("blob:") || rawImageUrl.startsWith("data:") || rawImageUrl.startsWith("/floorplans/")) {
+  if (
+    rawImageUrl.startsWith("blob:") ||
+    rawImageUrl.startsWith("data:") ||
+    rawImageUrl.startsWith("/floorplans/")
+  ) {
     candidates.push(rawImageUrl);
+  }
+  const resolvedLocal = resolveLocalFloorplanUrl(baseDesign.name, baseDesign.floorplanImageUrl);
+  if (!candidates.includes(resolvedLocal)) {
+    candidates.push(resolvedLocal);
   }
   const cleanName = baseDesign.name.trim();
   candidates.push(`/floorplans/${cleanName.toUpperCase()}.png`);
@@ -211,7 +303,10 @@ async function runCanvasFloorplanVectorizer(
       await new Promise<void>((resolve, reject) => {
         candidateImg.onload = () => resolve();
         candidateImg.onerror = (e) => reject(e);
-        candidateImg.src = cand.startsWith("blob:") || cand.startsWith("data:") ? cand : encodeURI(cand);
+        candidateImg.src =
+          cand.startsWith("blob:") || cand.startsWith("data:")
+            ? cand
+            : encodeURI(cand);
       });
       if (candidateImg.width >= 300 && candidateImg.height >= 300) {
         img = candidateImg;
@@ -245,157 +340,332 @@ async function runCanvasFloorplanVectorizer(
     return 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
   };
 
-  // --- STEP 1: Find Exact Main House Footprint Crop Box ---
-  const rSolid = Math.max(5, Math.round((W / 3500) * 8));
-  let roughMaxX = 0;
-  let roughMinY = H;
-  let roughMaxY = 0;
+  // --- STEP 1: Universal White-Gutter-Aware Thick-Wall Bar Clustering & Footprint Detection ---
+  const scaleRef = Math.max(0.35, Math.min(1.6, Math.max(W, H) / 4370));
+  const minThick = Math.max(5, Math.round(9 * scaleRef));
+  const maxThick = Math.max(24, Math.round(68 * scaleRef));
+  const minLen = Math.max(22, Math.round(42 * scaleRef));
+  const stepScan = Math.max(3, Math.round(6 * scaleRef));
 
-  for (let y = Math.round(H * 0.08); y < Math.round(H * 0.92); y += 4) {
-    for (let x = W - 20; x > Math.round(W * 0.35); x -= 4) {
-      if (getLum(x, y) < 55) {
-        let ok = true;
-        for (let dy = -rSolid; dy <= rSolid && ok; dy += 2) {
-          for (let dx = -rSolid; dx <= rSolid; dx += 2) {
-            if (getLum(x + dx, y + dy) >= 75) {
-              ok = false;
-              break;
-            }
-          }
-        }
-        if (ok) {
-          if (x + rSolid > roughMaxX) roughMaxX = x + rSolid;
-          break;
-        }
+  const isThickWallPixel = (x: number, y: number): boolean => {
+    if (getLum(x, y) >= 75) return false;
+    let hRun = 1;
+    for (let dx = 1; dx <= maxThick && getLum(x + dx, y) < 85; dx++) hRun++;
+    for (let dx = 1; dx <= maxThick && getLum(x - dx, y) < 85; dx++) hRun++;
+
+    let vRun = 1;
+    for (let dy = 1; dy <= maxThick && getLum(x, y + dy) < 85; dy++) vRun++;
+    for (let dy = 1; dy <= maxThick && getLum(x, y - dy) < 85; dy++) vRun++;
+
+    if (hRun >= minThick && hRun <= maxThick && vRun >= minLen) return true;
+    if (vRun >= minThick && vRun <= maxThick && hRun >= minLen) return true;
+    return false;
+  };
+
+  const marginX = Math.max(15, Math.round(W * 0.04));
+  const marginYTop = Math.max(15, Math.round(H * 0.05));
+  const marginYBot = Math.max(15, Math.round(H * 0.07));
+
+  const wallPts: Array<{ x: number; y: number }> = [];
+  for (let y = marginYTop; y <= H - marginYBot; y += stepScan) {
+    for (let x = marginX; x <= W - marginX; x += stepScan) {
+      if (isThickWallPixel(x, y)) {
+        wallPts.push({ x, y });
       }
     }
   }
 
-  for (let y = Math.round(H * 0.08); y < Math.round(H * 0.94); y += 3) {
-    for (let x = Math.max(Math.round(W * 0.35), roughMaxX - 1500); x <= roughMaxX + 20; x += 3) {
-      if (getLum(x, y) < 55) {
-        let ok = true;
-        for (let dy = -rSolid; dy <= rSolid && ok; dy += 2) {
-          for (let dx = -rSolid; dx <= rSolid; dx += 2) {
-            if (getLum(x + dx, y + dy) >= 75) {
-              ok = false;
-              break;
-            }
-          }
-        }
-        if (ok) {
-          if (y - rSolid < roughMinY) roughMinY = y - rSolid;
-          if (y + rSolid > roughMaxY) roughMaxY = y + rSolid;
-        }
-      }
+  interface WallCluster {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+    pts: Array<{ x: number; y: number }>;
+  }
+
+  let minX = Math.round(W * 0.25);
+  let maxX = Math.round(W * 0.85);
+  let minY = Math.round(H * 0.15);
+  let maxY = Math.round(H * 0.80);
+
+  if (wallPts.length >= 20) {
+    const cellPx = Math.max(60, Math.round(140 * scaleRef));
+    const gridW = Math.ceil(W / cellPx);
+    const gridH = Math.ceil(H / cellPx);
+    const cells = new Map<number, Array<{ x: number; y: number }>>();
+    for (const p of wallPts) {
+      const k = Math.floor(p.y / cellPx) * gridW + Math.floor(p.x / cellPx);
+      if (!cells.has(k)) cells.set(k, []);
+      cells.get(k)!.push(p);
     }
-  }
 
-  const estPxPerM = Math.max(150, Math.min(172, (roughMaxY - roughMinY) / lengthM));
-  const searchMinX = Math.max(20, Math.round(roughMaxX - widthM * estPxPerM - 320));
-  const searchMaxX = Math.min(W - 10, roughMaxX + 35);
-
-  let minX = W,
-    maxX = 0,
-    minY = H,
-    maxY = 0;
-  const rRefine = Math.max(4, Math.round((W / 3500) * 6));
-  for (let y = Math.max(20, roughMinY - 50); y <= Math.min(H - 20, roughMaxY + 50); y++) {
-    for (let x = searchMinX; x <= searchMaxX; x++) {
-      if (getLum(x, y) < 55) {
-        let ok = true;
-        for (let dy = -rRefine; dy <= rRefine && ok; dy += 2) {
-          for (let dx = -rRefine; dx <= rRefine; dx += 2) {
-            if (getLum(x + dx, y + dy) >= 75) {
-              ok = false;
-              break;
-            }
-          }
+    const visited = new Set<number>();
+    const rawClusters: WallCluster[] = [];
+    for (const [k] of cells.entries()) {
+      if (visited.has(k) || cells.get(k)!.length < 2) continue;
+      const queue = [k];
+      visited.add(k);
+      const cPts: Array<{ x: number; y: number }> = [];
+      let cMinX = W,
+        cMaxX = 0,
+        cMinY = H,
+        cMaxY = 0;
+      while (queue.length > 0) {
+        const curr = queue.shift()!;
+        const pts = cells.get(curr)!;
+        for (const p of pts) {
+          cPts.push(p);
+          if (p.x < cMinX) cMinX = p.x;
+          if (p.x > cMaxX) cMaxX = p.x;
+          if (p.y < cMinY) cMinY = p.y;
+          if (p.y > cMaxY) cMaxY = p.y;
         }
-        if (ok) {
-          if (x - rRefine < minX) minX = x - rRefine;
-          if (x + rRefine > maxX) maxX = x + rRefine;
-          if (y - rRefine < minY) minY = y - rRefine;
-          if (y + rRefine > maxY) maxY = y + rRefine;
-        }
-      }
-    }
-  }
-
-  while (
-    minX > searchMinX &&
-    Array.from({ length: maxY - minY }, (_, i) => getLum(minX - 1, minY + i)).some((l) => l < 75)
-  )
-    minX--;
-  while (
-    maxX < searchMaxX &&
-    Array.from({ length: maxY - minY }, (_, i) => getLum(maxX + 1, minY + i)).some((l) => l < 75)
-  )
-    maxX++;
-  while (
-    minY > 50 &&
-    Array.from({ length: maxX - minX }, (_, i) => getLum(minX + i, minY - 1)).some((l) => l < 75)
-  )
-    minY--;
-  while (
-    maxY < H - 20 &&
-    Array.from({ length: maxX - minX }, (_, i) => getLum(minX + i, maxY + 1)).some((l) => l < 75)
-  )
-    maxY++;
-
-  const stdPxPerM = 161.85 * (W / 4967);
-  if (Math.abs((maxX - minX) / widthM - stdPxPerM) > stdPxPerM * 0.04) {
-    widthM = +((maxX - minX) / stdPxPerM).toFixed(2);
-  }
-  const pxPerMX = (maxX - minX) / widthM;
-
-  if (Math.abs((maxY - minY) / lengthM - pxPerMX) > pxPerMX * 0.09) {
-    // Check if there is a southern front pier/garage wall within 2.5m below maxY before deriving lengthM
-    const rPost = 3;
-    for (let y = maxY; y <= Math.min(H - 1, maxY + Math.round(2.5 * pxPerMX)); y++) {
-      for (let x = minX; x <= maxX; x++) {
-        if (getLum(x, y) < 55) {
-          let ok = true;
-          for (let dy = -rPost; dy <= rPost && ok; dy++) {
-            for (let dx = -rPost; dx <= rPost; dx++) {
-              if (getLum(x + dx, y + dy) >= 75) {
-                ok = false;
-                break;
+        const cy = Math.floor(curr / gridW);
+        const cx = curr % gridW;
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const nx = cx + dx,
+              ny = cy + dy;
+            if (nx >= 0 && nx < gridW && ny >= 0 && ny < gridH) {
+              const nk = ny * gridW + nx;
+              if (!visited.has(nk) && cells.has(nk) && cells.get(nk)!.length >= 1) {
+                visited.add(nk);
+                queue.push(nk);
               }
             }
           }
-          if (ok && y + rPost > maxY) maxY = y + rPost;
         }
       }
+      rawClusters.push({ minX: cMinX, maxX: cMaxX, minY: cMinY, maxY: cMaxY, pts: cPts });
     }
-    lengthM = +((maxY - minY) / pxPerMX).toFixed(2);
+
+    // Split any cluster that spans across a wide vertical or horizontal white gutter (e.g. Double Storey GF + FF)
+    const splitGapPx = Math.max(45, Math.round(90 * scaleRef));
+    const splitByX = (cl: WallCluster): WallCluster[] => {
+      const xs = cl.pts.map((p) => p.x).sort((a, b) => a - b);
+      let maxGap = 0,
+        splitVal = -1;
+      for (let i = 1; i < xs.length; i++) {
+        const g = xs[i] - xs[i - 1];
+        if (g > maxGap) {
+          maxGap = g;
+          splitVal = (xs[i] + xs[i - 1]) / 2;
+        }
+      }
+      if (maxGap >= splitGapPx) {
+        const leftPts = cl.pts.filter((p) => p.x < splitVal);
+        const rightPts = cl.pts.filter((p) => p.x >= splitVal);
+        const out: WallCluster[] = [];
+        for (const sub of [leftPts, rightPts]) {
+          if (sub.length >= 15) {
+            out.push(
+              ...splitByX({
+                minX: Math.min(...sub.map((p) => p.x)),
+                maxX: Math.max(...sub.map((p) => p.x)),
+                minY: Math.min(...sub.map((p) => p.y)),
+                maxY: Math.max(...sub.map((p) => p.y)),
+                pts: sub,
+              })
+            );
+          }
+        }
+        if (out.length > 0) return out;
+      }
+      return [cl];
+    };
+
+    const splitByY = (cl: WallCluster): WallCluster[] => {
+      const ys = cl.pts.map((p) => p.y).sort((a, b) => a - b);
+      let maxGap = 0,
+        splitVal = -1;
+      for (let i = 1; i < ys.length; i++) {
+        const g = ys[i] - ys[i - 1];
+        if (g > maxGap) {
+          maxGap = g;
+          splitVal = (ys[i] + ys[i - 1]) / 2;
+        }
+      }
+      if (maxGap >= splitGapPx) {
+        const topPts = cl.pts.filter((p) => p.y < splitVal);
+        const botPts = cl.pts.filter((p) => p.y >= splitVal);
+        const out: WallCluster[] = [];
+        for (const sub of [topPts, botPts]) {
+          if (sub.length >= 15) {
+            out.push(
+              ...splitByY({
+                minX: Math.min(...sub.map((p) => p.x)),
+                maxX: Math.max(...sub.map((p) => p.x)),
+                minY: Math.min(...sub.map((p) => p.y)),
+                maxY: Math.max(...sub.map((p) => p.y)),
+                pts: sub,
+              })
+            );
+          }
+        }
+        if (out.length > 0) return out;
+      }
+      return [cl];
+    };
+
+    const finalClusters: WallCluster[] = [];
+    for (const rc of rawClusters) {
+      for (const sx of splitByX(rc)) {
+        finalClusters.push(...splitByY(sx));
+      }
+    }
+
+    if (finalClusters.length > 0) {
+      finalClusters.sort((a, b) => {
+        if (
+          finalClusters.length >= 2 &&
+          Math.min(a.pts.length, b.pts.length) > 150 &&
+          Math.abs(a.minX - b.minX) > 700 * scaleRef
+        ) {
+          return a.minX - b.minX;
+        }
+        return b.pts.length - a.pts.length;
+      });
+      const main = finalClusters[0];
+      minX = main.minX;
+      maxX = main.maxX;
+      minY = main.minY;
+      maxY = main.maxY;
+
+      // Expand into 350mm solid corner piers / Porch & Alfresco post piers, stopping at white gutters
+      const rPier = Math.max(4, Math.round(7 * scaleRef));
+      const isSolidBlock = (x: number, y: number): boolean => {
+        if (getLum(x, y) >= 65) return false;
+        for (let dy = -rPier; dy <= rPier; dy += 2) {
+          for (let dx = -rPier; dx <= rPier; dx += 2) {
+            if (getLum(x + dx, y + dy) >= 85) return false;
+          }
+        }
+        return true;
+      };
+
+      const maxExpandY = Math.round(520 * scaleRef);
+      const maxExpandX = Math.round(180 * scaleRef);
+      const maxGutterRun = Math.max(16, Math.round(32 * scaleRef));
+
+      let emptyRows = 0;
+      for (let y = maxY + 1; y <= Math.min(H - marginYBot, maxY + maxExpandY); y++) {
+        let rowHasPier = false;
+        for (let x = minX - 20; x <= maxX + 20; x += 2) {
+          if (isSolidBlock(x, y)) {
+            rowHasPier = true;
+            if (y > maxY) maxY = y;
+          }
+        }
+        if (!rowHasPier) {
+          emptyRows++;
+          if (emptyRows >= maxGutterRun) break;
+        } else {
+          emptyRows = 0;
+        }
+      }
+
+      emptyRows = 0;
+      for (let y = minY - 1; y >= Math.max(marginYTop, minY - maxExpandY); y--) {
+        let rowHasPier = false;
+        for (let x = minX - 20; x <= maxX + 20; x += 2) {
+          if (isSolidBlock(x, y)) {
+            rowHasPier = true;
+            if (y < minY) minY = y;
+          }
+        }
+        if (!rowHasPier) {
+          emptyRows++;
+          if (emptyRows >= maxGutterRun) break;
+        } else {
+          emptyRows = 0;
+        }
+      }
+
+      let emptyCols = 0;
+      for (let x = minX - 1; x >= Math.max(marginX, minX - maxExpandX); x--) {
+        let colHasPier = false;
+        for (let y = minY; y <= maxY; y += 2) {
+          if (isSolidBlock(x, y)) {
+            colHasPier = true;
+            if (x < minX) minX = x;
+          }
+        }
+        if (!colHasPier) {
+          emptyCols++;
+          if (emptyCols >= maxGutterRun) break;
+        } else {
+          emptyCols = 0;
+        }
+      }
+
+      emptyCols = 0;
+      for (let x = maxX + 1; x <= Math.min(W - marginX, maxX + maxExpandX); x++) {
+        let colHasPier = false;
+        for (let y = minY; y <= maxY; y += 2) {
+          if (isSolidBlock(x, y)) {
+            colHasPier = true;
+            if (x > maxX) maxX = x;
+          }
+        }
+        if (!colHasPier) {
+          emptyCols++;
+          if (emptyCols >= maxGutterRun) break;
+        } else {
+          emptyCols = 0;
+        }
+      }
+
+      // Fine outer edge walk across solid wall pixels (<75 lum)
+      while (
+        minX > marginX &&
+        Array.from({ length: Math.ceil((maxY - minY) / 2) }, (_, i) =>
+          getLum(minX - 1, minY + i * 2)
+        ).some((l) => l < 75)
+      )
+        minX--;
+      while (
+        maxX < W - marginX &&
+        Array.from({ length: Math.ceil((maxY - minY) / 2) }, (_, i) =>
+          getLum(maxX + 1, minY + i * 2)
+        ).some((l) => l < 75)
+      )
+        maxX++;
+      while (
+        minY > marginYTop &&
+        Array.from({ length: Math.ceil((maxX - minX) / 2) }, (_, i) =>
+          getLum(minX + i * 2, minY - 1)
+        ).some((l) => l < 75)
+      )
+        minY--;
+      while (
+        maxY < H - marginYBot &&
+        Array.from({ length: Math.ceil((maxX - minX) / 2) }, (_, i) =>
+          getLum(minX + i * 2, maxY + 1)
+        ).some((l) => l < 75)
+      )
+        maxY++;
+    }
+  }
+
+  const cropW = Math.max(100, maxX - minX);
+  const cropH = Math.max(100, maxY - minY);
+
+  // Determine true 1:100 isotropic pxPerM scale
+  const isStandardPortraitSheet = W >= 4200 && W <= 4500 && H >= 6000 && H <= 6450;
+  const isStandardLandscapeSheet = W >= 4200 && W <= 4500 && H >= 3000 && H <= 3300;
+  let pxPerM: number;
+  if (isStandardPortraitSheet) {
+    pxPerM = 161.85 * (W / 4370);
+  } else if (isStandardLandscapeSheet) {
+    pxPerM = 114.5 * (W / 4370);
   } else {
-    const expectedH = Math.round(lengthM * pxPerMX);
-    if (expectedH - (maxY - minY) > 8 && expectedH - (maxY - minY) < 420) {
-      const rPost = 3;
-      for (let y = maxY; y <= Math.min(H - 1, minY + expectedH + 55); y++) {
-        for (let x = minX; x <= maxX; x++) {
-          if (getLum(x, y) < 55) {
-            let ok = true;
-            for (let dy = -rPost; dy <= rPost && ok; dy++) {
-              for (let dx = -rPost; dx <= rPost; dx++) {
-                if (getLum(x + dx, y + dy) >= 75) {
-                  ok = false;
-                  break;
-                }
-              }
-            }
-            if (ok && y + rPost > maxY) maxY = y + rPost;
-          }
-        }
-      }
-    }
+    pxPerM = cropW / Math.max(6.0, widthM);
   }
 
-  const cropW = maxX - minX;
-  const cropH = maxY - minY;
-  const pxPerMZ = cropH / lengthM;
-  const pxPerM = (pxPerMX + pxPerMZ) / 2;
+  widthM = +(cropW / pxPerM).toFixed(2);
+  lengthM = +(cropH / pxPerM).toFixed(2);
+  const pxPerMX = pxPerM;
+  const pxPerMZ = pxPerM;
 
   const toMX = (px: number) => (px - minX) / pxPerMX;
   const toMZ = (py: number) => (py - minY) / pxPerMZ;
@@ -540,40 +810,40 @@ async function runCanvasFloorplanVectorizer(
     return resultTracks;
   }
 
-  const vExtTracks = buildTracks(vExtSlices, "xM", "zM", 0.14, 0.06, 0.16);
-  const hExtTracks = buildTracks(hExtSlices, "zM", "xM", 0.14, 0.06, 0.16);
+  const vExtTracks = buildTracks(vExtSlices, "xM", "zM", 0.18, 0.08, 0.16);
+  const hExtTracks = buildTracks(hExtSlices, "zM", "xM", 0.18, 0.08, 0.16);
 
   const vIntFiltered = vIntSlices.filter(
     (s) =>
       !vExtTracks.some(
         (t) =>
-          Math.abs(t.coord - s.xM) < 0.19 &&
-          t.intervals.some((iv) => s.zM >= iv.start - 0.14 && s.zM <= iv.end + 0.14)
+          Math.abs(t.coord - s.xM) < 0.22 &&
+          t.intervals.some((iv) => s.zM >= iv.start - 0.16 && s.zM <= iv.end + 0.16)
       ) &&
       !hExtTracks.some(
         (t) =>
-          Math.abs(t.coord - s.zM) < 0.19 &&
-          t.intervals.some((iv) => s.xM >= iv.start - 0.14 && s.xM <= iv.end + 0.14)
+          Math.abs(t.coord - s.zM) < 0.22 &&
+          t.intervals.some((iv) => s.xM >= iv.start - 0.16 && s.xM <= iv.end + 0.16)
       )
   );
   const hIntFiltered = hIntSlices.filter(
     (s) =>
       !hExtTracks.some(
         (t) =>
-          Math.abs(t.coord - s.zM) < 0.19 &&
-          t.intervals.some((iv) => s.xM >= iv.start - 0.14 && s.xM <= iv.end + 0.14)
+          Math.abs(t.coord - s.zM) < 0.22 &&
+          t.intervals.some((iv) => s.xM >= iv.start - 0.16 && s.xM <= iv.end + 0.16)
       ) &&
       !vExtTracks.some(
         (t) =>
-          Math.abs(t.coord - s.xM) < 0.19 &&
-          t.intervals.some((iv) => s.zM >= iv.start - 0.14 && s.zM <= iv.end + 0.14)
+          Math.abs(t.coord - s.xM) < 0.22 &&
+          t.intervals.some((iv) => s.zM >= iv.start - 0.16 && s.zM <= iv.end + 0.16)
       )
   );
 
-  const vIntTracks = buildTracks(vIntFiltered, "xM", "zM", 0.04, 0.05, 0.09).filter(
+  const vIntTracks = buildTracks(vIntFiltered, "xM", "zM", 0.11, 0.06, 0.10).filter(
     (t) => t.totalLen >= 0.16
   );
-  const hIntTracks = buildTracks(hIntFiltered, "zM", "xM", 0.04, 0.05, 0.09).filter(
+  const hIntTracks = buildTracks(hIntFiltered, "zM", "xM", 0.11, 0.06, 0.10).filter(
     (t) => t.totalLen >= 0.16
   );
 
@@ -1393,6 +1663,8 @@ async function runCanvasFloorplanVectorizer(
     });
   }
 
+  const cleanWalls = deduplicateWallSegments(walls);
+
   // --- STEP 7: Derive Stepped Indoor & Outdoor Room Polygons for Roof, Slab & Ceiling ---
   const garageDoor = openings.find((o) => o.type === "garage_door");
   const entryDoor = openings.find(
@@ -1480,10 +1752,8 @@ async function runCanvasFloorplanVectorizer(
   let alfXMin = northLeftEnd > 0.5 ? northLeftEnd : 0;
   let alfXMax = widthM;
   if (northRightStart < widthM - 0.5 && northRightStart > alfXMin + 1.2) {
-    // Indoor wings on BOTH North-Left and North-Right with central Alfresco (e.g. Ivory 25)
     alfXMax = northRightStart;
   } else if (alfXMin > 0.5) {
-    // Indoor wing on North-Left; check rightmost dark pixel in top 0.55m band to see how far Alfresco extends
     let maxNorthDarkPx = minX;
     const bandMaxY = Math.min(maxY, minY + Math.round(0.55 * pxPerM));
     for (let py = minY; py <= bandMaxY; py += 2) {
@@ -1500,7 +1770,6 @@ async function runCanvasFloorplanVectorizer(
         ? Math.min(widthM, +(maxNorthDarkM + 0.06).toFixed(2))
         : widthM;
   } else if (northRightStart < widthM - 0.5) {
-    // Indoor wing only on North-Right; Alfresco on North-Left
     alfXMin = 0;
     alfXMax = northRightStart;
   }
@@ -1566,7 +1835,6 @@ async function runCanvasFloorplanVectorizer(
       floorFinish: "concrete",
       center: [+((garXMin + garXMax) / 2).toFixed(2), +((garZMin + garZMax) / 2).toFixed(2)],
     },
-    // Main indoor wing on North-Left (extends to z = 0)
     ...(alfXMin > 1.2
       ? [
           {
@@ -1584,7 +1852,6 @@ async function runCanvasFloorplanVectorizer(
           },
         ]
       : []),
-    // Main indoor wing on North-Right if present at z = 0 (e.g. Ivory 25)
     ...(hasNorthEastIndoorWing
       ? [
           {
@@ -1605,7 +1872,6 @@ async function runCanvasFloorplanVectorizer(
           },
         ]
       : []),
-    // Central main living & bedroom core
     {
       id: "r_main_core",
       name: "Living",
@@ -1620,7 +1886,6 @@ async function runCanvasFloorplanVectorizer(
       floorFinish: "timber",
       center: [+(widthM / 2).toFixed(2), +((alfZMax + garZMin) / 2).toFixed(2)],
     },
-    // Front stepped wing alongside Garage & Porch
     {
       id: "r_front_wing",
       name: "Bed 2",
@@ -1637,7 +1902,6 @@ async function runCanvasFloorplanVectorizer(
         +((garZMin + frontWingMaxZ) / 2).toFixed(2),
       ],
     },
-    // Entry corridor leading to South Porch
     ...(!hasWestPorchStepIn
       ? [
           {
@@ -1660,7 +1924,7 @@ async function runCanvasFloorplanVectorizer(
       : []),
   ];
 
-  // --- STEP 8: Detect Kitchen Sink, Island, Rear Bench & Wet-Area Fixtures ---
+  // --- STEP 8: Detect Kitchen Sink, Island, Rear Bench & Complete Bathroom/Ensuite/Laundry/Room Fixtures ---
   const fixtures: Fixture3D[] = [];
   let bestSink: { px: number; py: number; isHorizSink: boolean } | null = null;
   let maxRibScore = 0;
@@ -1709,6 +1973,9 @@ async function runCanvasFloorplanVectorizer(
     }
   }
 
+  let sinkXM = +(widthM * 0.68).toFixed(2);
+  let sinkZM = +(lengthM * 0.52).toFixed(2);
+
   if (bestSink) {
     const stepPx = Math.round(0.38 * pxPerM);
     let negDark = 0,
@@ -1724,8 +1991,8 @@ async function runCanvasFloorplanVectorizer(
       }
     }
     const bowlDir = negDark > posDark ? 1 : -1;
-    const sinkXM = +(toMX(bestSink.px) + (bestSink.isHorizSink ? bowlDir * 0.22 : 0)).toFixed(2);
-    const sinkZM = +(toMZ(bestSink.py) + (bestSink.isHorizSink ? 0 : bowlDir * 0.22)).toFixed(2);
+    sinkXM = +(toMX(bestSink.px) + (bestSink.isHorizSink ? bowlDir * 0.22 : 0)).toFixed(2);
+    sinkZM = +(toMZ(bestSink.py) + (bestSink.isHorizSink ? 0 : bowlDir * 0.22)).toFixed(2);
     const rotY = bestSink.isHorizSink ? 0 : Math.PI / 2;
 
     fixtures.push({
@@ -1756,7 +2023,7 @@ async function runCanvasFloorplanVectorizer(
     let rearZM = sinkZM;
     let foundRear = false;
     if (bestSink.isHorizSink) {
-      const candidateZ = walls
+      const candidateZ = cleanWalls
         .filter(
           (w) =>
             Math.abs(w.start[1] - w.end[1]) < 0.05 &&
@@ -1773,7 +2040,7 @@ async function runCanvasFloorplanVectorizer(
         foundRear = true;
       }
     } else {
-      const candidateX = walls
+      const candidateX = cleanWalls
         .filter(
           (w) =>
             Math.abs(w.start[0] - w.end[0]) < 0.05 &&
@@ -1801,22 +2068,393 @@ async function runCanvasFloorplanVectorizer(
         width: 2.35,
         depth: 0.62,
         height: 0.9,
-        label: "Rear Kitchen Bench & 900mm Gas Cooktop",
+        label: "Rear Kitchen Bench & Overhead Joinery",
       });
       fixtures.push({
         id: "fx_cooktop",
-        type: "cooktop",
+        type: "cooktop_oven",
         roomName: "Kitchen",
-        position: [rearXM, 0.9, rearZM],
+        position: [rearXM, 0.46, rearZM],
         rotationY: rotY,
         width: 0.62,
-        depth: 0.52,
-        height: 0.04,
+        depth: 0.56,
+        height: 0.9,
         label: "900mm 4-Burner Cooktop & Underbench Oven",
       });
     }
-  } else if (baseDesign.fixtures && baseDesign.fixtures.length > 0) {
-    fixtures.push(...baseDesign.fixtures);
+  } else {
+    fixtures.push({
+      id: "fx_kitchen_island",
+      type: "kitchen_island",
+      roomName: "Kitchen",
+      position: [sinkXM, 0.45, sinkZM],
+      rotationY: 0,
+      width: 2.35,
+      depth: 0.85,
+      height: 0.9,
+      label: "40mm Stone Waterfall Island Bench",
+    });
+    fixtures.push({
+      id: "fx_kitchen_sink",
+      type: "kitchen_sink",
+      roomName: "Kitchen",
+      position: [sinkXM, 0.9, sinkZM],
+      rotationY: 0,
+      width: 1.07,
+      depth: 0.48,
+      height: 0.04,
+      label: "Double Bowl Undermount Sink & Drainer",
+    });
+  }
+
+  // --- STEP 8B: Detect Enclosed Indoor Room Bays (Ensuite, Main Bath, Laundry & Bedrooms) from Wall Network ---
+  const cellM = 0.20;
+  const gW = Math.max(10, Math.ceil(widthM / cellM));
+  const gH = Math.max(10, Math.ceil(lengthM / cellM));
+  const grid = new Uint8Array(gW * gH);
+
+  // Mark outdoor/garage zones & exterior margins as blocked (1)
+  for (let iz = 0; iz < gH; iz++) {
+    const z = (iz + 0.5) * cellM;
+    for (let ix = 0; ix < gW; ix++) {
+      const x = (ix + 0.5) * cellM;
+      const inAlf = x >= alfXMin - 0.1 && x <= alfXMax + 0.1 && z <= alfZMax + 0.1;
+      const inPorch =
+        x >= porchXMin - 0.1 && x <= porchXMax + 0.1 && z >= porchZMin - 0.1 && z <= porchZMax + 0.1;
+      const inGar =
+        x >= garXMin - 0.1 && x <= garXMax + 0.1 && z >= garZMin - 0.1 && z <= garZMax + 0.1;
+      const outSouth = z > frontWingMaxZ && (x < garXMin || x > garXMax);
+      const outWestStep = hasWestPorchStepIn && x < frontMinX && z > porchZMin;
+      if (inAlf || inPorch || inGar || outSouth || outWestStep || x < 0.15 || x > widthM - 0.15 || z < 0.15 || z > lengthM - 0.15) {
+        grid[iz * gW + ix] = 1;
+      }
+    }
+  }
+
+  // Rasterize all walls & open hampers onto the 0.20m grid
+  const markSegmentOnGrid = (s: [number, number], e: [number, number], padM = 0.14) => {
+    const minXSeg = Math.max(0, Math.floor((Math.min(s[0], e[0]) - padM) / cellM));
+    const maxXSeg = Math.min(gW - 1, Math.floor((Math.max(s[0], e[0]) + padM) / cellM));
+    const minZSeg = Math.max(0, Math.floor((Math.min(s[1], e[1]) - padM) / cellM));
+    const maxZSeg = Math.min(gH - 1, Math.floor((Math.max(s[1], e[1]) + padM) / cellM));
+    for (let iz = minZSeg; iz <= maxZSeg; iz++) {
+      for (let ix = minXSeg; ix <= maxXSeg; ix++) {
+        grid[iz * gW + ix] = 1;
+      }
+    }
+  };
+
+  for (const w of cleanWalls) {
+    markSegmentOnGrid(w.start, w.end, w.isExterior ? 0.16 : 0.12);
+  }
+  for (const h of openHampers) {
+    markSegmentOnGrid(h.start, h.end, 0.12);
+  }
+
+  interface RoomBay {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+    cx: number;
+    cz: number;
+    w: number;
+    l: number;
+    areaM2: number;
+    fixtureScore: number;
+  }
+
+  const bays: RoomBay[] = [];
+  for (let iz = 0; iz < gH; iz++) {
+    for (let ix = 0; ix < gW; ix++) {
+      const startIdx = iz * gW + ix;
+      if (grid[startIdx] !== 0) continue;
+      const q = [startIdx];
+      grid[startIdx] = 2;
+      let cMinX = ix,
+        cMaxX = ix,
+        cMinZ = iz,
+        cMaxZ = iz,
+        count = 0;
+      while (q.length > 0) {
+        const cur = q.pop()!;
+        count++;
+        const cx = cur % gW;
+        const cz = (cur / gW) | 0;
+        if (cx < cMinX) cMinX = cx;
+        if (cx > cMaxX) cMaxX = cx;
+        if (cz < cMinZ) cMinZ = cz;
+        if (cz > cMaxZ) cMaxZ = cz;
+        const neighbors = [
+          cx > 0 ? cur - 1 : -1,
+          cx + 1 < gW ? cur + 1 : -1,
+          cz > 0 ? cur - gW : -1,
+          cz + 1 < gH ? cur + gW : -1,
+        ];
+        for (const nb of neighbors) {
+          if (nb >= 0 && grid[nb] === 0) {
+            grid[nb] = 2;
+            q.push(nb);
+          }
+        }
+      }
+      const rMinX = +(cMinX * cellM).toFixed(2);
+      const rMaxX = +((cMaxX + 1) * cellM).toFixed(2);
+      const rMinZ = +(cMinZ * cellM).toFixed(2);
+      const rMaxZ = +((cMaxZ + 1) * cellM).toFixed(2);
+      const rw = +(rMaxX - rMinX).toFixed(2);
+      const rl = +(rMaxZ - rMinZ).toFixed(2);
+      const areaM2 = +(count * cellM * cellM).toFixed(2);
+
+      // Ignore tinyrobe pockets or giant open-plan living halls
+      if (rw < 1.15 || rl < 1.15 || areaM2 < 2.1 || areaM2 > 22.0) continue;
+      // Ignore if this bay contains the Kitchen Sink
+      if (sinkXM >= rMinX - 0.2 && sinkXM <= rMaxX + 0.2 && sinkZM >= rMinZ - 0.2 && sinkZM <= rMaxZ + 0.2) {
+        continue;
+      }
+
+      // Measure CAD fixture linework density in the inner wall band (0.18m..0.68m from walls, avoiding center room label)
+      let darkHits = 0,
+        samples = 0;
+      const pX1 = toPxX(rMinX + 0.16),
+        pX2 = toPxX(rMaxX - 0.16);
+      const pY1 = toPxY(rMinZ + 0.16),
+        pY2 = toPxY(rMaxZ - 0.16);
+      const midX1 = toPxX(rMinX + rw * 0.34),
+        midX2 = toPxX(rMaxX - rw * 0.34);
+      const midY1 = toPxY(rMinZ + rl * 0.34),
+        midY2 = toPxY(rMaxZ - rl * 0.34);
+      for (let py = pY1; py <= pY2; py += 4) {
+        for (let px = pX1; px <= pX2; px += 4) {
+          if (px >= midX1 && px <= midX2 && py >= midY1 && py <= midY2) continue;
+          samples++;
+          if (getLum(px, py) < 175) darkHits++;
+        }
+      }
+      let fixtureScore = samples > 0 ? darkHits / samples : 0;
+
+      // Bonus if bordered by a 720mm wet-area door or external side door
+      const hasWetDoor = openings.some(
+        (o) =>
+          o.type === "door" &&
+          (o.width <= 0.76 || (o.isExterior && o.position[1] < lengthM * 0.72)) &&
+          o.position[0] >= rMinX - 0.35 &&
+          o.position[0] <= rMaxX + 0.35 &&
+          o.position[1] >= rMinZ - 0.35 &&
+          o.position[1] <= rMaxZ + 0.35
+      );
+      if (hasWetDoor) fixtureScore += 0.06;
+
+      bays.push({
+        minX: rMinX,
+        maxX: rMaxX,
+        minZ: rMinZ,
+        maxZ: rMaxZ,
+        cx: +((rMinX + rMaxX) / 2).toFixed(2),
+        cz: +((rMinZ + rMaxZ) / 2).toFixed(2),
+        w: rw,
+        l: rl,
+        areaM2,
+        fixtureScore,
+      });
+    }
+  }
+
+  // Classify wet-area bays (2.1..9.5 m²) vs Bedroom bays (7.8..21.5 m²)
+  const wetCandidateBays = bays
+    .filter((b) => b.areaM2 >= 2.1 && b.areaM2 <= 9.8 && Math.min(b.w, b.l) <= 3.3)
+    .sort((a, b) => b.fixtureScore - a.fixtureScore);
+
+  const selectedWetBays = wetCandidateBays.slice(0, 3);
+  const usedWetSet = new Set(selectedWetBays);
+
+  // Assign Ensuite (closest to North or South master corner), Main Bath (largest wet bay), and Laundry
+  if (selectedWetBays.length > 0) {
+    // Sort by area descending to pick Main Bath vs Ensuite vs Laundry
+    const byZ = [...selectedWetBays].sort((a, b) => a.cz - b.cz);
+    const ensBay = byZ[0];
+    const remainingWet = selectedWetBays.filter((b) => b !== ensBay).sort((a, b) => b.areaM2 - a.areaM2);
+    const bathBay = remainingWet[0];
+    const ldryBay = remainingWet[1];
+
+    if (ensBay) {
+      rooms.push({
+        id: "r_ensuite_auto",
+        name: "Ensuite",
+        polygon: [
+          [ensBay.minX, ensBay.minZ],
+          [ensBay.maxX, ensBay.minZ],
+          [ensBay.maxX, ensBay.maxZ],
+          [ensBay.minX, ensBay.maxZ],
+        ],
+        areaM2: ensBay.areaM2,
+        floorFinish: "tiles",
+        center: [ensBay.cx, ensBay.cz],
+      });
+      const shW = Math.min(0.90, +(ensBay.w * 0.42).toFixed(2));
+      const shD = Math.min(0.90, +(ensBay.l * 0.42).toFixed(2));
+      fixtures.push({
+        id: "fx_ens_shower",
+        type: "shower",
+        roomName: "Ensuite",
+        position: [+(ensBay.minX + shW / 2 + 0.08).toFixed(2), 1.0, +(ensBay.minZ + shD / 2 + 0.08).toFixed(2)],
+        rotationY: 0,
+        width: shW,
+        depth: shD,
+        height: 2.0,
+        label: "Ensuite Walk-In Frameless Glass Shower",
+      });
+      fixtures.push({
+        id: "fx_ens_vanity",
+        type: ensBay.w >= 2.2 ? "vanity_double" : "vanity_single",
+        roomName: "Ensuite",
+        position: [+(ensBay.maxX - 0.30).toFixed(2), 0.43, ensBay.cz],
+        rotationY: -Math.PI / 2,
+        width: Math.min(1.2, +(ensBay.l * 0.55).toFixed(2)),
+        depth: 0.46,
+        height: 0.86,
+        label: "Ensuite Stone-Top Vanity, Ceramic Basin & Mirror",
+      });
+      fixtures.push({
+        id: "fx_ens_toilet",
+        type: "toilet",
+        roomName: "Ensuite",
+        position: [+(ensBay.minX + 0.36).toFixed(2), 0.41, +(ensBay.maxZ - 0.36).toFixed(2)],
+        rotationY: Math.PI / 2,
+        width: 0.44,
+        depth: 0.65,
+        height: 0.82,
+        label: "Ensuite Close-Coupled Toilet Suite",
+      });
+    }
+
+    if (bathBay) {
+      rooms.push({
+        id: "r_bath_auto",
+        name: "Bath",
+        polygon: [
+          [bathBay.minX, bathBay.minZ],
+          [bathBay.maxX, bathBay.minZ],
+          [bathBay.maxX, bathBay.maxZ],
+          [bathBay.minX, bathBay.maxZ],
+        ],
+        areaM2: bathBay.areaM2,
+        floorFinish: "tiles",
+        center: [bathBay.cx, bathBay.cz],
+      });
+      const tubAlongZ = bathBay.l >= bathBay.w;
+      fixtures.push({
+        id: "fx_bath_tub",
+        type: "bath",
+        roomName: "Bath",
+        position: [+(bathBay.minX + 0.46).toFixed(2), 0.28, bathBay.cz],
+        rotationY: tubAlongZ ? Math.PI / 2 : 0,
+        width: Math.min(1.65, +(Math.max(bathBay.w, bathBay.l) * 0.62).toFixed(2)),
+        depth: 0.76,
+        height: 0.56,
+        label: "Main Bathroom 1700mm Bathtub",
+      });
+      fixtures.push({
+        id: "fx_bath_shower",
+        type: "shower",
+        roomName: "Bath",
+        position: [+(bathBay.maxX - 0.50).toFixed(2), 1.0, +(bathBay.minZ + 0.50).toFixed(2)],
+        rotationY: 0,
+        width: 0.88,
+        depth: 0.88,
+        height: 2.0,
+        label: "Main Bathroom Glass Shower (900 × 900mm)",
+      });
+      fixtures.push({
+        id: "fx_bath_vanity",
+        type: "vanity_single",
+        roomName: "Bath",
+        position: [bathBay.cx, 0.43, +(bathBay.minZ + 0.28).toFixed(2)],
+        rotationY: 0,
+        width: Math.min(0.95, +(bathBay.w * 0.42).toFixed(2)),
+        depth: 0.46,
+        height: 0.86,
+        label: "Main Bathroom Stone-Top Vanity & Mirror",
+      });
+      fixtures.push({
+        id: "fx_bath_toilet",
+        type: "toilet",
+        roomName: "Bath",
+        position: [+(bathBay.maxX - 0.36).toFixed(2), 0.41, +(bathBay.maxZ - 0.36).toFixed(2)],
+        rotationY: -Math.PI / 2,
+        width: 0.44,
+        depth: 0.65,
+        height: 0.82,
+        label: "Main Bathroom Toilet Suite",
+      });
+    }
+
+    if (ldryBay) {
+      rooms.push({
+        id: "r_laundry_auto",
+        name: "Laundry",
+        polygon: [
+          [ldryBay.minX, ldryBay.minZ],
+          [ldryBay.maxX, ldryBay.minZ],
+          [ldryBay.maxX, ldryBay.maxZ],
+          [ldryBay.minX, ldryBay.maxZ],
+        ],
+        areaM2: ldryBay.areaM2,
+        floorFinish: "tiles",
+        center: [ldryBay.cx, ldryBay.cz],
+      });
+      fixtures.push({
+        id: "fx_ldry_tub",
+        type: "laundry_tub",
+        roomName: "Laundry",
+        position: [+(ldryBay.minX + 0.40).toFixed(2), 0.45, +(ldryBay.maxZ - 0.32).toFixed(2)],
+        rotationY: Math.PI,
+        width: 0.60,
+        depth: 0.48,
+        height: 0.90,
+        label: "Laundry 45L Stainless Tub & Cabinet",
+      });
+      fixtures.push({
+        id: "fx_ldry_wm",
+        type: "washing_machine",
+        roomName: "Laundry",
+        position: [+(ldryBay.minX + 1.10).toFixed(2), 0.02, +(ldryBay.maxZ - 0.36).toFixed(2)],
+        rotationY: Math.PI,
+        width: 0.72,
+        depth: 0.65,
+        height: 0.04,
+        label: "Washing Machine Space Provision",
+      });
+    }
+  }
+
+  // Populate Bedroom beds cleanly inside the enclosed Bedroom bays (when showFurniture is toggled on)
+  const bedBays = bays
+    .filter((b) => !usedWetSet.has(b) && b.areaM2 >= 7.5 && b.w >= 2.5 && b.l >= 2.5)
+    .sort((a, b) => b.areaM2 - a.areaM2)
+    .slice(0, 4);
+
+  const bedLabels: Array<"Master Bed" | "Bed 2" | "Bed 3" | "Bed 4"> = [
+    "Master Bed",
+    "Bed 2",
+    "Bed 3",
+    "Bed 4",
+  ];
+  for (let i = 0; i < bedBays.length; i++) {
+    const bb = bedBays[i];
+    const rName = bedLabels[i] || "Bed 2";
+    const isMaster = i === 0;
+    fixtures.push({
+      id: `fx_bed_${i + 1}`,
+      type: isMaster ? "bed_queen" : "bed_double",
+      roomName: rName,
+      position: [bb.cx, isMaster ? 0.35 : 0.32, bb.cz],
+      rotationY: bb.w >= bb.l ? Math.PI / 2 : 0,
+      width: isMaster ? 1.65 : 1.40,
+      depth: isMaster ? 2.00 : 1.90,
+      height: isMaster ? 0.68 : 0.62,
+      label: isMaster ? "Master Queen Bed & Side Tables" : `${rName} Double Bed`,
+    });
   }
 
   return {
@@ -1830,7 +2468,7 @@ async function runCanvasFloorplanVectorizer(
     widthM,
     lengthM,
     exactStructuralWalls: true,
-    walls,
+    walls: cleanWalls,
     openings,
     openHampers,
     rooms,

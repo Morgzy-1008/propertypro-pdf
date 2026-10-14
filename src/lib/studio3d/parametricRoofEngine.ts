@@ -222,7 +222,8 @@ export function generateProceduralHipRoof(
   function addTriangle(
     p1: [number, number, number],
     p2: [number, number, number],
-    p3: [number, number, number]
+    p3: [number, number, number],
+    isCap = false
   ) {
     const vA = new THREE.Vector3(...p1);
     const vB = new THREE.Vector3(...p2);
@@ -235,17 +236,28 @@ export function generateProceduralHipRoof(
 
     positions.push(...p1, ...p2, ...p3);
     normals.push(cb.x, cb.y, cb.z, cb.x, cb.y, cb.z, cb.x, cb.y, cb.z);
-    uvs.push(p1[0], p1[2], p2[0], p2[2], p3[0], p3[2]);
+
+    // Orient UVs so Colorbond Custom Orb corrugations run down-slope from ridge to eaves gutter
+    if (isCap) {
+      uvs.push(0.15, 0.15, 0.15, 0.15, 0.15, 0.15);
+    } else if (Math.abs(cb.x) >= Math.abs(cb.z)) {
+      // East / West slope: corrugation ribs run along X, so U varies along Z
+      uvs.push(p1[2] * 1.35, p1[0] * 0.5, p2[2] * 1.35, p2[0] * 0.5, p3[2] * 1.35, p3[0] * 0.5);
+    } else {
+      // North / South slope: corrugation ribs run along Z, so U varies along X
+      uvs.push(p1[0] * 1.35, p1[2] * 0.5, p2[0] * 1.35, p2[2] * 0.5, p3[0] * 1.35, p3[2] * 0.5);
+    }
   }
 
   function addQuad(
     p1: [number, number, number],
     p2: [number, number, number],
     p3: [number, number, number],
-    p4: [number, number, number]
+    p4: [number, number, number],
+    isCap = false
   ) {
-    addTriangle(p1, p2, p3);
-    addTriangle(p1, p3, p4);
+    addTriangle(p1, p2, p3, isCap);
+    addTriangle(p1, p3, p4, isCap);
   }
 
   function addRidgeCapBar(pA: [number, number, number], pB: [number, number, number]) {
@@ -253,18 +265,18 @@ export function generateProceduralHipRoof(
     const vB = new THREE.Vector3(...pB);
     const dir = new THREE.Vector3().subVectors(vB, vA);
     if (dir.length() < 0.05) return;
-    const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize().multiplyScalar(0.09);
-    const lift = 0.032;
+    const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize().multiplyScalar(0.11);
+    const lift = 0.048;
 
     const topA: [number, number, number] = [vA.x, vA.y + lift, vA.z];
     const topB: [number, number, number] = [vB.x, vB.y + lift, vB.z];
-    const leftA: [number, number, number] = [vA.x + perp.x, vA.y - 0.01, vA.z + perp.z];
-    const leftB: [number, number, number] = [vB.x + perp.x, vB.y - 0.01, vB.z + perp.z];
-    const rightA: [number, number, number] = [vA.x - perp.x, vA.y - 0.01, vA.z - perp.z];
-    const rightB: [number, number, number] = [vB.x - perp.x, vB.y - 0.01, vB.z - perp.z];
+    const leftA: [number, number, number] = [vA.x + perp.x, vA.y - 0.008, vA.z + perp.z];
+    const leftB: [number, number, number] = [vB.x + perp.x, vB.y - 0.008, vB.z + perp.z];
+    const rightA: [number, number, number] = [vA.x - perp.x, vA.y - 0.008, vA.z - perp.z];
+    const rightB: [number, number, number] = [vB.x - perp.x, vB.y - 0.008, vB.z - perp.z];
 
-    addQuad(leftA, leftB, topB, topA);
-    addQuad(topA, topB, rightB, rightA);
+    addQuad(leftA, leftB, topB, topA, true);
+    addQuad(topA, topB, rightB, rightA, true);
   }
 
   let maxRidgeH = eavesH;
@@ -344,34 +356,66 @@ export function generateProceduralHipRoof(
   roofGeom.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
   roofGeom.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
 
-  // Procedural corrugated Colorbond / Tile texture canvas
+  // High-Definition Procedural Colorbond Custom Orb Corrugated Steel Texture + Bump Map
   let roofTexture: THREE.CanvasTexture | null = null;
+  let roofBumpTexture: THREE.CanvasTexture | null = null;
   if (typeof document !== "undefined") {
     const canvas = document.createElement("canvas");
-    canvas.width = 128;
-    canvas.height = 128;
+    canvas.width = 512;
+    canvas.height = 512;
     const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.fillStyle = config.colorHex || "#2b2e35";
-      ctx.fillRect(0, 0, 128, 128);
-      for (let i = 0; i < 128; i += 8) {
-        ctx.fillStyle = "rgba(0,0,0,0.18)";
-        ctx.fillRect(i, 0, 3, 128);
-        ctx.fillStyle = "rgba(255,255,255,0.08)";
-        ctx.fillRect(i + 3, 0, 2, 128);
+
+    const bumpCanvas = document.createElement("canvas");
+    bumpCanvas.width = 512;
+    bumpCanvas.height = 512;
+    const bCtx = bumpCanvas.getContext("2d");
+
+    const baseColor = new THREE.Color(config.colorHex || "#2b2e35");
+    const rBase = Math.round(baseColor.r * 255);
+    const gBase = Math.round(baseColor.g * 255);
+    const bBase = Math.round(baseColor.b * 255);
+
+    if (ctx && bCtx) {
+      // 16 Custom Orb sinusoidal corrugations across 512px (32px per rib = 76mm scaled pitch)
+      const ribPitch = 32;
+      for (let x = 0; x < 512; x++) {
+        const phase = ((x % ribPitch) / ribPitch) * Math.PI * 2;
+        const wave = Math.sin(phase); // -1 (valley) to +1 (crest)
+        const highlight = Math.pow(Math.max(0, Math.sin(phase - 0.35)), 3) * 38;
+        const shade = wave * 28 + highlight;
+
+        const r = Math.max(0, Math.min(255, Math.round(rBase + shade)));
+        const g = Math.max(0, Math.min(255, Math.round(gBase + shade)));
+        const b = Math.max(0, Math.min(255, Math.round(bBase + shade)));
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x, 0, 1, 512);
+
+        const bumpVal = Math.round(((wave + 1) * 0.5) * 255);
+        bCtx.fillStyle = `rgb(${bumpVal},${bumpVal},${bumpVal})`;
+        bCtx.fillRect(x, 0, 1, 512);
       }
+
+      // Subtle Colorbond sheet overlap & batten screw lines along slope
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      ctx.fillRect(0, 255, 512, 2);
+      ctx.fillStyle = "rgba(255,255,255,0.10)";
+      ctx.fillRect(0, 257, 512, 1);
     }
+
     roofTexture = new THREE.CanvasTexture(canvas);
     roofTexture.wrapS = THREE.RepeatWrapping;
     roofTexture.wrapT = THREE.RepeatWrapping;
-    roofTexture.repeat.set(4, 4);
+
+    roofBumpTexture = new THREE.CanvasTexture(bumpCanvas);
+    roofBumpTexture.wrapS = THREE.RepeatWrapping;
+    roofBumpTexture.wrapT = THREE.RepeatWrapping;
   }
 
   const roofMat = new THREE.MeshStandardMaterial({
-    ...(roofTexture ? { map: roofTexture } : {}),
-    color: new THREE.Color(config.colorHex || "#2b2e35"),
-    roughness: 0.62,
-    metalness: 0.25,
+    ...(roofTexture ? { map: roofTexture } : { color: new THREE.Color(config.colorHex || "#2b2e35") }),
+    ...(roofBumpTexture ? { bumpMap: roofBumpTexture, bumpScale: 0.04 } : {}),
+    roughness: 0.34,
+    metalness: 0.48,
     side: THREE.DoubleSide,
     transparent: config.transparency > 0,
     opacity: 1.0 - (config.transparency || 0),

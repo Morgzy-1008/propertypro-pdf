@@ -43,7 +43,11 @@ import {
   NSW_SPLIT_LEVEL_PRICES,
 } from "@/lib/pricelist.nsw.data";
 import { getStandardAreaBreakdown } from "@/lib/quoting/quoteEngine";
-import { plansForDesign } from "@/components/flyer/floorplans";
+import {
+  plansForDesign,
+  resolveLocalFloorplanUrl,
+  SPECIAL_LOCAL_FLOORPLANS,
+} from "@/components/flyer/floorplans";
 import { HUDSON_FLOORPLANS } from "@/components/flyer/floorplans.data";
 import type { PlanModificationAnalysis } from "@/lib/quoting/quoteTypes";
 
@@ -58,6 +62,7 @@ export const DEFAULT_FITOUT_CONFIG: InteriorFitoutConfig = {
   bathStyle: "freestanding_oval",
   showFurniture: true,
   showJoineryAndSinks: true,
+  upgradeDoorJoineryHeights: true,
 };
 
 export const DEFAULT_CUSTOM_FACADE_CONFIG: CustomFacadeConfig = {
@@ -169,7 +174,7 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
         cars,
         widthM: Math.round(widthM * 100) / 100,
         lengthM: Math.round(lengthM * 100) / 100,
-        floorplanUrl: planMeta?.url,
+        floorplanUrl: resolveLocalFloorplanUrl(r.name, planMeta?.url),
       });
     }
   };
@@ -209,7 +214,35 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
       cars: Number(fp.cars) || 2,
       widthM: Math.round(widthM * 100) / 100,
       lengthM: Math.round(lengthM * 100) / 100,
-      floorplanUrl: fp.url,
+      floorplanUrl: resolveLocalFloorplanUrl(fp.label, fp.url),
+    });
+  }
+
+  for (const [key, localUrl] of Object.entries(SPECIAL_LOCAL_FLOORPLANS)) {
+    if (map.has(key)) continue;
+    const parts = key.split(" ");
+    const nameTitle = parts
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+    const sqNum = parseInt(parts[parts.length - 1] || "24", 10) || 24;
+    const totalM2 = Math.round(sqNum * 9.29 * 10) / 10;
+    const housingType = sqNum >= 31 ? "Double Storey" : "Single Storey";
+    const areas = getStandardAreaBreakdown(nameTitle, housingType, totalM2);
+    map.set(key, {
+      id: key.replace(/[^a-z0-9]+/g, "-"),
+      name: nameTitle,
+      housingType,
+      totalM2,
+      livingM2: Math.round((areas.livingM2 || totalM2 * 0.74) * 100) / 100,
+      garageM2: Math.round((areas.garageM2 ?? 36.5) * 100) / 100,
+      alfrescoM2: Math.round((areas.alfrescoM2 ?? 12.0) * 100) / 100,
+      porchM2: Math.round((areas.porchM2 ?? 3.2) * 100) / 100,
+      bedrooms: 4,
+      bathrooms: 2,
+      cars: 2,
+      widthM: sqNum >= 30 ? 12.59 : 11.39,
+      lengthM: sqNum >= 26 ? 21.8 : 19.8,
+      floorplanUrl: localUrl,
     });
   }
 
@@ -755,8 +788,10 @@ export function build3DDesignForStandardModel(
   };
 
   const planMeta = plansForDesign(spec.name)[0] || plansForDesign(designName)[0];
-  const floorplanImageUrl =
-    planMeta?.url || spec.floorplanUrl || `/floorplans/${spec.name.toUpperCase()}.png`;
+  const floorplanImageUrl = resolveLocalFloorplanUrl(
+    spec.name,
+    planMeta?.url || spec.floorplanUrl
+  );
 
   // Scale our architectural template proportionally to `spec.widthM` and `spec.lengthM`
   // as an immediate synchronous placeholder until `vectorizeFloorplanForDesign` resolves (~150ms)
@@ -807,6 +842,28 @@ export function build3DDesignForStandardModel(
       Math.round(op.position[0] * scaleX * 100) / 100,
       Math.round(op.position[1] * scaleZ * 100) / 100,
     ],
+    hingePoint: op.hingePoint
+      ? [Math.round(op.hingePoint[0] * scaleX * 100) / 100, Math.round(op.hingePoint[1] * scaleZ * 100) / 100]
+      : undefined,
+    closedPoint: op.closedPoint
+      ? [Math.round(op.closedPoint[0] * scaleX * 100) / 100, Math.round(op.closedPoint[1] * scaleZ * 100) / 100]
+      : undefined,
+    openPoint: op.openPoint
+      ? [Math.round(op.openPoint[0] * scaleX * 100) / 100, Math.round(op.openPoint[1] * scaleZ * 100) / 100]
+      : undefined,
+    bifoldPeak: op.bifoldPeak
+      ? [Math.round(op.bifoldPeak[0] * scaleX * 100) / 100, Math.round(op.bifoldPeak[1] * scaleZ * 100) / 100]
+      : undefined,
+  }));
+
+  const scaledFixtures: Fixture3D[] = (baseTemplate.fixtures || []).map((f) => ({
+    ...f,
+    id: `${spec.id}_${f.id}`,
+    position: [
+      Math.round(f.position[0] * scaleX * 100) / 100,
+      f.position[1],
+      Math.round(f.position[2] * scaleZ * 100) / 100,
+    ],
   }));
 
   const generated: BuildingDesign3D = {
@@ -821,8 +878,13 @@ export function build3DDesignForStandardModel(
     ceilingHeightM: spec.totalM2 >= 220 ? 2.59 : 2.44,
     floorplanImageUrl,
     floorplanCrop: undefined,
-    openHampers: [],
-    exactStructuralWalls: false,
+    openHampers: (baseTemplate.openHampers || []).map((h) => ({
+      ...h,
+      id: `${spec.id}_${h.id}`,
+      start: [Math.round(h.start[0] * scaleX * 100) / 100, Math.round(h.start[1] * scaleZ * 100) / 100],
+      end: [Math.round(h.end[0] * scaleX * 100) / 100, Math.round(h.end[1] * scaleZ * 100) / 100],
+    })),
+    exactStructuralWalls: true,
     facade: "modern",
     schedule: {
       livingM2: spec.livingM2,
@@ -837,7 +899,7 @@ export function build3DDesignForStandardModel(
     rooms: scaledRooms,
     walls: scaledWalls,
     openings: scaledOpenings,
-    fixtures: [],
+    fixtures: scaledFixtures,
     boundary: {
       ...DEFAULT_BOUNDARY_CONFIG,
       lotWidthM: Math.max(14.0, Math.ceil(spec.widthM + 2.4)),
@@ -855,7 +917,7 @@ export function build3DDesignForStandardModel(
       `Standard Hudson Homes ${spec.housingType} design: ${spec.name}`,
       `CAD Area Schedule: Total ${spec.totalM2} m² (Living ${spec.livingM2} m², Garage ${spec.garageM2} m², Alfresco ${spec.alfrescoM2} m², Porch ${spec.porchM2} m²)`,
       `Overall Footprint: ${spec.widthM}m Width × ${spec.lengthM}m Depth`,
-      "1:100 Runtime CAD Vectorized: 250mm-350mm external brick veneer, 90mm internal stud partitions, open hampers, hinged/sliding doors, windows, kitchen sink & stepped hip-valley roof",
+      "1:100 Runtime CAD Vectorized: 250mm-350mm external brick veneer, 90mm internal stud partitions, open hampers, hinged/sliding doors, windows, kitchen & bathroom fixtures, & stepped hip-valley roof",
     ],
   };
 
@@ -874,7 +936,16 @@ export function applyPlanModificationsTo3DDesign(
 ): BuildingDesign3D {
   const modified = JSON.parse(JSON.stringify(baseDesign)) as BuildingDesign3D;
   modified.isCustomPlan = true;
-  modified.variantName = `Modified ${analysis.baseDesignName}`;
+  if (analysis.isPureCustomPlan) {
+    const cleanTitle =
+      analysis.customPlanTitle ||
+      (fileName ? fileName.replace(/\.[^/.]+$/, "") : "") ||
+      modified.name;
+    modified.name = cleanTitle;
+    modified.variantName = `Custom 1:100 Architectural Plan (${analysis.modifiedTotalM2 || modified.schedule.totalM2} m²)`;
+  } else {
+    modified.variantName = `Modified ${analysis.baseDesignName}`;
+  }
   modified.id = `modified-${baseDesign.id}-${Date.now()}`;
 
   // 1. Apply Area Deltas to Schedule & Room Polygons
@@ -974,14 +1045,22 @@ export function applyPlanModificationsTo3DDesign(
     else if (lower.includes("1200")) fitout.ensuiteVanityStyle = "extended_1200";
     if (lower.includes("freestanding_bath")) fitout.bathStyle = "freestanding_oval";
     if (lower.includes("undermount_sink")) fitout.sinkStyle = "double_undermount";
-    if (lower.includes("2740") || lower.includes("2700")) modified.ceilingHeightM = 2.74;
-    if (lower.includes("2900")) modified.ceilingHeightM = 2.9;
+    if (lower.includes("2740") || lower.includes("2700")) {
+      modified.ceilingHeightM = 2.74;
+      fitout.upgradeDoorJoineryHeights = true;
+    }
+    if (lower.includes("2900")) {
+      modified.ceilingHeightM = 2.9;
+      fitout.upgradeDoorJoineryHeights = true;
+    }
   }
   modified.fitout = fitout;
 
   modified.notes = [
-    `Uploaded Modified Plan: ${fileName || analysis.fileName || "Client Plan"}`,
-    `Compared against Standard ${analysis.baseDesignName} (${analysis.standardTotalM2} m² → ${modified.schedule.totalM2} m²)`,
+    `Uploaded Plan: ${fileName || analysis.fileName || "Client Plan"}`,
+    analysis.isPureCustomPlan
+      ? `Custom Architectural Floorplan (${modified.schedule.totalM2} m² total area)`
+      : `Compared against Standard ${analysis.baseDesignName} (${analysis.standardTotalM2} m² → ${modified.schedule.totalM2} m²)`,
     ...((analysis as any).summaryNotes || (analysis as any).notes || []),
   ];
 

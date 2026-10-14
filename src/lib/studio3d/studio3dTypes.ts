@@ -257,6 +257,7 @@ export interface InteriorFitoutConfig {
     | "back_to_wall";
   showFurniture: boolean;
   showJoineryAndSinks: boolean;
+  upgradeDoorJoineryHeights?: boolean; // 2340mm doors & joinery + 2400mm garage door when 2740mm+ ceiling selected
 }
 
 export interface CustomFacadeConfig {

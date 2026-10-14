@@ -383,28 +383,39 @@ export class ThreeStudioSceneManager {
     const garageDoorTexture = this.createSectionalGarageTexture();
 
     if (typeof document !== "undefined") {
-      // 1. Procedural Oak Timber Floor Texture
+      // 1. Procedural European Oak Timber Floor Texture (High-Detail Plank Grain)
       const timberCanvas = document.createElement("canvas");
-      timberCanvas.width = 256;
-      timberCanvas.height = 256;
+      timberCanvas.width = 512;
+      timberCanvas.height = 512;
       const tCtx = timberCanvas.getContext("2d");
       if (tCtx) {
-        tCtx.fillStyle = "#b48455";
-        tCtx.fillRect(0, 0, 256, 256);
-        tCtx.strokeStyle = "#805229";
-        tCtx.lineWidth = 2;
-        for (let y = 0; y < 256; y += 32) {
+        const plankTones = ["#c08b5c", "#b47e4f", "#c89464", "#ad7647"];
+        const plankH = 64;
+        for (let y = 0; y < 512; y += plankH) {
+          const offset = ((y / plankH) % 2 === 0) ? 96 : 224;
+          tCtx.fillStyle = plankTones[(y / plankH) % plankTones.length];
+          tCtx.fillRect(0, y, 512, plankH);
+
+          // Subtle woodgrain fiber lines
+          for (let g = 0; g < 18; g++) {
+            tCtx.fillStyle = g % 2 === 0 ? "rgba(255,245,230,0.07)" : "rgba(70,35,10,0.08)";
+            tCtx.fillRect(0, y + ((g * 3.5) % plankH), 512, 1.5);
+          }
+
+          // Plank bevel seams
+          tCtx.strokeStyle = "#6e421c";
+          tCtx.lineWidth = 2;
           tCtx.beginPath();
           tCtx.moveTo(0, y);
-          tCtx.lineTo(256, y);
+          tCtx.lineTo(512, y);
           tCtx.stroke();
-        }
-        for (let y = 0; y < 256; y += 32) {
-          const offset = (y % 64 === 0) ? 64 : 128;
-          for (let x = offset; x < 256; x += 128) {
+
+          for (let x = offset; x < 512; x += 256) {
+            tCtx.fillStyle = "rgba(0,0,0,0.04)";
+            tCtx.fillRect(x, y, 128, plankH);
             tCtx.beginPath();
             tCtx.moveTo(x, y);
-            tCtx.lineTo(x, y + 32);
+            tCtx.lineTo(x, y + plankH);
             tCtx.stroke();
           }
         }
@@ -412,113 +423,148 @@ export class ThreeStudioSceneManager {
       timberTexture = new THREE.CanvasTexture(timberCanvas);
       timberTexture.wrapS = THREE.RepeatWrapping;
       timberTexture.wrapT = THREE.RepeatWrapping;
-      timberTexture.repeat.set(2, 2);
+      timberTexture.repeat.set(2.5, 2.5);
 
-      // 2. Bedroom Carpet Texture
+      // 2. Bedroom Loop-Pile Plush Carpet Texture
       const carpetCanvas = document.createElement("canvas");
-      carpetCanvas.width = 128;
-      carpetCanvas.height = 128;
+      carpetCanvas.width = 256;
+      carpetCanvas.height = 256;
       const cCtx = carpetCanvas.getContext("2d");
       if (cCtx) {
-        cCtx.fillStyle = "#8a8f98";
-        cCtx.fillRect(0, 0, 128, 128);
-        for (let i = 0; i < 400; i++) {
-          cCtx.fillStyle = Math.random() > 0.5 ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)";
-          cCtx.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
+        cCtx.fillStyle = "#949aa3";
+        cCtx.fillRect(0, 0, 256, 256);
+        for (let i = 0; i < 1200; i++) {
+          cCtx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.10)";
+          cCtx.fillRect((i * 73) % 256, (i * 137) % 256, 2, 2);
         }
       }
       carpetTexture = new THREE.CanvasTexture(carpetCanvas);
       carpetTexture.wrapS = THREE.RepeatWrapping;
       carpetTexture.wrapT = THREE.RepeatWrapping;
-      carpetTexture.repeat.set(4, 4);
+      carpetTexture.repeat.set(5, 5);
 
-      // 3. Wet Area Porcelain Tile Texture (600x600)
+      // 3. Wet Area Rectified Porcelain Tile Texture (600x600 with subtle marble veining)
       const tileCanvas = document.createElement("canvas");
-      tileCanvas.width = 128;
-      tileCanvas.height = 128;
+      tileCanvas.width = 256;
+      tileCanvas.height = 256;
       const tlCtx = tileCanvas.getContext("2d");
       if (tlCtx) {
-        tlCtx.fillStyle = "#e2e8f0";
-        tlCtx.fillRect(0, 0, 128, 128);
+        tlCtx.fillStyle = "#e8edf3";
+        tlCtx.fillRect(0, 0, 256, 256);
+        // Subtle diagonal porcelain veining
+        tlCtx.strokeStyle = "rgba(148,163,184,0.28)";
+        tlCtx.lineWidth = 2;
+        tlCtx.beginPath();
+        tlCtx.moveTo(18, 40);
+        tlCtx.bezierCurveTo(90, 80, 140, 150, 235, 210);
+        tlCtx.moveTo(60, 15);
+        tlCtx.bezierCurveTo(130, 60, 180, 95, 245, 140);
+        tlCtx.stroke();
+
+        // Crisp 600x600 rectified grout border
         tlCtx.strokeStyle = "#94a3b8";
-        tlCtx.lineWidth = 3;
-        tlCtx.strokeRect(0, 0, 128, 128);
+        tlCtx.lineWidth = 4;
+        tlCtx.strokeRect(0, 0, 256, 256);
+        tlCtx.strokeRect(128, 0, 128, 256);
+        tlCtx.strokeRect(0, 128, 256, 128);
       }
       tileTexture = new THREE.CanvasTexture(tileCanvas);
       tileTexture.wrapS = THREE.RepeatWrapping;
       tileTexture.wrapT = THREE.RepeatWrapping;
-      tileTexture.repeat.set(3, 3);
+      tileTexture.repeat.set(2.5, 2.5);
     }
 
     this.materials.timber = new THREE.MeshStandardMaterial({
       ...(timberTexture ? { map: timberTexture } : { color: 0xb48455 }),
-      roughness: 0.35,
-      metalness: 0.05,
+      roughness: 0.28,
+      metalness: 0.06,
     });
 
     this.materials.carpet = new THREE.MeshStandardMaterial({
-      ...(carpetTexture ? { map: carpetTexture } : { color: 0x8a8f98 }),
-      roughness: 0.9,
+      ...(carpetTexture ? { map: carpetTexture } : { color: 0x949aa3 }),
+      roughness: 0.88,
     });
 
     this.materials.tiles = new THREE.MeshStandardMaterial({
-      ...(tileTexture ? { map: tileTexture } : { color: 0xe2e8f0 }),
-      roughness: 0.2,
-      metalness: 0.1,
+      ...(tileTexture ? { map: tileTexture } : { color: 0xe8edf3 }),
+      roughness: 0.16,
+      metalness: 0.12,
     });
 
-    // 4. Garage Concrete
+    // 4. Garage Polished Concrete Slab
     this.materials.concrete = new THREE.MeshStandardMaterial({
-      color: 0x64748b,
-      roughness: 0.8,
+      color: 0x94a3b8,
+      roughness: 0.55,
+      metalness: 0.05,
     });
 
-    // 5. Timber Decking (Alfresco / Porch)
+    // 5. Merbau / Spotted Gum Timber Decking (Alfresco / Porch)
     this.materials.decking = new THREE.MeshStandardMaterial({
-      color: 0x92400e,
-      roughness: 0.6,
+      color: 0x9a4816,
+      roughness: 0.48,
     });
 
     // 6. Exterior Brick (Authentic Austral Stretcher Bond)
     this.materials.brick = new THREE.MeshStandardMaterial({
       ...(brickTexture ? { map: brickTexture } : { color: 0x6b7280 }),
-      roughness: 0.75,
+      roughness: 0.72,
     });
 
     // 7. Scyon Linea Horizontal Cladding
     this.materials.cladding = new THREE.MeshStandardMaterial({
       ...(claddingTexture ? { map: claddingTexture } : { color: 0xf8fafc }),
-      roughness: 0.55,
+      roughness: 0.48,
     });
 
     // 8. Exposed Aggregate Driveway
     this.materials.aggregateDriveway = new THREE.MeshStandardMaterial({
       ...(aggregateDrivewayTexture ? { map: aggregateDrivewayTexture } : { color: 0x64748b }),
-      roughness: 0.7,
+      roughness: 0.68,
     });
 
     // 9. Boundary Fencing (Colorbond Monument & Treated Pine)
     this.materials.colorbondFence = new THREE.MeshStandardMaterial({
       ...(colorbondFenceTexture ? { map: colorbondFenceTexture } : { color: 0x2b2e35 }),
-      roughness: 0.45,
-      metalness: 0.25,
+      roughness: 0.38,
+      metalness: 0.35,
     });
     this.materials.timberFence = new THREE.MeshStandardMaterial({
       ...(timberFenceTexture ? { map: timberFenceTexture } : { color: 0xa16207 }),
-      roughness: 0.75,
+      roughness: 0.72,
     });
 
     // 10. Sectional Garage Door
     this.materials.garageDoor = new THREE.MeshStandardMaterial({
       ...(garageDoorTexture ? { map: garageDoorTexture } : { color: 0x1e293b }),
-      roughness: 0.4,
-      metalness: 0.4,
+      roughness: 0.35,
+      metalness: 0.45,
     });
 
-    // 11. Interior Wall Paint
+    // 11. Interior Wall Paint (Dulux Natural White Low-Sheen Acrylic on Gyprock Plasterboard)
+    let interiorPaintTex: THREE.CanvasTexture | null = null;
+    if (typeof document !== "undefined") {
+      const pCanvas = document.createElement("canvas");
+      pCanvas.width = 128;
+      pCanvas.height = 128;
+      const pCtx = pCanvas.getContext("2d");
+      if (pCtx) {
+        pCtx.fillStyle = "#f8fafc";
+        pCtx.fillRect(0, 0, 128, 128);
+        for (let i = 0; i < 300; i++) {
+          pCtx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.35)" : "rgba(226,232,240,0.25)";
+          pCtx.fillRect((i * 53) % 128, (i * 97) % 128, 2, 2);
+        }
+      }
+      interiorPaintTex = new THREE.CanvasTexture(pCanvas);
+      interiorPaintTex.wrapS = THREE.RepeatWrapping;
+      interiorPaintTex.wrapT = THREE.RepeatWrapping;
+      interiorPaintTex.repeat.set(4, 2);
+    }
     this.materials.interiorWall = new THREE.MeshStandardMaterial({
-      color: 0xf1f5f9,
-      roughness: 0.6,
+      ...(interiorPaintTex ? { map: interiorPaintTex } : {}),
+      color: 0xf8fafc,
+      roughness: 0.45,
+      metalness: 0.02,
     });
 
     // 12. Glass & Windows
@@ -667,24 +713,58 @@ export class ThreeStudioSceneManager {
     return Boolean(this.design.exactStructuralWalls);
   }
 
-  private buildGroundAndSlab(): void {
-    if (!this.design) return;
-    const boundary = this.design.boundary || DEFAULT_BOUNDARY_CONFIG;
+  private getLotBounds(): {
+    lotLeft: number;
+    lotRight: number;
+    lotNorth: number;
+    lotSouth: number;
+    lotW: number;
+    lotL: number;
+    isSouthFront: boolean;
+  } {
+    const boundary = this.design?.boundary || DEFAULT_BOUNDARY_CONFIG;
+    const houseW = this.design?.widthM || 12.5;
+    const houseL = this.design?.lengthM || 21.0;
     const isSouthFront = this.isFrontAtSouthEdge();
-    const setbackFront = boundary.frontSetbackM || 4.5;
-    const setbackRear = boundary.rearSetbackM || 3.5;
-    const setbackLeft = boundary.leftSetbackM || 1.2;
-    const setbackRight = boundary.rightSetbackM || 1.0;
+
+    const defaultW = houseW + (boundary.leftSetbackM || 1.2) + (boundary.rightSetbackM || 1.0);
+    const defaultL = houseL + (boundary.frontSetbackM || 4.5) + (boundary.rearSetbackM || 3.5);
+    const targetLotW = Math.max(houseW + 1.2, boundary.lotWidthM || defaultW);
+    const targetLotL = Math.max(houseL + 3.0, boundary.lotLengthM || defaultL);
+
+    const totalSideMargin = Math.max(1.2, targetLotW - houseW);
+    const baseLeft = boundary.leftSetbackM || 1.2;
+    const baseRight = boundary.rightSetbackM || 1.0;
+    const leftRatio = baseLeft / Math.max(0.1, baseLeft + baseRight);
+    const setbackLeft = totalSideMargin * leftRatio;
+    const setbackRight = totalSideMargin * (1 - leftRatio);
+
+    const totalDepthMargin = Math.max(3.0, targetLotL - houseL);
+    const setbackFront = Math.min(totalDepthMargin * 0.65, boundary.frontSetbackM || 4.5);
+    const setbackRear = Math.max(1.0, totalDepthMargin - setbackFront);
 
     const lotLeft = -setbackLeft;
-    const lotRight = this.design.widthM + setbackRight;
+    const lotRight = houseW + setbackRight;
     const lotNorth = isSouthFront ? -setbackRear : -setbackFront;
-    const lotSouth = isSouthFront ? this.design.lengthM + setbackFront : this.design.lengthM + setbackRear;
-    const lotW = lotRight - lotLeft;
-    const lotL = lotSouth - lotNorth;
+    const lotSouth = isSouthFront ? houseL + setbackFront : houseL + setbackRear;
+
+    return {
+      lotLeft,
+      lotRight,
+      lotNorth,
+      lotSouth,
+      lotW: lotRight - lotLeft,
+      lotL: lotSouth - lotNorth,
+      isSouthFront,
+    };
+  }
+
+  private buildGroundAndSlab(): void {
+    if (!this.design) return;
+    const { lotLeft, lotNorth, lotSouth, lotW, lotL, isSouthFront } = this.getLotBounds();
 
     // Outer Regional Ground
-    const groundGeom = new THREE.PlaneGeometry(100, 100);
+    const groundGeom = new THREE.PlaneGeometry(120, 120);
     const groundMat = new THREE.MeshStandardMaterial({
       color: this.isLight ? 0x65a30d : 0x1a331a,
       roughness: 0.95,
@@ -695,7 +775,7 @@ export class ThreeStudioSceneManager {
     groundMesh.receiveShadow = true;
     this.buildingGroup.add(groundMesh);
 
-    // Manicured Emerald Lot Turf Pad (exact lot boundary)
+    // Manicured Emerald Lot Turf Pad (exact 1:100 lot boundary)
     const lotTurfGeom = new THREE.PlaneGeometry(lotW, lotL);
     const lotTurfMat = new THREE.MeshStandardMaterial({
       color: this.isLight ? 0x4d7c0f : 0x244e24,
@@ -765,16 +845,7 @@ export class ThreeStudioSceneManager {
   private buildBoundariesAndFences(): void {
     if (!this.design) return;
     const boundary = this.design.boundary || DEFAULT_BOUNDARY_CONFIG;
-    const isSouthFront = this.isFrontAtSouthEdge();
-    const setbackFront = boundary.frontSetbackM || 4.5;
-    const setbackRear = boundary.rearSetbackM || 3.5;
-    const setbackLeft = boundary.leftSetbackM || 1.2;
-    const setbackRight = boundary.rightSetbackM || 1.0;
-
-    const lotLeft = -setbackLeft;
-    const lotRight = this.design.widthM + setbackRight;
-    const lotNorth = isSouthFront ? -setbackRear : -setbackFront;
-    const lotSouth = isSouthFront ? this.design.lengthM + setbackFront : this.design.lengthM + setbackRear;
+    const { lotLeft, lotRight, lotNorth, lotSouth, isSouthFront } = this.getLotBounds();
     const fenceH = boundary.fenceHeightM || 1.80;
 
     // 1. Cadastral Survey Boundary Pegs (4 lot corners)
@@ -861,23 +932,41 @@ export class ThreeStudioSceneManager {
       }
     };
 
+    const findHouseSideWallX = (targetZ: number) => {
+      let minX = 0;
+      let maxX = this.design!.widthM;
+      const nearWalls = (this.design!.walls || []).filter((w) => {
+        const z0 = Math.min(w.start[1], w.end[1]);
+        const z1 = Math.max(w.start[1], w.end[1]);
+        return targetZ >= z0 - 1.2 && targetZ <= z1 + 1.2;
+      });
+      if (nearWalls.length > 0) {
+        const xs = nearWalls.flatMap((w) => [w.start[0], w.end[0]]);
+        minX = Math.min(...xs);
+        maxX = Math.max(...xs);
+      }
+      return { minX, maxX };
+    };
+
     if (isSouthFront) {
       const wingZ = this.design.lengthM - 1.8;
+      const { minX, maxX } = findHouseSideWallX(wingZ);
       // Rear Fence at North (lotNorth)
       addFenceRun(lotLeft, lotNorth, lotRight, lotNorth);
       // Left & Right Fences from Rear (lotNorth) to Wing Return (wingZ)
       addFenceRun(lotLeft, lotNorth, lotLeft, wingZ);
       addFenceRun(lotRight, lotNorth, lotRight, wingZ);
-      // Side Return Wing Fences
-      addFenceRun(lotLeft, wingZ, 0, wingZ);
-      addFenceRun(this.design.widthM, wingZ, lotRight, wingZ);
+      // Side Return Wing Fences connecting to house walls
+      addFenceRun(lotLeft, wingZ, minX, wingZ);
+      addFenceRun(maxX, wingZ, lotRight, wingZ);
     } else {
       const wingZ = 1.8;
+      const { minX, maxX } = findHouseSideWallX(wingZ);
       addFenceRun(lotLeft, lotSouth, lotRight, lotSouth);
-      addFenceRun(lotLeft, lotSouth, lotLeft, 0.0);
-      addFenceRun(lotRight, lotSouth, lotRight, 0.0);
-      addFenceRun(lotLeft, wingZ, 0, wingZ);
-      addFenceRun(this.design.widthM, wingZ, lotRight, wingZ);
+      addFenceRun(lotLeft, lotSouth, lotLeft, wingZ);
+      addFenceRun(lotRight, lotSouth, lotRight, wingZ);
+      addFenceRun(lotLeft, wingZ, minX, wingZ);
+      addFenceRun(maxX, wingZ, lotRight, wingZ);
     }
   }
 
@@ -1264,9 +1353,97 @@ export class ThreeStudioSceneManager {
   }
 
   /**
+   * Determines whether a world-space point (px, pz) lies inside the enclosed indoor
+   * interior of the home (excluding open-air Alfresco and Porch zones).
+   */
+  private isPointIndoors(px: number, pz: number): boolean {
+    if (!this.design) return false;
+    const W = this.design.widthM || 10.55;
+    const L = this.design.lengthM || 20.27;
+    if (px < 0.18 || px > W - 0.18 || pz < 0.18 || pz > L - 0.18) {
+      return false;
+    }
+
+    const pt = new THREE.Vector2(px, pz);
+    for (const room of this.design.rooms || []) {
+      const rName = (room.name || "").toLowerCase();
+      if (rName.includes("alfresco") || rName.includes("porch")) {
+        if (room.polygon && room.polygon.length >= 3 && pointInPolygon(pt, room.polygon)) {
+          return false;
+        }
+      }
+    }
+
+    const walls = this.design.walls || [];
+    if (walls.length > 0) {
+      let minXAtZ = Infinity;
+      let maxXAtZ = -Infinity;
+      let minZAtX = Infinity;
+      let maxZAtX = -Infinity;
+
+      for (const w of walls) {
+        const x0 = Math.min(w.start[0], w.end[0]);
+        const x1 = Math.max(w.start[0], w.end[0]);
+        const z0 = Math.min(w.start[1], w.end[1]);
+        const z1 = Math.max(w.start[1], w.end[1]);
+        if (pz >= z0 - 0.35 && pz <= z1 + 0.35) {
+          if (x0 < minXAtZ) minXAtZ = x0;
+          if (x1 > maxXAtZ) maxXAtZ = x1;
+        }
+        if (px >= x0 - 0.35 && px <= x1 + 0.35) {
+          if (z0 < minZAtX) minZAtX = z0;
+          if (z1 > maxZAtX) maxZAtX = z1;
+        }
+      }
+
+      if (minXAtZ < maxXAtZ && (px < minXAtZ + 0.15 || px > maxXAtZ - 0.15)) {
+        return false;
+      }
+      if (minZAtX < maxZAtX && (pz < minZAtX + 0.15 || pz > maxZAtX - 0.15)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private classifyWallSides(
+    isExterior: boolean,
+    posX: number,
+    posZ: number,
+    angle: number
+  ): { bothIndoors: boolean; inSign: 1 | -1 } {
+    if (!isExterior) {
+      return { bothIndoors: true, inSign: 1 };
+    }
+    const nPlusX = -Math.sin(angle);
+    const nPlusZ = Math.cos(angle);
+    const sampleDist = 0.42;
+
+    const plusIndoors = this.isPointIndoors(posX + nPlusX * sampleDist, posZ + nPlusZ * sampleDist);
+    const minusIndoors = this.isPointIndoors(posX - nPlusX * sampleDist, posZ - nPlusZ * sampleDist);
+
+    if (plusIndoors && minusIndoors) {
+      return { bothIndoors: true, inSign: 1 };
+    }
+    if (plusIndoors && !minusIndoors) {
+      return { bothIndoors: false, inSign: 1 };
+    }
+    if (!plusIndoors && minusIndoors) {
+      return { bothIndoors: false, inSign: -1 };
+    }
+
+    const centerX = (this.design?.widthM || 10.55) / 2;
+    const centerZ = (this.design?.lengthM || 20.27) / 2;
+    const dotPlusZ = (centerX - posX) * nPlusX + (centerZ - posZ) * nPlusZ;
+    return { bothIndoors: false, inSign: dotPlusZ >= 0 ? 1 : -1 };
+  }
+
+  /**
    * Returns a 6-face material array for exterior walls so that:
-   * - The outside face of the 250mm wall uses exterior face brick (`this.materials.brick`)
-   * - The inside face of the 250mm wall is painted white plaster (`this.materials.interiorWall`) just like internal walls!
+   * - Any wall with both sides indoors (or `!isExterior`) is painted white plaster on all sides (`this.materials.interiorWall`)
+   * - The outside face of true exterior 250mm walls uses exterior face brick (`this.materials.brick`)
+   * - The inside face of true exterior 250mm walls is painted white plaster (`this.materials.interiorWall`)
    */
   private getWallMaterials(
     isExterior: boolean,
@@ -1274,23 +1451,16 @@ export class ThreeStudioSceneManager {
     posZ: number,
     angle: number
   ): THREE.Material | THREE.Material[] {
-    if (!isExterior) {
+    const { bothIndoors, inSign } = this.classifyWallSides(isExterior, posX, posZ, angle);
+    if (bothIndoors) {
       return this.materials.interiorWall;
     }
-    const centerX = (this.design?.widthM || 10.55) / 2;
-    const centerZ = (this.design?.lengthM || 20.27) / 2;
-    const toInX = centerX - posX;
-    const toInZ = centerZ - posZ;
-    // In local BoxGeometry(len, H, thickness) rotated by rotation.y = -angle:
-    // Local +Z (face index 4) points in world direction (-sin(angle), +cos(angle))
-    // Local -Z (face index 5) points in world direction (+sin(angle), -cos(angle))
-    const dotPlusZ = toInX * -Math.sin(angle) + toInZ * Math.cos(angle);
-    const plusZMat = dotPlusZ >= 0 ? this.materials.interiorWall : this.materials.brick;
-    const minusZMat = dotPlusZ >= 0 ? this.materials.brick : this.materials.interiorWall;
+    const plusZMat = inSign === 1 ? this.materials.interiorWall : this.materials.brick;
+    const minusZMat = inSign === 1 ? this.materials.brick : this.materials.interiorWall;
 
     return [
-      this.materials.interiorWall, // +X jamb reveal
-      this.materials.interiorWall, // -X jamb reveal
+      this.materials.interiorWall, // +X jamb reveal (painted)
+      this.materials.interiorWall, // -X jamb reveal (painted)
       this.materials.brick,        // +Y top
       this.materials.brick,        // -Y bottom
       plusZMat,                    // +Z face
@@ -1351,6 +1521,7 @@ export class ThreeStudioSceneManager {
     posZ: number,
     angle: number
   ): void {
+    const { bothIndoors, inSign } = this.classifyWallSides(isExterior, posX, posZ, angle);
     const mat = this.getWallMaterials(isExterior, posX, posZ, angle);
     const geom = new THREE.BoxGeometry(len, pieceH, thickness);
     const mesh = new THREE.Mesh(geom, mat);
@@ -1364,13 +1535,9 @@ export class ThreeStudioSceneManager {
     const capH = 0.014;
     const capY = yTop + capH / 2 + 0.001;
 
-    if (isExterior) {
+    if (isExterior && !bothIndoors) {
       // 250mm External Wall Cap: 235mm Face Brick + 15mm Painted Interior Plaster Lining
       const extCapGroup = new THREE.Group();
-      const centerX = (this.design?.widthM || 10.55) / 2;
-      const centerZ = (this.design?.lengthM || 20.27) / 2;
-      const dotPlusZ = (centerX - posX) * -Math.sin(angle) + (centerZ - posZ) * Math.cos(angle);
-      const inSign = dotPlusZ >= 0 ? 1 : -1;
 
       const plasterThick = 0.015;
       const brickThick = Math.max(0.10, thickness - plasterThick);
@@ -1391,18 +1558,18 @@ export class ThreeStudioSceneManager {
       extCapGroup.rotation.y = -angle;
       this.buildingGroup.add(extCapGroup);
     } else {
-      // 90mm Internal Wall Composite Assembly:
-      // 10mm Plasterboard (0.01m) + 70mm Stud Frame (0.07m) + 10mm Plasterboard (0.01m) = 90mm (0.09m)
+      // Internal Painted Wall Composite Assembly:
+      // 10mm Plasterboard (0.01m) + Stud Frame Core + 10mm Plasterboard (0.01m)
       const intCapGroup = new THREE.Group();
-      const plasterThick = 0.01;
-      const frameThick = Math.max(0.05, thickness - plasterThick * 2); // 0.07m (70mm)
+      const plasterThick = 0.012;
+      const frameThick = Math.max(0.05, thickness - plasterThick * 2);
 
       const frameGeom = new THREE.BoxGeometry(len, capH + 0.002, frameThick);
-      const frameMat = new THREE.MeshBasicMaterial({ color: 0x2563eb }); // 70mm Structural Stud Frame Core
+      const frameMat = new THREE.MeshBasicMaterial({ color: 0x2563eb }); // Structural Stud Frame Core
       intCapGroup.add(new THREE.Mesh(frameGeom, frameMat));
 
       const plasterGeom = new THREE.BoxGeometry(len, capH, plasterThick);
-      const plasterMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // 10mm Plasterboard Lining
+      const plasterMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // Painted Plasterboard Lining
 
       const plasterSideA = new THREE.Mesh(plasterGeom, plasterMat);
       plasterSideA.position.z = -(frameThick / 2 + plasterThick / 2);
@@ -1418,11 +1585,39 @@ export class ThreeStudioSceneManager {
     }
   }
 
+  /**
+   * Applies the 2740mm+ ceiling height upgrade option:
+   * - All internal & external doors / stackers / sliders / cavity sliders -> 2340mm (2.34m)
+   * - Sectional garage door -> 2400mm (2.40m)
+   * - Windows with 2100mm heads -> aligned to 2340mm (2.34m) head height
+   */
+  private getEffectiveOpening(op: Opening3D): Opening3D {
+    const ceilingH = this.design?.ceilingHeightM || 2.44;
+    const upgradeHeights =
+      ceilingH >= 2.70 && this.design?.fitout?.upgradeDoorJoineryHeights !== false;
+    if (!upgradeHeights) return op;
+
+    if (op.type === "garage_door") {
+      const h = Math.min(ceilingH - 0.14, Math.max(op.height, 2.40));
+      return { ...op, height: h, headHeight: h };
+    }
+    if (op.type !== "window") {
+      const h = Math.min(ceilingH - 0.14, Math.max(op.height, 2.34));
+      return { ...op, height: h, headHeight: h };
+    }
+    if (op.type === "window" && op.headHeight >= 2.04 && op.headHeight < 2.34) {
+      const newHead = 2.34;
+      const newH = Math.max(0.60, newHead - op.sillHeight);
+      return { ...op, height: newH, headHeight: newHead };
+    }
+    return op;
+  }
+
   private buildWallsAndOpenings(): void {
     if (!this.design) return;
     const ceilingH = this.design.ceilingHeightM;
     const ffl = 0.30;
-    const openings = this.design.openings || [];
+    const openings = (this.design.openings || []).map((op) => this.getEffectiveOpening(op));
     const walls = this.design.walls || [];
 
     // Walls
@@ -1565,13 +1760,15 @@ export class ThreeStudioSceneManager {
 
   /**
    * Builds 90mm Dashed Open Hampers:
-   * - Not a door and not a full-height wall (completely open walk-through portal from floor to 2.10m).
+   * - Not a door and not a full-height wall (completely open walk-through portal from floor to 2.10m / 2.34m).
    * - Renders the 90mm parallel dashed lines on the floor threshold AND a 90mm overhead hamper bulkhead
    *   at ceiling height topped with a dashed emerald-green 90mm structural cap.
    */
   private buildOpenHampers(): void {
     if (!this.design || !this.design.openHampers) return;
     const ceilingH = this.design.ceilingHeightM;
+    const upgradeHeights =
+      ceilingH >= 2.70 && this.design.fitout?.upgradeDoorJoineryHeights !== false;
     const ffl = 0.30;
 
     this.design.openHampers.forEach((hamper) => {
@@ -1584,7 +1781,8 @@ export class ThreeStudioSceneManager {
       const midX = (p1.x + p2.x) / 2;
       const midZ = (p1.y + p2.y) / 2;
       const thickness = hamper.thickness || 0.09; // 90mm
-      const clearH = hamper.bulkheadHeightM || 2.10;
+      const baseClearH = hamper.bulkheadHeightM || 2.10;
+      const clearH = upgradeHeights ? Math.max(baseClearH, 2.34) : baseClearH;
       const bulkheadH = Math.max(0.20, ceilingH - clearH);
 
       const group = new THREE.Group();
@@ -2074,16 +2272,20 @@ export class ThreeStudioSceneManager {
   private buildFixtures(): void {
     if (!this.design) return;
     const ffl = 0.30;
+    const ceilingH = this.design.ceilingHeightM || 2.44;
     const fitout: InteriorFitoutConfig = {
       ...DEFAULT_FITOUT_CONFIG,
       ...(this.design.fitout || {}),
     };
+    const upgradeJoineryH = ceilingH >= 2.70 && fitout.upgradeDoorJoineryHeights !== false;
+    const joineryTopH = upgradeJoineryH ? 2.34 : 2.10;
+
     const isExactCalibrated = Boolean(this.design.exactStructuralWalls);
     const allFixtures = this.design.fixtures || [];
     const hasDedicatedSinkFixture = allFixtures.some((f) => f.type === "kitchen_sink");
     const hasDedicatedCooktopFixture = allFixtures.some((f) => f.type === "cooktop_oven");
 
-    // Material helpers driven by InteriorFitoutConfig
+    // Material helpers driven by InteriorFitoutConfig (with procedural Caesarstone marble veining)
     const stoneHex =
       fitout.stoneColor === "carrara_marble"
         ? 0xf1f5f9
@@ -2092,9 +2294,40 @@ export class ThreeStudioSceneManager {
         : fitout.stoneColor === "empirical_black"
         ? 0x1e293b
         : 0xf8fafc; // calacatta_white
+    let stoneTexture: THREE.CanvasTexture | null = null;
+    if (typeof document !== "undefined") {
+      const sCanvas = document.createElement("canvas");
+      sCanvas.width = 256;
+      sCanvas.height = 256;
+      const sCtx = sCanvas.getContext("2d");
+      if (sCtx) {
+        sCtx.fillStyle =
+          fitout.stoneColor === "empirical_black"
+            ? "#1e293b"
+            : fitout.stoneColor === "concrete_grey"
+            ? "#94a3b8"
+            : "#f8fafc";
+        sCtx.fillRect(0, 0, 256, 256);
+        sCtx.strokeStyle =
+          fitout.stoneColor === "empirical_black"
+            ? "rgba(255,255,255,0.22)"
+            : "rgba(100,116,139,0.28)";
+        sCtx.lineWidth = 2.2;
+        sCtx.beginPath();
+        sCtx.moveTo(10, 30);
+        sCtx.bezierCurveTo(85, 65, 130, 145, 245, 220);
+        sCtx.moveTo(160, 10);
+        sCtx.bezierCurveTo(190, 80, 210, 120, 250, 175);
+        sCtx.stroke();
+      }
+      stoneTexture = new THREE.CanvasTexture(sCanvas);
+      stoneTexture.wrapS = THREE.RepeatWrapping;
+      stoneTexture.wrapT = THREE.RepeatWrapping;
+    }
     const stoneMat = new THREE.MeshStandardMaterial({
+      ...(stoneTexture ? { map: stoneTexture } : {}),
       color: stoneHex,
-      roughness: 0.14,
+      roughness: 0.12,
       metalness: 0.08,
     });
 
@@ -2110,8 +2343,8 @@ export class ThreeStudioSceneManager {
         : 0x334155; // polytec_charcoal
     const cabMat = new THREE.MeshStandardMaterial({
       color: cabHex,
-      roughness: 0.38,
-      metalness: 0.05,
+      roughness: 0.34,
+      metalness: 0.06,
     });
 
     const tapHex =
@@ -2130,20 +2363,20 @@ export class ThreeStudioSceneManager {
 
     const sinkBowlMat = new THREE.MeshStandardMaterial({
       color: fitout.sinkStyle === "matte_black_granite" ? 0x334155 : 0x94a3b8,
-      roughness: 0.30,
-      metalness: 0.25,
+      roughness: 0.25,
+      metalness: 0.35,
     });
 
     const applianceSteelMat = new THREE.MeshStandardMaterial({
       color: 0xe2e8f0,
-      roughness: 0.28,
-      metalness: 0.25,
+      roughness: 0.24,
+      metalness: 0.45,
     });
 
     const ceramicWhiteMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      roughness: 0.1,
-      metalness: 0.05,
+      roughness: 0.08,
+      metalness: 0.06,
     });
 
     const stoneThicknessM = fitout.benchtopThicknessMm === 40 ? 0.045 : 0.022;
@@ -2290,7 +2523,7 @@ export class ThreeStudioSceneManager {
         group.add(handleMesh);
 
       } else if (fix.type === "kitchen_cabinetry") {
-        // Rear Kitchen Benchtop + Base Cabinetry + Overhead Cupboards
+        // Rear Kitchen Benchtop + Base Cabinetry + Overhead Cupboards (aligned to 2100mm or 2340mm joineryTopH)
         const carcassH = fix.height - stoneThicknessM;
         const baseGeom = new THREE.BoxGeometry(fix.width, carcassH, fix.depth);
         const baseMesh = new THREE.Mesh(baseGeom, cabMat);
@@ -2309,6 +2542,16 @@ export class ThreeStudioSceneManager {
         );
         edgeLine.position.y = fix.height - stoneThicknessM / 2;
         group.add(edgeLine);
+
+        // Overhead Kitchen Cupboards (from 1.52m up to joineryTopH: 2.10m standard or 2.34m upgraded)
+        const ohBottom = 1.52;
+        const ohHeight = Math.max(0.55, joineryTopH - ohBottom);
+        const ohDepth = Math.min(0.36, fix.depth * 0.58);
+        const ohGeom = new THREE.BoxGeometry(fix.width, ohHeight, ohDepth);
+        const ohMesh = new THREE.Mesh(ohGeom, cabMat);
+        ohMesh.position.set(0, ohBottom + ohHeight / 2, -fix.depth / 2 + ohDepth / 2);
+        ohMesh.castShadow = true;
+        group.add(ohMesh);
 
         if (!hasDedicatedCooktopFixture) {
           const cooktopGeom = new THREE.BoxGeometry(0.90, 0.015, 0.50);
@@ -2355,32 +2598,41 @@ export class ThreeStudioSceneManager {
         bodyMesh.castShadow = true;
         group.add(bodyMesh);
 
-        // Side & Overhead Fridge Gable Panels (18mm Cabinetry Enclosure)
+        // Side & Overhead Fridge Gable Panels (aligned to 2100mm or 2340mm joineryTopH)
         const gableMat = cabMat;
-        const rightGable = new THREE.Mesh(new THREE.BoxGeometry(0.025, 2.10, fix.depth), gableMat);
-        rightGable.position.set(-fix.width / 2, 1.05, 0);
+        const rightGable = new THREE.Mesh(new THREE.BoxGeometry(0.025, joineryTopH, fix.depth), gableMat);
+        rightGable.position.set(-fix.width / 2, joineryTopH / 2, 0);
         group.add(rightGable);
+
+        const overheadCupboardH = Math.max(0.18, joineryTopH - fridgeH - 0.04);
+        const overheadFridgeCab = new THREE.Mesh(
+          new THREE.BoxGeometry(fix.width, overheadCupboardH, fix.depth),
+          gableMat
+        );
+        overheadFridgeCab.position.set(0, joineryTopH - overheadCupboardH / 2, 0);
+        group.add(overheadFridgeCab);
 
         // Top Outline for 1:100 Plan clarity
         const topOut = new THREE.LineSegments(
           new THREE.EdgesGeometry(new THREE.BoxGeometry(fix.width, 0.02, fix.depth)),
           new THREE.LineBasicMaterial({ color: 0x7c3aed })
         );
-        topOut.position.y = fridgeH + 0.01;
+        topOut.position.y = joineryTopH + 0.01;
         group.add(topOut);
 
       } else if (fix.type === "pantry_shelving") {
         // Walk-In Corner Pantry Cabinet & Shelving (P)
-        const panH = fix.height || 2.04;
-        // Left Gable Panel (x = 9.33 in Amber 21)
+        const panH = Math.max(fix.height || 2.04, joineryTopH);
+        // Left Gable Panel
         const sideGable = new THREE.Mesh(new THREE.BoxGeometry(0.035, panH, fix.depth), cabMat);
         sideGable.position.set(fix.width / 2 - 0.018, panH / 2, 0);
         sideGable.castShadow = true;
         group.add(sideGable);
 
-        // 4 Internal White Melamine Pantry Shelves
+        // Internal White Melamine Pantry Shelves (5 tiers when 2340mm joinery is enabled)
         const shelfMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.4 });
-        [0.45, 0.90, 1.35, 1.75].forEach((sy) => {
+        const shelfTiers = upgradeJoineryH ? [0.45, 0.90, 1.35, 1.75, 2.12] : [0.45, 0.90, 1.35, 1.75];
+        shelfTiers.forEach((sy) => {
           const shelfGeom = new THREE.BoxGeometry(fix.width - 0.06, 0.025, fix.depth - 0.08);
           const shelfMesh = new THREE.Mesh(shelfGeom, shelfMat);
           shelfMesh.position.set(0, sy, -0.02);
@@ -2488,9 +2740,16 @@ export class ThreeStudioSceneManager {
         });
 
       } else if (fix.type === "linen_joinery" || fix.type === "robe_joinery") {
-        // Built-In Robe & Linen Cupboard Melamine Shelving + Chrome Hanging Rail
+        // Built-In Robe & Linen Cupboard Melamine Shelving + Chrome Hanging Rail (scaled to 2340mm when upgraded)
         const shelfMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.45 });
-        const heights = fix.type === "linen_joinery" ? [0.45, 0.90, 1.35, 1.75] : [1.72];
+        const heights =
+          fix.type === "linen_joinery"
+            ? upgradeJoineryH
+              ? [0.45, 0.90, 1.35, 1.75, 2.08]
+              : [0.45, 0.90, 1.35, 1.75]
+            : upgradeJoineryH
+            ? [1.96]
+            : [1.72];
         heights.forEach((sy) => {
           const sGeom = new THREE.BoxGeometry(fix.width - 0.04, 0.022, fix.depth - 0.04);
           const sMesh = new THREE.Mesh(sGeom, shelfMat);
@@ -2502,7 +2761,7 @@ export class ThreeStudioSceneManager {
           const railGeom = new THREE.CylinderGeometry(0.012, 0.012, fix.width - 0.06, 12);
           const railMesh = new THREE.Mesh(railGeom, this.materials.stainlessSteel);
           railMesh.rotation.z = Math.PI / 2;
-          railMesh.position.set(0, 1.64, 0.04);
+          railMesh.position.set(0, upgradeJoineryH ? 1.88 : 1.64, 0.04);
           group.add(railMesh);
         }
 

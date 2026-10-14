@@ -71,7 +71,10 @@ import {
   exportElevationsPdf,
   ArchitecturalElevationSheet,
 } from "@/lib/studio3d/architecturalElevationsEngine";
-import { vectorizeFloorplanForDesign } from "@/lib/studio3d/runtimeFloorplanVectorizer";
+import {
+  vectorizeFloorplanForDesign,
+  renderFileToHighResFloorplanUrl,
+} from "@/lib/studio3d/runtimeFloorplanVectorizer";
 
 export function Studio3dWorkspace() {
   const { mode } = useTheme();
@@ -205,18 +208,18 @@ export function Studio3dWorkspace() {
 
   // Automatically vectorize any loaded floorplan image at 1:100 scale if not yet vectorized
   useEffect(() => {
-    if (!design || design.exactStructuralWalls || !design.floorplanImageUrl) return;
+    if (!design || design.floorplanCrop || !design.floorplanImageUrl) return;
     let cancelled = false;
     vectorizeFloorplanForDesign(design).then((vectorized) => {
       if (cancelled) return;
-      if (vectorized.exactStructuralWalls) {
+      if (vectorized.floorplanCrop) {
         setDesign((prev) => (prev && prev.id === design.id ? vectorized : prev));
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [design?.id, design?.floorplanImageUrl, design?.exactStructuralWalls]);
+  }, [design?.id, design?.floorplanImageUrl, Boolean(design?.floorplanCrop)]);
 
   // Sync Normal (Light) vs Dark mode with Three.js WebGL scene immediately
   useEffect(() => {
@@ -252,16 +255,26 @@ export function Studio3dWorkspace() {
     }
   };
 
-  // Sync ceiling height changes
+  // Sync ceiling height changes (and 2340mm doors/joinery + 2400mm garage door option for 2740mm+ ceilings)
   const handleCeilingChange = (hMm: CeilingHeightPreset) => {
     if (!design) return;
     setCeilingPreset(hMm);
-    const updated = {
+    const nextFitout: InteriorFitoutConfig = {
+      ...DEFAULT_FITOUT_CONFIG,
+      ...(design.fitout || {}),
+      upgradeDoorJoineryHeights:
+        hMm >= 2740
+          ? design.fitout?.upgradeDoorJoineryHeights ?? true
+          : false,
+    };
+    const updated: BuildingDesign3D = {
       ...design,
       ceilingHeightM: hMm / 1000,
+      fitout: nextFitout,
     };
     setDesign(updated);
     if (sceneManagerRef.current) {
+      sceneManagerRef.current.updateFitout(nextFitout);
       sceneManagerRef.current.setCeilingHeight(hMm / 1000);
     }
     toast.success(
@@ -271,9 +284,60 @@ export function Studio3dWorkspace() {
           : hMm === 2590
           ? "H2 Designer"
           : hMm === 2740
-          ? "H3 Luxury"
-          : "Feature"
+          ? "H3 Luxury — 2340mm Doors/Joinery & 2400mm Garage"
+          : "Feature — 2340mm Doors/Joinery & 2400mm Garage"
       })`
+    );
+  };
+
+  // Toggle 2340mm Doors & Joinery / 2400mm Garage Door when 2740mm+ ceiling is active
+  const handleToggleDoorJoineryHeights = () => {
+    if (!design) return;
+    const current = design.fitout?.upgradeDoorJoineryHeights !== false;
+    const nextVal = !current;
+    const nextFitout: InteriorFitoutConfig = {
+      ...DEFAULT_FITOUT_CONFIG,
+      ...(design.fitout || {}),
+      upgradeDoorJoineryHeights: nextVal,
+    };
+    setDesign({
+      ...design,
+      fitout: nextFitout,
+    });
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.updateFitout(nextFitout);
+    }
+    toast.success(
+      nextVal
+        ? "Upgraded to 2340mm High Doors & Joinery + 2400mm Garage Door"
+        : "Reverted to Standard 2100mm Doors & Joinery"
+    );
+  };
+
+  // Update Lot Size (Width × Depth in metres) and scale 1.8m boundary fencing to 1:100 scale
+  const handleLotSizeChange = (newWidthM: number, newLengthM: number) => {
+    if (!design) return;
+    const minW = Math.ceil((design.widthM + 1.2) * 2) / 2;
+    const minL = Math.ceil((design.lengthM + 3.0) * 2) / 2;
+    const clampedW = Math.max(minW, Math.min(40, Math.round(newWidthM * 2) / 2));
+    const clampedL = Math.max(minL, Math.min(60, Math.round(newLengthM * 2) / 2));
+
+    const nextBoundary = {
+      ...(design.boundary || DEFAULT_BOUNDARY_CONFIG),
+      lotWidthM: clampedW,
+      lotLengthM: clampedL,
+      showFencing: true,
+    };
+    setShowFencing(true);
+    setDesign({
+      ...design,
+      boundary: nextBoundary,
+    });
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.updateBoundary(nextBoundary);
+    }
+    toast.success(
+      `Lot Size updated to ${clampedW}m × ${clampedL}m (${Math.round(clampedW * clampedL)} m²) — 1.8m boundary fencing scaled 1:100`
     );
   };
 
@@ -298,7 +362,7 @@ export function Studio3dWorkspace() {
     setShowSearchDropdown(false);
 
     // Vectorize the 1:100 architectural floorplan PNG immediately so 3D walls, doors, windows & hampers align 1:1
-    const d = raw.exactStructuralWalls
+    const d = raw.floorplanCrop
       ? raw
       : await vectorizeFloorplanForDesign(raw);
     setDesign(d);
@@ -306,7 +370,7 @@ export function Studio3dWorkspace() {
       sceneManagerRef.current.updateDesign(d);
     }
     toast.success(
-      `Imported ${d.name} (${d.schedule.totalM2} m²) — ${d.walls.length} 1:100 walls, ${d.openings.length} doors/windows & open Porch/Alfresco loaded`
+      `Imported ${d.name} (${d.schedule.totalM2} m²) — ${d.walls.length} 1:100 walls, ${d.openings.length} doors/windows & ${d.fixtures.length} fixtures loaded`
     );
   };
 
@@ -314,6 +378,8 @@ export function Studio3dWorkspace() {
   const handleResetToBlank = () => {
     setSelectedDesignKey("");
     setDesign(null);
+    setSelectedStandardOption(null);
+    setDesignSearchQuery("");
     setLastModAnalysis(null);
     setCurrentRoomName("");
     setViewportDrawer("none");
@@ -638,8 +704,6 @@ export function Studio3dWorkspace() {
     try {
       const referenceHint =
         modifiedBaseSearch.trim() ||
-        design?.name ||
-        selectedStandardOption?.name ||
         file.name.replace(/\.[^/.]+$/, "");
 
       const analysis = await analyzeModifiedFloorplanFile(file, referenceHint);
@@ -655,26 +719,38 @@ export function Studio3dWorkspace() {
         /juliana/i.test(file.name) ||
         /juliana/i.test((analysis as any).summary || (analysis as any).notes?.join(" ") || "");
 
-      const isImageFile =
-        file.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(file.name);
-      const uploadedImageUrl = isImageFile ? URL.createObjectURL(file) : undefined;
+      const uploadedImageUrl = await renderFileToHighResFloorplanUrl(
+        file,
+        analysis.floorplanDataUrl
+      );
 
       const rawBase3D = isJulianaSpecial
         ? get3DDesign("tiffany-22-custom-juliana")
         : build3DDesignForStandardModel(resolvedBaseName);
 
+      if (analysis.isPureCustomPlan && !isJulianaSpecial) {
+        rawBase3D.name =
+          analysis.customPlanTitle ||
+          file.name.replace(/\.[^/.]+$/, "") ||
+          "Custom Floorplan";
+        rawBase3D.isCustomPlan = true;
+      }
+
       const base3D = isJulianaSpecial
         ? rawBase3D
         : await vectorizeFloorplanForDesign(rawBase3D, uploadedImageUrl);
 
-      const modified3D = base3D.exactStructuralWalls
+      const modified3D = isJulianaSpecial
         ? base3D
         : ensureCompleteWallNetwork(
-            applyPlanModificationsTo3DDesign(base3D, analysis)
+            applyPlanModificationsTo3DDesign(base3D, analysis, file.name)
           );
 
       setDesign(modified3D);
       setSelectedDesignKey(modified3D.id);
+      setCeilingPreset(
+        Math.round(modified3D.ceilingHeightM * 1000) as CeilingHeightPreset
+      );
       if (sceneManagerRef.current) {
         sceneManagerRef.current.updateDesign(modified3D);
       }
@@ -987,6 +1063,79 @@ export function Studio3dWorkspace() {
             <ShieldCheck className="h-3.5 w-3.5" />
             <span>1.8m Fence: {showFencing ? "ON" : "OFF"}</span>
           </button>
+
+          {/* Interactive 1:100 Lot Size Selector (Scales Fencing & Turf Pad) */}
+          {design && (
+            <div
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold ${
+                isLight
+                  ? "bg-slate-50 border-slate-300 text-slate-800"
+                  : "bg-slate-800/90 border-slate-700 text-slate-200"
+              }`}
+              title="Change Lot Width × Depth (scales 1.8m boundary fencing & turf pad to 1:100 scale)"
+            >
+              <span className="text-amber-500 font-extrabold">Lot Size:</span>
+              <select
+                aria-label="Lot Size Preset"
+                value={`${Math.round((design.boundary?.lotWidthM || 15) * 10) / 10}x${Math.round((design.boundary?.lotLengthM || 30) * 10) / 10}`}
+                onChange={(e) => {
+                  const [wStr, lStr] = e.target.value.split("x");
+                  const w = parseFloat(wStr);
+                  const l = parseFloat(lStr);
+                  if (!isNaN(w) && !isNaN(l)) {
+                    handleLotSizeChange(w, l);
+                  }
+                }}
+                className={`bg-transparent font-mono font-bold cursor-pointer focus:outline-none ${
+                  isLight ? "text-slate-900" : "text-white"
+                }`}
+              >
+                {[
+                  { w: 12.5, l: 28, label: "12.5m × 28m (350m²)" },
+                  { w: 14, l: 30, label: "14m × 30m (420m²)" },
+                  { w: 15, l: 30, label: "15m × 30m (450m²)" },
+                  { w: 16, l: 32, label: "16m × 32m (512m²)" },
+                  { w: 18, l: 35, label: "18m × 35m (630m²)" },
+                  { w: 20, l: 40, label: "20m × 40m (800m²)" },
+                  { w: 25, l: 45, label: "25m × 45m (1125m²)" },
+                ].map((opt) => (
+                  <option
+                    key={`${opt.w}x${opt.l}`}
+                    value={`${opt.w}x${opt.l}`}
+                    className="bg-slate-900 text-white"
+                  >
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() =>
+                  handleLotSizeChange(
+                    (design.boundary?.lotWidthM || 15) - 1,
+                    (design.boundary?.lotLengthM || 30) - 2
+                  )
+                }
+                className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-amber-500 hover:text-slate-950 font-mono transition-colors cursor-pointer"
+                title="Decrease Lot Width & Depth"
+              >
+                -
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  handleLotSizeChange(
+                    (design.boundary?.lotWidthM || 15) + 1,
+                    (design.boundary?.lotLengthM || 30) + 2
+                  )
+                }
+                className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-amber-500 hover:text-slate-950 font-mono transition-colors cursor-pointer"
+                title="Increase Lot Width & Depth"
+              >
+                +
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right: Ceiling Height & Roof Mode */}
@@ -1019,6 +1168,28 @@ export function Studio3dWorkspace() {
               {h}mm
             </button>
           ))}
+
+          {/* 2740mm+ Ceiling Option: Upgrade Doors & Joinery to 2340mm + Garage Door to 2400mm */}
+          {design && ceilingPreset >= 2740 && (
+            <button
+              type="button"
+              onClick={handleToggleDoorJoineryHeights}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 border ${
+                fitout.upgradeDoorJoineryHeights !== false
+                  ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow-xs"
+                  : isLight
+                  ? "bg-slate-100 text-slate-600 border-slate-300"
+                  : "bg-slate-800 text-slate-300 border-slate-700"
+              }`}
+              title="Toggle 2340mm High Doors & Joinery + 2400mm Garage Door (Standard with 2740mm+ Ceilings)"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              <span>
+                2340mm Doors/Joinery & 2400mm Garage:{" "}
+                {fitout.upgradeDoorJoineryHeights !== false ? "ON" : "OFF"}
+              </span>
+            </button>
+          )}
 
           <div
             className={`inline-flex rounded-lg p-0.5 border ${
