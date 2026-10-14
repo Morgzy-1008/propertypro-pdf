@@ -1629,6 +1629,8 @@ export function V2StepFloorPlan({
     for (const delta of approved.areaDeltas) {
       if (delta.accepted) {
         (updatedModifiedAreas as any)[delta.zoneKey] = delta.modifiedM2;
+      } else {
+        (updatedModifiedAreas as any)[delta.zoneKey] = delta.standardM2;
       }
     }
 
@@ -3235,26 +3237,31 @@ export function V2StepFloorPlan({
 
                     {/* Detected Items from PlanModificationAnalysis */}
                     {pendingAnalysis &&
-                      ((pendingAnalysis.inclusionUpgrades?.length || 0) > 0 ||
+                      ((pendingAnalysis.areaDeltas?.length || 0) > 0 ||
+                        (pendingAnalysis.inclusionUpgrades?.length || 0) > 0 ||
                         (pendingAnalysis.internalRoomChanges?.length || 0) > 0 ||
                         (pendingAnalysis.openingReplacements?.length || 0) > 0) && (
                         <div className="space-y-3" data-testid="detected-modifications-list">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold uppercase tracking-wider text-emerald-500">
                               Detected Changes on Uploaded Modified Plan (
-                              {(pendingAnalysis.inclusionUpgrades?.length || 0) +
+                              {(pendingAnalysis.areaDeltas?.length || 0) +
+                                (pendingAnalysis.inclusionUpgrades?.length || 0) +
                                 (pendingAnalysis.internalRoomChanges?.length || 0) +
                                 (pendingAnalysis.openingReplacements?.length || 0)}
                               )
                             </span>
                             <span className="text-xs font-mono text-slate-400">
-                              Detected Variations Subtotal:{" "}
+                              Detected Extensions &amp; Variations Subtotal:{" "}
                               <strong className="text-emerald-500">
                                 +
                                 {formatAud(
-                                  (pendingAnalysis.inclusionUpgrades || [])
-                                    .filter((u) => u.accepted)
-                                    .reduce((s, u) => s + (u.subtotal || 0), 0) +
+                                  (pendingAnalysis.areaDeltas || [])
+                                    .filter((d) => d.accepted)
+                                    .reduce((s, d) => s + (d.subtotal || 0), 0) +
+                                    (pendingAnalysis.inclusionUpgrades || [])
+                                      .filter((u) => u.accepted)
+                                      .reduce((s, u) => s + (u.subtotal || 0), 0) +
                                     (pendingAnalysis.internalRoomChanges || [])
                                       .filter((r) => r.accepted && !r.isZeroCost)
                                       .reduce((s, r) => s + (r.subtotal || 0), 0) +
@@ -3267,6 +3274,52 @@ export function V2StepFloorPlan({
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {(pendingAnalysis.areaDeltas || []).map((d, idx) => (
+                              <div
+                                key={`area-${d.zoneKey}-${idx}`}
+                                onClick={() => {
+                                  const next: PlanModificationAnalysis = {
+                                    ...pendingAnalysis,
+                                    areaDeltas: pendingAnalysis.areaDeltas.map((item, i) =>
+                                      i === idx ? { ...item, accepted: !item.accepted } : item
+                                    ),
+                                  };
+                                  handleApplyModifiedPlan(next, { keepModalOpen: false, silent: true });
+                                }}
+                                className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                                  d.accepted
+                                    ? isLight
+                                      ? "bg-emerald-50/70 border-emerald-300"
+                                      : "bg-emerald-950/25 border-emerald-500/40"
+                                    : isLight
+                                    ? "bg-white border-slate-200 opacity-60"
+                                    : "bg-slate-900/40 border-slate-800 opacity-60"
+                                }`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <CheckCircle2
+                                      className={`w-4 h-4 flex-none ${
+                                        d.accepted ? "text-emerald-500" : "text-slate-400"
+                                      }`}
+                                    />
+                                    <span className="text-xs sm:text-sm font-bold">
+                                      {d.zoneLabel} ({d.deltaM2 > 0 ? `+${d.deltaM2}` : d.deltaM2} m²)
+                                    </span>
+                                    <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                                      STRUCTURAL AREA
+                                    </Badge>
+                                  </div>
+                                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
+                                    {d.reason || `Standard ${d.standardM2} m² → Modified ${d.modifiedM2} m² (@ ${formatAud(d.unitRate)}/m²)`}
+                                  </p>
+                                </div>
+                                <div className="text-right flex-none font-mono text-xs font-extrabold text-emerald-500">
+                                  {d.subtotal >= 0 ? `+${formatAud(d.subtotal)}` : formatAud(d.subtotal)}
+                                </div>
+                              </div>
+                            ))}
+
                             {(pendingAnalysis.inclusionUpgrades || []).map((u, idx) => (
                               <div
                                 key={`upg-${u.id}-${idx}`}

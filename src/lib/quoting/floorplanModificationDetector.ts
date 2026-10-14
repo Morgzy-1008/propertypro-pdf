@@ -3327,7 +3327,7 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // 2. Deterministic Room Dimension Extraction (for plans WITHOUT a table or partial tables)
-  const combinedScanText = `${rawText} ${geminiResult?.analysisNotes || ""} ${geminiResult?.areaModifications?.map((m: any) => `${m.zone} ${m.deltaM2} ${m.reason}`).join(" ") || ""} ${geminiResult?.internalRoomChanges?.map((r: any) => `${r.roomName} ${r.description}`).join(" ") || ""} ${geminiResult?.openingTags?.join(" ") || ""} ${geminiResult?.detectedInclusions?.map((i: any) => `${i.name} ${i.reason}`).join(" ") || ""}`;
+  const combinedScanText = `${file.name.replace(/[_\-]+/g, " ")} ${rawText} ${geminiResult?.analysisNotes || ""} ${geminiResult?.areaModifications?.map((m: any) => `${m.zone} ${m.deltaM2} ${m.reason}`).join(" ") || ""} ${geminiResult?.internalRoomChanges?.map((r: any) => `${r.roomName} ${r.description}`).join(" ") || ""} ${geminiResult?.openingTags?.join(" ") || ""} ${geminiResult?.detectedInclusions?.map((i: any) => `${i.name} ${i.reason}`).join(" ") || ""}`;
 
   // A. Covered Alfresco room dimension
   const hasSpecificAlfDims = /2\.1\s*[xX*×]\s*5\.4|5\.4\s*[xX*×]\s*2\.1/i.test(combinedScanText);
@@ -4365,22 +4365,22 @@ export async function analyzeModifiedFloorplanFile(
           continue; // Accounted for in Tab 2 Internal Sweep & Rooms!
         }
       }
-      if (internalRoomChanges.some((r) => /study|office/i.test(`${r.id} ${r.roomName}`))) {
+      if (internalRoomChanges.some((r) => /study|office/i.test(`${r.id} ${r.roomName}`) && !r.isZeroCost && (r.subtotal || 0) > 0)) {
         if (inc.id === "upg_study_addition" || /study\s*addition|dedicated\s*home\s*office/i.test(desc)) {
           continue; // Accounted for in Tab 2!
         }
       }
-      if (internalRoomChanges.some((r) => /media|living/i.test(`${r.id} ${r.roomName}`) && /skylight/i.test(`${r.roomName} ${r.description}`))) {
+      if (internalRoomChanges.some((r) => /media|living/i.test(`${r.id} ${r.roomName}`) && /skylight/i.test(`${r.roomName} ${r.description}`) && !r.isZeroCost && (r.subtotal || 0) > 0)) {
         if (inc.id === "upg_living_media_conversion" || (/media.*conversion/i.test(desc) && /skylight/i.test(desc))) {
           continue; // Accounted for in Tab 2!
         }
       }
-      if (internalRoomChanges.some((r) => /bed\s*[2-5].*(?:ensuite|wir)/i.test(`${r.id} ${r.roomName} ${r.description}`) && !r.isZeroCost)) {
+      if (internalRoomChanges.some((r) => /bed\s*[2-5].*(?:ensuite|wir)/i.test(`${r.id} ${r.roomName} ${r.description}`) && !r.isZeroCost && (r.subtotal || 0) > 0)) {
         if (inc.id === "upg_additional_ensuite_wir" || /additional\s*bedroom\s*ensuite/i.test(desc)) {
           continue; // Accounted for in Tab 2!
         }
       }
-      if (internalRoomChanges.some((r) => /powder|pdr|additional\s*wc/i.test(`${r.id} ${r.roomName} ${r.description}`))) {
+      if (internalRoomChanges.some((r) => /powder|pdr|additional\s*wc/i.test(`${r.id} ${r.roomName} ${r.description}`) && !r.isZeroCost && (r.subtotal || 0) > 0)) {
         if (
           inc.id === "upg_powder_room_vanity_conversion" ||
           inc.id === "upg_powder_room_addition" ||
@@ -4389,7 +4389,7 @@ export async function analyzeModifiedFloorplanFile(
           continue; // Accounted for in Tab 2!
         }
       }
-      if (internalRoomChanges.some((r) => /butler|pantry/i.test(`${r.id} ${r.roomName} ${r.description}`))) {
+      if (internalRoomChanges.some((r) => /butler|pantry/i.test(`${r.id} ${r.roomName} ${r.description}`) && !r.isZeroCost && (r.subtotal || 0) > 0)) {
         if (
           inc.id === "upg_butlers_pantry_lhs_sink" ||
           inc.id === "upg_butlers_prep_sink" ||
