@@ -62,8 +62,8 @@ function getGreeting(): string {
 function HouseAndLandIcon({ className }: { className?: string }) {
   return (
     <div className={`relative flex items-center justify-center ${className || ""}`}>
-      <FileText className="h-4 w-4 -translate-x-0.5 text-amber-500 dark:text-amber-400" />
-      <Database className="h-3.5 w-3.5 translate-x-1 -translate-y-1 text-amber-600 dark:text-amber-300 absolute" />
+      <FileText className="h-4 w-4 -translate-x-0.5 text-amber-400" />
+      <Database className="h-3.5 w-3.5 translate-x-1 -translate-y-1 text-cyan-400 absolute" />
     </div>
   );
 }
@@ -86,9 +86,12 @@ interface PortalCardProps {
 function PortalCard({
   to,
   title,
+  icon: Icon,
   glowGradient = "from-amber-400 via-brand-gold to-yellow-500",
   lightBeam = "from-transparent via-amber-400 to-transparent",
-  innerGlow = "from-amber-500/30 via-brand-gold/15 to-transparent",
+  innerGlow = "from-amber-500/25 to-transparent",
+  iconColor = "text-brand-gold",
+  iconBg = "from-amber-500/20 to-yellow-500/10 border-brand-gold/30",
   isLight,
   isComingSoon = false,
   children,
@@ -98,84 +101,81 @@ function PortalCard({
       {/* Top Edge Laser Optical Highlight */}
       <div
         className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r ${lightBeam} ${
-          isComingSoon ? "opacity-30" : "opacity-60 group-hover:opacity-100"
+          isComingSoon ? "opacity-25" : "opacity-40 group-hover:opacity-100"
         } transition-opacity duration-300`}
       />
 
       {/* Specular Ambient Corner Bloom */}
       <div
-        className={`absolute -top-12 -right-12 h-40 w-40 rounded-full bg-gradient-to-br ${innerGlow} blur-3xl ${
-          isComingSoon ? "opacity-15" : "opacity-25 group-hover:opacity-65"
+        className={`absolute -top-10 -right-10 h-36 w-36 rounded-full bg-gradient-to-br ${innerGlow} blur-3xl ${
+          isComingSoon ? "opacity-10" : "opacity-20 group-hover:opacity-50"
         } transition-opacity duration-500 pointer-events-none`}
       />
 
       {/* Content Block */}
-      <div className="relative z-10 flex flex-col justify-between h-full min-h-[135px] sm:min-h-[145px]">
-        {/* Top: Large Prominent Title */}
-        <div className="pt-0.5 pr-2">
-          <h2
-            className={`text-lg sm:text-xl md:text-[22px] font-black tracking-tight leading-[1.2] transition-colors duration-200 ${
-              isLight
-                ? isComingSoon
-                  ? "text-slate-600"
-                  : "text-slate-900 group-hover:text-amber-800"
-                : isComingSoon
-                ? "text-slate-400"
-                : "text-white group-hover:text-amber-200"
-            }`}
-          >
-            {title}
-          </h2>
+      <div className="relative z-10 flex flex-col justify-between h-full">
+        <div>
+          {/* Top Row: Icon Pod & Action Indicator */}
+          <div className="flex items-center justify-between gap-3">
+            {/* Glowing Icon Pod */}
+            {Icon && (
+              <div
+                className={`h-11 w-11 rounded-xl bg-gradient-to-br ${iconBg} border flex items-center justify-center ${iconColor} ${
+                  isComingSoon ? "" : "group-hover:scale-105 group-hover:rotate-1"
+                } transition-all duration-300 shadow-inner shrink-0`}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+            )}
+
+            {/* Top-Right Indicator: Coming Soon or Hover Arrow */}
+            {isComingSoon ? (
+              <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full border flex items-center gap-1 shadow-xs text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono">
+                <Clock className="h-3 w-3 text-amber-400 shrink-0" />
+                Coming Soon
+              </span>
+            ) : !children ? (
+              <div
+                className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  isLight
+                    ? "text-slate-400 group-hover:text-slate-900 group-hover:bg-slate-200/60"
+                    : "text-slate-500 group-hover:text-white group-hover:bg-slate-800/80"
+                }`}
+              >
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </div>
+            ) : null}
+          </div>
+
+          {/* Title */}
+          <div className="mt-3.5">
+            <h2
+              className={`text-base sm:text-lg font-extrabold tracking-tight transition-colors duration-200 leading-snug ${
+                isLight
+                  ? isComingSoon
+                    ? "text-slate-700"
+                    : "text-slate-900 group-hover:text-amber-700"
+                  : isComingSoon
+                  ? "text-slate-300"
+                  : "text-white group-hover:text-amber-200"
+              }`}
+            >
+              {title}
+            </h2>
+          </div>
         </div>
 
-        {/* Bottom Section: Child Sub-Buttons or Balanced Action Footer */}
-        {children ? (
-          <div className="mt-3.5 pt-1">{children}</div>
-        ) : (
-          <div className="flex items-center justify-between mt-auto pt-3">
-            {isComingSoon ? (
-              <>
-                <span className={`text-[11px] font-bold tracking-wider uppercase font-mono ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  In Development
-                </span>
-                <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full border flex items-center gap-1 shadow-xs text-amber-500 dark:text-amber-400 bg-amber-500/15 border-amber-500/35 font-mono">
-                  <Clock className="h-3 w-3 shrink-0" />
-                  Coming Soon
-                </span>
-              </>
-            ) : (
-              <>
-                <span
-                  className={`text-[11px] font-bold tracking-wider uppercase font-mono transition-colors duration-200 ${
-                    isLight
-                      ? "text-amber-800/70 group-hover:text-amber-950"
-                      : "text-amber-400/70 group-hover:text-amber-300"
-                  }`}
-                >
-                  Open Portal
-                </span>
-                <div
-                  className={`h-7 w-7 rounded-full flex items-center justify-center transition-all duration-300 ${
-                    isLight
-                      ? "bg-amber-500/15 text-amber-800 group-hover:bg-amber-500/25 group-hover:text-amber-950 group-hover:scale-110 border border-amber-500/35"
-                      : "bg-amber-500/15 text-amber-400 group-hover:bg-amber-500/30 group-hover:text-amber-300 group-hover:scale-110 border border-amber-500/35 group-hover:border-amber-400/70 shadow-[0_0_10px_rgba(245,158,11,0.25)]"
-                  }`}
-                >
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        {/* Optional Sub-Actions (e.g. for combined House & Land Studio & Database) */}
+        {children && <div className="mt-3 pt-3 border-t border-slate-700/20">{children}</div>}
       </div>
     </>
   );
 
-  const cardClasses = `relative h-full rounded-[20px] p-5 sm:p-6 flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-xl ${
+  const cardClasses = `relative h-full rounded-[20px] p-5 sm:p-5.5 flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-xl ${
     isLight
       ? isComingSoon
-        ? "bg-white/80 text-slate-800 shadow-md shadow-amber-500/5"
-        : "bg-white/88 text-slate-900 group-hover:bg-white/95 shadow-xl shadow-amber-500/10"
+        ? "bg-white/80 text-slate-800 shadow-md shadow-slate-200/50"
+        : "bg-white/88 text-slate-900 group-hover:bg-white/95 shadow-xl shadow-slate-300/40"
       : isComingSoon
       ? "bg-slate-950/78 text-slate-200 shadow-lg shadow-black/50"
       : "bg-slate-950/82 text-slate-100 group-hover:bg-slate-900/90 shadow-2xl shadow-black/80"
@@ -187,17 +187,17 @@ function PortalCard({
         isComingSoon ? "cursor-default select-none opacity-90" : "hover:-translate-y-1"
       }`}
     >
-      {/* Layer 1: Ambient Outer Radiant Gold Glow */}
+      {/* Layer 1: Ambient Outer Radiant Glow */}
       <div
         className={`absolute -inset-1 rounded-[24px] bg-gradient-to-r ${glowGradient} ${
-          isComingSoon ? "opacity-15 blur-md" : "opacity-25 blur-xl group-hover:opacity-75 group-hover:blur-2xl"
+          isComingSoon ? "opacity-10 blur-md" : "opacity-20 blur-xl group-hover:opacity-75 group-hover:blur-2xl"
         } transition-all duration-500 pointer-events-none -z-10`}
       />
 
-      {/* Layer 2: Precision Laser Gold Perimeter Outline */}
+      {/* Layer 2: Precision Laser Perimeter Outline */}
       <div
         className={`absolute -inset-[1px] rounded-[21px] bg-gradient-to-r ${glowGradient} ${
-          isComingSoon ? "opacity-25" : "opacity-45 group-hover:opacity-100"
+          isComingSoon ? "opacity-20" : "opacity-35 group-hover:opacity-100"
         } transition-opacity duration-300 pointer-events-none -z-10`}
       />
 
@@ -367,10 +367,10 @@ function WelcomeHubPage() {
         }}
       />
 
-      {/* Futuristic Atmospheric Ambient Gold Glow Orbs */}
-      <div className="fixed top-8 left-1/4 w-[550px] h-[350px] bg-gradient-to-br from-amber-500/12 via-brand-gold/8 to-transparent rounded-full blur-[140px] pointer-events-none" />
-      <div className="fixed top-32 right-1/4 w-[500px] h-[350px] bg-gradient-to-bl from-amber-400/10 via-yellow-500/6 to-transparent rounded-full blur-[140px] pointer-events-none" />
-      <div className="fixed bottom-12 left-1/3 w-[600px] h-[300px] bg-gradient-to-t from-amber-500/10 via-brand-gold/6 to-transparent rounded-full blur-[150px] pointer-events-none" />
+      {/* Futuristic Atmospheric Ambient Glow Orbs */}
+      <div className="fixed top-8 left-1/4 w-[550px] h-[350px] bg-gradient-to-br from-amber-500/10 via-brand-gold/5 to-transparent rounded-full blur-[140px] pointer-events-none" />
+      <div className="fixed top-32 right-1/4 w-[500px] h-[350px] bg-gradient-to-bl from-cyan-500/10 via-blue-500/5 to-transparent rounded-full blur-[140px] pointer-events-none" />
+      <div className="fixed bottom-12 left-1/3 w-[600px] h-[300px] bg-gradient-to-t from-emerald-500/8 via-purple-500/5 to-transparent rounded-full blur-[150px] pointer-events-none" />
 
       {/* Top Navigation Bar with Optical Laser Accent */}
       <header
@@ -497,12 +497,18 @@ function WelcomeHubPage() {
           <HubAiAssistant isLight={isLight} staffUser={staffUser} />
         </div>
 
-        {/* Portals Grid with Unified Signature Gold Glow */}
+        {/* Portals Grid with Futuristic Gradient Glows */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto w-full">
           {/* Portal 01: Hudson Quoting System (Accessible to all logins) */}
           <PortalCard
             to="/quote-builder"
             title="Hudson Quoting System"
+            icon={Layers}
+            glowGradient="from-emerald-400 via-teal-400 to-green-500"
+            lightBeam="from-transparent via-emerald-400 to-transparent"
+            innerGlow="from-emerald-500/25 to-transparent"
+            iconColor="text-emerald-400"
+            iconBg="from-emerald-500/20 to-teal-500/10 border-emerald-500/30"
             isLight={isLight}
           />
 
@@ -510,42 +516,54 @@ function WelcomeHubPage() {
           <PortalCard
             to="/floorplan-library"
             title="Floorplan Library"
+            icon={LayoutGrid}
+            glowGradient="from-blue-600 via-indigo-500 to-cyan-400"
+            lightBeam="from-transparent via-indigo-400 to-transparent"
+            innerGlow="from-indigo-500/25 to-transparent"
+            iconColor="text-indigo-400"
+            iconBg="from-indigo-500/20 to-blue-500/10 border-indigo-500/30"
             isLight={isLight}
           />
 
           {/* Portal 03: House & Land Studio & Database (Combined Flyer Builder + Lot Database) */}
           <PortalCard
             title="House & Land Studio & Database"
+            icon={HouseAndLandIcon}
+            glowGradient="from-amber-500 via-teal-400 to-cyan-500"
+            lightBeam="from-transparent via-amber-400 to-transparent"
+            innerGlow="from-amber-500/25 via-cyan-500/15 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 via-teal-500/10 to-cyan-500/20 border-amber-500/30"
             isLight={isLight}
           >
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <Link
                 to="/flyer"
                 className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all duration-200 group/btn shadow-xs ${
                   isLight
-                    ? "bg-amber-500/15 hover:bg-amber-500/25 text-amber-950 border border-amber-500/40 hover:border-amber-500/70"
-                    : "bg-gradient-to-r from-amber-500/20 to-amber-600/15 hover:from-amber-500/30 hover:to-amber-600/25 text-amber-300 border border-amber-500/40 hover:border-amber-400/80 shadow-[0_0_12px_rgba(245,158,11,0.18)]"
+                    ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-500/30 hover:border-amber-500/50"
+                    : "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 hover:border-amber-500/50"
                 }`}
               >
                 <span className="flex items-center gap-1.5 truncate">
-                  <FileText className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+                  <FileText className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                   <span className="truncate">Flyer Studio</span>
                 </span>
-                <ArrowRight className="h-3 w-3 shrink-0 opacity-70 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5 transition-all" />
+                <ArrowRight className="h-3 w-3 shrink-0 opacity-60 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5 transition-all" />
               </Link>
               <Link
                 to="/database"
                 className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all duration-200 group/btn shadow-xs ${
                   isLight
-                    ? "bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-950 border border-cyan-500/40 hover:border-cyan-500/70"
-                    : "bg-gradient-to-r from-cyan-500/20 to-teal-600/15 hover:from-cyan-500/30 hover:to-teal-600/25 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400/80 shadow-[0_0_12px_rgba(6,182,212,0.18)]"
+                    ? "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-900 border border-cyan-500/30 hover:border-cyan-500/50"
+                    : "bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 hover:border-cyan-500/50"
                 }`}
               >
                 <span className="flex items-center gap-1.5 truncate">
-                  <Database className="h-3.5 w-3.5 text-cyan-500 dark:text-cyan-400 shrink-0" />
+                  <Database className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
                   <span className="truncate">Lot Database</span>
                 </span>
-                <ArrowRight className="h-3 w-3 shrink-0 opacity-70 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5 transition-all" />
+                <ArrowRight className="h-3 w-3 shrink-0 opacity-60 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5 transition-all" />
               </Link>
             </div>
           </PortalCard>
@@ -554,6 +572,12 @@ function WelcomeHubPage() {
           <PortalCard
             to="/floorplan-editor"
             title="Concept Floorplan Editor"
+            icon={Sliders}
+            glowGradient="from-blue-500 via-indigo-500 to-violet-500"
+            lightBeam="from-transparent via-indigo-400 to-transparent"
+            innerGlow="from-indigo-500/25 to-transparent"
+            iconColor="text-indigo-400"
+            iconBg="from-blue-500/20 to-indigo-500/10 border-indigo-500/30"
             isLight={isLight}
           />
 
@@ -561,6 +585,12 @@ function WelcomeHubPage() {
           <PortalCard
             to="/land-scout"
             title="Hudson Land Scout"
+            icon={Compass}
+            glowGradient="from-amber-400 via-brand-gold to-yellow-500"
+            lightBeam="from-transparent via-brand-gold to-transparent"
+            innerGlow="from-amber-500/30 to-transparent"
+            iconColor="text-brand-gold"
+            iconBg="from-amber-500/20 to-yellow-500/10 border-brand-gold/30"
             isLight={isLight}
             isComingSoon={false}
           />
@@ -570,6 +600,12 @@ function WelcomeHubPage() {
             <PortalCard
               to="/3d-studio"
               title="3D Studio & Architectural Elevations"
+              icon={Box}
+              glowGradient="from-amber-500 via-orange-500 to-yellow-400"
+              lightBeam="from-transparent via-amber-400 to-transparent"
+              innerGlow="from-amber-500/25 to-transparent"
+              iconColor="text-amber-400"
+              iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
               isLight={isLight}
             />
           )}
@@ -578,6 +614,12 @@ function WelcomeHubPage() {
           <PortalCard
             to="/tender-request"
             title="Submit Your Tender Request"
+            icon={Send}
+            glowGradient="from-amber-500 via-orange-500 to-rose-500"
+            lightBeam="from-transparent via-orange-400 to-transparent"
+            innerGlow="from-orange-500/25 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
             isLight={isLight}
             isComingSoon={!isMorgan}
           />
@@ -586,6 +628,12 @@ function WelcomeHubPage() {
           <PortalCard
             to="/crm"
             title="Hudson Horizon CRM"
+            icon={Users}
+            glowGradient="from-purple-500 via-fuchsia-500 to-pink-500"
+            lightBeam="from-transparent via-purple-400 to-transparent"
+            innerGlow="from-purple-500/25 to-transparent"
+            iconColor="text-purple-400"
+            iconBg="from-purple-500/20 to-fuchsia-500/10 border-purple-500/30"
             isLight={isLight}
           />
         </div>
