@@ -1202,11 +1202,13 @@ export const DESIGNS_3D_REGISTRY: Record<string, BuildingDesign3D> = {
   },
 };
 
+import { build3DDesignForStandardModel } from "./floorplanTo3dEngine";
+
 export const ALL_DESIGN_KEYS = Object.keys(DESIGNS_3D_REGISTRY);
 
 export function get3DDesign(id: string): BuildingDesign3D {
-  const base = DESIGNS_3D_REGISTRY[id] || DESIGNS_3D_REGISTRY["tiffany-22-custom-juliana"];
-  return ensureCompleteWallNetwork(base);
+  return build3DDesignForStandardModel(id);
 }
 
 export { ensureCompleteWallNetwork };
+

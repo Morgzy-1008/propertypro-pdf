@@ -39,6 +39,7 @@ import { getActiveDivision } from "@/lib/divisionContext";
 interface QuoteBuilderV2Props {
   quote: FullQuote;
   onUpdateQuote: (patch: Partial<FullQuote>) => void;
+  onAddInclusionLineItems?: (items: any[]) => void;
   onSaveQuote: () => Promise<void>;
   onDownloadPdf: () => Promise<void>;
   onOpenShare: () => void;
@@ -53,6 +54,7 @@ interface QuoteBuilderV2Props {
 export function QuoteBuilderV2({
   quote,
   onUpdateQuote,
+  onAddInclusionLineItems,
   onSaveQuote,
   onDownloadPdf,
   onOpenShare,
@@ -96,22 +98,17 @@ export function QuoteBuilderV2({
     scrollToTop();
   };
 
-  // Handlers for updating quote slices
+  // Handlers for updating quote slices (merged functionally inside QuoteBuilder.updateQuote)
   const handleClientChange = (patch: Partial<FullQuote["client"]>) => {
-    if (patch.clientName !== undefined && patch.clientName !== quote.client.clientName && !patch.estimateNumber) {
-      const { estimateNumber, ...rest } = quote.client;
-      onUpdateQuote({ client: { ...rest, ...patch, estimateNumber: patch.estimateNumber || estimateNumber || "" } });
-    } else {
-      onUpdateQuote({ client: { ...quote.client, ...patch } });
-    }
+    onUpdateQuote({ client: patch as FullQuote["client"] });
   };
 
   const handleDesignChange = (patch: Partial<FullQuote["design"]>) => {
-    onUpdateQuote({ design: { ...quote.design, ...patch } });
+    onUpdateQuote({ design: patch as FullQuote["design"] });
   };
 
   const handleSiteChange = (patch: Partial<FullQuote["siteConditions"]>) => {
-    onUpdateQuote({ siteConditions: { ...quote.siteConditions, ...patch } });
+    onUpdateQuote({ siteConditions: patch as FullQuote["siteConditions"] });
   };
 
   const handleLineItemsChange = (items: FullQuote["lineItems"]) => {
@@ -119,6 +116,10 @@ export function QuoteBuilderV2({
   };
 
   const handleAddInclusionLineItems = (newItems: any[]) => {
+    if (onAddInclusionLineItems) {
+      onAddInclusionLineItems(newItems);
+      return;
+    }
     const filtered = (quote.lineItems || []).filter((item) => !item.id.startsWith("mod_"));
     const existingMap = new Map(filtered.map((item) => [item.id, item]));
     for (const item of newItems) {

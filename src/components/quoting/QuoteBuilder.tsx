@@ -489,7 +489,15 @@ export function QuoteBuilder() {
 
   const updateQuote = (patch: Partial<FullQuote>) => {
     setQuote((prev) => {
-      const merged: FullQuote = { ...prev, ...patch };
+      const merged: FullQuote = {
+        ...prev,
+        ...patch,
+        client: patch.client ? { ...prev.client, ...patch.client } : prev.client,
+        design: patch.design ? { ...prev.design, ...patch.design } : prev.design,
+        siteConditions: patch.siteConditions
+          ? { ...prev.siteConditions, ...patch.siteConditions }
+          : prev.siteConditions,
+      };
 
       if (patch.client && patch.client.clientName !== undefined) {
         const nameChanged = patch.client.clientName !== prev.client.clientName;
@@ -515,6 +523,7 @@ export function QuoteBuilder() {
         merged.siteConditions,
         merged.lineItems,
         merged.client.depositAmount,
+        merged.secondDwellingLineItems,
       );
       const result = { ...merged, pricing: updatedPricing };
       // Keep background draft synced
@@ -1025,6 +1034,7 @@ export function QuoteBuilder() {
       <QuoteBuilderV2
         quote={quote}
         onUpdateQuote={updateQuote}
+        onAddInclusionLineItems={handleAddInclusionLineItems}
         onSaveQuote={handleSaveQuote}
         onDownloadPdf={handleDownloadPdf}
         onOpenShare={() => setIsShareOpen(true)}

@@ -71,7 +71,11 @@ import {
   calculateCustomTotalM2,
   isDoubleStoreyDesign,
 } from "@/lib/quoting/quoteEngine";
-import { EXTENSION_RATES_BY_TIER, normalizeInclusionTier } from "@/lib/quoting/quoteCatalogue";
+import {
+  DEFAULT_CATALOGUE,
+  EXTENSION_RATES_BY_TIER,
+  normalizeInclusionTier,
+} from "@/lib/quoting/quoteCatalogue";
 import { getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data";
@@ -312,6 +316,11 @@ export function V2StepFloorPlan({
   const [isBaseConfirmOpen, setIsBaseConfirmOpen] = useState(false);
   const [pendingAnalysis, setPendingAnalysis] = useState<PlanModificationAnalysis | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [uploadedModifiedFile, setUploadedModifiedFile] = useState<File | null>(null);
+  const [isAnalyzingDeepPlan, setIsAnalyzingDeepPlan] = useState(false);
+  const [catalogueSearchQuery, setCatalogueSearchQuery] = useState("");
+  const [selectedCatalogueCategory, setSelectedCatalogueCategory] = useState<string>("all");
+  const [appliedCatalogueItems, setAppliedCatalogueItems] = useState<QuoteSelectedLineItem[]>([]);
 
   // Custom floor areas local state
   const [isAddingCustomArea, setIsAddingCustomArea] = useState(false);
@@ -1032,6 +1041,10 @@ export function V2StepFloorPlan({
     setModifiedSearchQuery(row.name);
     setIsModifiedDropdownOpen(false);
     toast.success(`Selected base design: ${row.name} (${row.m2} m²)`);
+
+    if (uploadedModifiedFile) {
+      void runDeepPlanModificationScan(uploadedModifiedFile, row.name, type, { openModal: false });
+    }
   };
 
   const handleConfirmDetectedBase = (detected: DetectedFloorplan) => {
@@ -1048,7 +1061,7 @@ export function V2StepFloorPlan({
     const type = matched?.type || (detected.housingType as HousingTypeTab) || "Single Storey";
     handleSelectModifiedBaseModel(row as PriceRow, type);
 
-    if (detected.roomAreas) {
+    if (detected.roomAreas && detected.hasSqmVariance && detected.extractedTable) {
       const isDouble = type === "Double Storey" || type === "Split Level" || isDoubleStoreyDesign(row.name, type);
       const newAreas: FloorplanAreaBreakdown = {
         ...(isDouble
@@ -1083,6 +1096,15 @@ export function V2StepFloorPlan({
 
     setModifiedSubStep("areas");
     toast.success(`Confirmed base design: ${detected.matchedDesignName}`);
+
+    if (
+      pendingAnalysis &&
+      pendingAnalysis.baseDesignName.toLowerCase() === row.name.toLowerCase()
+    ) {
+      handleApplyModifiedPlan(pendingAnalysis, { keepModalOpen: false, silent: true });
+    } else if (uploadedModifiedFile && !isAnalyzingDeepPlan) {
+      void runDeepPlanModificationScan(uploadedModifiedFile, row.name, type, { openModal: false });
+    }
   };
 
   // Modified Area change handler
@@ -1349,6 +1371,7 @@ export function V2StepFloorPlan({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadedModifiedFile(file);
 
     try {
       setIsScanning(true);
@@ -1523,6 +1546,20 @@ export function V2StepFloorPlan({
       const detected = detectFloorplanFromText(rawText, file.name);
       if (detected && detected.matchedDesignName) {
         setDetectedCandidate(detected);
+        void runDeepPlanModificationScan(
+          file,
+          detected.matchedDesignName,
+          detected.housingType || design.housingType || houseType,
+          { openModal: false }
+        );
+      } else if (design.designName) {
+        setDetectedCandidate(null);
+        void runDeepPlanModificationScan(
+          file,
+          design.designName,
+          design.housingType || houseType,
+          { openModal: false }
+        );
       } else {
         setDetectedCandidate(null);
       }
@@ -1544,13 +1581,49 @@ export function V2StepFloorPlan({
     }
   };
 
-  const handleApplyModifiedPlan = (approved: PlanModificationAnalysis) => {
+  // Run full architectural + visual + fixture/benchtop/vanity modification scan against the base Hudson design
+  const runDeepPlanModificationScan = async (
+    file: File,
+    baseDesignName: string,
+    baseHousingType: string,
+    options?: { openModal?: boolean }
+  ) => {
+    if (!file || !baseDesignName) return;
+    try {
+      setIsAnalyzingDeepPlan(true);
+      const analysis = await analyzeModifiedFloorplanFile(
+        file,
+        baseDesignName,
+        baseHousingType || houseType,
+        design.specTier || "H2 Design Collection"
+      );
+      setPendingAnalysis(analysis);
+      handleApplyModifiedPlan(analysis, {
+        keepModalOpen: Boolean(options?.openModal),
+        silent: true,
+      });
+      if (options?.openModal) {
+        setIsReviewModalOpen(true);
+      }
+    } catch (err) {
+      console.warn("Deep plan modification scan warning:", err);
+    } finally {
+      setIsAnalyzingDeepPlan(false);
+    }
+  };
+
+  const handleApplyModifiedPlan = (
+    approved: PlanModificationAnalysis,
+    options?: { keepModalOpen?: boolean; silent?: boolean }
+  ) => {
+    setPendingAnalysis(approved);
     const stdM2 = approved.standardTotalM2;
     const stdAreas = getStandardAreaBreakdown(approved.baseDesignName, approved.housingType, stdM2);
 
-    const updatedModifiedAreas: Partial<FloorplanAreaBreakdown> = {
+    const updatedModifiedAreas: FloorplanAreaBreakdown = {
       ...stdAreas,
       ...(design.modifiedAreas || {}),
+      totalM2: approved.modifiedTotalM2 || stdM2,
     };
 
     for (const delta of approved.areaDeltas) {
@@ -1560,6 +1633,32 @@ export function V2StepFloorPlan({
     }
 
     const effectiveHousingType = approved.housingType || houseType;
+    const isDouble =
+      effectiveHousingType === "Double Storey" ||
+      effectiveHousingType === "Split Level" ||
+      isDoubleStoreyDesign(approved.baseDesignName, effectiveHousingType);
+
+    const customSum = (updatedModifiedAreas.customAreas || []).reduce(
+      (sum, ca) => sum + (Number(ca.m2) || 0),
+      0
+    );
+    const computedTotal =
+      Math.round(
+        ((isDouble
+          ? (updatedModifiedAreas.lowerLivingM2 || 0) +
+            (updatedModifiedAreas.groundLivingM2 || 0) +
+            (updatedModifiedAreas.firstLivingM2 || 0) +
+            (updatedModifiedAreas.balconyM2 || 0)
+          : (updatedModifiedAreas.livingM2 || 0) + (updatedModifiedAreas.balconyM2 || 0)) +
+          (updatedModifiedAreas.garageM2 || 0) +
+          (updatedModifiedAreas.alfrescoM2 || 0) +
+          (updatedModifiedAreas.porchM2 || 0) +
+          customSum) *
+          100
+      ) / 100;
+
+    updatedModifiedAreas.totalM2 = computedTotal > 0 ? computedTotal : (approved.modifiedTotalM2 || stdM2);
+
     const modelName = approved.baseDesignName;
     const matchedModel = allModels.find(
       (m) => m.row.name.toLowerCase() === modelName.toLowerCase()
@@ -1568,18 +1667,34 @@ export function V2StepFloorPlan({
       ? getTierPrice(matchedModel.row, design.specTier, effectiveHousingType)
       : design.standardBasePrice || design.basePrice || 0;
 
+    const calc = calculateModifiedFloorplanPricing({
+      ...design,
+      mode: "modified",
+      isModifiedFloorplan: true,
+      designName: modelName,
+      housingType: effectiveHousingType as any,
+      standardDesignM2: stdM2,
+      standardBasePrice: stdPrice,
+      standardAreas: stdAreas,
+      modifiedAreas: updatedModifiedAreas,
+      areas: updatedModifiedAreas,
+      designM2: updatedModifiedAreas.totalM2,
+      modifiedDesignM2: updatedModifiedAreas.totalM2,
+    });
+
     const updatedDesign: Partial<QuoteDesignSelection> = {
       mode: "modified",
       housingType: effectiveHousingType as any,
       designName: modelName,
-      designM2: matchedModel?.row.m2 || stdM2,
+      designM2: updatedModifiedAreas.totalM2,
       standardDesignM2: stdM2,
       standardBasePrice: stdPrice,
       isModifiedFloorplan: true,
       standardAreas: stdAreas,
       modifiedAreas: updatedModifiedAreas,
-      modifiedDesignM2: approved.modifiedTotalM2,
-      basePrice: stdPrice,
+      areas: updatedModifiedAreas,
+      modifiedDesignM2: updatedModifiedAreas.totalM2,
+      basePrice: calc.modifiedBasePrice,
       ...(approved.floorplanDataUrl ? { floorplanUrl: approved.floorplanDataUrl } : {}),
     };
 
@@ -1686,15 +1801,102 @@ export function V2StepFloorPlan({
               : r.description,
           };
         }),
+        ...appliedCatalogueItems,
       ];
 
-      if (lineItemsToAdd.length > 0) {
-        onAddInclusionLineItems(lineItemsToAdd);
+      onAddInclusionLineItems(lineItemsToAdd);
+    }
+
+    if (!options?.keepModalOpen) {
+      setIsReviewModalOpen(false);
+    }
+    if (!options?.silent) {
+      toast.success("Applied modified floor plan parameters!");
+    }
+  };
+
+  // Quick-add any item from the backend pricing catalogue (benchtops, vanities, sinks, showers, internal elements, doors/windows, structural)
+  const handleQuickAddCatalogueItem = (catalogueItemId: string) => {
+    const catItem = DEFAULT_CATALOGUE.find((c) => c.id === catalogueItemId);
+    if (!catItem) return;
+
+    const lineItem: QuoteSelectedLineItem = {
+      id: `mod_cat_${catItem.id}`,
+      catalogueItemId: catItem.id,
+      category: catItem.category,
+      name: catItem.name,
+      description: catItem.description,
+      unitType: catItem.unitType,
+      unitRate: catItem.unitRate,
+      quantity: 1,
+      subtotal: catItem.unitRate,
+      isIncluded: true,
+      isClientSelectable: true,
+      clientSelected: true,
+      notes: "Added in Step 2 Modified Floor Plan from Backend Pricing Catalogue",
+    };
+
+    const nextCatalogueItems = [
+      ...appliedCatalogueItems.filter((i) => i.id !== lineItem.id),
+      lineItem,
+    ];
+    setAppliedCatalogueItems(nextCatalogueItems);
+
+    if (pendingAnalysis) {
+      // Also add to pendingAnalysis.inclusionUpgrades if not already there so it shows unified
+      const alreadyInPending = (pendingAnalysis.inclusionUpgrades || []).some((u) => u.id === catItem.id);
+      if (!alreadyInPending) {
+        const nextAnalysis: PlanModificationAnalysis = {
+          ...pendingAnalysis,
+          inclusionUpgrades: [
+            ...(pendingAnalysis.inclusionUpgrades || []),
+            {
+              id: catItem.id,
+              category: catItem.category,
+              name: catItem.name,
+              description: catItem.description,
+              baseline: "Standard Inclusion",
+              detected: "Selected from Backend Pricing Catalogue",
+              unitPrice: catItem.unitRate,
+              quantity: 1,
+              subtotal: catItem.unitRate,
+              confidence: 1,
+              accepted: true,
+            },
+          ],
+        };
+        handleApplyModifiedPlan(nextAnalysis, { keepModalOpen: false, silent: true });
+        toast.success(`Added ${catItem.name} (+${formatAud(catItem.unitRate)}) to Modified Plan`);
+        return;
       }
     }
 
-    setIsReviewModalOpen(false);
-    toast.success("Applied modified floor plan parameters!");
+    if (onAddInclusionLineItems) {
+      onAddInclusionLineItems(nextCatalogueItems);
+    }
+    toast.success(`Added ${catItem.name} (+${formatAud(catItem.unitRate)}) to Modified Plan`);
+  };
+
+  const handleRemoveCatalogueItem = (itemId: string) => {
+    const nextCatalogueItems = appliedCatalogueItems.filter(
+      (i) => i.id !== itemId && i.catalogueItemId !== itemId
+    );
+    setAppliedCatalogueItems(nextCatalogueItems);
+
+    if (pendingAnalysis) {
+      const nextAnalysis: PlanModificationAnalysis = {
+        ...pendingAnalysis,
+        inclusionUpgrades: (pendingAnalysis.inclusionUpgrades || []).map((u) =>
+          u.id === itemId || `mod_${u.id}` === itemId ? { ...u, accepted: false } : u
+        ),
+      };
+      handleApplyModifiedPlan(nextAnalysis, { keepModalOpen: false, silent: true });
+      return;
+    }
+
+    if (onAddInclusionLineItems) {
+      onAddInclusionLineItems(nextCatalogueItems);
+    }
   };
 
   const isFloorPlanStepComplete = useMemo(() => {
@@ -2966,6 +3168,385 @@ export function V2StepFloorPlan({
                       </div>
                     </div>
                   )}
+
+                  {/* Detected Plan Modifications & Backend Pricing Catalogue (Benchtops, Vanities, Sinks, Showers, Internal Rooms & Openings) */}
+                  <div
+                    data-testid="modified-plan-catalogue-scanner-panel"
+                    className={`p-5 sm:p-6 rounded-2xl border space-y-5 ${
+                      isLight
+                        ? "bg-slate-50/90 border-slate-200 text-slate-900"
+                        : "bg-slate-950/70 border-slate-800 text-white"
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Sparkles className="w-4 h-4 text-amber-500" />
+                          <h4 className="text-sm sm:text-base font-extrabold tracking-tight">
+                            Detected Plan Modifications &amp; Backend Catalogue Pricing
+                          </h4>
+                          <Badge className="bg-amber-500/15 text-amber-500 border border-amber-500/30 text-[10px] font-bold uppercase">
+                            {isAnalyzingDeepPlan
+                              ? "Scanning against Standard CAD…"
+                              : pendingAnalysis
+                              ? "CAD Comparison Active"
+                              : "Backend Pricing Catalogue"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Automatically detects &amp; prices benchtops, vanities, sinks, showers, internal rooms, structural extensions, and window/door replacements (with 80% trade credit) against the standard {design.designName || "Hudson"} plan.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {uploadedModifiedFile && design.designName && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isAnalyzingDeepPlan}
+                            onClick={() =>
+                              void runDeepPlanModificationScan(
+                                uploadedModifiedFile,
+                                design.designName,
+                                design.housingType || houseType,
+                                { openModal: true }
+                              )
+                            }
+                            className="h-9 px-3 text-xs font-bold rounded-xl gap-1.5 cursor-pointer"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzingDeepPlan ? "animate-spin" : ""}`} />
+                            {isAnalyzingDeepPlan ? "Scanning Plan…" : "Deep Re-Scan Plan"}
+                          </Button>
+                        )}
+                        {pendingAnalysis && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setIsReviewModalOpen(true)}
+                            className="h-9 px-3.5 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 gap-1.5 cursor-pointer"
+                          >
+                            <Maximize2 className="w-3.5 h-3.5" />
+                            Review Full CAD Diff &amp; Overlay
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Detected Items from PlanModificationAnalysis */}
+                    {pendingAnalysis &&
+                      ((pendingAnalysis.inclusionUpgrades?.length || 0) > 0 ||
+                        (pendingAnalysis.internalRoomChanges?.length || 0) > 0 ||
+                        (pendingAnalysis.openingReplacements?.length || 0) > 0) && (
+                        <div className="space-y-3" data-testid="detected-modifications-list">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider text-emerald-500">
+                              Detected Changes on Uploaded Modified Plan (
+                              {(pendingAnalysis.inclusionUpgrades?.length || 0) +
+                                (pendingAnalysis.internalRoomChanges?.length || 0) +
+                                (pendingAnalysis.openingReplacements?.length || 0)}
+                              )
+                            </span>
+                            <span className="text-xs font-mono text-slate-400">
+                              Detected Variations Subtotal:{" "}
+                              <strong className="text-emerald-500">
+                                +
+                                {formatAud(
+                                  (pendingAnalysis.inclusionUpgrades || [])
+                                    .filter((u) => u.accepted)
+                                    .reduce((s, u) => s + (u.subtotal || 0), 0) +
+                                    (pendingAnalysis.internalRoomChanges || [])
+                                      .filter((r) => r.accepted && !r.isZeroCost)
+                                      .reduce((s, r) => s + (r.subtotal || 0), 0) +
+                                    (pendingAnalysis.openingReplacements || [])
+                                      .filter((o) => o.accepted)
+                                      .reduce((s, o) => s + (o.netCost || 0), 0)
+                                )}
+                              </strong>
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {(pendingAnalysis.inclusionUpgrades || []).map((u, idx) => (
+                              <div
+                                key={`upg-${u.id}-${idx}`}
+                                onClick={() => {
+                                  const next: PlanModificationAnalysis = {
+                                    ...pendingAnalysis,
+                                    inclusionUpgrades: pendingAnalysis.inclusionUpgrades.map((item, i) =>
+                                      i === idx ? { ...item, accepted: !item.accepted } : item
+                                    ),
+                                  };
+                                  handleApplyModifiedPlan(next, { keepModalOpen: false, silent: true });
+                                }}
+                                className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                                  u.accepted
+                                    ? isLight
+                                      ? "bg-emerald-50/70 border-emerald-300"
+                                      : "bg-emerald-950/25 border-emerald-500/40"
+                                    : isLight
+                                    ? "bg-white border-slate-200 opacity-60"
+                                    : "bg-slate-900/40 border-slate-800 opacity-60"
+                                }`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <CheckCircle2
+                                      className={`w-4 h-4 flex-none ${
+                                        u.accepted ? "text-emerald-500" : "text-slate-400"
+                                      }`}
+                                    />
+                                    <span className="text-xs sm:text-sm font-bold">{u.name}</span>
+                                    <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                                      {u.category.replace("internal_", "")}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
+                                    {u.detected || u.description}
+                                  </p>
+                                </div>
+                                <div className="text-right flex-none">
+                                  <span className="text-xs sm:text-sm font-mono font-extrabold text-emerald-500">
+                                    +{formatAud(u.subtotal)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+
+                            {(pendingAnalysis.internalRoomChanges || []).map((r, idx) => (
+                              <div
+                                key={`room-${r.id}-${idx}`}
+                                onClick={() => {
+                                  const next: PlanModificationAnalysis = {
+                                    ...pendingAnalysis,
+                                    internalRoomChanges: (pendingAnalysis.internalRoomChanges || []).map((item, i) =>
+                                      i === idx ? { ...item, accepted: !item.accepted } : item
+                                    ),
+                                  };
+                                  handleApplyModifiedPlan(next, { keepModalOpen: false, silent: true });
+                                }}
+                                className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                                  r.accepted
+                                    ? isLight
+                                      ? "bg-cyan-50/70 border-cyan-300"
+                                      : "bg-cyan-950/25 border-cyan-500/40"
+                                    : isLight
+                                    ? "bg-white border-slate-200 opacity-60"
+                                    : "bg-slate-900/40 border-slate-800 opacity-60"
+                                }`}
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <CheckCircle2
+                                      className={`w-4 h-4 flex-none ${
+                                        r.accepted ? "text-cyan-500" : "text-slate-400"
+                                      }`}
+                                    />
+                                      <span className="text-xs sm:text-sm font-bold">{r.roomName}</span>
+                                      <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                                        {r.category}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{r.description}</p>
+                                  </div>
+                                  <div className="text-right flex-none">
+                                    <span className="text-xs sm:text-sm font-mono font-extrabold text-cyan-500">
+                                      {r.isZeroCost || r.subtotal === 0 ? "$0 (Included)" : `+${formatAud(r.subtotal)}`}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+
+                              {(pendingAnalysis.openingReplacements || []).map((o, idx) => (
+                                <div
+                                  key={`open-${o.id}-${idx}`}
+                                  onClick={() => {
+                                    const next: PlanModificationAnalysis = {
+                                      ...pendingAnalysis,
+                                      openingReplacements: (pendingAnalysis.openingReplacements || []).map((item, i) =>
+                                        i === idx ? { ...item, accepted: !item.accepted } : item
+                                      ),
+                                    };
+                                    handleApplyModifiedPlan(next, { keepModalOpen: false, silent: true });
+                                  }}
+                                  className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                                    o.accepted
+                                      ? isLight
+                                        ? "bg-amber-50/70 border-amber-300"
+                                        : "bg-amber-950/25 border-amber-500/40"
+                                      : isLight
+                                      ? "bg-white border-slate-200 opacity-60"
+                                      : "bg-slate-900/40 border-slate-800 opacity-60"
+                                  }`}
+                                >
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <CheckCircle2
+                                        className={`w-4 h-4 flex-none ${
+                                          o.accepted ? "text-amber-500" : "text-slate-400"
+                                        }`}
+                                      />
+                                      <span className="text-xs sm:text-sm font-bold">{o.newItemName}</span>
+                                      <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                                        80% Credit
+                                      </Badge>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{o.description}</p>
+                                  </div>
+                                  <div className="text-right flex-none">
+                                    <span className="text-xs sm:text-sm font-mono font-extrabold text-amber-500">
+                                      +{formatAud(o.netCost)}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      {/* Backend Pricing Catalogue Quick-Add Browser (Benchtops, Vanities, Sinks, Showers, Internal Elements, Doors & Structural) */}
+                      <div className="space-y-3 pt-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            + Add Variation from Backend Pricing Catalogue (Benchtops, Vanities, Sinks, Showers, Rooms &amp; Doors)
+                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {[
+                              { id: "all", label: "Featured" },
+                              { id: "internal_kitchen", label: "Kitchen & Benchtops" },
+                              { id: "internal_bathroom", label: "Vanities & Wet Areas" },
+                              { id: "internal_laundry", label: "Laundry & Joinery" },
+                              { id: "doors_windows", label: "Doors & Windows" },
+                              { id: "structural", label: "Structural & Rooms" },
+                            ].map((cat) => (
+                              <button
+                                key={cat.id}
+                                type="button"
+                                onClick={() => setSelectedCatalogueCategory(cat.id)}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                  selectedCatalogueCategory === cat.id
+                                    ? "bg-emerald-600 text-white"
+                                    : isLight
+                                    ? "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                                    : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+                                }`}
+                              >
+                                {cat.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="relative">
+                          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+                          <Input
+                            data-testid="step2-catalogue-search"
+                            placeholder="Search backend pricing catalogue (e.g. 40mm stone, waterfall, 1500 double vanity, undermount sink, butler's pantry, stacker door)..."
+                            value={catalogueSearchQuery}
+                            onChange={(e) => setCatalogueSearchQuery(e.target.value)}
+                            className={`pl-10 h-10 text-xs sm:text-sm rounded-xl ${
+                              isLight ? "bg-white border-slate-300" : "bg-slate-900 border-slate-800"
+                            }`}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                          {DEFAULT_CATALOGUE.filter((item) => {
+                            if (item.unitType !== "fixed") return false;
+                            if (selectedCatalogueCategory !== "all" && item.category !== selectedCatalogueCategory) {
+                              return false;
+                            }
+                            if (catalogueSearchQuery.trim()) {
+                              const q = catalogueSearchQuery.toLowerCase().trim();
+                              return (
+                                item.name.toLowerCase().includes(q) ||
+                                item.description.toLowerCase().includes(q) ||
+                                item.id.toLowerCase().includes(q)
+                              );
+                            }
+                            // Default featured modified plan items (benchtops, vanities, sinks, showers, rooms, doors)
+                            return [
+                              "kit_stone_40mm_upgrade",
+                              "kit_waterfall_stone_end_20mm",
+                              "kit_waterfall_stone_end_40mm",
+                              "kit_extend_island_bench",
+                              "kit_clark_polar_undermount_sink",
+                              "kit_butlers_pantry_package",
+                              "kit_butlers_pantry_sink_mixer",
+                              "bath_double_vanity_1500",
+                              "bath_double_vanity_1800",
+                              "bath_extended_single_vanity_1200",
+                              "bath_vanity_stone_40mm",
+                              "bath_shower_enlarge_1200x900",
+                              "bath_shower_enlarge_1500x900",
+                              "bath_freestanding_bath_upgrade",
+                              "bath_additional_powder_room",
+                              "laun_joinery_benchtop_sink",
+                              "bed_study_desk_joinery",
+                              "int_media_cinema_conversion",
+                              "dw_barn_sliding_door",
+                              "dw_stacker_door_2436",
+                            ].includes(item.id) || selectedCatalogueCategory !== "all";
+                          })
+                            .slice(0, 18)
+                            .map((catItem) => {
+                              const isAdded =
+                                appliedCatalogueItems.some((a) => a.catalogueItemId === catItem.id) ||
+                                (pendingAnalysis?.inclusionUpgrades || []).some(
+                                  (u) => u.id === catItem.id && u.accepted
+                                );
+
+                              return (
+                                <div
+                                  key={catItem.id}
+                                  data-testid={`catalogue-card-${catItem.id}`}
+                                  className={`p-3 rounded-xl border flex flex-col justify-between gap-2 transition-all ${
+                                    isAdded
+                                      ? isLight
+                                        ? "bg-emerald-50 border-emerald-300"
+                                        : "bg-emerald-950/30 border-emerald-500/40"
+                                      : isLight
+                                      ? "bg-white border-slate-200 hover:border-slate-300"
+                                      : "bg-slate-900/70 border-slate-800 hover:border-slate-700"
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-start justify-between gap-2">
+                                      <span className="text-xs font-bold leading-snug">{catItem.name}</span>
+                                      <span className="text-xs font-mono font-extrabold text-emerald-500 flex-none">
+                                        +{formatAud(catItem.unitRate)}
+                                      </span>
+                                    </div>
+                                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
+                                    {catItem.description}
+                                  </p>
+                                </div>
+                                <div className="flex items-center justify-end pt-1">
+                                  {isAdded ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveCatalogueItem(catItem.id)}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/20 text-emerald-500 hover:bg-rose-500/20 hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1"
+                                    >
+                                      <Check className="w-3 h-3" /> Added (Click to Remove)
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      data-testid={`add-cat-${catItem.id}`}
+                                      onClick={() => handleQuickAddCatalogueItem(catItem.id)}
+                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer flex items-center gap-1"
+                                    >
+                                      <Plus className="w-3 h-3" /> Add to Modified Plan
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Direct Base Price Summary Bar */}
                   <div

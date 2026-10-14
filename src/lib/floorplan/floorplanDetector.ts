@@ -242,7 +242,7 @@ export function isKnownHudsonDesign(name?: string): boolean {
 }
 
 export function detectFloorplanFromText(rawText: string, filename?: string): DetectedFloorplan | null {
-  const combinedText = `${filename || ""} ${rawText}`.replace(/[\r\n\t]+/g, " ");
+  const combinedText = `${filename || ""} ${rawText}`.replace(/[\r\n\t_\-]+/g, " ");
   const lower = combinedText.toLowerCase();
 
   let bestMatch: DetectedFloorplan | null = null;

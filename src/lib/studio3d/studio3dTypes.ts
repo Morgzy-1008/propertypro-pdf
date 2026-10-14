@@ -101,6 +101,7 @@ export type FixtureType =
   | "cinema_seating"
   | "mud_nook_bench"
   | "tv_console"
+  | "tv_entertainment_unit"
   | "wardrobe";
 
 export interface Fixture3D {
@@ -143,7 +144,17 @@ export interface BuildingSchedule {
   cars: number;
 }
 
-export type FacadeType = "modern" | "hamptons" | "executive" | "contempo" | "bronte";
+export type FacadeType =
+  | "modern"
+  | "hamptons"
+  | "executive"
+  | "contempo"
+  | "bronte"
+  | "skillion"
+  | "palm_springs"
+  | "palm_springs_parapet"
+  | "acreage"
+  | "acreage_homestead";
 
 export type FenceStyle =
   | "colorbond_monument"
@@ -175,6 +186,90 @@ export interface MaterialPaletteConfig {
   drivewayFinish: "exposed_aggregate" | "charcoal_stamped" | "plain_concrete";
 }
 
+export interface InteriorFitoutConfig {
+  benchtopThicknessMm: 20 | 40;
+  waterfallEnds: boolean | 0 | 1 | 2;
+  stoneColor:
+    | "calacatta_white"
+    | "carrara_marble"
+    | "concrete_grey"
+    | "empirical_black"
+    | "caesarstone_concrete"
+    | "charcoal_soapstone"
+    | "warm_travertine";
+  cabinetryFinish:
+    | "matte_white"
+    | "polytec_oak"
+    | "natural_oak"
+    | "florentine_walnut"
+    | "polytec_charcoal"
+    | "botanic_sage"
+    | "charcoal_satin"
+    | "sage_shaker";
+  sinkStyle:
+    | "double_undermount"
+    | "undermount_double"
+    | "single_undermount"
+    | "single_wide_bowl"
+    | "topmount_stainless"
+    | "black_granite"
+    | "matte_black_granite";
+  tapwareFinish:
+    | "chrome"
+    | "matte_black"
+    | "brushed_nickel"
+    | "brushed_gold"
+    | "brushed_brass";
+  ensuiteVanityStyle:
+    | "single_900"
+    | "single_1200"
+    | "extended_1200"
+    | "double_1500"
+    | "double_1800";
+  bathStyle:
+    | "freestanding_oval"
+    | "inset_acrylic"
+    | "inset_tiled"
+    | "back_to_wall";
+  showFurniture: boolean;
+  showJoineryAndSinks: boolean;
+}
+
+export interface CustomFacadeConfig {
+  mode: "generic" | "tailored" | "design_tailored";
+  facadePreset?: FacadeType;
+  tailoredName?: string;
+  tailoredPresetName?: string;
+  accentMaterial?: string;
+  rooflineStyle:
+    | "hip_22_5"
+    | "standard_hip"
+    | "feature_front_gable"
+    | "skillion_mono"
+    | "box_parapet";
+  porticoStyle:
+    | "rendered_pier_beam"
+    | "double_brick_piers"
+    | "twin_posts_canopy"
+    | "cedar_batten_screen"
+    | "cantilever_blade"
+    | "pitched_gable";
+  porticoProjectionM: number; // 0.6m to 2.2m
+  garageArticulation:
+    | "standard_step"
+    | "stepped_setback"
+    | "flush_parapet"
+    | "recessed_timber_frame"
+    | "cantilever_brow";
+  frontWindowStyle?:
+    | "standard_sliding"
+    | "twin_vertical_slots"
+    | "hamptons_colonial"
+    | "floor_to_ceiling_feature";
+  featureBladeWall: boolean;
+  alfrescoPiers?: boolean;
+}
+
 export interface BuildingDesign3D {
   id: string;
   name: string;
@@ -194,6 +289,8 @@ export interface BuildingDesign3D {
   facade?: FacadeType;
   boundary?: BoundaryConfig;
   materials?: MaterialPaletteConfig;
+  fitout?: InteriorFitoutConfig;
+  customFacade?: CustomFacadeConfig;
   notes?: string[];
   annotations?: string[];
 }

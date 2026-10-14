@@ -65,8 +65,9 @@ export default async function handler(req, res) {
 
 async function callGeminiWithFallback(apiKey, body) {
   const models = [
+    "gemini-2.5-flash",
     "gemini-flash-latest",
-    "gemini-3.8-flash"
+    "gemini-2.0-flash"
   ];
   let lastError = null;
 

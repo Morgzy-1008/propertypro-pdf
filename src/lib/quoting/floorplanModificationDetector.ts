@@ -820,6 +820,72 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     confidence: 0.95,
     triggerKeywords: ["dual 18-09", "18-09 media", "18-09 window", "1809 window", "two 18-09", "2x 18-09", "dual 1809", "dual 18-09 windows"],
   },
+  {
+    id: "kit_stone_40mm_upgrade",
+    category: "internal_kitchen",
+    name: "Upgrade Kitchen Benchtop Thickness to 40mm Engineered Stone (ilo 20mm)",
+    description: "40mm mitred engineered stone edge profile to kitchen island and rear benchtop runs.",
+    baseline: "Standard 20mm Category 1 engineered stone benchtop",
+    detected: "40mm stone benchtop edge specification on kitchen plan",
+    unitPrice: 980,
+    confidence: 0.95,
+    triggerKeywords: ["40mm stone", "40mm benchtop", "40mm island", "40mm edge", "40mm caesarstone", "40mm smartstone"],
+  },
+  {
+    id: "bath_vanity_stone_40mm",
+    category: "internal_bathroom",
+    name: "Upgrade Bathroom / Ensuite Vanity Benchtop to 40mm Stone Edge",
+    description: "40mm mitred engineered stone edge profile to bathroom and master ensuite vanity benchtops.",
+    baseline: "Standard 20mm vanity top",
+    detected: "40mm stone vanity top specification on wet area plan",
+    unitPrice: 420,
+    confidence: 0.94,
+    triggerKeywords: ["40mm vanity", "40mm stone to vanity", "40mm stone to bath", "40mm stone to ensuite"],
+  },
+  {
+    id: "bath_extended_single_vanity_1200",
+    category: "internal_bathroom",
+    name: "Upgrade to 1,200mm Extended Single Bowl Vanity with Stone Benchtop",
+    description: "Extended 1,200mm single bowl vanity cabinet with 20mm stone top, soft-close drawers, and polished mirror (ilo 900mm standard).",
+    baseline: "Standard 900mm single vanity",
+    detected: "1,200mm extended single vanity cabinet on bathroom/ensuite layout",
+    unitPrice: 780,
+    confidence: 0.94,
+    triggerKeywords: ["1200 vanity", "1200mm vanity", "1,200mm vanity", "extended vanity"],
+  },
+  {
+    id: "bath_double_vanity_1800",
+    category: "internal_bathroom",
+    name: "Upgrade to 1,800mm Grand Double Bowl Vanity with 20mm Stone Top",
+    description: "1,800mm grand double bowl vanity with 20mm stone benchtop, twin basins, dual mixers, soft-close drawers, and frameless mirror.",
+    baseline: "Standard single vanity",
+    detected: "1,800mm grand double bowl vanity specification on ensuite layout",
+    unitPrice: 2240,
+    confidence: 0.95,
+    triggerKeywords: ["1800 vanity", "1800mm vanity", "1,800mm vanity", "1800 double vanity"],
+  },
+  {
+    id: "bath_tiled_shower_niche",
+    category: "internal_bathroom",
+    name: "Recessed Tiled Shower Wall Niche (600mm × 300mm)",
+    description: "Waterproofed and fully tiled 600mm × 300mm recessed wall niche inside shower recess.",
+    baseline: "Flat tiled shower wall (no recessed niche)",
+    detected: "Recessed tiled shower niche notation ('NICHE' / '600x300 NICHE') in shower",
+    unitPrice: 390,
+    confidence: 0.94,
+    triggerKeywords: ["shower niche", "tiled niche", "recessed niche", "niche to shower", "600x300 niche", "400x300 niche"],
+  },
+  {
+    id: "kit_water_point_fridge",
+    category: "internal_kitchen",
+    name: "Recessed Cold Water Point to Refrigerator Space",
+    description: "Plumbed cold water connection valve in recessed wall box behind refrigerator space for ice/water dispenser.",
+    baseline: "Unplumbed refrigerator cavity",
+    detected: "Cold water point to fridge cavity ('WATER POINT' / 'WP TO FRIDGE') on kitchen plan",
+    unitPrice: 295,
+    confidence: 0.95,
+    triggerKeywords: ["water point to fridge", "fridge water point", "iced water point", "plumbed fridge", "wp to fridge", "water point fridge"],
+  },
 ];
 
 /**
@@ -909,15 +975,28 @@ function safeParseJson(jsonString: string): any {
  * Robust helper to call Gemini API directly in browser with multi-model fallback.
  */
 async function callGeminiClientWithFallback(apiKey: string, body: any): Promise<any | null> {
-  const models = ["gemini-flash-latest", "gemini-3.8-flash"];
+  const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"];
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const modelBody = model.startsWith("gemini-2.5")
+        ? {
+            ...body,
+            generationConfig: {
+              ...(body.generationConfig || {}),
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          }
+        : body;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3800);
       const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(modelBody),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       if (resp.ok) {
         const json = await resp.json();
         const candidateText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1319,12 +1398,63 @@ export async function detectVisualModificationsViaCanvas(
       }
     }
 
+    // -------------------------------------------------------------------------
+    // STEP 3: CANVAS PIXEL CALLOUT & BOUNDING ENVELOPE PROFILING
+    // -------------------------------------------------------------------------
+    let canvasCalloutNote = "";
+    try {
+      const S = 280;
+      const c1 = document.createElement("canvas");
+      const c2 = document.createElement("canvas");
+      c1.width = S;
+      c1.height = S;
+      c2.width = S;
+      c2.height = S;
+      const ctx1 = c1.getContext("2d");
+      const ctx2 = c2.getContext("2d");
+      if (ctx1 && ctx2) {
+        ctx1.fillStyle = "#ffffff";
+        ctx1.fillRect(0, 0, S, S);
+        ctx1.drawImage(imgCand, 0, 0, S, S);
+
+        ctx2.fillStyle = "#ffffff";
+        ctx2.fillRect(0, 0, S, S);
+        ctx2.drawImage(imgBase, 0, 0, S, S);
+
+        const dCand = ctx1.getImageData(0, 0, S, S).data;
+        const dBase = ctx2.getImageData(0, 0, S, S).data;
+
+        let redMarkupCount = 0;
+        let candInkCount = 0;
+        let baseInkCount = 0;
+        // Scan central drawing region (excluding outer 10% title-block borders)
+        const margin = Math.floor(S * 0.1);
+        for (let y = margin; y < S - margin; y++) {
+          for (let x = margin; x < S - margin; x++) {
+            const idx = (y * S + x) * 4;
+            const rC = dCand[idx], gC = dCand[idx + 1], bC = dCand[idx + 2];
+            const rB = dBase[idx], gB = dBase[idx + 1], bB = dBase[idx + 2];
+            if (isInk(rC, gC, bC)) candInkCount++;
+            if (isInk(rB, gB, bB)) baseInkCount++;
+            if (rC > 165 && gC < 95 && bC < 95) {
+              redMarkupCount++;
+            }
+          }
+        }
+        if (redMarkupCount > 45) {
+          canvasCalloutNote = `Detected ${redMarkupCount} red architectural markup pixels on candidate drawing sheet (${houseWidthM}m × ${houseLengthM}m CAD baseline).`;
+        }
+      }
+    } catch {
+      // Ignore cross-origin or canvas security exceptions silently
+    }
+
     return {
-      isModified: mods.length > 0,
+      isModified: mods.length > 0 || Boolean(canvasCalloutNote),
       notes:
         mods.length > 0
-          ? mods.map((m) => m.reason).join(" ")
-          : "Standard baseline architectural layout verified via direct plan geometry. Zero area delta noise.",
+          ? mods.map((m) => m.reason).join(" ") + (canvasCalloutNote ? ` ${canvasCalloutNote}` : "")
+          : canvasCalloutNote || "Standard baseline architectural layout verified via direct plan geometry. Zero area delta noise.",
       areaModifications: mods,
     };
   } catch (err) {
@@ -2351,9 +2481,14 @@ export async function analyzeModifiedFloorplanFile(
     // Image file: automatically compress and normalize resolution to ensure fast processing
     if (!dataUrl || !rawText) {
       try {
-        const parsed = await pdfDocumentToPagesAndText(file, 1);
-        if (!rawText) rawText = parsed.rawText || "";
-        if (!dataUrl) dataUrl = parsed.primaryFloorplanDataUrl || parsed.pages[0] || "";
+        const parsed = await Promise.race([
+          pdfDocumentToPagesAndText(file, 1),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200)),
+        ]);
+        if (parsed) {
+          if (!rawText) rawText = parsed.rawText || "";
+          if (!dataUrl) dataUrl = parsed.primaryFloorplanDataUrl || parsed.pages[0] || "";
+        }
       } catch (e) {
         console.warn("Image OCR error in analyzeModifiedFloorplanFile:", e);
       }
@@ -2731,15 +2866,18 @@ export async function analyzeModifiedFloorplanFile(
   const baselineUrl = getBaselineFloorplanImageUrl(detectedModelName);
   const [geminiResult, canvasResult] = await Promise.all([
     dataUrl
-      ? callGeminiFloorplanAnalysis(
-          dataUrl,
-          rawText,
-          detectedModelName,
-          housingType,
-          file.name,
-          cadSpec,
-          stdAreas
-        )
+      ? Promise.race([
+          callGeminiFloorplanAnalysis(
+            dataUrl,
+            rawText,
+            detectedModelName,
+            housingType,
+            file.name,
+            cadSpec,
+            stdAreas
+          ),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 4200)),
+        ])
       : Promise.resolve(null),
     dataUrl
       ? detectVisualModificationsViaCanvas(
@@ -3854,7 +3992,7 @@ export async function analyzeModifiedFloorplanFile(
   const sweepResults = performInternalSweep(`${rawText} ${geminiResult?.analysisNotes || ""}`, detectedModelName);
 
   // Dynamic universal layout clues evaluated from drawings, OCR, Gemini notes, and room geometry:
-  const combinedContext = `${detectedModelName} ${file.name} ${rawText} ${geminiResult?.analysisNotes || ""}`.toLowerCase();
+  const combinedContext = `${detectedModelName} ${file.name.replace(/[_\-]+/g, " ")} ${rawText} ${geminiResult?.analysisNotes || ""}`.toLowerCase();
   const bed1RearEvidence =
     /(?:relocat(?:ed|ing)?|mov(?:ed|ing)|shift(?:ed)?)\s+(?:master|bed\s*1)\s+to\s+(?:the\s+)?rear/i.test(combinedContext) ||
     /(?:master|bed\s*1)\s+(?:relocat(?:ed|ing)?|mov(?:ed|ing)|positioned|located)\s+(?:at|to)\s+(?:the\s+)?rear/i.test(combinedContext) ||
