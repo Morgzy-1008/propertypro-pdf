@@ -45,30 +45,112 @@ import { QrCode } from "@/components/flyer/QrCode";
 function getCategoryIcon(label: string) {
   const l = label.toLowerCase();
   if (l.includes("earthwork") || l.includes("soil") || l.includes("foundation")) {
-    return <Layers className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+    return <Layers className="h-3.5 w-3.5 text-sky-700 flex-none" />;
   }
   if (l.includes("report") || l.includes("overlay")) {
-    return <FileText className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+    return <FileText className="h-3.5 w-3.5 text-indigo-700 flex-none" />;
   }
   if (l.includes("council") || l.includes("statutory") || l.includes("approval")) {
-    return <Building2 className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+    return <Building2 className="h-3.5 w-3.5 text-blue-700 flex-none" />;
   }
   if (l.includes("geotechnical") || l.includes("allowance")) {
-    return <Mountain className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+    return <Mountain className="h-3.5 w-3.5 text-teal-700 flex-none" />;
   }
   if (l.includes("kitchen")) {
-    return <Sparkles className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+    return <Sparkles className="h-3.5 w-3.5 text-amber-700 flex-none" />;
   }
   if (l.includes("bathroom") || l.includes("ensuite")) {
     return <Waves className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
   }
   if (l.includes("floorplan") || l.includes("extension")) {
-    return <Maximize2 className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+    return <Maximize2 className="h-3.5 w-3.5 text-violet-700 flex-none" />;
   }
   if (l.includes("door") || l.includes("window") || l.includes("ceiling")) {
-    return <Home className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+    return <Home className="h-3.5 w-3.5 text-slate-700 flex-none" />;
   }
-  return <PackageCheck className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+  return <PackageCheck className="h-3.5 w-3.5 text-[#0099d8] flex-none" />;
+}
+
+function getCategoryTheme(label: string) {
+  const l = label.toLowerCase();
+  if (l.includes("earthwork") || l.includes("soil") || l.includes("foundation") || l.includes("inclusion / selection")) {
+    return {
+      barBg: "bg-gradient-to-r from-sky-50/90 via-sky-50/50 to-white",
+      borderColor: "border-sky-500",
+      textColor: "text-sky-950",
+      iconColor: "text-sky-600",
+      pillBg: "bg-sky-100 text-sky-900 border-sky-300",
+      icon: Layers,
+    };
+  }
+  if (l.includes("report") || l.includes("overlay")) {
+    return {
+      barBg: "bg-gradient-to-r from-indigo-50/90 via-indigo-50/50 to-white",
+      borderColor: "border-indigo-500",
+      textColor: "text-indigo-950",
+      iconColor: "text-indigo-600",
+      pillBg: "bg-indigo-100 text-indigo-900 border-indigo-300",
+      icon: FileText,
+    };
+  }
+  if (l.includes("council") || l.includes("statutory") || l.includes("approval")) {
+    return {
+      barBg: "bg-gradient-to-r from-blue-50/90 via-blue-50/50 to-white",
+      borderColor: "border-blue-600",
+      textColor: "text-blue-950",
+      iconColor: "text-blue-600",
+      pillBg: "bg-blue-100 text-blue-900 border-blue-300",
+      icon: Building2,
+    };
+  }
+  if (l.includes("geotechnical") || l.includes("allowance")) {
+    return {
+      barBg: "bg-gradient-to-r from-teal-50/90 via-teal-50/50 to-white",
+      borderColor: "border-teal-500",
+      textColor: "text-teal-950",
+      iconColor: "text-teal-600",
+      pillBg: "bg-teal-100 text-teal-900 border-teal-300",
+      icon: Mountain,
+    };
+  }
+  if (l.includes("plan modification") || l.includes("floorplan customisation") || l.includes("extension")) {
+    return {
+      barBg: "bg-gradient-to-r from-violet-50/90 via-violet-50/50 to-white",
+      borderColor: "border-violet-500",
+      textColor: "text-violet-950",
+      iconColor: "text-violet-600",
+      pillBg: "bg-violet-100 text-violet-900 border-violet-300",
+      icon: Maximize2,
+    };
+  }
+  if (l.includes("landscape") || l.includes("turnkey") || l.includes("driveway") || l.includes("paving")) {
+    return {
+      barBg: "bg-gradient-to-r from-emerald-50/90 via-emerald-50/50 to-white",
+      borderColor: "border-emerald-500",
+      textColor: "text-emerald-950",
+      iconColor: "text-emerald-600",
+      pillBg: "bg-emerald-100 text-emerald-900 border-emerald-300",
+      icon: Home,
+    };
+  }
+  if (l.includes("kitchen") || l.includes("bathroom") || l.includes("upgrade") || l.includes("variation") || l.includes("spec")) {
+    return {
+      barBg: "bg-gradient-to-r from-amber-50/90 via-amber-50/50 to-white",
+      borderColor: "border-amber-500",
+      textColor: "text-amber-950",
+      iconColor: "text-amber-600",
+      pillBg: "bg-amber-100 text-amber-900 border-amber-300",
+      icon: Sparkles,
+    };
+  }
+  return {
+    barBg: "bg-gradient-to-r from-slate-50 via-slate-50/50 to-white",
+    borderColor: "border-[#0099d8]",
+    textColor: "text-slate-950",
+    iconColor: "text-[#0099d8]",
+    pillBg: "bg-slate-100 text-slate-900 border-slate-300",
+    icon: PackageCheck,
+  };
 }
 import type { FullQuote, SecondDwellingSelection } from "@/lib/quoting/quoteTypes";
 import { plansForDesign } from "@/components/flyer/floorplans";
@@ -1503,85 +1585,68 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         </div>
 
         {/* Lower Presentation & Architectural Metadata Section (Marketing First Page Layout) */}
-        <div className="px-14 pb-10 pt-4 flex-1 flex flex-col justify-end">
-          {/* Presented To & Site Address Columns */}
-          <div className="grid grid-cols-2 gap-12 mb-14">
+        <div className="px-14 pb-12 pt-4 flex-1 flex flex-col justify-end">
+          {/* Presented To & Site Address Columns — Clean Architectural Typography Without Big Boxes */}
+          <div className="grid grid-cols-2 gap-12 mb-12">
             <div>
               <span
-                className="text-[15px] font-extrabold uppercase tracking-wide block mb-2.5"
+                className="text-[14px] font-black uppercase tracking-wider block mb-2"
                 style={{ color: "#0099d8" }}
               >
                 PRESENTED TO
               </span>
-              <div
-                className="rounded-xs px-4 py-3.5 min-h-[76px] flex flex-col justify-center border border-[#cbd5f7]"
-                style={{ backgroundColor: "#dfe6fc" }}
-              >
-                <div className="text-base font-extrabold text-slate-950 leading-snug">
-                  {clientCombinedNames || "Valued Client"}
-                </div>
-                {(client.clientEmail || client.clientPhone) && (
-                  <div className="text-xs font-semibold text-slate-700 mt-1">
-                    {[client.clientEmail, client.clientPhone].filter(Boolean).join(" · ")}
-                  </div>
-                )}
+              <div className="text-xl font-black text-slate-950 leading-snug">
+                {clientCombinedNames || "Valued Client"}
               </div>
+              {(client.clientEmail || client.clientPhone) && (
+                <div className="text-xs font-semibold text-slate-600 mt-1">
+                  {[client.clientEmail, client.clientPhone].filter(Boolean).join(" · ")}
+                </div>
+              )}
             </div>
 
             <div>
               <span
-                className="text-[15px] font-extrabold uppercase tracking-wide block mb-2.5"
+                className="text-[14px] font-black uppercase tracking-wider block mb-2"
                 style={{ color: "#0099d8" }}
               >
                 SITE ADDRESS
               </span>
-              <div
-                className="rounded-xs px-4 py-3.5 min-h-[76px] flex flex-col justify-center border border-[#cbd5f7]"
-                style={{ backgroundColor: "#dfe6fc" }}
-              >
-                <div className="text-sm font-extrabold text-slate-950 leading-snug">
-                  {client.siteAddress || "Site Address TBA"}
-                </div>
-                <div className="text-xs font-semibold text-slate-700 mt-1">
-                  {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ") || quoteStateFull}
-                </div>
+              <div className="text-base font-black text-slate-950 leading-snug">
+                {client.siteAddress || "Site Address TBA"}
+              </div>
+              <div className="text-xs font-semibold text-slate-600 mt-1">
+                {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ") || quoteStateFull}
               </div>
             </div>
           </div>
 
           {/* 3-Column Bottom Underlined Specification Strip */}
-          <div className="grid grid-cols-3 gap-7 text-xs mb-10">
-            <div className="border-b-[1.5px] border-slate-800 pb-1.5 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-medium text-slate-800 whitespace-nowrap">
+          <div className="grid grid-cols-3 gap-8 text-xs mb-10">
+            <div className="border-b-[1.5px] border-slate-700 pb-2 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                 Selected Design
               </span>
-              <span
-                className="px-3 py-1 rounded-xs font-extrabold text-slate-950 text-xs text-right truncate min-w-[115px]"
-                style={{ backgroundColor: "#dfe6fc" }}
-              >
+              <span className="font-black text-slate-950 text-sm text-right truncate">
                 {effectiveDesignName}
               </span>
             </div>
 
-            <div className="border-b-[1.5px] border-slate-800 pb-1.5 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-medium text-slate-800 whitespace-nowrap">
+            <div className="border-b-[1.5px] border-slate-700 pb-2 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                 Facade Style
               </span>
-              <span
-                className="px-3 py-1 rounded-xs font-extrabold text-slate-950 text-xs text-right truncate min-w-[115px]"
-                style={{ backgroundColor: "#dfe6fc" }}
-              >
+              <span className="font-black text-slate-950 text-sm text-right truncate">
                 {design.facadeName || "Classic"}
               </span>
             </div>
 
-            <div className="border-b-[1.5px] border-slate-800 pb-1.5 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-medium text-slate-800 whitespace-nowrap">
+            <div className="border-b-[1.5px] border-slate-700 pb-2 flex items-baseline justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                 Inclusion Tier
               </span>
               <span
-                className="px-3 py-1 rounded-xs font-extrabold text-slate-950 text-xs text-right truncate min-w-[115px]"
-                style={{ backgroundColor: "#dfe6fc" }}
+                className="font-black text-slate-950 text-sm text-right truncate"
                 title={formatInclusionTierTitle(design.specTier)}
               >
                 {shortInclusionLabel}
@@ -1618,24 +1683,25 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {/* Owner & Estimate Details (Marketing Underlined Architectural Form Layout) */}
           <div className="mb-8">
             <div
-              className="text-[15px] font-extrabold uppercase tracking-wide mb-4"
+              className="text-[17px] font-black uppercase tracking-wide mb-3 flex items-center gap-2"
               style={{ color: "#0099d8" }}
             >
-              OWNER &amp; ESTIMATE DETAILS
+              <FileText className="h-4.5 w-4.5 text-[#0099d8] shrink-0" />
+              <span>OWNER &amp; ESTIMATE DETAILS</span>
             </div>
 
-            <div className="space-y-4 text-xs">
+            <div className="space-y-3.5 text-xs">
               {/* Row 1: Owner/s Details & New Home Consultant */}
               <div className="grid grid-cols-2 gap-10">
-                <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-3">
-                  <span className="text-slate-600 font-medium whitespace-nowrap">Owner/s Details</span>
-                  <span className="font-extrabold text-slate-950 text-right truncate">
+                <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Owner/s Details</span>
+                  <span className="font-black text-slate-950 text-xs sm:text-[13px] text-right truncate">
                     {clientCombinedNames || "Client Name"}
                   </span>
                 </div>
-                <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-3">
-                  <span className="text-slate-600 font-medium whitespace-nowrap">New Home Consultant</span>
-                  <span className="font-extrabold text-slate-950 text-right truncate">
+                <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">New Home Consultant</span>
+                  <span className="font-black text-slate-950 text-xs sm:text-[13px] text-right truncate">
                     {client.consultantName || "Morgan Hales"}
                     {client.consultantPhone ? ` · ${client.consultantPhone}` : ""}
                   </span>
@@ -1643,32 +1709,32 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               </div>
 
               {/* Row 2: Proposed Site Address */}
-              <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-4">
-                <span className="text-slate-600 font-medium whitespace-nowrap">Proposed Site Address</span>
-                <span className="font-extrabold text-slate-950 text-right truncate">
+              <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-4">
+                <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Proposed Site Address</span>
+                <span className="font-black text-slate-950 text-xs sm:text-[13px] text-right truncate">
                   {siteAddressFull}
                 </span>
               </div>
 
               {/* Row 3: Estimate No/ Version & Estimate Valid To */}
-              <div className="grid grid-cols-2 gap-10 pt-1">
-                <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-3">
-                  <span className="text-slate-600 font-medium whitespace-nowrap">Estimate No/ Version</span>
-                  <span className="font-extrabold text-slate-950 font-mono text-right">
+              <div className="grid grid-cols-2 gap-10 pt-0.5">
+                <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Estimate No/ Version</span>
+                  <span className="font-black text-slate-950 font-mono text-xs sm:text-[13px] text-right">
                     {quote.quoteNumber || "MH678"} / Version {client.estimateVersion || 1}
                   </span>
                 </div>
-                <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-3">
-                  <span className="text-slate-600 font-medium whitespace-nowrap">Estimate Valid To</span>
-                  <span className="font-extrabold text-slate-950 font-mono text-right">
+                <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-3">
+                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Estimate Valid To</span>
+                  <span className="font-black text-slate-950 font-mono text-xs sm:text-[13px] text-right">
                     {formattedValidDate} (14-Day Validity)
                   </span>
                 </div>
               </div>
 
               {/* Row 4: Consultant Notes */}
-              <div className="border-b border-slate-500 pb-1.5 flex items-baseline justify-between gap-4">
-                <span className="text-slate-600 font-medium whitespace-nowrap">Consultant Notes</span>
+              <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-4">
+                <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Consultant Notes</span>
                 <span className="font-semibold text-slate-800 text-right truncate">
                   {client.notes || `${client.consultantOffice || "Display Centre"} · Issued ${formattedCreatedDate}`}
                 </span>
@@ -1679,20 +1745,18 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {/* Itemized Construction Cost Summary Table (Marketing Page 2 Table Design) */}
           <div className="mb-7">
             <div
-              className="text-[15px] font-extrabold uppercase tracking-wide mb-3"
+              className="text-[17px] font-black uppercase tracking-wide mb-3 flex items-center gap-2"
               style={{ color: "#0099d8" }}
             >
-              ESTIMATED CONSTRUCTION COST SUMMARY
+              <Layers className="h-4.5 w-4.5 text-[#0099d8] shrink-0" />
+              <span>ESTIMATED CONSTRUCTION COST SUMMARY</span>
             </div>
 
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr
-                  className="text-slate-900 uppercase text-[11px] font-extrabold tracking-wider"
-                  style={{ backgroundColor: "#e6e7e8" }}
-                >
-                  <th className="py-2.5 px-4 text-left">DESCRIPTION</th>
-                  <th className="py-2.5 px-4 text-right w-40">AMOUNT</th>
+                <tr className="text-white uppercase text-[11.5px] font-black tracking-wider bg-slate-900 border-b-2 border-[#0099d8]">
+                  <th className="py-2.5 px-4 text-left text-white">DESCRIPTION</th>
+                  <th className="py-2.5 px-4 text-right w-44 text-white">AMOUNT</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 border-b border-slate-300">
@@ -1708,18 +1772,18 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   return (
                     <tr className="bg-white">
                       <td className="py-3 px-4">
-                        <div className="text-slate-950 font-extrabold text-[13px]">
+                        <div className="text-slate-950 font-black text-[13.5px] sm:text-sm">
                           {design.mode === "standard" || isMod
                             ? `${effectiveDesignName} with ${formatInclusionTierTitle(design.specTier)}`
                             : `Custom Architectural Floorplan (${design.customSpec?.storeys === "double" ? "Two" : "Single"} Storey)`}
                         </div>
-                        <div className="text-[11px] text-slate-600 mt-0.5">
+                        <div className="text-[11.5px] text-slate-600 mt-0.5">
                           {isMod && modCalc
                             ? `Standard brochure baseline ${modCalc.standardTotalM2.toFixed(2)} m2 (${(modCalc.standardTotalM2 * 0.107639).toFixed(1)} sq) · Modified Total Area ${modCalc.modifiedTotalM2.toFixed(2)} m2`
                             : `Living area ${totalAreaM2} m2 (${(totalAreaM2 * 0.107639).toFixed(1)} sq) · GFA Platform ${pricing.gfaM2} m2`}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                      <td className="py-3 px-4 text-right font-black text-slate-950 text-sm">
                         {formatAud(stdBaselinePrice)}
                       </td>
                     </tr>
@@ -1730,16 +1794,16 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 {pricing.facadePrice > 0 && (
                   <tr className="bg-white">
                     <td className="py-2.5 px-4">
-                      <div className="font-extrabold text-slate-950 text-[13px]">
+                      <div className="font-black text-slate-950 text-[13.5px] sm:text-sm">
                         Selected Facade Upgrade: {design.facadeName}
                       </div>
                       {design.isCustomFacade && design.customFacadeDescription && (
-                        <div className="text-[11px] text-slate-600 mt-0.5">
+                        <div className="text-[11.5px] text-slate-600 mt-0.5">
                           {design.customFacadeDescription}
                         </div>
                       )}
                     </td>
-                    <td className="py-2.5 px-4 text-right font-extrabold text-slate-950 text-xs">
+                    <td className="py-2.5 px-4 text-right font-black text-slate-950 text-sm">
                       +{formatAud(pricing.facadePrice)}
                     </td>
                   </tr>
@@ -1747,16 +1811,16 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
                 {/* Builder Promotion in Marketing's Sage Green Highlight */}
                 {pricing.promotionsDiscount > 0 && (
-                  <tr style={{ backgroundColor: "#e8f0d8" }}>
+                  <tr className="bg-emerald-50/80 border-l-4 border-emerald-500">
                     <td className="py-3 px-4">
-                      <div className="font-extrabold text-slate-950 text-[13px]">
+                      <div className="font-black text-emerald-950 text-[13.5px] sm:text-sm">
                         {pricing.promotionName || "Hudson Special Builder Promotion"}
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-0.5">
+                      <div className="text-[11.5px] text-emerald-800 mt-0.5">
                         Automated builder promotion applied to base house price
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                    <td className="py-3 px-4 text-right font-black text-emerald-700 text-sm">
                       -{formatAud(pricing.promotionsDiscount)}
                     </td>
                   </tr>
@@ -1764,16 +1828,16 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
                 {/* Plan Modifications & Architectural Area Adjustments */}
                 {isModPlan && modPricingCalc && modCostAdjustment !== 0 && (
-                  <tr className="bg-amber-50/70">
+                  <tr className="bg-violet-50/70 border-l-4 border-violet-500">
                     <td className="py-3 px-4">
-                      <div className="font-extrabold text-slate-950 text-[13px]">
+                      <div className="font-black text-slate-950 text-[13.5px] sm:text-sm">
                         Plan Modifications &amp; Architectural Area Adjustments (Altered: {modPricingCalc.modifiedTotalM2.toFixed(2)} m2):
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-0.5">
+                      <div className="text-[11.5px] text-slate-600 mt-0.5">
                         Structural floorplan alterations to standard brochure baseline layout ({modPricingCalc.zones.filter((z) => z.deltaM2 !== 0).length} modified zone{modPricingCalc.zones.filter((z) => z.deltaM2 !== 0).length === 1 ? "" : "s"} — see Specification Schedule)
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                    <td className="py-3 px-4 text-right font-black text-slate-950 text-sm">
                       {modCostAdjustment >= 0
                         ? `+${formatAud(modCostAdjustment)}`
                         : `-${formatAud(Math.abs(modCostAdjustment))}`}
@@ -1783,16 +1847,16 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
                 {/* 2nd Dwelling / Auxiliary Unit if selected */}
                 {design.hasSecondDwelling && design.secondDwelling?.enabled && (
-                  <tr className="bg-cyan-50/60">
+                  <tr className="bg-cyan-50/70 border-l-4 border-cyan-500">
                     <td className="py-3 px-4">
-                      <div className="font-extrabold text-slate-950 text-[13px]">
+                      <div className="font-black text-slate-950 text-[13.5px] sm:text-sm">
                         2nd Dwelling / Auxiliary Home ({design.secondDwelling.designName} · {design.secondDwelling.designM2} m2):
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-0.5">
+                      <div className="text-[11.5px] text-slate-600 mt-0.5">
                         {design.secondDwelling.specTier} • {design.secondDwelling.facadeName} Facade • Architectural layout on Page 4
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                    <td className="py-3 px-4 text-right font-black text-slate-950 text-sm">
                       +{formatAud((Number(design.secondDwelling.basePrice) || 0) + (Number(design.secondDwelling.facadePrice) || 0))}
                     </td>
                   </tr>
@@ -1802,14 +1866,14 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 {pricing.exposedDrivewayCost > 0 && !design.landscapingSelected && (
                   <tr className="bg-white">
                     <td className="py-3 px-4">
-                      <div className="font-extrabold text-slate-950 text-[13px]">
+                      <div className="font-black text-slate-950 text-[13.5px] sm:text-sm">
                         Exposed Aggregate Concrete Driveway &amp; Porch Path ({design.exposedDrivewayM2 || 55} m2):
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-0.5">
+                      <div className="text-[11.5px] text-slate-600 mt-0.5">
                         Exposed aggregate concrete paving from council crossover to double garage and front entry porch
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                    <td className="py-3 px-4 text-right font-black text-slate-950 text-sm">
                       +{formatAud(pricing.exposedDrivewayCost)}
                     </td>
                   </tr>
@@ -1817,16 +1881,16 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
                 {/* Turnkey Landscaping Package Row */}
                 {(pricing.landscapingCost !== 0 || design.landscapingSelected) && (
-                  <tr className="bg-white">
+                  <tr className="bg-emerald-50/40 border-l-4 border-emerald-500">
                     <td className="py-3 px-4">
-                      <div className="font-extrabold text-slate-950 text-[13px]">
+                      <div className="font-black text-slate-950 text-[13.5px] sm:text-sm">
                         Turnkey Landscaping &amp; Paving Package ({design.landscapingLandSize || 450} m2 Lot):
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-0.5">
+                      <div className="text-[11.5px] text-slate-600 mt-0.5">
                         Detailed in Advanced Estimate Specification schedule
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                    <td className="py-3 px-4 text-right font-black text-slate-950 text-sm">
                       {pricing.landscapingCost < 0
                         ? `-${formatAud(Math.abs(pricing.landscapingCost))}`
                         : pricing.landscapingCost === 0
@@ -1838,16 +1902,16 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
                 {/* Site Specific Earthworks, Engineering & Statutory Requirements */}
                 {totalSiteAndStatutorySubtotal > 0 && (
-                  <tr className="bg-white">
+                  <tr className="bg-sky-50/30">
                     <td className="py-3 px-4">
-                      <div className="font-extrabold text-slate-950 text-[13px]">
+                      <div className="font-black text-slate-950 text-[13.5px] sm:text-sm">
                         Site Specific Earthworks, Engineering &amp; Statutory Requirements:
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-0.5">
+                      <div className="text-[11.5px] text-slate-600 mt-0.5">
                         Detailed in Advanced Estimate Specification schedule ({formattedSoilClass}, {siteConditions.fallMeters || 0} m Fall, {siteConditions.councilRegion || "Local Council"})
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                    <td className="py-3 px-4 text-right font-black text-slate-950 text-sm">
                       +{formatAud(totalSiteAndStatutorySubtotal)}
                     </td>
                   </tr>
@@ -1855,12 +1919,12 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
                 {/* Estimate Variations & Custom Upgrades */}
                 {(totalVariationsAmount !== 0 || variationGroups.some((g) => g.items.length > 0)) && (
-                  <tr className="bg-white">
+                  <tr className="bg-amber-50/30">
                     <td className="py-3 px-4">
-                      <div className="font-extrabold text-slate-950 text-[13px]">
+                      <div className="font-black text-slate-950 text-[13.5px] sm:text-sm">
                         Estimate Variations &amp; Custom Upgrades:
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-0.5">
+                      <div className="text-[11.5px] text-slate-600 mt-0.5">
                         Detailed in Advanced Estimate Specification schedule
                         {variationGroups.flatMap((g) => g.items).length <= 4 &&
                           variationGroups.flatMap((g) => g.items).length > 0 && (
@@ -1873,7 +1937,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                           )}
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-extrabold text-slate-950 text-xs">
+                    <td className="py-3 px-4 text-right font-black text-slate-950 text-sm">
                       {totalVariationsAmount > 0
                         ? `+${formatAud(totalVariationsAmount)}`
                         : totalVariationsAmount < 0
@@ -1883,21 +1947,15 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   </tr>
                 )}
 
-                {/* Total Cost Line (Marketing Dark Charcoal Bar) */}
-                <tr
-                  className="text-white font-extrabold"
-                  style={{ backgroundColor: "#58595b" }}
-                >
-                  <td
-                    className="py-3.5 px-4 uppercase tracking-wide text-white font-extrabold text-xs"
-                    style={{ color: "#ffffff", backgroundColor: "#58595b" }}
-                  >
-                    TOTAL ESTIMATED BUILDERS INVESTMENT (INC. GST)
+                {/* Total Cost Line (Executive Midnight Gradient Bar with Gold Accent) */}
+                <tr className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white border-t-2 border-amber-400">
+                  <td className="py-3.5 px-4 uppercase tracking-wider font-black text-xs sm:text-[13px] text-white">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span>TOTAL ESTIMATED BUILDERS INVESTMENT (INC. GST)</span>
+                    </div>
                   </td>
-                  <td
-                    className="py-3.5 px-4 text-right text-base font-extrabold text-white"
-                    style={{ color: "#ffffff", backgroundColor: "#58595b" }}
-                  >
+                  <td className="py-3.5 px-4 text-right text-lg sm:text-xl font-black text-amber-300 font-mono tracking-tight">
                     {formatAud(pricing.grossEstimatedInvestment)}
                   </td>
                 </tr>
@@ -1921,12 +1979,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         <div className="pt-4 flex items-center justify-between text-[9.5px] text-slate-600">
           <div>{footerLicenceLine}</div>
           <div className="flex items-center gap-4">
-            <div
-              className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
-              style={{ backgroundColor: "#e6e7e8" }}
-            >
-              <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
-              <div className="bg-white w-20 h-5" />
+            <div className="px-3 py-1.5 rounded-xs flex items-center gap-2.5 bg-slate-100 border border-slate-300">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Customer Initial</span>
+              <div className="bg-white w-20 h-5 border border-slate-200" />
             </div>
             <div className="font-mono text-[9px] text-slate-400">Page 2 of {totalPages}</div>
           </div>
@@ -1938,57 +1993,65 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       {/* ========================================================================= */}
       <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Marketing Page 3 Header */}
-          <div className="flex items-start justify-between border-b border-slate-500 pb-3 mb-2.5 flex-none">
+          {/* Page 3 Header */}
+          <div className="flex items-start justify-between border-b-2 border-slate-800 pb-3 mb-2 flex-none">
             <div>
-              <div className="text-[11px] font-normal uppercase tracking-wider text-slate-600">
-                ARCHITECTURAL ELEVATION &amp; FLOORPLAN SPECIFICATIONS
+              <div
+                className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5"
+                style={{ color: "#0099d8" }}
+              >
+                <Home className="h-3.5 w-3.5 text-[#0099d8] shrink-0" />
+                <span>ARCHITECTURAL ELEVATION &amp; FLOORPLAN SPECIFICATIONS</span>
               </div>
-              <h2 className="text-2xl font-extrabold text-slate-950 tracking-tight uppercase mt-0.5">
+              <h2 className="text-2xl sm:text-[25px] font-black text-slate-950 tracking-tight uppercase mt-0.5">
                 {effectiveDesignName || (design.mode === "standard" ? "HUDSON HOMES ARCHITECTURAL PLAN" : "CUSTOM ARCHITECTURAL FLOORPLAN")}
                 {design.specTier ? ` - ${formatInclusionTierTitle(design.specTier).replace(/\s*\(\d{4}\)/, "").toUpperCase()}` : ""}
               </h2>
-              <div className="text-xs font-extrabold text-slate-950 mt-1">
-                Selected Facade: {design.facadeName || "Classic"}
-                {design.widthM && design.lengthM
-                  ? ` • Dimensions: ${String(design.widthM).replace(/m+$/i, "")}m wide x ${String(design.lengthM).replace(/m+$/i, "")}m deep`
-                  : ""}
+              <div className="text-xs font-black text-slate-950 mt-1 flex items-center gap-2">
+                <span className="bg-sky-100 text-sky-900 border border-sky-300 px-2 py-0.5 rounded-xs">
+                  Selected Facade: {design.facadeName || "Classic"}
+                </span>
+                {design.widthM && design.lengthM && (
+                  <span className="text-slate-600 font-semibold">
+                    Dimensions: {String(design.widthM).replace(/m+$/i, "")}m wide × {String(design.lengthM).replace(/m+$/i, "")}m deep
+                  </span>
+                )}
               </div>
             </div>
-            <div className="text-right flex-none">
-              <span className="text-xs text-slate-600 block uppercase tracking-wider">TOTAL AREA</span>
-              <span className="text-base font-extrabold text-slate-950 block mt-1">
-                {totalAreaM2} M2 ({(totalAreaM2 * 0.107639).toFixed(1)} SQ)
+            <div className="text-right flex-none bg-slate-50 border border-slate-200/90 rounded-sm px-3.5 py-1.5">
+              <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider">TOTAL AREA</span>
+              <span className="text-base font-black text-slate-950 block">
+                {totalAreaM2} M² ({(totalAreaM2 * 0.107639).toFixed(1)} SQ)
               </span>
             </div>
           </div>
 
-          {/* Area Schedule Row Directly Above Facade Image (Marketing Page 3 Layout) */}
+          {/* Area Schedule Row Directly Above Facade Image */}
           {(() => {
             const modCalc = calculateModifiedFloorplanPricing(design);
             return (
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs py-1.5 mb-2 flex-none">
-                <span className="text-slate-600 font-normal">Area Schedule:</span>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs py-1.5 mb-2 px-3 bg-slate-50/80 border border-slate-200 rounded-sm flex-none">
+                <span className="text-slate-600 font-bold uppercase text-[10.5px] tracking-wider">Area Schedule:</span>
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
                   {modCalc.zones.map((z) => (
                     <span key={z.key} className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
-                      <span className="text-slate-600">
+                      <span className="text-slate-600 text-[11px]">
                         {z.label.replace(" Area", "").replace(" (Optional)", "")}
                       </span>
-                      <strong className="font-extrabold text-slate-950">
-                        {z.modifiedM2.toFixed(1)} m2
+                      <strong className="font-black text-slate-950 text-xs">
+                        {z.modifiedM2.toFixed(1)} m²
                       </strong>
                       {z.deltaM2 !== 0 && (
-                        <span className="text-[9.5px] font-bold text-amber-800">
+                        <span className="text-[9.5px] font-black text-amber-700 bg-amber-50 px-1 rounded-xs">
                           ({z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(1)}` : z.deltaM2.toFixed(1)})
                         </span>
                       )}
                     </span>
                   ))}
                 </div>
-                <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
-                  <span className="text-slate-600 uppercase">TOTAL</span>
-                  <strong className="font-extrabold text-slate-950">{totalAreaM2.toFixed(1)} m2</strong>
+                <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap bg-white px-2 py-0.5 rounded-xs border border-slate-200">
+                  <span className="text-slate-600 uppercase text-[10.5px] font-bold">TOTAL</span>
+                  <strong className="font-black text-slate-950 text-xs">{totalAreaM2.toFixed(1)} m²</strong>
                 </span>
               </div>
             );
@@ -1997,50 +2060,47 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {/* 1. Chosen Facade Render */}
           <QuoteFacadeViewer design={design} />
 
-          {/* 2. 4-Column Key Specs Strip Between Facade & Floorplan (Marketing Page 3 Layout) */}
-          <div className="grid grid-cols-4 gap-6 py-2.5 mb-2 flex-none">
-            <div>
-              <span className="text-[11px] text-slate-500 block">Bedrooms</span>
-              <span className="text-base font-bold text-slate-900">
+          {/* 2. 4-Column Key Specs Strip (Clean, Crisp Cards with Subtle Top Accent) */}
+          <div className="grid grid-cols-4 gap-3 py-2 mb-2 flex-none">
+            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-[#0099d8] rounded-sm p-2 text-center">
+              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Bedrooms</span>
+              <span className="text-base font-black text-slate-950 mt-0.5 block">
                 {design.beds || (design as any).bedrooms || 4} Beds
               </span>
             </div>
-            <div>
-              <span className="text-[11px] text-slate-500 block">Bathrooms</span>
-              <span className="text-base font-bold text-slate-900">
+            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-cyan-600 rounded-sm p-2 text-center">
+              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Bathrooms</span>
+              <span className="text-base font-black text-slate-950 mt-0.5 block">
                 {design.baths || (design as any).bathrooms || 2} Baths
               </span>
             </div>
-            <div>
-              <span className="text-[11px] text-slate-500 block">Garage</span>
-              <span className="text-base font-bold text-slate-900">
+            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-indigo-600 rounded-sm p-2 text-center">
+              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Garage</span>
+              <span className="text-base font-black text-slate-950 mt-0.5 block">
                 {design.cars || (design as any).garage || 2} Cars
               </span>
             </div>
-            <div>
-              <span className="text-[11px] text-slate-500 block">GFA Platform</span>
-              <span className="text-base font-bold text-slate-900">
+            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-emerald-600 rounded-sm p-2 text-center">
+              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">GFA Platform</span>
+              <span className="text-base font-black text-slate-950 mt-0.5 block">
                 {pricing.gfaM2} m²
               </span>
             </div>
           </div>
 
           {/* 3. Architectural Floorplan Layout Drawing (Maximized in Crisp Bordered Frame) */}
-          <div className="flex-1 w-full border border-slate-500 p-2 bg-white flex items-center justify-center overflow-hidden mt-auto">
+          <div className="flex-1 w-full border border-slate-300 rounded-sm shadow-xs p-2 bg-white flex items-center justify-center overflow-hidden mt-auto">
             <QuoteFloorplanViewer design={design} />
           </div>
         </div>
 
-        {/* Page 3 Marketing Footer */}
-        <div className="pt-3 flex items-center justify-between text-[9.5px] text-slate-600 flex-none mt-2">
+        {/* Page 3 Footer */}
+        <div className="pt-3 flex items-center justify-between text-[9.5px] text-slate-600 flex-none mt-2 border-t border-slate-200">
           <div>{footerLicenceLine}</div>
           <div className="flex items-center gap-4">
-            <div
-              className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
-              style={{ backgroundColor: "#e6e7e8" }}
-            >
-              <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
-              <div className="bg-white w-20 h-5" />
+            <div className="px-3 py-1.5 rounded-xs flex items-center gap-2.5 bg-slate-100 border border-slate-300">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Customer Initial</span>
+              <div className="bg-white w-20 h-5 border border-slate-200" />
             </div>
             <div className="font-mono text-[9px] text-slate-400">Page 3 of {totalPages}</div>
           </div>
@@ -2054,49 +2114,57 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
-            <div className="flex items-start justify-between border-b border-slate-500 pb-3 mb-2.5 flex-none">
+            <div className="flex items-start justify-between border-b-2 border-slate-800 pb-3 mb-2 flex-none">
               <div>
-                <div className="text-[11px] font-normal uppercase tracking-wider text-slate-600">
-                  2ND DWELLING / AUXILIARY RESIDENCE ARCHITECTURAL SPECIFICATION
+                <div
+                  className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5"
+                  style={{ color: "#0099d8" }}
+                >
+                  <Building2 className="h-3.5 w-3.5 text-[#0099d8] shrink-0" />
+                  <span>2ND DWELLING / AUXILIARY RESIDENCE ARCHITECTURAL SPECIFICATION</span>
                 </div>
-                <h2 className="text-2xl font-extrabold text-slate-950 uppercase mt-0.5">
+                <h2 className="text-2xl sm:text-[25px] font-black text-slate-950 uppercase mt-0.5">
                   {secondDwelling.designName} - {secondDwelling.specTier}
                 </h2>
-                <div className="text-xs font-extrabold text-slate-950 mt-1">
-                  Selected Facade: {secondDwelling.facadeName || "Classic"}
+                <div className="text-xs font-black text-slate-950 mt-1 flex items-center gap-2">
+                  <span className="bg-cyan-100 text-cyan-900 border border-cyan-300 px-2 py-0.5 rounded-xs">
+                    Selected Facade: {secondDwelling.facadeName || "Classic"}
+                  </span>
                   {secondDwelling.widthM && secondDwelling.lengthM && (
-                    <span> • Dimensions: {String(secondDwelling.widthM).replace(/m+$/i, "")}m wide x {String(secondDwelling.lengthM).replace(/m+$/i, "")}m deep</span>
+                    <span className="text-slate-600 font-semibold">
+                      Dimensions: {String(secondDwelling.widthM).replace(/m+$/i, "")}m wide × {String(secondDwelling.lengthM).replace(/m+$/i, "")}m deep
+                    </span>
                   )}
                 </div>
               </div>
-              <div className="text-right flex-none">
-                <span className="text-xs text-slate-600 block uppercase tracking-wider">2ND DWELLING AREA</span>
-                <span className="text-base font-extrabold text-slate-950 block mt-1">
-                  {secondDwelling.designM2} M2 ({(secondDwelling.designM2 * 0.107639).toFixed(1)} SQ)
+              <div className="text-right flex-none bg-slate-50 border border-slate-200/90 rounded-sm px-3.5 py-1.5">
+                <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider">2ND DWELLING AREA</span>
+                <span className="text-base font-black text-slate-950 block">
+                  {secondDwelling.designM2} M² ({(secondDwelling.designM2 * 0.107639).toFixed(1)} SQ)
                 </span>
               </div>
             </div>
 
             {/* Area Schedule Row */}
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs py-1.5 mb-2 flex-none">
-              <span className="text-slate-600 font-normal">Area Schedule:</span>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs py-1.5 mb-2 px-3 bg-slate-50/80 border border-slate-200 rounded-sm flex-none">
+              <span className="text-slate-600 font-bold uppercase text-[10.5px] tracking-wider">Area Schedule:</span>
               <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
                 <span>
-                  <span className="text-slate-600">Living </span>
-                  <strong className="font-extrabold text-slate-950">
-                    {(secondDwelling.modifiedAreas?.livingM2 || secondDwelling.standardAreas?.livingM2 || Math.round(secondDwelling.designM2 * 0.85)).toFixed(1)} m2
+                  <span className="text-slate-600 text-[11px]">Living </span>
+                  <strong className="font-black text-slate-950 text-xs">
+                    {(secondDwelling.modifiedAreas?.livingM2 || secondDwelling.standardAreas?.livingM2 || Math.round(secondDwelling.designM2 * 0.85)).toFixed(1)} m²
                   </strong>
                 </span>
                 <span>
-                  <span className="text-slate-600">Porch / Outdoor </span>
-                  <strong className="font-extrabold text-slate-950">
-                    {(secondDwelling.modifiedAreas?.porchM2 || secondDwelling.standardAreas?.porchM2 || Math.round(secondDwelling.designM2 * 0.15)).toFixed(1)} m2
+                  <span className="text-slate-600 text-[11px]">Porch / Outdoor </span>
+                  <strong className="font-black text-slate-950 text-xs">
+                    {(secondDwelling.modifiedAreas?.porchM2 || secondDwelling.standardAreas?.porchM2 || Math.round(secondDwelling.designM2 * 0.15)).toFixed(1)} m²
                   </strong>
                 </span>
               </div>
-              <span>
-                <span className="text-slate-600 uppercase">TOTAL </span>
-                <strong className="font-extrabold text-slate-950">{secondDwelling.designM2.toFixed(1)} m2</strong>
+              <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap bg-white px-2 py-0.5 rounded-xs border border-slate-200">
+                <span className="text-slate-600 uppercase text-[10.5px] font-bold">TOTAL </span>
+                <strong className="font-black text-slate-950 text-xs">{secondDwelling.designM2.toFixed(1)} m²</strong>
               </span>
             </div>
 
@@ -2104,41 +2172,38 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             <QuoteSecondFacadeViewer secondDwelling={secondDwelling} />
 
             {/* 2. 4-Column Key Configuration */}
-            <div className="grid grid-cols-4 gap-6 py-2.5 mb-2 flex-none">
-              <div>
-                <span className="text-[11px] text-slate-500 block">Bedrooms</span>
-                <span className="text-base font-bold text-slate-900">{secondDwelling.beds || 2} Beds</span>
+            <div className="grid grid-cols-4 gap-3 py-2 mb-2 flex-none">
+              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-[#0099d8] rounded-sm p-2 text-center">
+                <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Bedrooms</span>
+                <span className="text-base font-black text-slate-950 mt-0.5 block">{secondDwelling.beds || 2} Beds</span>
               </div>
-              <div>
-                <span className="text-[11px] text-slate-500 block">Bathrooms</span>
-                <span className="text-base font-bold text-slate-900">{secondDwelling.baths || 1} Bath</span>
+              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-cyan-600 rounded-sm p-2 text-center">
+                <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Bathrooms</span>
+                <span className="text-base font-black text-slate-950 mt-0.5 block">{secondDwelling.baths || 1} Bath</span>
               </div>
-              <div>
-                <span className="text-[11px] text-slate-500 block">Garage</span>
-                <span className="text-base font-bold text-slate-900">{secondDwelling.cars || 0} Cars</span>
+              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-indigo-600 rounded-sm p-2 text-center">
+                <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Garage</span>
+                <span className="text-base font-black text-slate-950 mt-0.5 block">{secondDwelling.cars || 0} Cars</span>
               </div>
-              <div>
-                <span className="text-[11px] text-slate-500 block">Dwelling Type</span>
-                <span className="text-base font-bold text-slate-900">{secondDwelling.housingType}</span>
+              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-emerald-600 rounded-sm p-2 text-center">
+                <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Dwelling Type</span>
+                <span className="text-base font-black text-slate-950 mt-0.5 block truncate">{secondDwelling.housingType}</span>
               </div>
             </div>
 
             {/* 3. Floorplan Layout Drawing (Maximized in Crisp Bordered Frame) */}
-            <div className="flex-1 w-full border border-slate-500 p-2 bg-white flex items-center justify-center overflow-hidden mt-auto">
+            <div className="flex-1 w-full border border-slate-300 rounded-sm shadow-xs p-2 bg-white flex items-center justify-center overflow-hidden mt-auto">
               <QuoteSecondFloorplanViewer secondDwelling={secondDwelling} />
             </div>
           </div>
 
-          {/* Page 4 Marketing Footer */}
-          <div className="pt-3 flex items-center justify-between text-[9.5px] text-slate-600 flex-none mt-2">
+          {/* Page 4 Footer */}
+          <div className="pt-3 flex items-center justify-between text-[9.5px] text-slate-600 flex-none mt-2 border-t border-slate-200">
             <div>{footerLicenceLine}</div>
             <div className="flex items-center gap-4">
-              <div
-                className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
-                style={{ backgroundColor: "#e6e7e8" }}
-              >
-                <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
-                <div className="bg-white w-20 h-5" />
+              <div className="px-3 py-1.5 rounded-xs flex items-center gap-2.5 bg-slate-100 border border-slate-300">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Customer Initial</span>
+                <div className="bg-white w-20 h-5 border border-slate-200" />
               </div>
               <div className="font-mono text-[9px] text-slate-400">Page 4 of {totalPages}</div>
             </div>
@@ -2159,29 +2224,35 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always"
           >
             <div>
-              {/* Marketing Spec Page Header */}
-              <div className="flex items-start justify-between border-b border-slate-500 pb-3 mb-2.5">
+              {/* Spec Page Header */}
+              <div className="flex items-start justify-between border-b-2 border-slate-800 pb-3 mb-2.5">
                 <div>
-                  <div className="text-[11px] font-normal uppercase tracking-wider text-slate-600">
-                    {isFirstSpecPage
-                      ? "SITE ENGINEERING, STATUTORY & VARIATIONS SCHEDULE"
-                      : "SPECIFICATION VARIATIONS & UPGRADES (CONTINUED)"}
+                  <div
+                    className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5"
+                    style={{ color: "#0099d8" }}
+                  >
+                    <PackageCheck className="h-3.5 w-3.5 text-[#0099d8] shrink-0" />
+                    <span>
+                      {isFirstSpecPage
+                        ? "SITE ENGINEERING, STATUTORY & VARIATIONS SCHEDULE"
+                        : "SPECIFICATION VARIATIONS & UPGRADES (CONTINUED)"}
+                    </span>
                   </div>
-                  <h2 className="text-2xl font-extrabold text-slate-950 uppercase tracking-tight mt-0.5">
+                  <h2 className="text-2xl sm:text-[25px] font-black text-slate-950 uppercase tracking-tight mt-0.5">
                     {isFirstSpecPage
                       ? "ADVANCED ESTIMATE SPECIFICATION"
                       : `ADVANCED ESTIMATE SPECIFICATION (PAGE ${pageIdx + 1})`}
                   </h2>
                 </div>
-                <div className="text-right">
-                  <span className="text-[11px] text-slate-600 block uppercase tracking-wider">
+                <div className="text-right bg-slate-50 border border-slate-200/90 rounded-sm px-3.5 py-1.5 flex-none">
+                  <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-bold">
                     {isFirstSpecPage && specPages.length === 1
                       ? "SPECIFICATION & VARIATIONS TOTAL"
                       : isFirstSpecPage
                       ? "SPECIFICATION & VARIATIONS TOTAL"
                       : "PAGE SUBTOTAL"}
                   </span>
-                  <span className="text-lg font-extrabold text-slate-950 block mt-0.5">
+                  <span className="text-lg font-black text-slate-950 block mt-0.5 font-mono">
                     {(() => {
                       const displayTotal = isFirstSpecPage
                         ? totalSpecAndVariations
@@ -2196,90 +2267,92 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 </div>
               </div>
 
-              {/* Single-Line Site Metadata Strip (Marketing Pages 4 & 5 Layout) */}
-              <div className="flex items-center justify-between text-xs py-1.5 mb-3.5 text-slate-700">
+              {/* Single-Line Site Metadata Strip */}
+              <div className="flex items-center justify-between text-xs py-2 px-4 mb-3.5 bg-slate-50 border border-slate-200/90 rounded-sm text-slate-800">
                 <div>
-                  <span className="font-bold text-slate-900">Council Jurisdiction </span>
-                  <span>{siteConditions.councilRegion || "Standard Jurisdiction"}</span>
+                  <span className="font-bold text-slate-500 uppercase text-[10.5px]">Council: </span>
+                  <span className="font-black text-slate-950">{siteConditions.councilRegion || "Standard Jurisdiction"}</span>
                 </div>
                 <div>
-                  <span className="font-bold text-slate-900">Soil </span>
-                  <span>{formattedSoilClass}</span>
+                  <span className="font-bold text-slate-500 uppercase text-[10.5px]">Soil: </span>
+                  <span className="font-black text-slate-950">{formattedSoilClass}</span>
                 </div>
                 <div>
-                  <span className="font-bold text-slate-900">Topography Fall </span>
-                  <span>{siteConditions.fallMeters ?? 0}m</span>
+                  <span className="font-bold text-slate-500 uppercase text-[10.5px]">Topography Fall: </span>
+                  <span className="font-black text-slate-950">{siteConditions.fallMeters ?? 0}m</span>
                 </div>
                 <div>
-                  <span className="font-bold text-slate-900">Building Pad </span>
-                  <strong className="font-extrabold text-slate-950">{pricing.gfaM2} m2</strong>
-                  <span> GFA</span>
+                  <span className="font-bold text-slate-500 uppercase text-[10.5px]">Building Pad: </span>
+                  <span className="font-black text-slate-950">{pricing.gfaM2} m² GFA</span>
                 </div>
               </div>
 
-              {/* Specification Tables (Marketing Clean Grey Header Bars & Tabular Rows) */}
+              {/* Specification Tables (Dynamic Category Brand Themes & Enlarged Item Titles) */}
               <div className="space-y-4">
-                {pageGroups.map((group) => (
-                  <div key={group.label} className="bg-white">
-                    <div
-                      className="px-4 py-2 flex justify-between items-center text-[11px] font-extrabold text-slate-950 uppercase tracking-wider"
-                      style={{ backgroundColor: "#e6e7e8" }}
-                    >
-                      <span>{group.label}</span>
-                      <span>
-                        {group.total === 0
-                          ? "INCLUDED"
-                          : group.total < 0
-                          ? `-${formatAud(Math.abs(group.total))}`
-                          : `+${formatAud(group.total)}`}
-                      </span>
+                {pageGroups.map((group) => {
+                  const theme = getCategoryTheme(group.label);
+                  const IconComponent = theme.icon;
+                  return (
+                    <div key={group.label} className="bg-white">
+                      <div
+                        className={`px-3.5 py-2 flex justify-between items-center text-[12px] font-black uppercase tracking-wider border-l-[5px] ${theme.borderColor} ${theme.barBg} border-y border-r border-slate-200/80 rounded-r-xs`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <IconComponent className={`h-4 w-4 ${theme.iconColor} shrink-0`} />
+                          <span className={theme.textColor}>{group.label}</span>
+                        </div>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-black border ${theme.pillBg}`}>
+                          {group.total === 0
+                            ? "INCLUDED"
+                            : group.total < 0
+                            ? `-${formatAud(Math.abs(group.total))}`
+                            : `+${formatAud(group.total)}`}
+                        </span>
+                      </div>
+                      <table className="w-full text-xs border-collapse">
+                        <tbody className="divide-y divide-slate-200 border-b border-slate-200">
+                          {group.items.map((it) => (
+                            <tr key={it.id} className="hover:bg-slate-50/50">
+                              <td className="py-2.5 px-4">
+                                <div className="font-black text-slate-950 text-[13.5px] leading-snug tracking-tight">
+                                  {it.name}
+                                </div>
+                                {it.description &&
+                                  it.description.trim() &&
+                                  it.description !== "Custom client variation request" &&
+                                  it.description !== "Client Custom Variation" && (
+                                    <div className="text-[11.5px] text-slate-600 mt-0.5 leading-snug">
+                                      {it.description}
+                                    </div>
+                                  )}
+                              </td>
+                              <td className="py-2.5 px-3 text-center w-36 flex-none text-[11.5px] text-slate-700 font-semibold font-mono">
+                                {it.qtyLabel}
+                              </td>
+                              <td className="py-2.5 px-4 text-right font-black w-32 text-xs flex-none text-slate-950 font-mono">
+                                {it.amount === 0
+                                  ? "INCLUDED"
+                                  : it.amount < 0
+                                  ? `-${formatAud(Math.abs(it.amount))}`
+                                  : `+${formatAud(it.amount)}`}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <table className="w-full text-xs border-collapse">
-                      <tbody className="divide-y divide-slate-200 border-b border-slate-200">
-                        {group.items.map((it) => (
-                          <tr key={it.id}>
-                            <td className="py-2.5 px-4">
-                              <div className="font-extrabold text-slate-950 text-xs leading-snug">
-                                {it.name}
-                              </div>
-                              {it.description &&
-                                it.description.trim() &&
-                                it.description !== "Custom client variation request" &&
-                                it.description !== "Client Custom Variation" && (
-                                  <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                                    {it.description}
-                                  </div>
-                                )}
-                            </td>
-                            <td className="py-2.5 px-3 text-center w-36 flex-none text-[11px] text-slate-700 font-medium">
-                              {it.qtyLabel}
-                            </td>
-                            <td className="py-2.5 px-4 text-right font-extrabold w-28 text-xs flex-none text-slate-950">
-                              {it.amount === 0
-                                ? "INCLUDED"
-                                : it.amount < 0
-                                ? `-${formatAud(Math.abs(it.amount))}`
-                                : `+${formatAud(it.amount)}`}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* Spec Page Marketing Footer */}
-            <div className="pt-3 flex items-center justify-between text-[9.5px] text-slate-600">
+            {/* Spec Page Footer */}
+            <div className="pt-3 flex items-center justify-between text-[9.5px] text-slate-600 border-t border-slate-200">
               <div>{footerLicenceLine}</div>
               <div className="flex items-center gap-4">
-                <div
-                  className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
-                  style={{ backgroundColor: "#e6e7e8" }}
-                >
-                  <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
-                  <div className="bg-white w-20 h-5" />
+                <div className="px-3 py-1.5 rounded-xs flex items-center gap-2.5 bg-slate-100 border border-slate-300">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Customer Initial</span>
+                  <div className="bg-white w-20 h-5 border border-slate-200" />
                 </div>
                 <div className="font-mono text-[9px] text-slate-400">
                   Page {pageNumber} of {totalPages}
@@ -2492,46 +2565,45 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
             return (
               <>
-                {/* Marketing Page 6 Header */}
-                <div className="flex items-start justify-between border-b border-slate-500 pb-2 mb-2">
+                {/* Page 6 Header */}
+                <div className="flex items-start justify-between border-b-2 border-slate-800 pb-2 mb-2">
                   <div>
-                    <div className="text-[11px] font-normal uppercase tracking-wider text-slate-600">
-                      STANDARD INCLUSIONS SPECIFICATION SCHEDULE • {isNswInclusions ? "NEW SOUTH WALES" : "QUEENSLAND"}
+                    <div
+                      className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5"
+                      style={{ color: "#0099d8" }}
+                    >
+                      <Award className="h-3.5 w-3.5 text-[#0099d8] shrink-0" />
+                      <span>
+                        STANDARD INCLUSIONS SPECIFICATION SCHEDULE • {isNswInclusions ? "NEW SOUTH WALES" : "QUEENSLAND"}
+                      </span>
                     </div>
-                    <h2 className="text-xl font-extrabold text-slate-950 uppercase tracking-tight mt-0.5">
+                    <h2 className="text-xl sm:text-[22px] font-black text-slate-950 uppercase tracking-tight mt-0.5">
                       {formatInclusionTierTitle(design.specTier).toUpperCase()}
                     </h2>
                   </div>
-                  <div className="text-right text-[10.5px] uppercase tracking-wider text-slate-600 leading-snug pt-0.5">
+                  <div className="text-right text-[10px] uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-sm font-black leading-snug">
                     <div>FULLY INCLUDED IN BASE</div>
                     <div>BUILDERS ESTIMATE</div>
                   </div>
                 </div>
 
-                {/* 8 Inclusions Categories in Marketing's Clean Grey Header Bar + Checkmark Grid */}
+                {/* 8 Inclusions Categories with Crisp Cyan Left Accent Bars & Emerald Badges */}
                 <div className="space-y-1.5 text-[9.5px] leading-tight">
                   {categories.map((cat) => (
                     <div key={cat.title}>
-                      <div
-                        className="px-3 py-1 flex items-center justify-between mb-0.5"
-                        style={{ backgroundColor: "#e6e7e8" }}
-                      >
-                        <span className="font-extrabold uppercase tracking-wider text-slate-950 text-[10px]">
+                      <div className="px-3 py-1 flex items-center justify-between mb-0.5 bg-gradient-to-r from-slate-100 via-sky-50/40 to-white border-l-3 border-[#0099d8] rounded-r-xs">
+                        <span className="font-black uppercase tracking-wider text-slate-900 text-[10.5px]">
                           {cat.title}
                         </span>
-                        <span
-                          className="font-extrabold uppercase tracking-wider text-[9.5px]"
-                          style={{ color: "#38b28b" }}
-                        >
+                        <span className="font-black uppercase tracking-wider text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.2 rounded-full">
                           INCLUDED
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-x-5 divide-y divide-slate-100 px-1">
                         {cat.items.map((itemText, idx) => (
                           <div key={idx} className="flex items-start gap-1.5 py-0.5 text-slate-800">
-                            <Check
-                              className="h-3 w-3 flex-none mt-0.5"
-                              style={{ color: "#38b28b" }}
+                            <CheckCircle2
+                              className="h-3 w-3 flex-none mt-0.5 text-emerald-600"
                             />
                             <span>{itemText}</span>
                           </div>
@@ -2545,9 +2617,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           })()}
 
           {/* Compact Official Brochure QR Strip */}
-          <div className="mt-2 bg-slate-100 border border-slate-300 px-3.5 py-1.5 flex items-center justify-between gap-4">
+          <div className="mt-2 bg-slate-50 border border-slate-300/90 rounded-sm px-3.5 py-1.5 flex items-center justify-between gap-4">
             <div className="space-y-0.5 flex-1">
-              <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-slate-900">
+              <div className="text-[9.5px] font-black uppercase tracking-wider text-slate-900">
                 VIEW FULL STANDARD INCLUSIONS BROCHURE ONLINE
               </div>
               <p className="text-[9px] text-slate-600">
@@ -2555,22 +2627,19 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 <span className="font-mono font-bold text-slate-800">hudsonhomes.com.au/inclusions-packages/</span>
               </p>
             </div>
-            <div className="bg-white p-0.5 border border-slate-200 flex-none">
+            <div className="bg-white p-0.5 border border-slate-200 rounded-xs flex-none shadow-xs">
               <QrCode value="https://www.hudsonhomes.com.au/inclusions-packages/" size={11} />
             </div>
           </div>
         </div>
 
-        {/* Page 6 Marketing Footer */}
-        <div className="pt-2 flex items-center justify-between text-[9.5px] text-slate-600 flex-none">
+        {/* Page 6 Footer */}
+        <div className="pt-2 flex items-center justify-between text-[9.5px] text-slate-600 flex-none border-t border-slate-200">
           <div>{footerLicenceLine}</div>
           <div className="flex items-center gap-4">
-            <div
-              className="px-3 py-1 rounded-xs flex items-center gap-2.5"
-              style={{ backgroundColor: "#e6e7e8" }}
-            >
-              <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
-              <div className="bg-white w-20 h-4" />
+            <div className="px-3 py-1 rounded-xs flex items-center gap-2.5 bg-slate-100 border border-slate-300">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Customer Initial</span>
+              <div className="bg-white w-20 h-4 border border-slate-200" />
             </div>
             <div className="font-mono text-[9px] text-slate-400">
               Page {(hasSecondDwelling ? 4 : 3) + specPages.length + 1} of {totalPages}
@@ -2604,37 +2673,31 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           </div>
 
           <div className="px-12 space-y-5">
-            {/* Initial Deposit Allocation Box (Marketing Page 7 Layout) */}
+            {/* Initial Deposit Allocation Box (Executive Emerald Accent Container) */}
             <div>
-              <div
-                className="px-5 py-3 flex items-center justify-between mb-3"
-                style={{ backgroundColor: "#e6e7e8" }}
-              >
+              <div className="px-5 py-3.5 flex items-center justify-between mb-3 bg-gradient-to-r from-emerald-50/90 via-emerald-50/40 to-white border border-emerald-200 border-l-[5px] border-l-emerald-600 rounded-r-sm shadow-xs">
                 <div>
-                  <span className="text-[10px] font-medium text-slate-700 uppercase tracking-wider block">
+                  <span className="text-[10px] font-black text-emerald-900 uppercase tracking-wider block">
                     INITIAL DEPOSIT TO PROCEED
                   </span>
-                  <span className="text-base font-extrabold text-slate-950 flex items-center gap-2 mt-0.5">
+                  <span className="text-base font-black text-slate-950 flex items-center gap-2 mt-0.5">
                     {client.depositType === "kdrb"
                       ? "Knock-Down Rebuild (KDRB) Site Allocation"
                       : client.depositType === "brownfield"
                       ? "Brownfield Site Allocation"
                       : "Greenfield Site Allocation"}
                     {client.custom3dTourSelected && (
-                      <span className="text-[10.5px] font-bold text-cyan-900 bg-white px-2 py-0.5 rounded-xs border border-slate-300">
+                      <span className="text-[10.5px] font-black text-cyan-900 bg-white px-2 py-0.5 rounded-xs border border-cyan-300">
                         + Custom 3D Virtual Tour
                       </span>
                     )}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-medium text-slate-700 uppercase tracking-wider block">
+                  <span className="text-[10px] font-black text-emerald-900 uppercase tracking-wider block">
                     DEPOSIT AMOUNT
                   </span>
-                  <span
-                    className="text-2xl font-extrabold block leading-none mt-0.5"
-                    style={{ color: "#43b592" }}
-                  >
+                  <span className="text-2xl sm:text-[28px] font-black block leading-none mt-0.5 text-emerald-700 font-mono tracking-tight">
                     {formatAud(
                       pricing.initialDepositAmount ||
                         (client.custom3dTourSelected
@@ -2650,75 +2713,95 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               </div>
 
               <div className="text-xs text-slate-900 px-1">
-                <div className="font-extrabold text-slate-950 mb-2">
+                <div className="font-black text-slate-950 mb-2">
                   Preliminary Work Completed as a result of the Initial Deposit
                 </div>
                 <div className="grid grid-cols-2 gap-x-10 text-[11px] text-slate-800">
-                  <div className="border-b border-slate-200 py-1.5">• On-site Investigation Report</div>
-                  <div className="border-b border-slate-200 py-1.5">• Geotechnical Soil Test</div>
-                  <div className="border-b border-slate-200 py-1.5">• Wind Classification Report</div>
-                  <div className="border-b border-slate-200 py-1.5">• Registered Contour Survey</div>
-                  <div className="border-b border-slate-200 py-1.5">• Developer Covenant Compliance Check</div>
-                  <div className="border-b border-slate-200 py-1.5">• Drafted Plans &amp; Elevations by in-house draftsmen</div>
-                  <div className="border-b border-slate-200 py-1.5">• Completed Formal Tender Pricing by in-house estimator</div>
+                  <div className="border-b border-slate-200 py-1.5 flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>On-site Investigation Report</span>
+                  </div>
+                  <div className="border-b border-slate-200 py-1.5 flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>Geotechnical Soil Test</span>
+                  </div>
+                  <div className="border-b border-slate-200 py-1.5 flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>Wind Classification Report</span>
+                  </div>
+                  <div className="border-b border-slate-200 py-1.5 flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>Registered Contour Survey</span>
+                  </div>
+                  <div className="border-b border-slate-200 py-1.5 flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>Developer Covenant Compliance Check</span>
+                  </div>
+                  <div className="border-b border-slate-200 py-1.5 flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>Drafted Plans &amp; Elevations by in-house draftsmen</span>
+                  </div>
+                  <div className="border-b border-slate-200 py-1.5 flex items-center gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>Completed Formal Tender Pricing by in-house estimator</span>
+                  </div>
                   {client.custom3dTourSelected && (
-                    <div className="border-b border-slate-200 py-1.5 font-bold text-cyan-900">
-                      • 3D Interactive Virtual Tour of Customized Design ($800 Included)
+                    <div className="border-b border-slate-200 py-1.5 flex items-center gap-1.5 font-bold text-cyan-900">
+                      <Check className="h-3.5 w-3.5 text-cyan-600 shrink-0" />
+                      <span>3D Interactive Virtual Tour of Customized Design ($800 Included)</span>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* NAB Direct Transfer Banking Box with Dynamic QR Code (Marketing Page 7 Layout) */}
-            <div className="border border-slate-600 p-5 flex items-center justify-between gap-6 bg-white">
+            {/* NAB Direct Transfer Banking Box with Dynamic QR Code */}
+            <div className="border-2 border-slate-900 rounded-sm p-5 flex items-center justify-between gap-6 bg-white shadow-xs">
               <div className="flex-1">
-                <div className="font-extrabold text-slate-950 uppercase tracking-wider text-xs mb-3">
-                  {bankHeaderTitle}
+                <div className="font-black text-slate-950 uppercase tracking-wider text-xs mb-3 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-[#0099d8] shrink-0" />
+                  <span>{bankHeaderTitle}</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-xs">
                   <div>
-                    <span className="text-slate-400 text-[11px] block">Account Name</span>
-                    <span className="font-bold text-slate-950 text-sm">{bankAccountName}</span>
+                    <span className="text-slate-500 text-[10.5px] font-bold uppercase tracking-wider block">Account Name</span>
+                    <span className="font-black text-slate-950 text-sm">{bankAccountName}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 text-[11px] block">Bank</span>
-                    <span className="font-bold text-slate-950 text-sm">National Australia Bank (NAB)</span>
+                    <span className="text-slate-500 text-[10.5px] font-bold uppercase tracking-wider block">Bank</span>
+                    <span className="font-black text-slate-950 text-sm">National Australia Bank (NAB)</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 text-[11px] block">BSB Number</span>
-                    <span className="font-bold text-slate-950 text-sm">{bankBsb}</span>
+                    <span className="text-slate-500 text-[10.5px] font-bold uppercase tracking-wider block">BSB Number</span>
+                    <span className="font-black text-slate-950 font-mono text-sm">{bankBsb}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 text-[11px] block">Account Number:</span>
-                    <span className="font-bold text-slate-950 text-sm">{bankAccountNumber}</span>
+                    <span className="text-slate-500 text-[10.5px] font-bold uppercase tracking-wider block">Account Number:</span>
+                    <span className="font-black text-slate-950 font-mono text-sm">{bankAccountNumber}</span>
                   </div>
                 </div>
 
-                <div className="border-t border-slate-500 my-3.5" />
+                <div className="border-t border-slate-300 my-3.5" />
 
                 <div className="grid grid-cols-2 gap-x-8 text-xs">
                   <div>
-                    <span className="text-slate-400 text-[11px] block">EFT Payment Remittance Reference</span>
-                    <span className="font-bold text-slate-950 text-sm">
+                    <span className="text-slate-500 text-[10.5px] font-bold uppercase tracking-wider block">EFT Payment Remittance Reference</span>
+                    <span className="font-black text-slate-950 font-mono text-sm">
                       {client.clientName
                         ? `${client.clientName.split(" ").pop()}-${quote.quoteNumber || "MH678"}`
                         : `Client-${quote.quoteNumber || "MH678"}`}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 text-[11px] block">Currency</span>
-                    <span className="font-bold text-slate-950 text-sm">AUD</span>
+                    <span className="text-slate-500 text-[10.5px] font-bold uppercase tracking-wider block">Currency</span>
+                    <span className="font-black text-slate-950 font-mono text-sm">AUD</span>
                   </div>
                 </div>
               </div>
 
               {/* Dynamic Payment QR Code Box */}
-              <div
-                className="flex flex-col items-center justify-center p-3 w-36 h-36 text-center flex-none"
-                style={{ backgroundColor: "#ededee" }}
-              >
+              <div className="flex flex-col items-center justify-center p-3 w-36 h-36 text-center flex-none bg-slate-50 border border-slate-200 rounded-sm shadow-xs">
                 <PaymentQrCode
                   accountName={bankAccountName}
                   bsb={bankBsb}
@@ -2731,47 +2814,47 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   }
                   size={96}
                 />
-                <span className="text-[8.5px] font-semibold text-slate-600 mt-1 uppercase tracking-wider">
+                <span className="text-[8.5px] font-black text-slate-700 mt-1 uppercase tracking-wider">
                   QR Payment
                 </span>
               </div>
             </div>
 
-            {/* Customer & Consultant Authorization Signatures (Marketing Page 7 Layout) */}
+            {/* Customer & Consultant Authorization Signatures */}
             <div className="grid grid-cols-2 gap-12 pt-1 text-xs">
               <div className="space-y-5">
                 {/* Client 1 Signature */}
                 <div>
-                  <div className="font-extrabold uppercase text-slate-950 tracking-wider text-xs mb-2">
+                  <div className="font-black uppercase text-slate-950 tracking-wider text-xs mb-2">
                     CLIENT 1 SIGNATURE
                   </div>
-                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                  <div className="border-b border-slate-400 py-1.5 text-[11px] text-slate-400">
                     Signed
                   </div>
-                  <div className="border-b border-slate-600 py-1.5 flex items-center justify-between text-[11px]">
+                  <div className="border-b border-slate-400 py-1.5 flex items-center justify-between text-[11px]">
                     <span className="text-slate-400">Print Name</span>
                     <span className="font-semibold text-slate-900">{client.clientName || ""}</span>
                   </div>
-                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                  <div className="border-b border-slate-400 py-1.5 text-[11px] text-slate-400">
                     Date
                   </div>
                 </div>
 
                 {/* Client 2 Signature */}
                 <div>
-                  <div className="font-extrabold uppercase text-slate-950 tracking-wider text-xs mb-2">
+                  <div className="font-black uppercase text-slate-950 tracking-wider text-xs mb-2">
                     CLIENT 2 SIGNATURE
                   </div>
-                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                  <div className="border-b border-slate-400 py-1.5 text-[11px] text-slate-400">
                     Signed
                   </div>
-                  <div className="border-b border-slate-600 py-1.5 flex items-center justify-between text-[11px]">
+                  <div className="border-b border-slate-400 py-1.5 flex items-center justify-between text-[11px]">
                     <span className="text-slate-400">Print Name</span>
                     <span className="font-semibold text-slate-900">
                       {client.hasClient2 ? client.client2Name : ""}
                     </span>
                   </div>
-                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                  <div className="border-b border-slate-400 py-1.5 text-[11px] text-slate-400">
                     Date
                   </div>
                 </div>
@@ -2779,13 +2862,13 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
               <div className="flex flex-col justify-between">
                 <div>
-                  <div className="font-extrabold uppercase text-slate-950 tracking-wider text-xs mb-2">
+                  <div className="font-black uppercase text-slate-950 tracking-wider text-xs mb-2">
                     AUTHORISED NEW HOME CONSULTANT
                   </div>
-                  <div className="border-b border-slate-600 py-1.5 text-[11px] text-slate-400">
+                  <div className="border-b border-slate-400 py-1.5 text-[11px] text-slate-400">
                     Signed
                   </div>
-                  <div className="border-b border-slate-600 py-1.5 flex items-center justify-between text-[11px]">
+                  <div className="border-b border-slate-400 py-1.5 flex items-center justify-between text-[11px]">
                     <span className="text-slate-400">Print Name</span>
                     <span className="font-semibold text-slate-900">
                       {client.consultantName || "Morgan Hales"}
@@ -2801,11 +2884,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   </div>
                 </div>
 
-                <div
-                  className="p-3.5 text-[10.5px] text-slate-600 space-y-0.5 mt-4"
-                  style={{ backgroundColor: "#ededee" }}
-                >
-                  <div className="font-extrabold text-slate-950 uppercase">{bankAccountName}</div>
+                <div className="p-3.5 text-[10.5px] text-slate-600 space-y-0.5 mt-4 bg-slate-50 border border-slate-200 rounded-sm">
+                  <div className="font-black text-slate-950 uppercase">{bankAccountName}</div>
                   <div>{headOfficeAddress}</div>
                   <div>Phone: 1300 246 200 · Fax: 1300 246 300 · www.hudsonhomes.com.au</div>
                 </div>
@@ -2814,16 +2894,13 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           </div>
         </div>
 
-        {/* Final Page Marketing Footer */}
-        <div className="px-12 pb-8 pt-3 flex items-center justify-between text-[9.5px] text-slate-600">
+        {/* Final Page Footer */}
+        <div className="px-12 pb-8 pt-3 flex items-center justify-between text-[9.5px] text-slate-600 border-t border-slate-200">
           <div>{footerLicenceLine}</div>
           <div className="flex items-center gap-4">
-            <div
-              className="px-3 py-1.5 rounded-xs flex items-center gap-2.5"
-              style={{ backgroundColor: "#e6e7e8" }}
-            >
-              <span className="text-[11px] font-medium text-slate-800">Customer Initial</span>
-              <div className="bg-white w-20 h-5" />
+            <div className="px-3 py-1.5 rounded-xs flex items-center gap-2.5 bg-slate-100 border border-slate-300">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Customer Initial</span>
+              <div className="bg-white w-20 h-5 border border-slate-200" />
             </div>
             <div className="font-mono text-[9px] text-slate-400">
               Page {totalPages} of {totalPages}
