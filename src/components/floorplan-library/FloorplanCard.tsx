@@ -14,6 +14,7 @@ import {
   Car,
   Layers,
   ArrowRight,
+  ZoomIn,
 } from "lucide-react";
 import type {
   FloorplanLibraryItem,
@@ -43,6 +44,7 @@ export function FloorplanCard({
   const [showFacade, setShowFacade] = useState(false);
   const [cardTierOverride, setCardTierOverride] = useState<InclusionsTier | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isZoomedFit, setIsZoomedFit] = useState(true);
 
   // Sync selected variant when defaultVariantIndex changes from filter updates
   useEffect(() => {
@@ -276,9 +278,9 @@ export function FloorplanCard({
       </div>
 
       {/* Main Floorplan Large Display Viewport: Maximized Bubble / Square */}
-      <div className="relative p-2 sm:p-3 flex-1 flex flex-col justify-center items-center">
+      <div className="relative p-1 sm:p-1.5 flex-1 flex flex-col justify-center items-center">
         {/* Floating Quick Action Overlay at top-right of canvas */}
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5">
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
           {/* Facade / Floorplan Switcher */}
           {activeVariant.facadeUrl && (
             <button
@@ -298,6 +300,28 @@ export function FloorplanCard({
             >
               <Home className="h-3.5 w-3.5" />
               <span>{showFacade ? "Plan" : "Facade"}</span>
+            </button>
+          )}
+
+          {/* Fill / Fit Toggle Button */}
+          {!showFacade && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsZoomedFit(!isZoomedFit);
+              }}
+              className={`px-2.5 py-1 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-1 border backdrop-blur-md ${
+                isZoomedFit
+                  ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-500/20"
+                  : isLight
+                  ? "bg-white/95 border-slate-200 text-slate-700 hover:bg-white"
+                  : "bg-slate-900/95 border-slate-700 text-slate-200 hover:bg-slate-800"
+              }`}
+              title="Toggle between edge-to-edge Fill and Full Fit"
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+              <span>{isZoomedFit ? "Fill (Max)" : "Fit"}</span>
             </button>
           )}
 
@@ -368,7 +392,11 @@ export function FloorplanCard({
               prices: activeVariant.prices,
             })
           }
-          className={`w-full rounded-2xl p-2 sm:p-3 flex items-center justify-center overflow-hidden border shadow-inner transition-all duration-300 cursor-zoom-in group-hover:border-indigo-500/40 h-[480px] sm:h-[540px] lg:h-[580px] ${
+          className={`w-full rounded-2xl p-1 sm:p-2 flex items-center justify-center overflow-hidden border shadow-inner transition-all duration-300 cursor-zoom-in group-hover:border-indigo-500/40 ${
+            viewMode === "grid-2"
+              ? "min-h-[660px] h-[740px] sm:h-[840px] lg:h-[940px] xl:h-[1040px]"
+              : "min-h-[580px] h-[640px] sm:h-[720px] lg:h-[800px] xl:h-[860px]"
+          } ${
             isLight
               ? "bg-white border-slate-200"
               : "bg-white border-slate-300"
@@ -383,14 +411,22 @@ export function FloorplanCard({
               loading="lazy"
             />
           ) : (
-            <img
-              src={activeVariant.url}
-              alt={`${activeVariant.label} Architectural Floorplan`}
-              className={`max-h-full max-w-full w-auto h-auto object-contain transition-transform duration-300 ${
-                isMirrored ? "scale-x-[-1]" : ""
-              } filter contrast-[1.05]`}
-              loading="lazy"
-            />
+            <div className="w-full h-full flex items-center justify-center overflow-hidden">
+              <img
+                src={activeVariant.url}
+                alt={`${activeVariant.label} Architectural Floorplan`}
+                className={`max-h-full max-w-full w-auto h-auto object-contain transition-transform duration-300 select-none ${
+                  isMirrored
+                    ? isZoomedFit
+                      ? "scale-x-[-1.15] scale-y-[1.15]"
+                      : "scale-x-[-1]"
+                    : isZoomedFit
+                    ? "scale-[1.15] group-hover:scale-[1.20]"
+                    : "scale-100 group-hover:scale-105"
+                } filter contrast-[1.08]`}
+                loading="lazy"
+              />
+            </div>
           )}
         </div>
       </div>

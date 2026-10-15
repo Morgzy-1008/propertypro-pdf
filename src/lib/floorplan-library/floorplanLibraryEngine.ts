@@ -60,6 +60,7 @@ export interface FloorplanVariantItem {
   frontageM: number;
   url: string;
   pdfUrl?: string;
+  cropBoxes?: Array<{ page?: number; x?: number; y?: number; w?: number; h?: number; points?: Array<{ x: number; y: number }> }>;
   isBtbReady: boolean;
   btbDescription?: string;
   facadeUrl?: string;
@@ -75,6 +76,7 @@ export interface FloorplanLibraryItem {
   housingType: "Single Storey" | "Double Storey" | "Dual Living" | "Split Level" | "Granny Flat";
   defaultVariantIndex: number;
   variants: FloorplanVariantItem[];
+  cropBoxes?: Array<{ page?: number; x?: number; y?: number; w?: number; h?: number; points?: Array<{ x: number; y: number }> }>;
   // Bounds across variants for quick filtering
   minM2: number;
   maxM2: number;
@@ -328,6 +330,7 @@ export function loadAllFloorplanLibraryItems(division: "QLD" | "NSW" = "QLD"): F
         frontageM,
         url: plan.url,
         pdfUrl: plan.pdfUrl,
+        cropBoxes: plan.cropBoxes,
         isBtbReady: btb.isBtb,
         btbDescription: btb.reason,
         facadeUrl,
@@ -407,6 +410,7 @@ export function loadAllFloorplanLibraryItems(division: "QLD" | "NSW" = "QLD"): F
       frontageM: def.frontageM,
       url: def.url,
       pdfUrl: def.pdfUrl,
+      cropBoxes: def.cropBoxes,
       isBtbReady: variants.some((v) => v.isBtbReady),
       btbDescription: def.btbDescription,
       facadeUrl: def.facadeUrl,
