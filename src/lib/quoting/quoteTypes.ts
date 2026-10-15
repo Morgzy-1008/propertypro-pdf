@@ -95,11 +95,15 @@ export type SoilClass =
   | "Class E"
   | "Class P";
 
+export type WindRating = "N1" | "N2" | "N3" | "N4" | "C1" | "C2";
+
 export interface SiteConditions {
   // Soil & Foundation Earthworks
   soilClass: SoilClass;
   soilCostSqm: number;
   soilTotalCost: number;
+  windRating?: WindRating;
+  windRatingCost?: number;
   concrete32MpaRequired?: boolean;
   concrete32MpaCost?: number;
   flexibleConnectionsRequired?: boolean;

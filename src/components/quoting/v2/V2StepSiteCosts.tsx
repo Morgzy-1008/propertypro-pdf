@@ -37,10 +37,11 @@ import {
   calculateDesignGFA,
   isDoubleStoreyDesign,
   getSoilRatePerM2,
+  getWindRatingDefaultCost,
   calculateTopographyFallCost,
   detectCouncilFromLocation,
 } from "@/lib/quoting/quoteEngine";
-import type { FullQuote, SiteConditions, SoilClass, DepositType } from "@/lib/quoting/quoteTypes";
+import type { FullQuote, SiteConditions, SoilClass, WindRating, DepositType } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
 import { getActiveDivision } from "@/lib/divisionContext";
 
@@ -62,6 +63,14 @@ const SOIL_OPTIONS: { id: SoilClass; label: string; desc: string }[] = [
   { id: "Class H2", label: "Class H2", desc: "Severely reactive deep clay foundation" },
   { id: "Class E", label: "Class E", desc: "Extremely reactive foundation" },
   { id: "Class P", label: "Class P", desc: "Problem site / uncontrolled or deep fill" },
+];
+
+const WIND_RATING_OPTIONS: { id: WindRating; label: string; desc: string; cost: number }[] = [
+  { id: "N2", label: "N1 / N2 (Std)", desc: "Standard Wind Classification (Included)", cost: 0 },
+  { id: "N3", label: "N3 Wind", desc: "N3 Non-Cyclonic High Wind Tie-Downs", cost: 4000 },
+  { id: "N4", label: "N4 Wind", desc: "N4 Exposed / Hilltop Wind Tie-Downs", cost: 7500 },
+  { id: "C1", label: "C1 Cyclonic", desc: "C1 Cyclonic Wind Rating Engineering", cost: 11000 },
+  { id: "C2", label: "C2 Cyclonic", desc: "C2 Severe Cyclonic Structural Framing", cost: 15500 },
 ];
 
 const QLD_COUNCIL_REGIONS: { name: string; fee: number }[] = [
@@ -886,17 +895,17 @@ export function V2StepSiteCosts({
             <div>
               <div className="flex items-center gap-3">
                 <Label className={`text-base sm:text-lg font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-                  3. Soil Class, Concrete Specification &amp; Piering Allowance
+                  3. Soil Class, Concrete Specification, Wind Rating &amp; Piering Allowance
                 </Label>
                 {revealedStage > 3 && (
                   <Badge variant="outline" className="text-xs font-bold text-emerald-500 border-emerald-500/30 px-2.5 py-0.5">
                     <Check className="h-3.5 w-3.5 mr-1" />
-                    {site.soilClass || "Class M"} • {formatAud(currentPieringCost)} Piering
+                    {site.soilClass || "Class M"} • {site.windRating || "N2"} Wind • {formatAud(currentPieringCost)} Piering
                   </Badge>
                 )}
               </div>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Foundation slab engineering, 32MPa concrete, flexible services, and piering allowance.
+                Foundation slab engineering, 32MPa concrete, flexible services, wind rating, and piering allowance.
               </p>
             </div>
           </div>
@@ -1033,47 +1042,155 @@ export function V2StepSiteCosts({
               </div>
             </div>
 
-            {/* PIERING ALLOWANCE (LUMP SUM - RATE HIDDEN PER REQUIREMENT) */}
-            <div
-              className={`p-5 sm:p-6 rounded-2xl border ${
-                isLight ? "bg-emerald-50/60 border-emerald-300" : "bg-emerald-950/20 border-emerald-500/40"
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-extrabold text-emerald-500 uppercase tracking-wider">
-                      {siteType === "kdrb" ? "Screw Piering Allowance" : "Foundation Piering Allowance"}
-                    </span>
-                    <Badge variant="outline" className="text-xs font-bold text-emerald-400 border-emerald-500/40">
-                      Auto-Calculated
-                    </Badge>
+            {/* WIND RATING & PIERING ALLOWANCE (SIDE-BY-SIDE: WIND RATING ON LEFT, PIERING ALLOWANCE ON RIGHT) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1">
+              {/* LEFT: WIND RATING ALLOWANCE */}
+              <div
+                data-testid="wind-rating-card"
+                className={`p-5 sm:p-6 rounded-2xl border flex flex-col justify-between ${
+                  (site.windRating && site.windRating !== "N1" && site.windRating !== "N2") || (Number(site.windRatingCost) || 0) > 0
+                    ? isLight
+                      ? "bg-emerald-50/60 border-emerald-300"
+                      : "bg-emerald-950/20 border-emerald-500/40"
+                    : isLight
+                    ? "bg-slate-50 border-slate-200"
+                    : "bg-slate-950/60 border-slate-800"
+                }`}
+              >
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-extrabold text-emerald-500 uppercase tracking-wider">
+                          Site Wind Rating (AS 4055)
+                        </span>
+                        <Badge variant="outline" className="text-xs font-bold text-emerald-400 border-emerald-500/40">
+                          {site.windRating && site.windRating !== "N1" ? site.windRating : "N1 / N2 Std"}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Select site wind speed classification and structural tie-down engineering allowance.
+                      </p>
+                    </div>
+
+                    <div className="w-full sm:w-44">
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
+                        <Input
+                          type="number"
+                          step="100"
+                          data-testid="wind-rating-cost-input"
+                          value={
+                            site.windRatingCost !== undefined && !isNaN(Number(site.windRatingCost))
+                              ? Number(site.windRatingCost)
+                              : getWindRatingDefaultCost(site.windRating)
+                          }
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                            onChange({
+                              windRating: site.windRating || (val > 0 ? "N3" : "N2"),
+                              windRatingCost: val,
+                            });
+                          }}
+                          className="h-12 text-base font-mono font-bold pl-8 pr-3 bg-white dark:bg-slate-950 border-emerald-500/50 rounded-xl"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                    Allowance for piering if required, and subject to geotech report.
-                  </p>
+
+                  {/* Quick Wind Rating Selector Pills */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                    {WIND_RATING_OPTIONS.map((opt) => {
+                      const activeRating = site.windRating || "N2";
+                      const isSelected =
+                        activeRating === opt.id ||
+                        (opt.id === "N2" && (activeRating === "N1" || activeRating === "N2"));
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          data-testid={`wind-option-${opt.id.toLowerCase()}`}
+                          onClick={() =>
+                            onChange({
+                              windRating: opt.id,
+                              windRatingCost: opt.cost,
+                            })
+                          }
+                          className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? isLight
+                                ? "bg-emerald-50 border-emerald-500 text-slate-900 shadow-sm ring-1 ring-emerald-500"
+                                : "bg-emerald-500/20 border-emerald-400 text-white shadow-sm ring-1 ring-emerald-400"
+                              : isLight
+                              ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                              : "bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-xs font-extrabold">{opt.label}</span>
+                            {isSelected && <Check className="h-3 w-3 text-emerald-500 stroke-[3]" />}
+                          </div>
+                          <span className="text-[11px] font-mono font-bold text-emerald-500 mt-1">
+                            {opt.cost > 0 ? `+${formatAud(opt.cost)}` : "$0 Std"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="w-full sm:w-56">
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
-                    <Input
-                      type="number"
-                      step="100"
-                      value={currentPieringCost}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => handlePieringLumpSumChange(e.target.value)}
-                      className="h-12 text-base font-mono font-bold pl-8 pr-3 bg-white dark:bg-slate-950 border-emerald-500/50 rounded-xl"
-                    />
-                  </div>
+                <div className="text-xs text-slate-400 pt-2.5 flex items-center gap-2">
+                  <HelpCircle className="h-4 w-4 text-emerald-500 flex-none" />
+                  <span>
+                    Standard N1/N2 included ($0). N3: $4,000 · N4: $7,500 · C1: $11,000 · C2: $15,500 (editable).
+                  </span>
                 </div>
               </div>
 
-              <div className="text-xs text-slate-400 pt-1.5 flex items-center gap-2">
-                <HelpCircle className="h-4 w-4 text-emerald-500 flex-none" />
-                <span>
-                  Calibrated for {quote.design.designName || "home"} ground floor area ({gfaM2} m² footprint). User-editable lump sum.
-                </span>
+              {/* RIGHT: PIERING ALLOWANCE (LUMP SUM - RATE HIDDEN PER REQUIREMENT) */}
+              <div
+                data-testid="piering-allowance-card"
+                className={`p-5 sm:p-6 rounded-2xl border flex flex-col justify-between ${
+                  isLight ? "bg-emerald-50/60 border-emerald-300" : "bg-emerald-950/20 border-emerald-500/40"
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-extrabold text-emerald-500 uppercase tracking-wider">
+                        {siteType === "kdrb" ? "Screw Piering Allowance" : "Foundation Piering Allowance"}
+                      </span>
+                      <Badge variant="outline" className="text-xs font-bold text-emerald-400 border-emerald-500/40">
+                        Auto-Calculated
+                      </Badge>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                      Allowance for piering if required, and subject to geotech report.
+                    </p>
+                  </div>
+
+                  <div className="w-full sm:w-44">
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
+                      <Input
+                        type="number"
+                        step="100"
+                        value={currentPieringCost}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => handlePieringLumpSumChange(e.target.value)}
+                        className="h-12 text-base font-mono font-bold pl-8 pr-3 bg-white dark:bg-slate-950 border-emerald-500/50 rounded-xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-xs text-slate-400 pt-1.5 flex items-center gap-2">
+                  <HelpCircle className="h-4 w-4 text-emerald-500 flex-none" />
+                  <span>
+                    Calibrated for {quote.design.designName || "home"} ground floor area ({gfaM2} m² footprint). User-editable lump sum.
+                  </span>
+                </div>
               </div>
             </div>
           </div>

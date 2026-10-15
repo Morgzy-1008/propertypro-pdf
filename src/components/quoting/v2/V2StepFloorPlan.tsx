@@ -1702,41 +1702,12 @@ export function V2StepFloorPlan({
 
     onChange(updatedDesign);
 
-    if (onAddInclusionLineItems) {
-      const acceptedAreas = (approved.areaDeltas || []).filter((a) => a.accepted && a.deltaM2 !== 0);
+    if (onAddInclusionLineItems && !options?.silent) {
       const acceptedUpgrades = (approved.inclusionUpgrades || []).filter((u) => u.accepted);
       const acceptedOpenings = (approved.openingReplacements || []).filter((o) => o.accepted);
       const acceptedRooms = (approved.internalRoomChanges || []).filter((r) => r.accepted);
 
       const lineItemsToAdd: QuoteSelectedLineItem[] = [
-        ...acceptedAreas.map((a) => {
-          const isReduction = a.deltaM2 < 0;
-          const detailedDesc = isReduction
-            ? `${a.zoneLabel} reduced from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m² with 80% credit)`
-            : a.zoneKey === "garageM2"
-            ? `Garage extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`
-            : a.zoneKey === "livingM2" || a.zoneKey === "groundLivingM2"
-            ? `Living area extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`
-            : `${a.zoneLabel} extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`;
-
-          return {
-            id: `mod_area_${a.zoneKey}`,
-            catalogueItemId: a.recipeId || `recipe_${a.zoneKey}`,
-            category: "structural" as const,
-            name: a.zoneLabel,
-            description: detailedDesc,
-            unitType: "fixed" as const,
-            unitRate: a.subtotal,
-            quantity: 1,
-            subtotal: a.subtotal,
-            isIncluded: true,
-            isClientSelectable: true,
-            clientSelected: true,
-            notes: isReduction
-              ? `Structural footprint reduction: ${a.deltaM2.toFixed(2)} m² from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m²`
-              : `Structural footprint extension: +${a.deltaM2.toFixed(2)} m² from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m²`,
-          };
-        }),
         ...acceptedUpgrades.map((u) => ({
           id: `mod_${u.id}`,
           catalogueItemId: u.id,
@@ -2797,9 +2768,27 @@ export function V2StepFloorPlan({
                         ]
                     ).map((zone) => {
                       const delta = zone.std > 0 ? Math.round((zone.val - zone.std) * 100) / 100 : (zone.val || 0);
-                      const cost = zone.std > 0
-                        ? (delta > 0 ? Math.round(delta * zone.rate) : delta < 0 ? Math.round(delta * zone.rate * 0.8) : 0)
-                        : Math.round(delta * zone.rate);
+                      let cost = 0;
+                      if (zone.key === "garageM2" && zone.std >= 25) {
+                        // Standard coverage up to 5.7x6.0 (34.20 m²) at $0
+                        if (Math.abs(zone.val - 34.2) <= 0.05) {
+                          cost = 0;
+                        } else if (delta > 0) {
+                          if (zone.val <= 34.25) {
+                            cost = 0;
+                          } else {
+                            const chargeableBase = Math.max(zone.std, 34.2);
+                            const chargeableDelta = Math.max(0, Math.round((zone.val - chargeableBase) * 100) / 100);
+                            cost = Math.round(chargeableDelta * zone.rate);
+                          }
+                        } else if (delta < 0) {
+                          cost = Math.round(delta * zone.rate * 0.8);
+                        }
+                      } else {
+                        cost = zone.std > 0
+                          ? (delta > 0 ? Math.round(delta * zone.rate) : delta < 0 ? Math.round(delta * zone.rate * 0.8) : 0)
+                          : Math.round(delta * zone.rate);
+                      }
                       const hasVariance = zone.std > 0 ? Math.abs(delta) > 0.05 : zone.val > 0;
 
                       return (
@@ -2875,7 +2864,7 @@ export function V2StepFloorPlan({
                             </div>
                           </div>
 
-                          {/* Variance & Rate Breakdown */}
+                          {/* Variance & Total Price Breakdown */}
                           <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1">
                             <div className="flex items-center justify-between text-xs font-mono">
                               <span className="text-slate-400">Variance:</span>
@@ -2894,16 +2883,11 @@ export function V2StepFloorPlan({
                               </span>
                             </div>
 
-                            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                              <span>Rate:</span>
-                              <span>${zone.rate.toLocaleString()}/m²</span>
-                            </div>
-
-                            {hasVariance && cost !== 0 && (
+                            {hasVariance && (
                               <div className="flex items-center justify-between text-[11px] font-mono">
-                                <span className="text-slate-400">Delta:</span>
-                                <span className={cost >= 0 ? "text-emerald-500 font-bold" : "text-rose-400 font-bold"}>
-                                  {cost >= 0 ? `+${formatAud(cost)}` : `${formatAud(cost)} (80% credit)`}
+                                <span className="text-slate-400">Total Price:</span>
+                                <span className={cost > 0 ? "text-emerald-500 font-bold" : cost < 0 ? "text-rose-400 font-bold" : "text-emerald-400 font-bold"}>
+                                  {cost > 0 ? `+${formatAud(cost)}` : cost < 0 ? `${formatAud(cost)} (80% credit)` : "$0 (Std 5.7×6.0m)"}
                                 </span>
                               </div>
                             )}
@@ -2923,12 +2907,12 @@ export function V2StepFloorPlan({
                         onClick={() => {
                           setIsBalconyActive(true);
                           handleModifiedAreaChange("balconyM2", "6.5");
-                          toast.success(`Added Balcony zone (6.50 m² @ $${(activeExtensionRates.balcony || 2050).toLocaleString()}/m²)`);
+                          toast.success(`Added Balcony zone (6.50 m²)`);
                         }}
                         className="rounded-xl border-dashed border-cyan-500/40 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 font-semibold cursor-pointer"
                       >
                         <Plus className="w-4 h-4 mr-1.5" />
-                        + Add Balcony (${(activeExtensionRates.balcony || 2050).toLocaleString()}/m²)
+                        + Add Balcony
                       </Button>
                     )}
 
@@ -3154,11 +3138,11 @@ export function V2StepFloorPlan({
 
                               <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1">
                                 <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                                  <span>Rate:</span>
-                                  <span>${rateVal.toLocaleString()}/m²</span>
+                                  <span>Area:</span>
+                                  <span>{m2Val.toFixed(2)} m²</span>
                                 </div>
                                 <div className="flex items-center justify-between text-[11px] font-mono">
-                                  <span className="text-slate-400">Delta:</span>
+                                  <span className="text-slate-400">Total Price:</span>
                                   <span className="text-emerald-500 font-bold">
                                     +{formatAud(addition)}
                                   </span>

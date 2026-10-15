@@ -1012,6 +1012,28 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           },
         ]
       : []),
+    ...(siteConditions.windRating && siteConditions.windRating !== "N1" && siteConditions.windRating !== "N2" || Number(siteConditions.windRatingCost) > 0
+      ? [
+          {
+            id: "wind_rating",
+            name: `Site Wind Rating Engineering Upgrade (${siteConditions.windRating || "N3"})`,
+            description: `AS 4055 structural wind classification upgrade (${siteConditions.windRating || "N3"}) including upgraded tie-down rods, roof battens, bracing, and window wind load specification.`,
+            qtyLabel: `1 House (${siteConditions.windRating || "N3"})`,
+            amount:
+              siteConditions.windRatingCost !== undefined && !isNaN(Number(siteConditions.windRatingCost))
+                ? Number(siteConditions.windRatingCost)
+                : siteConditions.windRating === "N3"
+                ? 4000
+                : siteConditions.windRating === "N4"
+                ? 7500
+                : siteConditions.windRating === "C1"
+                ? 11000
+                : siteConditions.windRating === "C2"
+                ? 15500
+                : 0,
+          },
+        ]
+      : []),
     ...(siteConditions.flexibleConnectionsRequired
       ? [
           {
@@ -1397,11 +1419,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
   const variationGroups: SpecGroup[] = [];
   for (const cat of (pricing.categorySubtotals || [])) {
-    const nonModItems = (cat.items || []).filter(
-      (it) => !it.id.startsWith("mod_area_") && !it.id.startsWith("mod_")
+    const nonModAreaItems = (cat.items || []).filter(
+      (it) => !it.id.startsWith("mod_area_")
     );
-    if (nonModItems.length === 0) continue;
-    const catSubtotal = nonModItems.reduce((sum, it) => {
+    if (nonModAreaItems.length === 0) continue;
+    const catSubtotal = nonModAreaItems.reduce((sum, it) => {
       const amt =
         typeof it.subtotal === "number" && !isNaN(it.subtotal)
           ? it.subtotal
@@ -1411,7 +1433,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
     variationGroups.push({
       label: cat.label,
       total: catSubtotal,
-      items: nonModItems.map((it) => ({
+      items: nonModAreaItems.map((it) => ({
         id: it.id,
         name: it.name,
         description: it.description || "",
@@ -1434,7 +1456,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const totalVariationsAmount = variationGroups.reduce((s, c) => s + c.total, 0);
   const turnkeyPackagesCost = (pricing.landscapingCost || 0) + (!design.landscapingSelected ? (pricing.exposedDrivewayCost || 0) : 0);
   const totalVariationsAndPackagesAmount = totalVariationsAmount + turnkeyPackagesCost;
-  const totalSpecAndVariations = totalSiteAndStatutorySubtotal + totalVariationsAndPackagesAmount;
+  const totalSpecAndVariations = totalSiteAndStatutorySubtotal + totalVariationsAndPackagesAmount + modCostAdjustment;
 
   const landscapingSpecGroup: SpecGroup | null = (pricing.landscapingCost !== 0 || design.landscapingSelected) ? {
     label: `Turnkey Landscaping Package (${design.landscapingLandSize || 450} m² Lot)`,
@@ -1509,8 +1531,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             .map((z) => ({
               id: `mod_spec_${z.key}`,
               name: `${z.label} ${z.deltaM2 > 0 ? "Extension" : "Reduction"} (${z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(2)}` : z.deltaM2.toFixed(2)} m²)`,
-              description: `Structural floorplan alteration from standard brochure layout (${z.standardM2.toFixed(2)} m² standard baseline) to modified layout (${z.modifiedM2.toFixed(2)} m²).`,
-              qtyLabel: `${Math.abs(z.deltaM2).toFixed(2)} m² @ ${formatAud(z.ratePerM2)}/m²`,
+              description:
+                z.key === "garageM2" && z.costAdjustment === 0 && z.deltaM2 > 0
+                  ? `Structural floorplan alteration from standard brochure layout (${z.standardM2.toFixed(2)} m² standard baseline) to modified layout (${z.modifiedM2.toFixed(2)} m² — covered within standard 5.7m × 6.0m / 34.20 m² garage allowance).`
+                  : `Structural floorplan alteration from standard brochure layout (${z.standardM2.toFixed(2)} m² standard baseline) to modified layout (${z.modifiedM2.toFixed(2)} m²).`,
+              qtyLabel: `${z.deltaM2 > 0 ? "+" : ""}${z.deltaM2.toFixed(2)} m²`,
               amount: z.costAdjustment,
             })),
         }

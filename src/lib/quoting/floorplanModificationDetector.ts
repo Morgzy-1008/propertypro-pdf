@@ -2987,6 +2987,7 @@ export async function analyzeModifiedFloorplanFile(
 
   const isSingleGarage = isSingleGarageDesign(detectedModelName, housingType) || standardGarageM2 < 25;
   const effectiveStandardGarageM2 = standardGarageM2;
+  const STANDARD_DOUBLE_GARAGE_COVERED_M2 = 34.2; // 5.7m x 6.0m covered as standard
 
   if (candidateTableSpec.alfrescoM2 !== undefined && candidateTableSpec.alfrescoM2 > 0) {
     const deltaM2 = Math.round((candidateTableSpec.alfrescoM2 - standardAlfrescoM2) * 100) / 100;
@@ -2996,7 +2997,7 @@ export async function analyzeModifiedFloorplanFile(
         deltaM2,
         estimatedLinearExtensionM: candidateTableSpec.lengthM ? Math.round((candidateTableSpec.lengthM - cadSpec.length) * 10) / 10 : undefined,
         reason: deltaM2 > 0
-          ? `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $${databuildRates.alfresco_m2}/m²)`
+          ? `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m²)`
           : `Covered Alfresco reduced from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (${deltaM2.toFixed(2)} m² with 80% trade credit)`,
       });
     }
@@ -3014,19 +3015,28 @@ export async function analyzeModifiedFloorplanFile(
       zone: "alfresco",
       deltaM2,
       estimatedLinearExtensionM: 0.95,
-      reason: `Covered Alfresco extended up by ~950mm (3.64m × 0.95m = +3.46 m² @ $${databuildRates.alfresco_m2}/m²)`,
+      reason: `Covered Alfresco extended up by ~950mm (3.64m × 0.95m = +3.46 m²)`,
     });
   }
 
   if (candidateTableSpec.garageM2 !== undefined && candidateTableSpec.garageM2 > 0) {
-    const deltaM2 = Math.round((candidateTableSpec.garageM2 - effectiveStandardGarageM2) * 100) / 100;
+    const rawDeltaM2 = Math.round((candidateTableSpec.garageM2 - effectiveStandardGarageM2) * 100) / 100;
+    const isCoveredStandardDouble =
+      !isSingleGarage &&
+      (Math.abs(candidateTableSpec.garageM2 - STANDARD_DOUBLE_GARAGE_COVERED_M2) <= 0.1 ||
+        (rawDeltaM2 > 0 && candidateTableSpec.garageM2 <= STANDARD_DOUBLE_GARAGE_COVERED_M2 + 0.1));
+    const deltaM2 = isCoveredStandardDouble
+      ? 0
+      : (!isSingleGarage && rawDeltaM2 > 0
+          ? Math.max(0, Math.round((candidateTableSpec.garageM2 - Math.max(effectiveStandardGarageM2, STANDARD_DOUBLE_GARAGE_COVERED_M2)) * 100) / 100)
+          : rawDeltaM2);
     if (Math.abs(deltaM2) >= 0.05) {
       spatialModsToApply.push({
         zone: "garage",
         deltaM2,
         estimatedLinearExtensionM: candidateTableSpec.widthM ? Math.round((candidateTableSpec.widthM - cadSpec.width) * 10) / 10 : undefined,
         reason: deltaM2 > 0
-          ? `Garage extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $${databuildRates.garage_m2}/m²)`
+          ? `Garage extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m²)`
           : `Garage reduced from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (${deltaM2.toFixed(2)} m² with 80% trade credit)`,
       });
     }
@@ -3052,7 +3062,7 @@ export async function analyzeModifiedFloorplanFile(
         zone: "porch",
         deltaM2,
         reason: deltaM2 > 0
-          ? `Front Porch extended from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $${databuildRates.porch_m2}/m²)`
+          ? `Front Porch extended from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m²)`
           : `Front Porch reduced from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (${deltaM2.toFixed(2)} m²)`,
       });
     }
@@ -3183,17 +3193,24 @@ export async function analyzeModifiedFloorplanFile(
       const modM2 = (candidateTableSpec.garageM2 && candidateTableSpec.garageM2 > 0)
         ? candidateTableSpec.garageM2
         : Math.round((standardGarageM2 + delta) * 100) / 100;
+      if (!isSingleGarage && (Math.abs(modM2 - STANDARD_DOUBLE_GARAGE_COVERED_M2) <= 0.1 || (delta > 0 && modM2 <= STANDARD_DOUBLE_GARAGE_COVERED_M2 + 0.1))) {
+        continue;
+      }
       const rate = databuildRates.garage_m2;
-      const subtotal = delta > 0 ? Math.round(delta * rate) : Math.round(delta * rate * 0.8);
+      const chargeableDelta = !isSingleGarage && delta > 0
+        ? Math.max(0, Math.round((modM2 - Math.max(effectiveStandardGarageM2, STANDARD_DOUBLE_GARAGE_COVERED_M2)) * 100) / 100)
+        : delta;
+      if (Math.abs(chargeableDelta) < 0.05) continue;
+      const subtotal = chargeableDelta > 0 ? Math.round(chargeableDelta * rate) : Math.round(chargeableDelta * rate * 0.8);
 
       areaDeltas.push({
         zoneKey: "garageM2",
         zoneLabel: isWorkshop
           ? "Garage & Integrated Workshop Footprint Extension"
-          : (delta > 0 ? "Garage Footprint Extension" : "Garage Footprint Reduction"),
+          : (chargeableDelta > 0 ? "Garage Footprint Extension" : "Garage Footprint Reduction"),
         standardM2: effectiveStandardGarageM2,
         modifiedM2: modM2,
-        deltaM2: delta,
+        deltaM2: chargeableDelta,
         recipeId: "recipe_garage_ext_m2",
         unitRate: rate,
         subtotal,
@@ -3240,7 +3257,7 @@ export async function analyzeModifiedFloorplanFile(
         subtotal: delta > 0 ? Math.round(delta * databuildRates.alfresco_m2) : Math.round(delta * databuildRates.alfresco_m2 * 0.8),
         accepted: true,
         reason: delta > 0
-          ? `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${databuildRates.alfresco_m2}/m²)`
+          ? `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (+${delta.toFixed(2)} m²)`
           : `Covered Alfresco reduced from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (${delta.toFixed(2)} m² with 80% trade credit)`,
       });
     } else if (hasAlfrescoExtensionAnnotation) {
@@ -3255,13 +3272,22 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: databuildRates.alfresco_m2,
         subtotal: Math.round(delta * databuildRates.alfresco_m2),
         accepted: true,
-        reason: `Covered Alfresco extended up by ~950mm (3.64m × 0.95m = +3.46 m² @ $${databuildRates.alfresco_m2}/m²)`,
+        reason: `Covered Alfresco extended up by ~950mm (3.64m × 0.95m = +3.46 m²)`,
       });
     }
   }
 
   if (!areaDeltas.some((d) => d.zoneKey === "garageM2") && candidateTableSpec.garageM2) {
-    const delta = Math.round((candidateTableSpec.garageM2 - effectiveStandardGarageM2) * 100) / 100;
+    const rawDelta = Math.round((candidateTableSpec.garageM2 - effectiveStandardGarageM2) * 100) / 100;
+    const isCoveredStandardDouble =
+      !isSingleGarage &&
+      (Math.abs(candidateTableSpec.garageM2 - STANDARD_DOUBLE_GARAGE_COVERED_M2) <= 0.1 ||
+        (rawDelta > 0 && candidateTableSpec.garageM2 <= STANDARD_DOUBLE_GARAGE_COVERED_M2 + 0.1));
+    const delta = isCoveredStandardDouble
+      ? 0
+      : (!isSingleGarage && rawDelta > 0
+          ? Math.max(0, Math.round((candidateTableSpec.garageM2 - Math.max(effectiveStandardGarageM2, STANDARD_DOUBLE_GARAGE_COVERED_M2)) * 100) / 100)
+          : rawDelta);
     if (Math.abs(delta) >= 0.05) {
       const isWorkshop = /workshop/i.test(rawText) || /workshop/i.test(geminiResult?.analysisNotes || "");
       areaDeltas.push({
@@ -3277,9 +3303,9 @@ export async function analyzeModifiedFloorplanFile(
         subtotal: delta > 0 ? Math.round(delta * databuildRates.garage_m2) : Math.round(delta * databuildRates.garage_m2 * 0.8),
         accepted: true,
         reason: isWorkshop
-          ? `Integrated workshop and garage footprint extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${databuildRates.garage_m2}/m²)`
+          ? `Integrated workshop and garage footprint extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${delta.toFixed(2)} m²)`
           : (delta > 0
-              ? `Garage footprint extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${databuildRates.garage_m2}/m²)`
+              ? `Garage footprint extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${delta.toFixed(2)} m²)`
               : `Garage footprint reduced from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (${delta.toFixed(2)} m² with 80% trade credit)`),
       });
     }
@@ -3299,7 +3325,7 @@ export async function analyzeModifiedFloorplanFile(
         subtotal: delta > 0 ? Math.round(delta * databuildRates.porch_m2) : Math.round(delta * databuildRates.porch_m2 * 0.8),
         accepted: true,
         reason: delta > 0
-          ? `Entry Porch extended from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${databuildRates.porch_m2}/m²)`
+          ? `Entry Porch extended from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (+${delta.toFixed(2)} m²)`
           : `Entry Porch reduced from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (${delta.toFixed(2)} m² with 80% trade credit)`,
       });
     }
@@ -3320,7 +3346,7 @@ export async function analyzeModifiedFloorplanFile(
         subtotal: delta > 0 ? Math.round(delta * rate) : Math.round(delta * rate * 0.8),
         accepted: true,
         reason: delta > 0
-          ? `Living area extended from ${standardLivingM2.toFixed(2)} m² standard to ${candidateTableSpec.livingM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${rate}/m²)`
+          ? `Living area extended from ${standardLivingM2.toFixed(2)} m² standard to ${candidateTableSpec.livingM2.toFixed(2)} m² (+${delta.toFixed(2)} m²)`
           : `Living area reduced from ${standardLivingM2.toFixed(2)} m² standard to ${candidateTableSpec.livingM2.toFixed(2)} m² (${delta.toFixed(2)} m² with 80% trade credit)`,
       });
     }
@@ -3362,7 +3388,7 @@ export async function analyzeModifiedFloorplanFile(
         subtotal: alfDiff > 0 ? Math.round(alfDiff * databuildRates.alfresco_m2) : Math.round(alfDiff * databuildRates.alfresco_m2 * 0.8),
         accepted: true,
         reason: alfDiff > 0
-          ? `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${actualAlfM2.toFixed(2)} m² (+${alfDiff.toFixed(2)} m² @ $${databuildRates.alfresco_m2}/m²)`
+          ? `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${actualAlfM2.toFixed(2)} m² (+${alfDiff.toFixed(2)} m²)`
           : `Covered Alfresco reduced from ${standardAlfrescoM2.toFixed(2)} m² standard to ${actualAlfM2.toFixed(2)} m² (${alfDiff.toFixed(2)} m² with 80% trade credit)`,
       });
     }
@@ -3382,13 +3408,13 @@ export async function analyzeModifiedFloorplanFile(
           unitRate: databuildRates.alfresco_m2,
           subtotal: Math.round(delta * databuildRates.alfresco_m2),
           accepted: true,
-          reason: `Covered Alfresco extended by +${delta.toFixed(2)} m² based on plan annotation (+${delta.toFixed(2)} m² @ $${databuildRates.alfresco_m2}/m²)`,
+          reason: `Covered Alfresco extended by +${delta.toFixed(2)} m² based on plan annotation`,
         });
       }
     }
   }
 
-  // B. Garage room dimension
+  // B. Garage room dimension (Standard coverage up to 5.7m x 6.0m = 34.2 m² at $0)
   const hasSpecificGarDims = /5\.7\s*[xX*×]\s*6\.0|6\.0\s*[xX*×]\s*5\.7/i.test(combinedScanText);
   const garageDimMatch = combinedScanText.match(/(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\-\s\t(]{1,10}(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i);
   if (!candidateTableSpec.garageM2 && (garageDimMatch || hasSpecificGarDims)) {
@@ -3397,17 +3423,19 @@ export async function analyzeModifiedFloorplanFile(
     if (w > 50) w = Math.round((w / 1000) * 100) / 100;
     if (l > 50) l = Math.round((l / 1000) * 100) / 100;
     let actualGarM2 = Math.round(w * l * 100) / 100;
-    const isStandardDoubleFraming = (Math.abs(w - 5.5) <= 0.2 && Math.abs(l - 5.5) <= 0.2) || (w <= 5.5 && l <= 5.5 && actualGarM2 <= 31);
-    if (hasSpecificGarDims || (Math.abs(w - 5.7) < 0.15 && Math.abs(l - 6.0) < 0.15) || (Math.abs(w - 6.0) < 0.15 && Math.abs(l - 5.7) < 0.15)) {
-      actualGarM2 = 38.84; // Exact Hudson 5.7m x 6.0m garage slab dimension with 240mm external perimeter
-    } else if (isStandardDoubleFraming) {
-      actualGarM2 = effectiveStandardGarageM2; // Matches standard framing, delta is 0!
-    } else if (actualGarM2 > 28 && actualGarM2 < 36 && (w >= 5.6 || l >= 5.9)) {
-      actualGarM2 = Math.round((w + 0.25) * (l + 0.45) * 100) / 100;
+    // Standard coverage up to 5.7m x 6.0m (34.20 m²): if garage is up to 5.7x6.0 or changed to 5.7x6.0 exactly, charge $0!
+    const isStandardDoubleFraming =
+      hasSpecificGarDims ||
+      (Math.abs(w - 5.7) <= 0.15 && Math.abs(l - 6.0) <= 0.15) ||
+      (Math.abs(w - 6.0) <= 0.15 && Math.abs(l - 5.7) <= 0.15) ||
+      (Math.abs(w - 5.5) <= 0.2 && Math.abs(l - 5.5) <= 0.2) ||
+      (w <= 5.75 && l <= 6.05 && actualGarM2 >= 28 && actualGarM2 <= STANDARD_DOUBLE_GARAGE_COVERED_M2 + 0.1);
+    if (isStandardDoubleFraming) {
+      actualGarM2 = effectiveStandardGarageM2; // Covered under standard 5.7x6.0 garage allowance, delta is 0!
     }
-    const stdGar = effectiveStandardGarageM2 || 36.00;
+    const stdGar = Math.max(effectiveStandardGarageM2 || 34.2, STANDARD_DOUBLE_GARAGE_COVERED_M2);
     const isValidGarArea = actualGarM2 >= 14 && actualGarM2 <= 120;
-    const garDiff = isStandardDoubleFraming ? 0 : (isValidGarArea ? Math.round((actualGarM2 - stdGar) * 100) / 100 : 0);
+    const garDiff = isStandardDoubleFraming ? 0 : (isValidGarArea ? Math.round((actualGarM2 - (actualGarM2 > effectiveStandardGarageM2 ? stdGar : effectiveStandardGarageM2)) * 100) / 100 : 0);
     const isWorkshop = /workshop/i.test(combinedScanText);
     const existingGar = areaDeltas.find((d) => d.zoneKey === "garageM2");
     if (existingGar && isValidGarArea && Math.abs(garDiff) >= 1.5) {
@@ -4759,18 +4787,19 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
-  // B. Garage dimensions (e.g. "Garage 5.7 x 6.0" or "5.5 x 5.5")
+  // B. Garage dimensions (e.g. "Garage 5.7 x 6.0" or "5.5 x 5.5" — covered up to 5.7 x 6.0 = 34.20 m² as standard at $0)
   const garMatch = rawText.match(/(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
     rawText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:garage|dlug|carport)/i);
   if (garMatch) {
     const w = parseFloat(garMatch[1].replace(/[·•]/g, "."));
     const l = parseFloat(garMatch[2].replace(/[·•]/g, "."));
-    let actualGarM2 = Math.round(w * l * 100) / 100;
-    if (actualGarM2 > 28 && actualGarM2 < 36 && (w >= 5.6 || l >= 5.9)) {
-      actualGarM2 = Math.round((w + 0.25) * (l + 0.45) * 100) / 100;
-    }
-    const stdGar = standardGarageM2 || 33;
-    const garDiff = Math.round((actualGarM2 - stdGar) * 100) / 100;
+    const actualGarM2 = Math.round(w * l * 100) / 100;
+    const isCoveredStandard57x60 =
+      (Math.abs(w - 5.7) <= 0.15 && Math.abs(l - 6.0) <= 0.15) ||
+      (Math.abs(w - 6.0) <= 0.15 && Math.abs(l - 5.7) <= 0.15) ||
+      (actualGarM2 >= 28 && actualGarM2 <= 34.25);
+    const stdGar = Math.max(standardGarageM2 || 33, 34.2);
+    const garDiff = isCoveredStandard57x60 ? 0 : Math.round((actualGarM2 - (actualGarM2 > (standardGarageM2 || 33) ? stdGar : (standardGarageM2 || 33))) * 100) / 100;
     if (Math.abs(garDiff) >= 0.5) {
       garageDelta = garDiff;
     }

@@ -952,6 +952,35 @@ export function calculateModifiedFloorplanPricing(
   const modGarage = modAreas.garageM2 !== undefined ? Number(modAreas.garageM2) : rawStdGarage;
   const isSingle = isSingleGarageDesign(design?.designName, housingType) || rawStdGarage < 25;
   const effectiveStdGarage = rawStdGarage;
+  const STANDARD_DOUBLE_GARAGE_COVERED_M2 = 34.2; // 5.7m x 6.0m covered as standard
+
+  const computeZoneCost = (def: { key: string; label: string; std: number; mod: number; rate: number }): number => {
+    const delta = Number((def.mod - def.std).toFixed(2));
+    if (def.key === "garageM2" && !isSingle) {
+      // Standard coverage up to 5.7x6.0 (34.20 m²). If changed to 5.7x6.0 exactly, or extended up to 5.7x6.0, charge $0!
+      if (Math.abs(def.mod - STANDARD_DOUBLE_GARAGE_COVERED_M2) <= 0.05) {
+        return 0;
+      }
+      if (delta > 0) {
+        if (def.mod <= STANDARD_DOUBLE_GARAGE_COVERED_M2 + 0.05) {
+          return 0;
+        }
+        const chargeableBase = Math.max(def.std, STANDARD_DOUBLE_GARAGE_COVERED_M2);
+        const chargeableDelta = Math.max(0, Number((def.mod - chargeableBase).toFixed(2)));
+        return Math.round(chargeableDelta * def.rate);
+      } else if (delta < 0) {
+        return Math.round(delta * def.rate * 0.8);
+      }
+      return 0;
+    }
+    if (delta > 0) {
+      return Math.round(delta * def.rate);
+    } else if (delta < 0) {
+      // 80% discount on reduction
+      return Math.round(delta * def.rate * 0.8);
+    }
+    return 0;
+  };
 
   if (isDoubleOrSplit) {
     const hasLowerLiving =
@@ -1018,13 +1047,7 @@ export function calculateModifiedFloorplanPricing(
 
     for (const def of zoneDefs) {
       const delta = Number((def.mod - def.std).toFixed(2));
-      let cost = 0;
-      if (delta > 0) {
-        cost = Math.round(delta * def.rate);
-      } else if (delta < 0) {
-        // 80% discount on reduction
-        cost = Math.round(delta * def.rate * 0.8);
-      }
+      const cost = computeZoneCost(def);
       zones.push({
         key: def.key,
         label: def.label,
@@ -1032,7 +1055,7 @@ export function calculateModifiedFloorplanPricing(
         modifiedM2: def.mod,
         deltaM2: delta,
         ratePerM2: def.rate,
-        isReduced: delta < 0,
+        isReduced: delta < 0 && cost < 0,
         costAdjustment: cost,
       });
     }
@@ -1085,13 +1108,7 @@ export function calculateModifiedFloorplanPricing(
 
     for (const def of zoneDefs) {
       const delta = Number((def.mod - def.std).toFixed(2));
-      let cost = 0;
-      if (delta > 0) {
-        cost = Math.round(delta * def.rate);
-      } else if (delta < 0) {
-        // 80% discount on reduction
-        cost = Math.round(delta * def.rate * 0.8);
-      }
+      const cost = computeZoneCost(def);
       zones.push({
         key: def.key,
         label: def.label,
@@ -1099,7 +1116,7 @@ export function calculateModifiedFloorplanPricing(
         modifiedM2: def.mod,
         deltaM2: delta,
         ratePerM2: def.rate,
-        isReduced: delta < 0,
+        isReduced: delta < 0 && cost < 0,
         costAdjustment: cost,
       });
     }
@@ -1336,6 +1353,32 @@ export function getSoilRatePerM2(soilClass: SoilClass): number {
 }
 
 /**
+ * Standard Wind Rating default allowances (AS 4055 / NCC):
+ * - N1 / N2: $0 (Standard Included)
+ * - N3: $4,000
+ * - N4: $7,500
+ * - C1: $11,000
+ * - C2: $15,500
+ */
+export function getWindRatingDefaultCost(windRating?: string): number {
+  switch (windRating) {
+    case "N1":
+    case "N2":
+      return 0;
+    case "N3":
+      return 4000;
+    case "N4":
+      return 7500;
+    case "C1":
+      return 11000;
+    case "C2":
+      return 15500;
+    default:
+      return 0;
+  }
+}
+
+/**
  * Calculates topography fall cost with smooth progressive gradient:
  * - Base allowance covers up to 1.0m fall ($0 included).
  * - Above 1.0m: Progressive gradient curve scaling smoothly from base rate up to a max capped rate of $20.
@@ -1452,7 +1495,12 @@ export function calculateQuotePricing(
     let sdBase = Number(sd.basePrice) || 0;
     if (sd.isModifiedFloorplan && sd.modifiedAreas && sd.standardAreas) {
       const livingDelta = (Number(sd.modifiedAreas.livingM2) || 0) - (Number(sd.standardAreas.livingM2) || 0);
-      const garageDelta = (Number(sd.modifiedAreas.garageM2) || 0) - (Number(sd.standardAreas.garageM2) || 0);
+      const sdStdGar = Number(sd.standardAreas.garageM2) || 0;
+      const sdModGar = Number(sd.modifiedAreas.garageM2) || 0;
+      const rawGarDelta = sdModGar - sdStdGar;
+      const garageDelta = rawGarDelta > 0 && sdStdGar >= 25
+        ? (sdModGar <= 34.25 ? 0 : Math.max(0, sdModGar - Math.max(sdStdGar, 34.2)))
+        : rawGarDelta;
       const alfrescoDelta = (Number(sd.modifiedAreas.alfrescoM2) || 0) - (Number(sd.standardAreas.alfrescoM2) || 0);
       const porchDelta = (Number(sd.modifiedAreas.porchM2) || 0) - (Number(sd.standardAreas.porchM2) || 0);
 
@@ -1495,8 +1543,14 @@ export function calculateQuotePricing(
 
   // Dynamic Site & Statutory Calculations
   const soilRate = getSoilRatePerM2(site.soilClass);
-  const soilTotalCost = Math.round(soilRate * gfaM2);
-  const fallTotalCost = calculateTopographyFallCost(site.fallMeters ?? (site as any).fallM ?? 0, gfaM2, isSplit);
+  const soilTotalCost =
+    typeof site.soilTotalCost === "number" && !isNaN(site.soilTotalCost) && site.soilTotalCost > 0
+      ? site.soilTotalCost
+      : Math.round(soilRate * gfaM2);
+  const fallTotalCost =
+    typeof site.fallTotalCost === "number" && !isNaN(site.fallTotalCost) && site.fallTotalCost > 0
+      ? site.fallTotalCost
+      : calculateTopographyFallCost(site.fallMeters ?? (site as any).fallM ?? 0, gfaM2, isSplit);
 
   // Dedicated Site & Soil Engineering items
   const concrete32Cost = site.concrete32MpaRequired
@@ -1546,6 +1600,11 @@ export function calculateQuotePricing(
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
   // Geotechnical & Site Allowances
+  const windRatingCost =
+    site.windRatingCost !== undefined && !isNaN(Number(site.windRatingCost))
+      ? Number(site.windRatingCost)
+      : getWindRatingDefaultCost(site.windRating);
+
   const pieringCost = (site.pieringCost !== undefined && !isNaN(Number(site.pieringCost)) && Number(site.pieringCost) > 0)
     ? Number(site.pieringCost)
     : (site.screwPieringRequired
@@ -1591,6 +1650,7 @@ export function calculateQuotePricing(
 
   const siteCostsSubtotal =
     soilTotalCost +
+    windRatingCost +
     concrete32Cost +
     flexibleConnectionsCost +
     fallTotalCost +
@@ -1641,9 +1701,15 @@ export function calculateQuotePricing(
     council_statutory: [],
   };
 
+  const hasAuthoritativeModifiedAreas = Boolean(
+    design.isModifiedFloorplan && ((design.modifiedAreas && design.standardAreas) || design.areas)
+  );
+
   for (const item of lineItems) {
     if (!item.isIncluded) continue;
     if (item.isClientSelectable && item.clientSelected === false) continue;
+    // When modifiedAreas are managed via calculateModifiedFloorplanPricing, skip any legacy mod_area_* items in lineItems so they are never double-counted
+    if (hasAuthoritativeModifiedAreas && item.id.startsWith("mod_area_")) continue;
     const cat = resolveItemCategory(item);
     const effectiveRate = getItemRateForInclusion(item, design?.specTier);
     const qty = Number(item.quantity) || 1;
@@ -1671,12 +1737,10 @@ export function calculateQuotePricing(
     }
     const modCalc = calculateModifiedFloorplanPricing(design);
     for (const z of modCalc.zones) {
-      if (z.deltaM2 !== 0) {
-        const hasExisting = categoryGroups.structural.some(
-          (it) => it.id === `mod_area_${z.key}` || it.name.toLowerCase().includes(z.label.toLowerCase().replace(" area", ""))
-        ) || categoryGroups.floorplan_extensions.some(
-          (it) => it.id === `mod_area_${z.key}` || it.name.toLowerCase().includes(z.label.toLowerCase().replace(" area", ""))
-        );
+      if (z.deltaM2 !== 0 && z.costAdjustment !== 0) {
+        const hasExisting =
+          categoryGroups.structural.some((it) => it.id === `mod_area_${z.key}`) ||
+          categoryGroups.floorplan_extensions.some((it) => it.id === `mod_area_${z.key}`);
         if (!hasExisting) {
           const isReduction = z.deltaM2 < 0;
           const detailedDesc = isReduction

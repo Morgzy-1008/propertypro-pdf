@@ -169,6 +169,14 @@ export function V2StepVariations({
         }
       }
     }
+    if (groupId === "ceiling_height") {
+      for (const it of lineItems) {
+        if (it.isIncluded && it.id.startsWith("ceil_zone_")) {
+          count++;
+          total += it.subtotal || 0;
+        }
+      }
+    }
     return { count, total };
   };
 
@@ -345,6 +353,171 @@ export function V2StepVariations({
     return getStandardAreaBreakdown(quote.design.designName, quote.design.housingType, totalM2);
   }, [quote.design.designName, quote.design.housingType, totalM2]);
 
+  // Individual House Areas / Levels for per-zone Ceiling Height Upgrades
+  const ceilingZones = useMemo(() => {
+    const mod = quote.design.isModifiedFloorplan ? (quote.design.modifiedAreas || quote.design.areas || stdAreas) : (quote.design.areas || stdAreas);
+    const housingType = quote.design.housingType || "Single Storey";
+    const isSplit = housingType === "Split Level" || Boolean(quote.design.designName && /mauve|split/i.test(quote.design.designName));
+    const hasLower = Boolean((mod as any)?.lowerLivingM2 && Number((mod as any).lowerLivingM2) > 0) || Boolean(stdAreas.lowerLivingM2 && stdAreas.lowerLivingM2 > 0);
+    const zonesList: { key: string; label: string; m2: number; isLiving: boolean }[] = [];
+
+    if (isDouble || isSplit || hasLower) {
+      const lowerVal = Number((mod as any)?.lowerLivingM2 ?? stdAreas.lowerLivingM2 ?? 0);
+      if (lowerVal > 0) {
+        zonesList.push({ key: "lowerLiving", label: "Lower Ground Living", m2: lowerVal, isLiving: true });
+      }
+      const gfVal = Number(mod?.groundLivingM2 ?? stdAreas.groundLivingM2 ?? 0);
+      if (gfVal > 0) {
+        zonesList.push({ key: "groundLiving", label: "Ground Floor Living", m2: gfVal, isLiving: true });
+      }
+      const ffVal = Number(mod?.firstLivingM2 ?? stdAreas.firstLivingM2 ?? 0);
+      if (ffVal > 0) {
+        zonesList.push({
+          key: "firstLiving",
+          label: isSplit || hasLower ? "Upper Level Living" : "First Floor Living",
+          m2: ffVal,
+          isLiving: true,
+        });
+      }
+    } else {
+      const livVal = Number(mod?.livingM2 ?? mod?.groundLivingM2 ?? stdAreas.livingM2 ?? stdAreas.groundLivingM2 ?? 0);
+      if (livVal > 0) {
+        zonesList.push({ key: "living", label: "Ground Floor Living", m2: livVal, isLiving: true });
+      }
+    }
+
+    const garVal = Number(mod?.garageM2 ?? stdAreas.garageM2 ?? 0);
+    if (garVal > 0) {
+      zonesList.push({ key: "garage", label: "Garage", m2: garVal, isLiving: false });
+    }
+    const alfVal = Number(mod?.alfrescoM2 ?? stdAreas.alfrescoM2 ?? 0);
+    if (alfVal > 0) {
+      zonesList.push({ key: "alfresco", label: "Alfresco", m2: alfVal, isLiving: false });
+    }
+    const porVal = Number(mod?.porchM2 ?? stdAreas.porchM2 ?? 0);
+    if (porVal > 0) {
+      zonesList.push({ key: "porch", label: "Porch", m2: porVal, isLiving: false });
+    }
+    const balVal = Number((mod as any)?.balconyM2 ?? (stdAreas as any)?.balconyM2 ?? 0);
+    if (balVal > 0) {
+      zonesList.push({ key: "balcony", label: "Balcony", m2: balVal, isLiving: false });
+    }
+
+    const customList = (mod as any)?.customAreas || (quote.design.modifiedAreas as any)?.customAreas || [];
+    if (Array.isArray(customList)) {
+      for (const ca of customList) {
+        const caM2 = Number(ca.m2) || 0;
+        if (caM2 > 0) {
+          zonesList.push({
+            key: `custom_${ca.id || ca.name}`,
+            label: ca.name || "Custom Area",
+            m2: caM2,
+            isLiving: false,
+          });
+        }
+      }
+    }
+
+    return zonesList;
+  }, [quote.design, stdAreas, isDouble]);
+
+  // Ceiling height upgrade options per inclusion tier (rates in $/m²)
+  // H1 (2,440mm baseline): 2,590mm ($51/m² living, $48/m² ancillary), 2,740mm ($76/m² living, $71/m² ancillary), 3,000mm ($104/m² living, $95/m² ancillary)
+  // H2 (2,590mm baseline): 2,740mm ($58/m² living [$55+$3 joinery], $55/m² ancillary), 3,000mm ($76/m² living [$68+$8 joinery], $68/m² ancillary)
+  // H3 (2,740mm baseline): 3,000mm ($68/m² living [$60+$8 joinery], $60/m² ancillary)
+  const ceilingHeightOptions = useMemo(() => {
+    if (isH3) {
+      return [
+        { heightMm: 2740, label: "2,740mm (Std)", isStandard: true, livingRate: 0, ancillaryRate: 0 },
+        { heightMm: 3000, label: "3,000mm Ceiling", isStandard: false, livingRate: 68, ancillaryRate: 60 },
+      ];
+    }
+    if (tier === "H2") {
+      return [
+        { heightMm: 2590, label: "2,590mm (Std)", isStandard: true, livingRate: 0, ancillaryRate: 0 },
+        { heightMm: 2740, label: "2,740mm Ceiling", isStandard: false, livingRate: 58, ancillaryRate: 55 },
+        { heightMm: 3000, label: "3,000mm Ceiling", isStandard: false, livingRate: 76, ancillaryRate: 68 },
+      ];
+    }
+    // H1 / Smart / FHB / IP (2,440mm baseline)
+    return [
+      { heightMm: 2440, label: "2,440mm (Std)", isStandard: true, livingRate: 0, ancillaryRate: 0 },
+      { heightMm: 2590, label: "2,590mm Ceiling", isStandard: false, livingRate: 51, ancillaryRate: 48 },
+      { heightMm: 2740, label: "2,740mm Ceiling", isStandard: false, livingRate: 76, ancillaryRate: 71 },
+      { heightMm: 3000, label: "3,000mm Ceiling", isStandard: false, livingRate: 104, ancillaryRate: 95 },
+    ];
+  }, [tier, isH3]);
+
+  const handleSelectZoneCeilingHeight = (
+    zone: { key: string; label: string; m2: number; isLiving: boolean },
+    opt: { heightMm: number; label: string; isStandard: boolean; livingRate: number; ancillaryRate: number }
+  ) => {
+    const prefix = `ceil_zone_${zone.key}_`;
+    const filtered = lineItems.filter((it) => !it.id.startsWith(prefix));
+    if (opt.isStandard) {
+      onChange(filtered);
+      toast.info(`Reset ${zone.label} ceiling height to standard`);
+      return;
+    }
+    const rate = zone.isLiving ? opt.livingRate : opt.ancillaryRate;
+    const subtotal = Math.round(zone.m2 * rate);
+    const stdHeightLabel = ceilingHeightOptions.find((o) => o.isStandard)?.heightMm || 2590;
+    const newItem: QuoteSelectedLineItem = {
+      id: `${prefix}${opt.heightMm}`,
+      catalogueItemId: `${prefix}${opt.heightMm}`,
+      category: "structural",
+      name: `${opt.heightMm.toLocaleString()}mm Ceiling Height Upgrade — ${zone.label} (${zone.m2.toFixed(2)} m²)`,
+      description: `Upgrade ceiling height in ${zone.label} (${zone.m2.toFixed(2)} m²) from ${stdHeightLabel.toLocaleString()}mm standard to ${opt.heightMm.toLocaleString()}mm high ceilings.`,
+      unitType: "fixed",
+      unitRate: subtotal,
+      quantity: 1,
+      subtotal,
+      isIncluded: true,
+      isClientSelectable: true,
+      clientSelected: true,
+    };
+    onChange([...filtered, newItem]);
+    toast.success(`Added ${opt.heightMm}mm Ceiling to ${zone.label} (+${formatAud(subtotal)})`);
+  };
+
+  const handleApplyCeilingHeightAllZones = (
+    opt: { heightMm: number; label: string; isStandard: boolean; livingRate: number; ancillaryRate: number },
+    onlyLiving: boolean = false
+  ) => {
+    const targetZones = onlyLiving ? ceilingZones.filter((z) => z.isLiving) : ceilingZones;
+    const targetPrefixes = targetZones.map((z) => `ceil_zone_${z.key}_`);
+    const filtered = lineItems.filter((it) => !targetPrefixes.some((p) => it.id.startsWith(p)));
+    if (opt.isStandard) {
+      onChange(filtered);
+      toast.info("Reset all zone ceiling heights to standard");
+      return;
+    }
+    const stdHeightLabel = ceilingHeightOptions.find((o) => o.isStandard)?.heightMm || 2590;
+    const newItems: QuoteSelectedLineItem[] = targetZones.map((zone) => {
+      const rate = zone.isLiving ? opt.livingRate : opt.ancillaryRate;
+      const subtotal = Math.round(zone.m2 * rate);
+      return {
+        id: `ceil_zone_${zone.key}_${opt.heightMm}`,
+        catalogueItemId: `ceil_zone_${zone.key}_${opt.heightMm}`,
+        category: "structural",
+        name: `${opt.heightMm.toLocaleString()}mm Ceiling Height Upgrade — ${zone.label} (${zone.m2.toFixed(2)} m²)`,
+        description: `Upgrade ceiling height in ${zone.label} (${zone.m2.toFixed(2)} m²) from ${stdHeightLabel.toLocaleString()}mm standard to ${opt.heightMm.toLocaleString()}mm high ceilings.`,
+        unitType: "fixed",
+        unitRate: subtotal,
+        quantity: 1,
+        subtotal,
+        isIncluded: true,
+        isClientSelectable: true,
+        clientSelected: true,
+      };
+    });
+    onChange([...filtered, ...newItems]);
+    const totalAdded = newItems.reduce((sum, it) => sum + it.subtotal, 0);
+    toast.success(
+      `Applied ${opt.heightMm}mm Ceiling across ${onlyLiving ? "all living levels" : "all house areas"} (+${formatAud(totalAdded)})`
+    );
+  };
+
   const livingM2 = useMemo(() => {
     if (quote.design.isModifiedFloorplan && quote.design.modifiedAreas?.livingM2) {
       return Number(quote.design.modifiedAreas.livingM2);
@@ -409,14 +582,18 @@ export function V2StepVariations({
     }
   }, [isH3, lineItems, onChange]);
 
-  // Auto-detected modified plan line items
+  // Auto-detected modified plan line items (exclude mod_area_* since those are managed in the Area Schedule)
   const autoDetectedItems = useMemo(() => {
-    return lineItems.filter((it) => it.id.startsWith("mod_") || it.name.toLowerCase().includes("modified"));
+    return lineItems.filter(
+      (it) =>
+        !it.id.startsWith("mod_area_") &&
+        (it.id.startsWith("mod_") || it.name.toLowerCase().includes("modified"))
+    );
   }, [lineItems]);
 
-  // Standard line items included in quote
+  // Standard line items included in quote (exclude mod_area_*)
   const activeIncludedItems = useMemo(() => {
-    return lineItems.filter((it) => it.isIncluded);
+    return lineItems.filter((it) => it.isIncluded && !it.id.startsWith("mod_area_"));
   }, [lineItems]);
 
   // Calculate live variations total
@@ -1473,6 +1650,160 @@ export function V2StepVariations({
                   </Badge>
                 )}
               </div>
+
+              {/* INDIVIDUAL LEVEL / AREA CEILING HEIGHT UPGRADES PANEL */}
+              {sec.id === "ceiling_height" && ceilingZones.length > 0 && (
+                <div
+                  data-testid="individual-zone-ceiling-height-panel"
+                  className={`p-4 sm:p-5 rounded-2xl border space-y-4 ${
+                    isLight
+                      ? "bg-slate-50/90 border-slate-200 text-slate-900"
+                      : "bg-slate-950/70 border-slate-800 text-white"
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm sm:text-base font-extrabold tracking-tight">
+                          Individual Level &amp; Area Ceiling Height Upgrades
+                        </span>
+                        <Badge className="bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold uppercase">
+                          {quote.design.designName || "Floorplan"} ({ceilingZones.length} Areas)
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Upgrade ceiling height individually for each floor level or area ({ceilingZones.map((z) => z.label).join(", ")}), or apply across all living levels / entire home.
+                      </p>
+                    </div>
+
+                    {/* Quick Apply All Buttons */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {ceilingHeightOptions
+                        .filter((o) => !o.isStandard)
+                        .map((opt) => (
+                          <Button
+                            key={`all_living_${opt.heightMm}`}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleApplyCeilingHeightAllZones(opt, true)}
+                            className="h-8 px-2.5 text-xs font-bold rounded-xl border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 cursor-pointer"
+                          >
+                            All Living → {opt.heightMm.toLocaleString()}mm
+                          </Button>
+                        ))}
+                      {ceilingHeightOptions
+                        .filter((o) => !o.isStandard)
+                        .map((opt) => (
+                          <Button
+                            key={`all_zones_${opt.heightMm}`}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleApplyCeilingHeightAllZones(opt, false)}
+                            className="h-8 px-2.5 text-xs font-bold rounded-xl border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 cursor-pointer"
+                          >
+                            All Areas → {opt.heightMm.toLocaleString()}mm
+                          </Button>
+                        ))}
+                      {lineItems.some((it) => it.isIncluded && it.id.startsWith("ceil_zone_")) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            const stdOpt = ceilingHeightOptions.find((o) => o.isStandard) || ceilingHeightOptions[0];
+                            handleApplyCeilingHeightAllZones(stdOpt, false);
+                          }}
+                          className="h-8 px-2.5 text-xs font-bold rounded-xl text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                        >
+                          Reset All
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Individual Zone Cards Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {ceilingZones.map((zone) => {
+                      const activeItem = lineItems.find(
+                        (it) => it.isIncluded && it.id.startsWith(`ceil_zone_${zone.key}_`)
+                      );
+                      const activeHeightMm = activeItem
+                        ? parseInt(activeItem.id.replace(`ceil_zone_${zone.key}_`, ""), 10)
+                        : ceilingHeightOptions.find((o) => o.isStandard)?.heightMm || 2590;
+
+                      return (
+                        <div
+                          key={zone.key}
+                          data-testid={`ceiling-zone-card-${zone.key}`}
+                          className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between gap-2.5 ${
+                            activeItem
+                              ? isLight
+                                ? "bg-emerald-50/90 border-emerald-500 shadow-xs ring-1 ring-emerald-500/30"
+                                : "bg-emerald-950/25 border-emerald-500/60 shadow-sm ring-1 ring-emerald-500/30"
+                              : isLight
+                              ? "bg-white border-slate-200"
+                              : "bg-slate-900/60 border-slate-800"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <span className={`text-xs sm:text-sm font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                                {zone.label}
+                              </span>
+                              <span className="text-[11px] font-mono text-slate-400">
+                                Area: {zone.m2.toFixed(2)} m²
+                              </span>
+                            </div>
+                            {activeItem ? (
+                              <Badge className="bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 text-xs font-mono font-bold">
+                                +{formatAud(activeItem.subtotal)}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] font-mono text-slate-400 border-slate-700/40">
+                                Standard Included
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-1.5 pt-1">
+                            {ceilingHeightOptions.map((opt) => {
+                              const isSelected = activeHeightMm === opt.heightMm;
+                              const rate = zone.isLiving ? opt.livingRate : opt.ancillaryRate;
+                              const optCost = opt.isStandard ? 0 : Math.round(zone.m2 * rate);
+                              return (
+                                <button
+                                  key={`${zone.key}_${opt.heightMm}`}
+                                  type="button"
+                                  data-testid={`ceiling-zone-${zone.key}-${opt.heightMm}`}
+                                  onClick={() => handleSelectZoneCeilingHeight(zone, opt)}
+                                  className={`px-2.5 py-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between gap-1.5 ${
+                                    isSelected
+                                      ? isLight
+                                        ? "bg-emerald-500 text-slate-950 border-emerald-600 font-bold"
+                                        : "bg-emerald-500/25 border-emerald-400 text-emerald-200 font-bold"
+                                      : isLight
+                                      ? "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                                      : "bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700"
+                                  }`}
+                                >
+                                  <span className="text-[11px] font-bold truncate">
+                                    {opt.heightMm.toLocaleString()}mm
+                                  </span>
+                                  <span className="text-[10px] font-mono font-semibold flex-none">
+                                    {opt.isStandard ? "$0 Std" : `+${formatAud(optCost)}`}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Grid of sleek compact items WITHOUT descriptions */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">

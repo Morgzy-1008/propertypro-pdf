@@ -658,6 +658,62 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             </div>
           </div>
         </div>
+
+        {/* Site Wind Rating Classification (AS 4055) */}
+        <div className={`pt-3 border-t ${isLight ? "border-slate-200" : "border-slate-800/80"}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <Label className={`text-xs font-bold flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
+                Site Wind Rating (AS 4055)
+              </Label>
+              <span className={`text-[11px] block mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                Standard N1/N2 included ($0). Select N3 ($4,000), N4 ($7,500), C1 ($11,000), or C2 ($15,500).
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {[
+                { id: "N2", label: "N1/N2 ($0)", cost: 0 },
+                { id: "N3", label: "N3 (+$4,000)", cost: 4000 },
+                { id: "N4", label: "N4 (+$7,500)", cost: 7500 },
+                { id: "C1", label: "C1 (+$11,000)", cost: 11000 },
+                { id: "C2", label: "C2 (+$15,500)", cost: 15500 },
+              ].map((opt) => {
+                const active = (site.windRating || "N2") === opt.id || (opt.id === "N2" && site.windRating === "N1");
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => onSiteChange({ windRating: opt.id as any, windRatingCost: opt.cost })}
+                    className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      active
+                        ? isLight
+                          ? "bg-emerald-50 border-emerald-500 text-emerald-800"
+                          : "bg-emerald-500/20 border-emerald-400 text-emerald-300"
+                        : isLight
+                        ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                        : "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+              <div className="flex items-center gap-1 ml-1">
+                <span className="text-xs font-mono text-slate-400">$</span>
+                <Input
+                  type="number"
+                  step="100"
+                  value={site.windRatingCost !== undefined ? site.windRatingCost : 0}
+                  onChange={(e) => {
+                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    onSiteChange({ windRating: site.windRating || (val > 0 ? "N3" : "N2"), windRatingCost: val });
+                  }}
+                  className="h-8 w-24 text-xs font-mono font-bold text-right"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Section 2: Topography & Fall Across Building Envelope */}
