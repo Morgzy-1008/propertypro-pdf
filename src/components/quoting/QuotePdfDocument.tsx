@@ -1646,32 +1646,32 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             </div>
           </div>
 
-          {/* 3-Column Bottom Underlined Specification Strip */}
-          <div className="grid grid-cols-3 gap-8 text-xs mb-10">
-            <div className="border-b-[1.5px] border-slate-700 pb-2 flex items-baseline justify-between gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+          {/* 3-Column Bottom Underlined Specification Strip — Evenly Spread Without Truncating Design Name */}
+          <div className="grid grid-cols-12 gap-7 text-xs mb-10 items-end">
+            <div className="col-span-5 border-b-[1.5px] border-slate-700 pb-2 flex items-baseline justify-between gap-2 min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap shrink-0">
                 Selected Design
               </span>
-              <span className="font-black text-slate-950 text-sm text-right truncate">
+              <span className="font-black text-slate-950 text-[13px] leading-tight text-right">
                 {effectiveDesignName}
               </span>
             </div>
 
-            <div className="border-b-[1.5px] border-slate-700 pb-2 flex items-baseline justify-between gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+            <div className="col-span-3 border-b-[1.5px] border-slate-700 pb-2 flex items-baseline justify-between gap-2 min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap shrink-0">
                 Facade Style
               </span>
-              <span className="font-black text-slate-950 text-sm text-right truncate">
-                {design.facadeName || "Classic"}
+              <span className="font-black text-slate-950 text-[13px] leading-tight text-right">
+                {(design.facadeName || "Classic").replace(/\s*\(Standard Included\)/i, "")}
               </span>
             </div>
 
-            <div className="border-b-[1.5px] border-slate-700 pb-2 flex items-baseline justify-between gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
+            <div className="col-span-4 border-b-[1.5px] border-slate-700 pb-2 flex items-baseline justify-between gap-2 min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap shrink-0">
                 Inclusion Tier
               </span>
               <span
-                className="font-black text-slate-950 text-sm text-right truncate"
+                className="font-black text-slate-950 text-[13px] leading-tight text-right"
                 title={formatInclusionTierTitle(design.specTier)}
               >
                 {shortInclusionLabel}
@@ -2018,8 +2018,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       {/* ========================================================================= */}
       <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Page 3 Header */}
-          <div className="flex items-start justify-between border-b-2 border-slate-800 pb-3 mb-2 flex-none">
+          {/* Page 3 Header — Clean without duplicate Selected Facade blue pill */}
+          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-1.5 flex-none">
             <div>
               <div
                 className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5"
@@ -2028,55 +2028,57 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 <Home className="h-3.5 w-3.5 text-[#0099d8] shrink-0" />
                 <span>ARCHITECTURAL ELEVATION &amp; FLOORPLAN SPECIFICATIONS</span>
               </div>
-              <h2 className="text-2xl sm:text-[25px] font-black text-slate-950 tracking-tight uppercase mt-0.5">
+              <h2 className="text-2xl sm:text-[24px] font-black text-slate-950 tracking-tight uppercase mt-0.5 leading-tight">
                 {effectiveDesignName || (design.mode === "standard" ? "HUDSON HOMES ARCHITECTURAL PLAN" : "CUSTOM ARCHITECTURAL FLOORPLAN")}
                 {design.specTier ? ` - ${formatInclusionTierTitle(design.specTier).replace(/\s*\(\d{4}\)/, "").toUpperCase()}` : ""}
               </h2>
-              <div className="text-xs font-black text-slate-950 mt-1 flex items-center gap-2">
-                <span className="bg-sky-100 text-sky-900 border border-sky-300 px-2 py-0.5 rounded-xs">
-                  Selected Facade: {design.facadeName || "Classic"}
-                </span>
-                {design.widthM && design.lengthM && (
-                  <span className="text-slate-600 font-semibold">
-                    Dimensions: {String(design.widthM).replace(/m+$/i, "")}m wide × {String(design.lengthM).replace(/m+$/i, "")}m deep
-                  </span>
-                )}
-              </div>
+              {design.widthM && design.lengthM && (
+                <div className="text-[11px] text-slate-600 font-semibold mt-0.5">
+                  Dimensions: {String(design.widthM).replace(/m+$/i, "")}m wide × {String(design.lengthM).replace(/m+$/i, "")}m deep
+                </div>
+              )}
             </div>
-            <div className="text-right flex-none bg-slate-50 border border-slate-200/90 rounded-sm px-3.5 py-1.5">
-              <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider">TOTAL AREA</span>
-              <span className="text-base font-black text-slate-950 block">
+            <div className="text-right flex-none bg-slate-50 border border-slate-200/90 rounded-sm px-3 py-1">
+              <span className="text-[9.5px] font-bold text-slate-500 block uppercase tracking-wider">TOTAL AREA</span>
+              <span className="text-sm sm:text-[15px] font-black text-slate-950 block">
                 {totalAreaM2} M² ({(totalAreaM2 * 0.107639).toFixed(1)} SQ)
               </span>
             </div>
           </div>
 
-          {/* Area Schedule Row Directly Above Facade Image */}
+          {/* Ultra-Compact Single-Line Area Schedule Strip Directly Above Facade Image */}
           {(() => {
             const modCalc = calculateModifiedFloorplanPricing(design);
+            const activeZones = modCalc.zones.filter((z) => z.modifiedM2 > 0 || z.deltaM2 !== 0);
+            const shortZoneLabel = (label: string) => {
+              const l = label.replace(" Area", "").replace(" (Optional)", "").trim();
+              if (/lower ground/i.test(l)) return "Lower";
+              if (/ground floor/i.test(l)) return "Ground";
+              if (/upper level|first floor/i.test(l)) return "Upper";
+              return l;
+            };
             return (
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs py-1.5 mb-2 px-3 bg-slate-50/80 border border-slate-200 rounded-sm flex-none">
-                <span className="text-slate-600 font-bold uppercase text-[10.5px] tracking-wider">Area Schedule:</span>
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-                  {modCalc.zones.map((z) => (
-                    <span key={z.key} className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
-                      <span className="text-slate-600 text-[11px]">
-                        {z.label.replace(" Area", "").replace(" (Optional)", "")}
-                      </span>
-                      <strong className="font-black text-slate-950 text-xs">
-                        {z.modifiedM2.toFixed(1)} m²
-                      </strong>
+              <div className="flex items-center justify-between gap-2 text-[9.5px] py-1 mb-1.5 px-2.5 bg-slate-50/90 border border-slate-200 rounded-xs flex-none leading-tight">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                  <span className="text-slate-500 font-extrabold uppercase text-[9px] tracking-wider shrink-0">
+                    Areas:
+                  </span>
+                  {activeZones.map((z, idx) => (
+                    <span key={z.key} className="inline-flex items-baseline gap-0.5 whitespace-nowrap">
+                      {idx > 0 && <span className="text-slate-300 mr-0.5">·</span>}
+                      <span className="text-slate-600 font-medium">{shortZoneLabel(z.label)}</span>
+                      <strong className="font-black text-slate-950 ml-0.5">{z.modifiedM2.toFixed(1)}m²</strong>
                       {z.deltaM2 !== 0 && (
-                        <span className="text-[9.5px] font-black text-amber-700 bg-amber-50 px-1 rounded-xs">
+                        <span className="text-[8px] font-bold text-amber-700">
                           ({z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(1)}` : z.deltaM2.toFixed(1)})
                         </span>
                       )}
                     </span>
                   ))}
                 </div>
-                <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap bg-white px-2 py-0.5 rounded-xs border border-slate-200">
-                  <span className="text-slate-600 uppercase text-[10.5px] font-bold">TOTAL</span>
-                  <strong className="font-black text-slate-950 text-xs">{totalAreaM2.toFixed(1)} m²</strong>
+                <span className="inline-flex items-baseline gap-1 whitespace-nowrap bg-white px-1.5 py-0.5 rounded-xs border border-slate-200 shrink-0">
+                  <span className="text-slate-500 uppercase text-[8.5px] font-bold">Total</span>
+                  <strong className="font-black text-slate-950 text-[10px]">{totalAreaM2.toFixed(1)}m²</strong>
                 </span>
               </div>
             );
@@ -2086,28 +2088,28 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           <QuoteFacadeViewer design={design} />
 
           {/* 2. 4-Column Key Specs Strip (Clean, Crisp Cards with Subtle Top Accent) */}
-          <div className="grid grid-cols-4 gap-3 py-2 mb-2 flex-none">
-            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-[#0099d8] rounded-sm p-2 text-center">
-              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Bedrooms</span>
-              <span className="text-base font-black text-slate-950 mt-0.5 block">
+          <div className="grid grid-cols-4 gap-3 py-1.5 mb-1.5 flex-none">
+            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-[#0099d8] rounded-sm py-1.5 px-2 text-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Bedrooms</span>
+              <span className="text-sm sm:text-base font-black text-slate-950 block">
                 {design.beds || (design as any).bedrooms || 4} Beds
               </span>
             </div>
-            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-cyan-600 rounded-sm p-2 text-center">
-              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Bathrooms</span>
-              <span className="text-base font-black text-slate-950 mt-0.5 block">
+            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-cyan-600 rounded-sm py-1.5 px-2 text-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Bathrooms</span>
+              <span className="text-sm sm:text-base font-black text-slate-950 block">
                 {design.baths || (design as any).bathrooms || 2} Baths
               </span>
             </div>
-            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-indigo-600 rounded-sm p-2 text-center">
-              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Garage</span>
-              <span className="text-base font-black text-slate-950 mt-0.5 block">
+            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-indigo-600 rounded-sm py-1.5 px-2 text-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Garage</span>
+              <span className="text-sm sm:text-base font-black text-slate-950 block">
                 {design.cars || (design as any).garage || 2} Cars
               </span>
             </div>
-            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-emerald-600 rounded-sm p-2 text-center">
-              <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">GFA Platform</span>
-              <span className="text-base font-black text-slate-950 mt-0.5 block">
+            <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-emerald-600 rounded-sm py-1.5 px-2 text-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">GFA Platform</span>
+              <span className="text-sm sm:text-base font-black text-slate-950 block">
                 {pricing.gfaM2} m²
               </span>
             </div>
@@ -2139,7 +2141,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
-            <div className="flex items-start justify-between border-b-2 border-slate-800 pb-3 mb-2 flex-none">
+            <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-1.5 flex-none">
               <div>
                 <div
                   className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5"
@@ -2148,48 +2150,44 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   <Building2 className="h-3.5 w-3.5 text-[#0099d8] shrink-0" />
                   <span>2ND DWELLING / AUXILIARY RESIDENCE ARCHITECTURAL SPECIFICATION</span>
                 </div>
-                <h2 className="text-2xl sm:text-[25px] font-black text-slate-950 uppercase mt-0.5">
+                <h2 className="text-2xl sm:text-[24px] font-black text-slate-950 uppercase mt-0.5 leading-tight">
                   {secondDwelling.designName} - {secondDwelling.specTier}
                 </h2>
-                <div className="text-xs font-black text-slate-950 mt-1 flex items-center gap-2">
-                  <span className="bg-cyan-100 text-cyan-900 border border-cyan-300 px-2 py-0.5 rounded-xs">
-                    Selected Facade: {secondDwelling.facadeName || "Classic"}
-                  </span>
-                  {secondDwelling.widthM && secondDwelling.lengthM && (
-                    <span className="text-slate-600 font-semibold">
-                      Dimensions: {String(secondDwelling.widthM).replace(/m+$/i, "")}m wide × {String(secondDwelling.lengthM).replace(/m+$/i, "")}m deep
-                    </span>
-                  )}
-                </div>
+                {secondDwelling.widthM && secondDwelling.lengthM && (
+                  <div className="text-[11px] text-slate-600 font-semibold mt-0.5">
+                    Dimensions: {String(secondDwelling.widthM).replace(/m+$/i, "")}m wide × {String(secondDwelling.lengthM).replace(/m+$/i, "")}m deep
+                  </div>
+                )}
               </div>
-              <div className="text-right flex-none bg-slate-50 border border-slate-200/90 rounded-sm px-3.5 py-1.5">
-                <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider">2ND DWELLING AREA</span>
-                <span className="text-base font-black text-slate-950 block">
+              <div className="text-right flex-none bg-slate-50 border border-slate-200/90 rounded-sm px-3 py-1">
+                <span className="text-[9.5px] font-bold text-slate-500 block uppercase tracking-wider">2ND DWELLING AREA</span>
+                <span className="text-sm sm:text-[15px] font-black text-slate-950 block">
                   {secondDwelling.designM2} M² ({(secondDwelling.designM2 * 0.107639).toFixed(1)} SQ)
                 </span>
               </div>
             </div>
 
-            {/* Area Schedule Row */}
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs py-1.5 mb-2 px-3 bg-slate-50/80 border border-slate-200 rounded-sm flex-none">
-              <span className="text-slate-600 font-bold uppercase text-[10.5px] tracking-wider">Area Schedule:</span>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+            {/* Ultra-Compact Single-Line Area Schedule Row */}
+            <div className="flex items-center justify-between gap-2 text-[10px] py-1 mb-1.5 px-2.5 bg-slate-50/90 border border-slate-200 rounded-xs flex-none">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                <span className="text-slate-500 font-extrabold uppercase text-[9.5px] tracking-wider">Areas:</span>
                 <span>
-                  <span className="text-slate-600 text-[11px]">Living </span>
-                  <strong className="font-black text-slate-950 text-xs">
-                    {(secondDwelling.modifiedAreas?.livingM2 || secondDwelling.standardAreas?.livingM2 || Math.round(secondDwelling.designM2 * 0.85)).toFixed(1)} m²
+                  <span className="text-slate-600 font-medium">Living </span>
+                  <strong className="font-black text-slate-950">
+                    {(secondDwelling.modifiedAreas?.livingM2 || secondDwelling.standardAreas?.livingM2 || Math.round(secondDwelling.designM2 * 0.85)).toFixed(1)}m²
                   </strong>
                 </span>
+                <span className="text-slate-300">·</span>
                 <span>
-                  <span className="text-slate-600 text-[11px]">Porch / Outdoor </span>
-                  <strong className="font-black text-slate-950 text-xs">
-                    {(secondDwelling.modifiedAreas?.porchM2 || secondDwelling.standardAreas?.porchM2 || Math.round(secondDwelling.designM2 * 0.15)).toFixed(1)} m²
+                  <span className="text-slate-600 font-medium">Porch / Outdoor </span>
+                  <strong className="font-black text-slate-950">
+                    {(secondDwelling.modifiedAreas?.porchM2 || secondDwelling.standardAreas?.porchM2 || Math.round(secondDwelling.designM2 * 0.15)).toFixed(1)}m²
                   </strong>
                 </span>
               </div>
-              <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap bg-white px-2 py-0.5 rounded-xs border border-slate-200">
-                <span className="text-slate-600 uppercase text-[10.5px] font-bold">TOTAL </span>
-                <strong className="font-black text-slate-950 text-xs">{secondDwelling.designM2.toFixed(1)} m²</strong>
+              <span className="inline-flex items-baseline gap-1 whitespace-nowrap bg-white px-1.5 py-0.5 rounded-xs border border-slate-200">
+                <span className="text-slate-500 uppercase text-[9px] font-bold">Total </span>
+                <strong className="font-black text-slate-950 text-[10.5px]">{secondDwelling.designM2.toFixed(1)}m²</strong>
               </span>
             </div>
 
@@ -2197,22 +2195,22 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             <QuoteSecondFacadeViewer secondDwelling={secondDwelling} />
 
             {/* 2. 4-Column Key Configuration */}
-            <div className="grid grid-cols-4 gap-3 py-2 mb-2 flex-none">
-              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-[#0099d8] rounded-sm p-2 text-center">
-                <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Bedrooms</span>
-                <span className="text-base font-black text-slate-950 mt-0.5 block">{secondDwelling.beds || 2} Beds</span>
+            <div className="grid grid-cols-4 gap-3 py-1.5 mb-1.5 flex-none">
+              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-[#0099d8] rounded-sm py-1.5 px-2 text-center">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Bedrooms</span>
+                <span className="text-sm sm:text-base font-black text-slate-950 block">{secondDwelling.beds || 2} Beds</span>
               </div>
-              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-cyan-600 rounded-sm p-2 text-center">
-                <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Bathrooms</span>
-                <span className="text-base font-black text-slate-950 mt-0.5 block">{secondDwelling.baths || 1} Bath</span>
+              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-cyan-600 rounded-sm py-1.5 px-2 text-center">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Bathrooms</span>
+                <span className="text-sm sm:text-base font-black text-slate-950 block">{secondDwelling.baths || 1} Bath</span>
               </div>
-              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-indigo-600 rounded-sm p-2 text-center">
-                <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Garage</span>
-                <span className="text-base font-black text-slate-950 mt-0.5 block">{secondDwelling.cars || 0} Cars</span>
+              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-indigo-600 rounded-sm py-1.5 px-2 text-center">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Garage</span>
+                <span className="text-sm sm:text-base font-black text-slate-950 block">{secondDwelling.cars || 0} Cars</span>
               </div>
-              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-emerald-600 rounded-sm p-2 text-center">
-                <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">Dwelling Type</span>
-                <span className="text-base font-black text-slate-950 mt-0.5 block truncate">{secondDwelling.housingType}</span>
+              <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-emerald-600 rounded-sm py-1.5 px-2 text-center">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Dwelling Type</span>
+                <span className="text-sm sm:text-base font-black text-slate-950 block truncate">{secondDwelling.housingType}</span>
               </div>
             </div>
 
@@ -2389,13 +2387,13 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       })}
 
       {/* ========================================================================= */}
-      {/* PAGE 6: STANDARD INCLUSIONS SPECIFICATION SCHEDULE (MARKETING STYLED)     */}
+      {/* PAGE 6: STANDARD INCLUSIONS SPECIFICATION SCHEDULE (FULL-PAGE READABLE)    */}
       {/* ========================================================================= */}
       <div
         data-testid="pdf-page-inclusions"
         className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] px-12 py-7 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always"
       >
-        <div>
+        <div className="flex-1 flex flex-col justify-between min-h-0">
           {(() => {
             const isNswInclusions = quoteState === "NSW";
             const tierNormUpper = (design.specTier || "H2").toUpperCase();
@@ -2415,17 +2413,17 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               {
                 title: `CERTIFICATION AND APPROVALS (${isNswInclusions ? "NSW STATUTORY" : "QLD STATUTORY"})`,
                 items: [
-                  "Site contour survey by registered surveyor & physical set out",
+                  "Registered surveyor contour survey & physical set out",
                   isNswInclusions
                     ? "DA / CDC preparation, architectural plans & council fees"
-                    : "Building Application (BA) preparation, lodgement & certifier fees",
+                    : "Building Application (BA) preparation, lodgement & fees",
                   "Structural engineering design for concrete slab & footing",
                   isNswInclusions
-                    ? "Construction Certificate (CC) & structural engineer certification"
-                    : "Form 15 Pre-nail frame/truss layout & Form 16 Structural certs",
+                    ? "Construction Certificate (CC) & engineer certification"
+                    : "Form 15 Pre-nail frame/truss & Form 16 Structural certs",
                   isNswInclusions
                     ? "BASIX Energy Assessment Report & thermal efficiency cert"
-                    : "Glazing acoustics Form 15 & 7-Star NatHERS assessment ($0 fee)",
+                    : "Glazing acoustics Form 15 & 7-Star NatHERS assessment",
                   isNswInclusions
                     ? "Principal Certifying Authority (PCA) inspections & Final OC"
                     : "Final Occupation Certificate (Form 21) upon completion",
@@ -2434,16 +2432,16 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               {
                 title: "SITE COSTS, PREPARATION & FOUNDATION",
                 items: [
-                  "Bulk earthworks & levelling up to 1.0m fall across building pad",
-                  "Engineered waffle pod concrete slab on ground including alfresco",
+                  "Bulk earthworks & levelling up to 1.0m fall across pad",
+                  "Engineered waffle pod concrete slab including alfresco",
                   isNswInclusions
-                    ? "Reinforced concrete bored piering allowance included in site costs"
-                    : "Roof edge safety rail & scaffolding to strict WHS compliance",
-                  "Connect sewer, water, power & storm water services to mains",
+                    ? "Reinforced concrete bored piering allowance included"
+                    : "Roof edge safety rail & scaffolding to WHS compliance",
+                  "Connect sewer, water, power & storm water to mains",
                   isNswInclusions
-                    ? "Termimesh / Kordon physical stainless steel termite barrier (50-yr)"
+                    ? "Termimesh / Kordon stainless steel termite barrier (50-yr)"
                     : "Part A & Part B Termite Management System with warranty",
-                  "Smooth power-trowelled finish to garage and internal living areas",
+                  "Smooth power-trowelled finish to garage & living areas",
                 ],
               },
               {
@@ -2451,52 +2449,52 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 items: [
                   isNswInclusions
                     ? isH3Inclusions
-                      ? "Choice of Bristile flat designer concrete tiles or Colorbond® steel roof"
+                      ? "Bristile flat designer concrete tiles or Colorbond® steel roof"
                       : isH2Inclusions
-                      ? "Bristile designer concrete roof tiles + sarking (Colorbond® steel option)"
-                      : "Bristile / Monier classic concrete roof tiles + reflective foil sarking"
+                      ? "Bristile designer concrete roof tiles + sarking (or Colorbond®)"
+                      : "Bristile / Monier classic concrete roof tiles + foil sarking"
                     : isH3Inclusions
-                    ? "Colorbond® steel roofing or Bristile designer flat concrete tiles"
-                    : "Colorbond® corrugated steel roofing with medium duty reflective foil",
+                    ? "Colorbond® steel roofing or Bristile designer flat tiles"
+                    : "Colorbond® corrugated steel roofing with reflective foil",
                   "Colorbond® fascia and gutters with painted UPVC downpipes",
                   "Engineered T2 treated timber roof trusses and wall framing",
                   isH3Inclusions
                     ? "Hume 1200mm wide designer entrance pivot door with Trilock"
                     : isH2Inclusions
-                    ? "Hume Newington 2040mm solid core front entry door with double lock"
+                    ? "Hume Newington 2040mm solid core front door with double lock"
                     : isIPInclusions
                     ? "Hume solid core front entry door with deadlock & weather seal"
-                    : "Hume Newington 2040mm solid core front door with lever lockset",
+                    : "Hume Newington 2040mm solid core front door with lockset",
                   isH3Inclusions
-                    ? "Powder coated aluminium windows with awning feature & flyscreens"
+                    ? "Powder coated aluminium windows with awning & flyscreens"
                     : isIPInclusions
-                    ? "Powder coated aluminium windows with barrier screens & window locks"
-                    : "Powder coated aluminium windows & flyscreens with fibreglass mesh",
-                  "2 external garden taps & energy-efficient heat pump hot water system",
+                    ? "Powder coated aluminium windows with barrier screens & locks"
+                    : "Powder coated aluminium windows & fibreglass mesh screens",
+                  "2 external garden taps & energy-efficient heat pump HWS",
                 ],
               },
               {
                 title: "INTERNAL CEILINGS, WALLS & DOORS",
                 items: [
                   isH3Inclusions
-                    ? "2,740mm (9ft) raised ceiling height to ground floor / single storey"
+                    ? "2,740mm (9ft) raised ceiling height to ground floor"
                     : isH2Inclusions
                     ? "2,590mm ceiling height throughout"
                     : "2,440mm standard ceiling height throughout",
                   isH3Inclusions
-                    ? "Hume Linear HLR270 2340mm internal doors with Dulux gloss enamel"
+                    ? "Hume Linear HLR270 2340mm internal doors in gloss enamel"
                     : isH2Inclusions
                     ? "Hume Linear 2040mm internal doors with Dulux gloss enamel"
                     : "Hume 2040mm internal doors with Gainsborough passage sets",
-                  "Dulux multi-coat paint system to all internal walls and ceilings",
+                  "Dulux multi-coat paint system to internal walls & ceilings",
                   isH3Inclusions
-                    ? "2400mm high frameless mirror sliding robe doors with shelving"
+                    ? "2400mm high frameless mirror sliding robe doors & shelving"
                     : isH2Inclusions
                     ? "Frameless mirror or vinyl sliding wardrobe doors"
                     : "Built-in wardrobes with vinyl sliding doors, shelf & rail",
-                  "67x18mm skirting & architraves with Dulux painted full gloss enamel",
+                  "67x18mm skirting & architraves in Dulux full gloss enamel",
                   isNswInclusions
-                    ? "R4.0 glasswool ceiling batts (excl garage) & R2.0 external wall batts"
+                    ? "R4.0 ceiling batts (excl garage) & R2.0 external wall batts"
                     : "Glass wool insulation batts to external walls & ceilings",
                 ],
               },
@@ -2504,25 +2502,25 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 title: "GOURMET KITCHEN & APPLIANCES",
                 items: [
                   isH3Inclusions
-                    ? "40mm mitred edge engineered stone benchtops with waterfall edge"
+                    ? "40mm mitred stone benchtops with waterfall edge feature"
                     : isH2Inclusions || isIPInclusions
-                    ? "20mm stone kitchen benchtops"
+                    ? "20mm engineered stone kitchen benchtops"
                     : isFHBInclusions
                     ? "Modern 20mm stone or durable laminate kitchen benchtops"
-                    : "Durable laminate kitchen benchtops (20mm stone upgrade optional)",
+                    : "Durable laminate kitchen benchtops (20mm stone optional)",
                   isH3Inclusions || isH2Inclusions
-                    ? "Fully lined overhead cupboards with plaster bulkhead feature"
-                    : "Fully lined melamine cabinetry with overhead cupboards & drawers",
-                  "Bank of 4 soft-close cutlery drawers and matching pot drawers",
+                    ? "Fully lined overhead cupboards with plaster bulkhead"
+                    : "Fully lined melamine cabinetry with overhead cupboards",
+                  "Bank of 4 soft-close cutlery drawers & matching pot drawers",
                   isH3Inclusions
-                    ? "Fisher & Paykel 900mm luxury electric oven, cooktop & canopy hood"
+                    ? "Fisher & Paykel 900mm luxury oven, cooktop & canopy hood"
                     : isH2Inclusions
-                    ? "Fisher & Paykel 900mm luxury stainless steel electric oven & 900mm cooktop"
-                    : "Haier / Westinghouse 600mm stainless steel oven, cooktop & hood",
-                  "Fisher & Paykel stainless steel dishwasher & built-in microwave oven",
+                    ? "Fisher & Paykel 900mm stainless steel oven & 900mm cooktop"
+                    : "Haier / Westinghouse 600mm stainless steel oven & cooktop",
+                  "Fisher & Paykel stainless dishwasher & built-in microwave",
                   isH3Inclusions || isH2Inclusions
-                    ? "Clark Polar undermount/drop-in sink with Liano I designer pull-out mixer"
-                    : "Clark double bowl stainless steel sink with chrome mixer tapware",
+                    ? "Clark Polar sink with Liano I designer pull-out mixer"
+                    : "Clark double bowl stainless sink with chrome mixer tapware",
                 ],
               },
               {
@@ -2532,17 +2530,17 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                     ? "Wall-hung floating vanities with 20mm stone & counter basins"
                     : isH2Inclusions || isIPInclusions
                     ? "Contemporary floating vanities with 20mm stone benchtops"
-                    : "Contemporary laminate vanity units with vitreous china basins",
+                    : "Contemporary laminate vanity units with vitreous basins",
                   isH3Inclusions
-                    ? "10mm frameless glass shower screen with pivot door & smart waste"
+                    ? "10mm frameless glass shower screen with pivot door"
                     : "Semi-frameless shower screens with clear safety glass",
                   isH3Inclusions || isH2Inclusions
-                    ? "Caroma Aura 1,775mm freestanding white bathtub & Caroma tapware"
+                    ? "Caroma Aura 1,775mm freestanding white bath & tapware"
                     : "Quality acrylic inset or freestanding bathtub with chrome waste",
                   "Wall-faced closed coupled toilet suites with soft-close seats",
                   isH3Inclusions
-                    ? "FULL HEIGHT ceramic wall tiling to ensuite & bathroom wet areas"
-                    : "Ceramic wall tiles to 2,100mm in shower recess",
+                    ? "FULL HEIGHT ceramic wall tiling to ensuite & bathroom"
+                    : "Ceramic wall tiles to 2,100mm height in shower recess",
                   "Smart tile floor wastes & tiled shower recess niche",
                 ],
               },
@@ -2550,12 +2548,12 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 title: "LAUNDRY & INTERNAL FLOOR COVERINGS",
                 items: [
                   isH3Inclusions || isH2Inclusions
-                    ? "Built-in laundry cabinet (up to 1,200mm) with 20mm stone top & Clark 45L drop-in tub"
-                    : "45L stainless steel laundry tub with powder-coated cabinet & bypass",
+                    ? "1,200mm laundry cabinet with 20mm stone top & Clark 45L tub"
+                    : "45L stainless steel laundry tub with powder-coated cabinet",
                   isH3Inclusions
-                    ? "Choice of 8.5mm Hybrid Timber or 600x600mm Gold porcelain floor tiles"
-                    : "Floor tiles to entry, hallway, kitchen, family & meals",
-                  "Quality carpet with underlay to all bedrooms and media rooms",
+                    ? "Choice of 8.5mm Hybrid Timber or 600x600mm porcelain tiles"
+                    : "Main floor tiles to entry, hallway, kitchen, family & meals",
+                  "Quality carpet with underlay to all bedrooms & media rooms",
                   "Main floor outdoor ceramic tiling to under-roof alfresco",
                 ],
               },
@@ -2563,35 +2561,35 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 title: `AIR-CONDITIONING & ELECTRICAL${isIPInclusions || isFHBInclusions ? " (TURNKEY)" : ""}`,
                 items: [
                   isH3Inclusions
-                    ? "Fully Zoned Multi-Head Ducted Reverse Cycle Air Conditioning (MyAir5)"
+                    ? "Fully Zoned Multi-Head Ducted Reverse Cycle A/C (MyAir5)"
                     : isH2Inclusions
-                    ? "Day/Night Ducted Air-Conditioning System (Living & Bedroom Zones)"
+                    ? "Day/Night Ducted Air-Conditioning (Living & Bedroom Zones)"
                     : isIPInclusions
-                    ? "Reverse Cycle Air Conditioning (Ducted or Split System) for tenants"
-                    : "Reverse Cycle Split-System Air Conditioner to Main Living + bedroom fans",
-                  "LED downlights throughout plus ceiling fan/lights to all bedrooms",
+                    ? "Reverse Cycle Air Conditioning (Ducted or Split System)"
+                    : "Reverse Cycle Split-System A/C to Main Living + fans",
+                  "LED downlights throughout plus ceiling fans to all bedrooms",
                   isIPInclusions
-                    ? "100% Turnkey: Exposed aggregate / colour concrete driveway & crossover"
+                    ? "100% Turnkey: Exposed aggregate / colour concrete driveway"
                     : isFHBInclusions
-                    ? "First Home Buyer: Concrete driveway, path, turf, clothesline & letterbox"
-                    : "Energy-efficient electrical fitout",
+                    ? "First Home Buyer: Concrete driveway, path, turf & letterbox"
+                    : "Energy-efficient electrical fitout with double power points",
                   "Interconnected hardwired photoelectric smoke detectors",
                   isIPInclusions
-                    ? "1.8m treated pine fencing with side gate, clothesline, letterbox & turf"
+                    ? "1.8m treated pine fencing with side gate, clothesline & turf"
                     : isFHBInclusions
-                    ? "Optimised for First Home Owner Grant ($30k QLD / $10k NSW) & stamp relief"
+                    ? "Optimised for First Home Owner Grant ($30k QLD / $10k NSW)"
                     : "NBN pre-wiring with telephone & data points to living",
                   isIPInclusions
-                    ? "Block-out roller blinds to all openable windows & sliding glass doors"
-                    : "External weatherproof double power point to under-roof alfresco",
+                    ? "Block-out roller blinds to all openable windows & doors"
+                    : "External weatherproof double power point to alfresco",
                 ],
               },
             ];
 
             return (
-              <>
+              <div className="flex-1 flex flex-col justify-between min-h-0">
                 {/* Page 6 Header */}
-                <div className="flex items-start justify-between border-b-2 border-slate-800 pb-2 mb-2">
+                <div className="flex items-start justify-between border-b-2 border-slate-800 pb-2 mb-1.5 flex-none">
                   <div>
                     <div
                       className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5"
@@ -2602,64 +2600,64 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                         STANDARD INCLUSIONS SPECIFICATION SCHEDULE • {isNswInclusions ? "NEW SOUTH WALES" : "QUEENSLAND"}
                       </span>
                     </div>
-                    <h2 className="text-xl sm:text-[22px] font-black text-slate-950 uppercase tracking-tight mt-0.5">
+                    <h2 className="text-2xl sm:text-[23px] font-black text-slate-950 uppercase tracking-tight mt-0.5 leading-tight">
                       {formatInclusionTierTitle(design.specTier).toUpperCase()}
                     </h2>
                   </div>
-                  <div className="text-right text-[10px] uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-sm font-black leading-snug">
+                  <div className="text-right text-[9.5px] uppercase tracking-wider text-slate-800 bg-slate-100 border border-slate-300 px-3 py-1 rounded-sm font-black leading-snug">
                     <div>FULLY INCLUDED IN BASE</div>
                     <div>BUILDERS ESTIMATE</div>
                   </div>
                 </div>
 
-                {/* 8 Inclusions Categories with Crisp Cyan Left Accent Bars & Emerald Badges */}
-                <div className="space-y-1.5 text-[9.5px] leading-tight">
+                {/* 8 Inclusions Categories — Full-Page Spread, Unified Clean Monochrome/Cyan Styling & Larger Readable Text */}
+                <div className="flex-1 flex flex-col justify-between py-0.5">
                   {categories.map((cat) => (
-                    <div key={cat.title}>
-                      <div className="px-3 py-1 flex items-center justify-between mb-0.5 bg-gradient-to-r from-slate-100 via-sky-50/40 to-white border-l-3 border-[#0099d8] rounded-r-xs">
-                        <span className="font-black uppercase tracking-wider text-slate-900 text-[10.5px]">
+                    <div key={cat.title} className="border-b border-slate-200/80 pb-1.5 last:border-b-0">
+                      <div className="px-2.5 py-0.5 flex items-center justify-between mb-1 bg-slate-100 border-l-[4px] border-[#0099d8] rounded-r-xs">
+                        <span className="font-black uppercase tracking-wider text-slate-950 text-[11px]">
                           {cat.title}
                         </span>
-                        <span className="font-black uppercase tracking-wider text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.2 rounded-full">
+                        <span className="font-bold uppercase tracking-wider text-[9px] text-slate-500">
                           INCLUDED
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-5 divide-y divide-slate-100 px-1">
+                      <div className="grid grid-cols-2 gap-x-5 gap-y-1 px-1.5">
                         {cat.items.map((itemText, idx) => (
-                          <div key={idx} className="flex items-start gap-1.5 py-0.5 text-slate-800">
-                            <CheckCircle2
-                              className="h-3 w-3 flex-none mt-0.5 text-emerald-600"
+                          <div key={idx} className="flex items-center gap-2 text-[10.5px] leading-tight text-slate-800 font-medium">
+                            <Check
+                              className="h-3.5 w-3.5 flex-none text-[#0099d8] stroke-[2.5]"
                             />
-                            <span>{itemText}</span>
+                            <span className="truncate">{itemText}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
-              </>
+              </div>
             );
           })()}
 
           {/* Compact Official Brochure QR Strip */}
-          <div className="mt-2 bg-slate-50 border border-slate-300/90 rounded-sm px-3.5 py-1.5 flex items-center justify-between gap-4">
+          <div className="mt-1.5 bg-slate-50 border border-slate-300/90 rounded-sm px-3.5 py-1.5 flex items-center justify-between gap-4 flex-none">
             <div className="space-y-0.5 flex-1">
-              <div className="text-[9.5px] font-black uppercase tracking-wider text-slate-900">
+              <div className="text-[10px] font-black uppercase tracking-wider text-slate-950">
                 VIEW FULL STANDARD INCLUSIONS BROCHURE ONLINE
               </div>
-              <p className="text-[9px] text-slate-600">
+              <p className="text-[9.5px] text-slate-600">
                 Scan the QR code to explore room-by-room specifications and finishes at{" "}
-                <span className="font-mono font-bold text-slate-800">hudsonhomes.com.au/inclusions-packages/</span>
+                <span className="font-mono font-bold text-slate-900">hudsonhomes.com.au/inclusions-packages/</span>
               </p>
             </div>
-            <div className="bg-white p-0.5 border border-slate-200 rounded-xs flex-none shadow-xs">
+            <div className="bg-white p-1 border border-slate-200 rounded-xs flex-none shadow-xs">
               <QrCode value="https://www.hudsonhomes.com.au/inclusions-packages/" size={11} />
             </div>
           </div>
         </div>
 
         {/* Page 6 Footer */}
-        <div className="pt-2 flex items-center justify-between text-[9.5px] text-slate-600 flex-none border-t border-slate-200">
+        <div className="pt-2 flex items-center justify-between text-[9.5px] text-slate-600 flex-none border-t border-slate-200 mt-1.5">
           <div>{footerLicenceLine}</div>
           <div className="flex items-center gap-4">
             <div className="px-3 py-1 rounded-xs flex items-center gap-2.5 bg-slate-100 border border-slate-300">
