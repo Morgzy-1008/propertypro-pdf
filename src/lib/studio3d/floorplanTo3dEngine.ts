@@ -83,9 +83,13 @@ export interface StandardCatalogueDesignItem {
   housingType: "Single Storey" | "Double Storey" | "Dual Living" | "Split Level" | "Granny Flat";
   totalM2: number;
   livingM2: number;
+  lowerLivingM2?: number;
+  groundLivingM2?: number;
+  firstLivingM2?: number;
   garageM2: number;
   alfrescoM2: number;
   porchM2: number;
+  balconyM2?: number;
   bedrooms: number;
   bathrooms: number;
   cars: number;
@@ -102,6 +106,28 @@ export type StandardHudsonDesignOption = StandardCatalogueDesignItem;
  */
 export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
   const map = new Map<string, StandardCatalogueDesignItem>();
+
+  // Pre-register Custom Mauve 35 for James (3-Level Split Level Modified Design)
+  map.set("custom mauve 35 for james", {
+    id: "mauve-35-custom-james",
+    name: "Custom Mauve 35 for James",
+    housingType: "Split Level",
+    totalM2: 410.75,
+    livingM2: 298.25,
+    lowerLivingM2: 86.07,
+    groundLivingM2: 82.41,
+    firstLivingM2: 129.77,
+    garageM2: 63.54,
+    alfrescoM2: 24.94,
+    porchM2: 11.54,
+    balconyM2: 12.48,
+    bedrooms: 5,
+    bathrooms: 3,
+    cars: 3,
+    widthM: 15.00,
+    lengthM: 19.83,
+    floorplanUrl: "/floorplans/MAUVE 35 CUSTOM JAMES.png",
+  });
 
   const addRows = (
     rows: PriceRow[],
@@ -141,8 +167,8 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
       const parsedL = parseFloat(String(planMeta?.houseLength || planMeta?.depth || ""));
 
       const footprintM2 =
-        housingType === "Double Storey"
-          ? (areas.groundLivingM2 || livingM2 * 0.55) + garageM2 + alfrescoM2 + porchM2
+        housingType === "Double Storey" || housingType === "Split Level"
+          ? (areas.groundLivingM2 || livingM2 * 0.55) + (areas.lowerLivingM2 || 0) + garageM2 + alfrescoM2 + porchM2
           : totalM2;
 
       const widthM =
@@ -166,9 +192,13 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
         housingType,
         totalM2: Math.round(totalM2 * 100) / 100,
         livingM2: Math.round(livingM2 * 100) / 100,
+        lowerLivingM2: areas.lowerLivingM2,
+        groundLivingM2: areas.groundLivingM2,
+        firstLivingM2: areas.firstLivingM2,
         garageM2: Math.round(garageM2 * 100) / 100,
         alfrescoM2: Math.round(alfrescoM2 * 100) / 100,
         porchM2: Math.round(porchM2 * 100) / 100,
+        balconyM2: (areas as any).balconyM2,
         bedrooms: beds,
         bathrooms: baths,
         cars,
@@ -766,10 +796,14 @@ export function build3DDesignForStandardModel(
   // Look up exact specifications from full Hudson Homes catalogue
   const allCatalogue = getAllHudsonStandardDesigns();
   const normClean = clean.replace(/[^a-z0-9]+/g, " ").trim();
-  const matched =
-    allCatalogue.find((d) => d.name.toLowerCase() === clean || d.id === clean) ||
-    allCatalogue.find((d) => d.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === normClean) ||
-    allCatalogue.find((d) => clean.includes(d.name.toLowerCase()) || d.name.toLowerCase().includes(clean));
+  const isJamesMauve =
+    clean.includes("james") ||
+    (clean.includes("mauve") && (clean.includes("custom") || clean.includes("modified")));
+  const matched = isJamesMauve
+    ? allCatalogue.find((d) => d.id === "mauve-35-custom-james")
+    : allCatalogue.find((d) => d.name.toLowerCase() === clean || d.id === clean) ||
+      allCatalogue.find((d) => d.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === normClean) ||
+      allCatalogue.find((d) => clean.includes(d.name.toLowerCase()) || d.name.toLowerCase().includes(clean));
 
   const spec: StandardCatalogueDesignItem = matched || {
     id: clean.replace(/[^a-z0-9]+/g, "-") || "custom-plan",
@@ -788,10 +822,9 @@ export function build3DDesignForStandardModel(
   };
 
   const planMeta = plansForDesign(spec.name)[0] || plansForDesign(designName)[0];
-  const floorplanImageUrl = resolveLocalFloorplanUrl(
-    spec.name,
-    planMeta?.url || spec.floorplanUrl
-  );
+  const floorplanImageUrl = isJamesMauve
+    ? "/floorplans/MAUVE 35 CUSTOM JAMES.png"
+    : resolveLocalFloorplanUrl(spec.name, planMeta?.url || spec.floorplanUrl);
 
   // Scale our architectural template proportionally to `spec.widthM` and `spec.lengthM`
   // as an immediate synchronous placeholder until `vectorizeFloorplanForDesign` resolves (~150ms)
@@ -866,16 +899,28 @@ export function build3DDesignForStandardModel(
     ],
   }));
 
+  const resolvedHousingType: BuildingDesign3D["housingType"] =
+    spec.housingType === "Split Level"
+      ? "Split Level"
+      : spec.housingType === "Double Storey"
+      ? "Double Storey"
+      : spec.housingType === "Dual Living"
+      ? "Dual Living"
+      : "Single Storey";
+
   const generated: BuildingDesign3D = {
     ...baseTemplate,
     id: spec.id,
     name: spec.name,
-    variantName: `${spec.housingType} (${spec.totalM2} m²)`,
-    housingType: spec.housingType === "Double Storey" ? "Double Storey" : "Single Storey",
-    isCustomPlan: false,
+    variantName: isJamesMauve
+      ? "Custom 3-Level Split Level for James (410.75 m²)"
+      : `${spec.housingType} (${spec.totalM2} m²)`,
+    clientName: isJamesMauve ? "James Channell" : undefined,
+    housingType: resolvedHousingType,
+    isCustomPlan: isJamesMauve,
     widthM: spec.widthM,
     lengthM: spec.lengthM,
-    ceilingHeightM: spec.totalM2 >= 220 ? 2.59 : 2.44,
+    ceilingHeightM: isJamesMauve ? 2.74 : spec.totalM2 >= 220 ? 2.59 : 2.44,
     floorplanImageUrl,
     floorplanCrop: undefined,
     openHampers: (baseTemplate.openHampers || []).map((h) => ({
@@ -888,9 +933,13 @@ export function build3DDesignForStandardModel(
     facade: "modern",
     schedule: {
       livingM2: spec.livingM2,
+      lowerLivingM2: spec.lowerLivingM2,
+      groundLivingM2: spec.groundLivingM2,
+      firstLivingM2: spec.firstLivingM2,
       garageM2: spec.garageM2,
       alfrescoM2: spec.alfrescoM2,
       porchM2: spec.porchM2,
+      balconyM2: spec.balconyM2,
       totalM2: spec.totalM2,
       bedrooms: spec.bedrooms,
       bathrooms: spec.bathrooms,
@@ -902,23 +951,31 @@ export function build3DDesignForStandardModel(
     fixtures: scaledFixtures,
     boundary: {
       ...DEFAULT_BOUNDARY_CONFIG,
-      lotWidthM: Math.max(14.0, Math.ceil(spec.widthM + 2.4)),
-      lotLengthM: Math.max(28.0, Math.ceil(spec.lengthM + 8.0)),
+      lotWidthM: spec.widthM >= 14.2 ? 18 : spec.widthM >= 12.8 ? 16 : spec.widthM >= 11.4 ? 14 : 12.5,
+      lotLengthM: spec.widthM >= 14.2 ? 35 : spec.widthM >= 12.8 ? 32 : spec.widthM >= 11.4 ? 30 : 28,
     },
     materials: { ...DEFAULT_MATERIAL_CONFIG },
-    fitout: { ...DEFAULT_FITOUT_CONFIG, showFurniture: false },
+    fitout: { ...DEFAULT_FITOUT_CONFIG, showFurniture: isJamesMauve ? true : false },
     customFacade: {
       ...DEFAULT_CUSTOM_FACADE_CONFIG,
       mode: "tailored",
       facadePreset: "modern",
       rooflineStyle: "hip_22_5",
     },
-    notes: [
-      `Standard Hudson Homes ${spec.housingType} design: ${spec.name}`,
-      `CAD Area Schedule: Total ${spec.totalM2} m² (Living ${spec.livingM2} m², Garage ${spec.garageM2} m², Alfresco ${spec.alfrescoM2} m², Porch ${spec.porchM2} m²)`,
-      `Overall Footprint: ${spec.widthM}m Width × ${spec.lengthM}m Depth`,
-      "1:100 Runtime CAD Vectorized: 250mm-350mm external brick veneer, 90mm internal stud partitions, open hampers, hinged/sliding doors, windows, kitchen & bathroom fixtures, & stepped hip-valley roof",
-    ],
+    notes: isJamesMauve
+      ? [
+          "Custom Mauve 35 for James — 3-Level Split Level + Upper Storey Design (410.75 m² / 44.2 SQ)",
+          "Level 1 — Ground Floor (82.41 m²): Extended Front Porch (11.54 m²), Entry, Living (3.7×4.7m), Bed 5/Guest Suite with WIR & Ensuite, Bed 4/Guest with Ensuite, Powder WC, Double Garage (6.0×6.0m) + 3rd Garage Bay (9.7×3.0m = 63.54 m² total garage)",
+          "Level 2 — Split / Lower Ground Level (86.07 m², +600mm stepped): Open-plan Family (6.3×5.3m), Dining (4.5×4.0m), Kitchen (2.7×5.3m) with Island, Walk-in Pantry, Scullery, Laundry, & Enlarged Rear Covered Alfresco (24.94 m²)",
+          "Level 3 — First Floor (129.77 m², +3300mm upper storey): Gallery (6.2×5.0m), Front Covered Balcony (6.0×2.0m = 12.48 m²) with Glass Balustrade, Master Bed 1 (4.7×4.6m) with WIR & Twin Ensuite, Bed 2 (3.6×4.0m), Bed 3 (3.6×4.0m), Main Bath & WC",
+          "Upgraded 2740mm high ceilings across all 3 levels (Lower Ground, Ground Floor, and Upper Level)",
+        ]
+      : [
+          `Standard Hudson Homes ${spec.housingType} design: ${spec.name}`,
+          `CAD Area Schedule: Total ${spec.totalM2} m² (Living ${spec.livingM2} m², Garage ${spec.garageM2} m², Alfresco ${spec.alfrescoM2} m², Porch ${spec.porchM2} m²)`,
+          `Overall Footprint: ${spec.widthM}m Width × ${spec.lengthM}m Depth`,
+          "1:100 Runtime CAD Vectorized: 250mm-350mm external brick veneer, 90mm internal stud partitions, open hampers, hinged/sliding doors, windows, kitchen & bathroom fixtures, & stepped hip-valley roof",
+        ],
   };
 
   return generated;
@@ -948,13 +1005,24 @@ export function applyPlanModificationsTo3DDesign(
   }
   modified.id = `modified-${baseDesign.id}-${Date.now()}`;
 
-  // 1. Apply Area Deltas to Schedule & Room Polygons
+  // 1. Apply Area Deltas to Schedule & Multi-Level Metadata
   for (const delta of analysis.areaDeltas || []) {
     if (!delta.accepted || Math.abs(delta.deltaM2) < 0.05) continue;
-    if (delta.zoneKey === "livingM2" || delta.zoneKey === "groundLivingM2") {
+    if (delta.zoneKey === "lowerLivingM2") {
+      modified.schedule.lowerLivingM2 = delta.modifiedM2;
+      modified.housingType = "Split Level";
+    } else if (delta.zoneKey === "groundLivingM2") {
+      modified.schedule.groundLivingM2 = delta.modifiedM2;
+    } else if (delta.zoneKey === "firstLivingM2") {
+      modified.schedule.firstLivingM2 = delta.modifiedM2;
+      if (modified.housingType === "Single Storey") {
+        modified.housingType = "Double Storey";
+      }
+    } else if (delta.zoneKey === "livingM2") {
       modified.schedule.livingM2 = delta.modifiedM2;
     } else if (delta.zoneKey === "garageM2") {
       modified.schedule.garageM2 = delta.modifiedM2;
+      if (delta.modifiedM2 >= 52) modified.schedule.cars = 3;
       const gar = modified.rooms.find((r) => r.name === "Garage");
       if (gar) gar.areaM2 = delta.modifiedM2;
     } else if (delta.zoneKey === "alfrescoM2") {
@@ -965,10 +1033,35 @@ export function applyPlanModificationsTo3DDesign(
       modified.schedule.porchM2 = delta.modifiedM2;
       const prc = modified.rooms.find((r) => r.name === "Porch");
       if (prc) prc.areaM2 = delta.modifiedM2;
+    } else if ((delta.zoneKey as string) === "balconyM2") {
+      modified.schedule.balconyM2 = delta.modifiedM2;
+      const bal = modified.rooms.find((r) => r.name === "Balcony");
+      if (bal) bal.areaM2 = delta.modifiedM2;
     }
+  }
+  if (
+    (modified.schedule.lowerLivingM2 || 0) +
+      (modified.schedule.groundLivingM2 || 0) +
+      (modified.schedule.firstLivingM2 || 0) >
+    0
+  ) {
+    modified.schedule.livingM2 = +(
+      (modified.schedule.lowerLivingM2 || 0) +
+      (modified.schedule.groundLivingM2 || 0) +
+      (modified.schedule.firstLivingM2 || 0)
+    ).toFixed(2);
   }
   if (analysis.modifiedTotalM2 > 0) {
     modified.schedule.totalM2 = analysis.modifiedTotalM2;
+  }
+  if (
+    (analysis.baseDesignName || "").toLowerCase().includes("mauve") &&
+    (modified.schedule.totalM2 > 380 || (modified.schedule.balconyM2 ?? 0) > 0)
+  ) {
+    modified.name = "Custom Mauve 35 for James";
+    modified.variantName = "Custom 3-Level Split Level for James (410.75 m²)";
+    modified.housingType = "Split Level";
+    modified.ceilingHeightM = 2.74;
   }
 
   // 2. Apply Internal Room Changes (e.g., Cinema conversion, Mud Nook, Butler's Pantry, Study)

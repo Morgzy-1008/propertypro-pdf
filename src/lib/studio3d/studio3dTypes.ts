@@ -25,11 +25,38 @@ export type RoomCategory =
   | "Mud Nook"
   | "Study/WIL"
   | "Butler Pantry"
+  | "Scullery"
+  | "Gallery"
+  | "Balcony"
+  | "Stairs"
+  | "Store"
+  | "WIR"
   | "Alfresco"
   | "Porch"
   | "Garage"
   | "Hallway"
   | "Entry";
+
+export interface LevelConfig3D {
+  level: number; // 0 = Ground Floor (Front Entry), 1 = Split / Lower-Upper Ground Level, 2 = First Floor (Upper Storey)
+  name: string;
+  shortName: string;
+  elevationOffsetM: number; // Vertical offset in metres above base FFL (0.30m)
+  ceilingHeightMm: CeilingHeightPreset;
+  areaM2?: number;
+  floorplanCrop?: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+  worldBounds?: {
+    x: number;
+    z: number;
+    widthM: number;
+    depthM: number;
+  };
+}
 
 export interface Point2D {
   x: number;
@@ -44,6 +71,8 @@ export interface WallSegment {
   height?: number;         // defaults to room ceiling height
   isExterior: boolean;
   material?: string;       // e.g. 'brick_austral', 'render_monument', 'plaster_white'
+  level?: number;          // 0 = Ground, 1 = Split Level, 2 = First Floor
+  elevationOffsetM?: number; // metres above base FFL
 }
 
 export type OpeningType =
@@ -64,6 +93,8 @@ export interface OpenHamperSegment {
   thickness: number;       // 0.09m (90mm dashed line: 70mm frame + 10mm plaster each side)
   bulkheadHeightM?: number; // clear walk-through height to underside of hamper (default 2.10m)
   label: string;
+  level?: number;
+  elevationOffsetM?: number;
 }
 
 export interface Opening3D {
@@ -84,6 +115,8 @@ export interface Opening3D {
   bifoldPeak?: [number, number];  // exact [x, z] bifold fold vertex in meters
   isExterior?: boolean;
   elevationFacing?: "north" | "south" | "east" | "west";
+  level?: number;
+  elevationOffsetM?: number;
 }
 
 export interface Room3D {
@@ -97,6 +130,8 @@ export interface Room3D {
   dimensionsText?: string;    // e.g. '3.9 x 3.5'
   ceilingHeight?: number;     // e.g. 2.44, 2.59, 2.74, 2.90
   isModified?: boolean;       // custom addition/modification flag
+  level?: number;             // 0 = Ground, 1 = Split Level, 2 = First Floor
+  elevationOffsetM?: number;  // metres above base FFL
 }
 
 export type FixtureType =
@@ -126,7 +161,9 @@ export type FixtureType =
   | "mud_nook_bench"
   | "tv_console"
   | "tv_entertainment_unit"
-  | "wardrobe";
+  | "wardrobe"
+  | "staircase"
+  | "balustrade";
 
 export interface Fixture3D {
   id: string;
@@ -138,6 +175,8 @@ export interface Fixture3D {
   depth: number;                      // in meters
   height: number;                     // in meters
   label: string;
+  level?: number;
+  elevationOffsetM?: number;
 }
 
 export type RoofType = "hip" | "gable" | "skillion" | "flat";
@@ -159,9 +198,13 @@ export interface RoofConfig {
 
 export interface BuildingSchedule {
   livingM2: number;
+  lowerLivingM2?: number;
+  groundLivingM2?: number;
+  firstLivingM2?: number;
   garageM2: number;
   alfrescoM2: number;
   porchM2: number;
+  balconyM2?: number;
   totalM2: number;
   bedrooms: number;
   bathrooms: number;
@@ -300,11 +343,12 @@ export interface BuildingDesign3D {
   name: string;
   variantName?: string;
   clientName?: string;
-  housingType: "Single Storey" | "Double Storey";
+  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
   isCustomPlan: boolean;
   widthM: number;
   lengthM: number;
   ceilingHeightM: number;
+  levels?: LevelConfig3D[];
   schedule: BuildingSchedule;
   rooms: Room3D[];
   walls: WallSegment[];

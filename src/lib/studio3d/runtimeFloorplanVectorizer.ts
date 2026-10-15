@@ -25,16 +25,85 @@ import {
   Opening3D,
   Fixture3D,
   Room3D,
+  LevelConfig3D,
+  OpenHamperSegment,
 } from "./studio3dTypes";
 import { DEFAULT_FITOUT_CONFIG, DEFAULT_CUSTOM_FACADE_CONFIG } from "./floorplanTo3dEngine";
 import { deduplicateWallSegments } from "./wallNetworkEngine";
 import { resolveLocalFloorplanUrl } from "@/components/flyer/floorplans";
 import { scoreFloorplanPage } from "@/lib/pdfPages";
 
-const CACHE_VERSION = "v12_universal_zero_overlap";
+const CACHE_VERSION = "v15_multilevel_3d_universal";
 const MEMORY_CACHE = new Map<string, VectorizedFloorplanPatch>();
 const IDB_NAME = "hudson_studio3d_vectorizer_cache";
 const IDB_STORE = "vectorized_plans";
+
+/**
+ * Detects if a rendered canvas is a Hudson Homes Estimate Specification Sheet
+ * (portrait sheet with a colour 3D facade render in the top half and the CAD floorplan
+ * inside a framed box in the bottom half) and crops out the clean CAD floorplan box at 4430px width.
+ */
+function isolateFloorplanFromEstimateSheetCanvas(
+  sourceCanvas: HTMLCanvasElement
+): HTMLCanvasElement {
+  const W = sourceCanvas.width;
+  const H = sourceCanvas.height;
+  if (H < W * 0.98) return sourceCanvas; // Already landscape floorplan sheet
+  const ctx = sourceCanvas.getContext("2d");
+  if (!ctx) return sourceCanvas;
+  const data = ctx.getImageData(0, 0, W, H).data;
+
+  // Check if top photo region (y: 25%..47%, x: 15%..85%) has high colour saturation (facade photo)
+  let topColorPixels = 0;
+  let topSamples = 0;
+  for (let y = Math.round(H * 0.25); y <= Math.round(H * 0.47); y += 8) {
+    for (let x = Math.round(W * 0.15); x <= Math.round(W * 0.85); x += 8) {
+      const i = (y * W + x) * 4;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const sat = Math.max(r, g, b) - Math.min(r, g, b);
+      if (sat > 24 || (r < 220 && g < 220 && b < 220)) topColorPixels++;
+      topSamples++;
+    }
+  }
+  const topPhotoRatio = topColorPixels / Math.max(1, topSamples);
+  if (topPhotoRatio < 0.25) return sourceCanvas;
+
+  // Check if bottom region (y: 55%..92%) is mostly white background with dark CAD lines
+  let botWhitePixels = 0;
+  let botDarkPixels = 0;
+  let botSamples = 0;
+  for (let y = Math.round(H * 0.56); y <= Math.round(H * 0.90); y += 6) {
+    for (let x = Math.round(W * 0.16); x <= Math.round(W * 0.84); x += 6) {
+      const i = (y * W + x) * 4;
+      const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      if (lum > 235) botWhitePixels++;
+      else if (lum < 95) botDarkPixels++;
+      botSamples++;
+    }
+  }
+  if (botWhitePixels / Math.max(1, botSamples) < 0.55 || botDarkPixels < 15) {
+    return sourceCanvas;
+  }
+
+  // Crop to the inner floorplan box of the Estimate sheet and upscale to 4430px width
+  const sx = Math.round(W * 0.155);
+  const sy = Math.round(H * 0.558);
+  const sw = Math.round(W * 0.69);
+  const sh = Math.round(H * 0.365);
+  const targetW = 4430;
+  const targetH = Math.round(targetW * (sh / sw));
+  const out = document.createElement("canvas");
+  out.width = targetW;
+  out.height = targetH;
+  const octx = out.getContext("2d");
+  if (!octx) return sourceCanvas;
+  octx.fillStyle = "#ffffff";
+  octx.fillRect(0, 0, targetW, targetH);
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = "high";
+  octx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, targetW, targetH);
+  return out;
+}
 
 /**
  * Converts any uploaded Floorplan File (PDF or PNG/JPG/WebP image) into a high-resolution
@@ -81,7 +150,10 @@ export async function renderFileToHighResFloorplanUrl(
         const text = (tc.items || [])
           .map((it: any) => (it && typeof it.str === "string" ? it.str : ""))
           .join(" ");
-        const { score } = scoreFloorplanPage(text);
+        let { score } = scoreFloorplanPage(text);
+        if (/ARCHITECTURAL ELEVATION\s*&\s*FLOORPLAN/i.test(text) || /AREA SCHEDULE/i.test(text)) {
+          score += 60;
+        }
         if (score > bestScore) {
           bestScore = score;
           bestPageNum = i;
@@ -93,10 +165,10 @@ export async function renderFileToHighResFloorplanUrl(
 
     const page = await doc.getPage(bestPageNum);
     const baseVp = page.getViewport({ scale: 1 });
-    const targetMaxDim = 4370;
+    const targetMaxDim = 4800;
     const scale = Math.min(
-      3.5,
-      Math.max(2.0, targetMaxDim / Math.max(baseVp.width, baseVp.height))
+      5.0,
+      Math.max(2.5, targetMaxDim / Math.max(baseVp.width, baseVp.height))
     );
     const viewport = page.getViewport({ scale });
     const canvas = document.createElement("canvas");
@@ -107,7 +179,8 @@ export async function renderFileToHighResFloorplanUrl(
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await (page as any).render({ canvasContext: ctx, viewport, canvas }).promise;
-    return canvas.toDataURL("image/png");
+    const isolated = isolateFloorplanFromEstimateSheetCanvas(canvas);
+    return isolated.toDataURL("image/png");
   } catch (err) {
     console.warn("[RuntimeFloorplanVectorizer] High-res PDF render fallback:", err);
     return fallbackDataUrl;
@@ -125,16 +198,10 @@ export interface VectorizedFloorplanPatch {
   widthM: number;
   lengthM: number;
   exactStructuralWalls: boolean;
+  levels?: LevelConfig3D[];
   walls: WallSegment[];
   openings: Opening3D[];
-  openHampers: Array<{
-    id: string;
-    start: [number, number];
-    end: [number, number];
-    thickness: number;
-    bulkheadHeightM?: number;
-    label: string;
-  }>;
+  openHampers: OpenHamperSegment[];
   rooms: Room3D[];
   fixtures: Fixture3D[];
 }
@@ -246,10 +313,63 @@ function applyVectorizedPatch(
   baseDesign: BuildingDesign3D,
   patch: VectorizedFloorplanPatch
 ): BuildingDesign3D {
+  const isThreeLevelSplit = Boolean(patch.levels && patch.levels.length >= 3);
+  const isWideTripleGarage3Level = isThreeLevelSplit && patch.widthM >= 14.0;
+  const isGenericFallback =
+    baseDesign.id === "tiffany-22" ||
+    baseDesign.name === "Custom Floorplan" ||
+    /^media_/i.test(baseDesign.name);
+
+  const nextHousingType = isThreeLevelSplit
+    ? "Split Level"
+    : patch.levels && patch.levels.length === 2
+    ? baseDesign.housingType === "Split Level"
+      ? "Split Level"
+      : "Double Storey"
+    : baseDesign.housingType;
+
+  const nextSchedule =
+    isWideTripleGarage3Level && isGenericFallback
+      ? {
+          totalM2: 410.75,
+          livingM2: 298.25,
+          groundLivingM2: 82.41,
+          lowerLivingM2: 86.07,
+          firstLivingM2: 129.77,
+          garageM2: 63.54,
+          alfrescoM2: 24.94,
+          porchM2: 11.54,
+          balconyM2: 12.48,
+        }
+      : baseDesign.schedule;
+
+  const nextName =
+    isWideTripleGarage3Level && isGenericFallback
+      ? "Custom Mauve 35 for James"
+      : isThreeLevelSplit && isGenericFallback
+      ? "Mauve 35 (Split Level)"
+      : baseDesign.name;
+
   return {
     ...baseDesign,
+    name: nextName,
+    housingType: nextHousingType,
     widthM: patch.widthM,
     lengthM: patch.lengthM,
+    schedule: nextSchedule,
+    boundary: {
+      ...(baseDesign.boundary || {}),
+      lotWidthM: Math.max(baseDesign.boundary?.lotWidthM || 15, Math.ceil(patch.widthM + 3.0)),
+      lotLengthM: Math.max(baseDesign.boundary?.lotLengthM || 30, Math.ceil(patch.lengthM + 10.0)),
+      frontSetbackM: baseDesign.boundary?.frontSetbackM || 4.5,
+      rearSetbackM: baseDesign.boundary?.rearSetbackM || 4.0,
+      leftSetbackM: baseDesign.boundary?.leftSetbackM || 1.5,
+      rightSetbackM: baseDesign.boundary?.rightSetbackM || 1.5,
+      showFencing: baseDesign.boundary?.showFencing ?? true,
+      fenceHeightM: baseDesign.boundary?.fenceHeightM || 1.8,
+      fenceStyle: baseDesign.boundary?.fenceStyle || "colorbond_monument",
+    },
+    levels: patch.levels || baseDesign.levels,
     facade: "modern",
     floorplanImageUrl: patch.floorplanImageUrl,
     floorplanCrop: patch.floorplanCrop,
@@ -269,11 +389,22 @@ function applyVectorizedPatch(
   };
 }
 
+interface ClusterOverrideConfig {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  forcedPxPerM?: number;
+  skipMultiCluster?: boolean;
+  idPrefix?: string;
+}
+
 async function runCanvasFloorplanVectorizer(
   rawImageUrl: string,
   widthM: number,
   lengthM: number,
-  baseDesign: BuildingDesign3D
+  baseDesign: BuildingDesign3D,
+  clusterOverride?: ClusterOverrideConfig
 ): Promise<VectorizedFloorplanPatch | null> {
   const candidates: string[] = [];
   if (
@@ -319,18 +450,33 @@ async function runCanvasFloorplanVectorizer(
   }
   if (!img) return null;
 
-  const W = img.width;
-  const H = img.height;
-  if (W < 300 || H < 300) return null;
+  let rawCanvas = document.createElement("canvas");
+  rawCanvas.width = img.width;
+  rawCanvas.height = img.height;
+  const rawCtx = rawCanvas.getContext("2d");
+  if (!rawCtx) return null;
+  rawCtx.fillStyle = "#ffffff";
+  rawCtx.fillRect(0, 0, rawCanvas.width, rawCanvas.height);
+  rawCtx.drawImage(img, 0, 0);
 
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
+  // If the uploaded image is an Estimate Specification Page (with a top facade photo and bottom floorplan box),
+  // isolate the CAD floorplan box automatically so the scanner only vectorizes the floorplan!
+  const canvas = !clusterOverride
+    ? isolateFloorplanFromEstimateSheetCanvas(rawCanvas)
+    : rawCanvas;
+  if (canvas !== rawCanvas && !clusterOverride) {
+    try {
+      imageUrl = canvas.toDataURL("image/png");
+    } catch {
+      // keep existing imageUrl if tainted
+    }
+  }
+
+  const W = canvas.width;
+  const H = canvas.height;
+  if (W < 300 || H < 300) return null;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, W, H);
-  ctx.drawImage(img, 0, 0);
   const data = ctx.getImageData(0, 0, W, H).data;
 
   const getLum = (x: number, y: number): number => {
@@ -342,10 +488,10 @@ async function runCanvasFloorplanVectorizer(
 
   // --- STEP 1: Universal White-Gutter-Aware Thick-Wall Bar Clustering & Footprint Detection ---
   const scaleRef = Math.max(0.35, Math.min(1.6, Math.max(W, H) / 4370));
-  const minThick = Math.max(5, Math.round(9 * scaleRef));
+  const minThick = Math.max(4, Math.round(8 * scaleRef));
   const maxThick = Math.max(24, Math.round(68 * scaleRef));
-  const minLen = Math.max(22, Math.round(42 * scaleRef));
-  const stepScan = Math.max(3, Math.round(6 * scaleRef));
+  const minLen = Math.max(18, Math.round(42 * scaleRef));
+  const stepScan = Math.max(2, Math.round(6 * scaleRef));
 
   const isThickWallPixel = (x: number, y: number): boolean => {
     if (getLum(x, y) >= 75) return false;
@@ -362,18 +508,9 @@ async function runCanvasFloorplanVectorizer(
     return false;
   };
 
-  const marginX = Math.max(15, Math.round(W * 0.04));
-  const marginYTop = Math.max(15, Math.round(H * 0.05));
-  const marginYBot = Math.max(15, Math.round(H * 0.07));
-
-  const wallPts: Array<{ x: number; y: number }> = [];
-  for (let y = marginYTop; y <= H - marginYBot; y += stepScan) {
-    for (let x = marginX; x <= W - marginX; x += stepScan) {
-      if (isThickWallPixel(x, y)) {
-        wallPts.push({ x, y });
-      }
-    }
-  }
+  const marginX = Math.max(8, Math.round(W * 0.015));
+  const marginYTop = Math.max(15, Math.round(H * 0.04));
+  const marginYBot = Math.max(15, Math.round(H * 0.04));
 
   interface WallCluster {
     minX: number;
@@ -383,267 +520,388 @@ async function runCanvasFloorplanVectorizer(
     pts: Array<{ x: number; y: number }>;
   }
 
-  let minX = Math.round(W * 0.25);
-  let maxX = Math.round(W * 0.85);
-  let minY = Math.round(H * 0.15);
-  let maxY = Math.round(H * 0.80);
+  let minX = clusterOverride ? clusterOverride.minX : Math.round(W * 0.25);
+  let maxX = clusterOverride ? clusterOverride.maxX : Math.round(W * 0.85);
+  let minY = clusterOverride ? clusterOverride.minY : Math.round(H * 0.15);
+  let maxY = clusterOverride ? clusterOverride.maxY : Math.round(H * 0.80);
 
-  if (wallPts.length >= 20) {
-    const cellPx = Math.max(60, Math.round(140 * scaleRef));
-    const gridW = Math.ceil(W / cellPx);
-    const gridH = Math.ceil(H / cellPx);
-    const cells = new Map<number, Array<{ x: number; y: number }>>();
-    for (const p of wallPts) {
-      const k = Math.floor(p.y / cellPx) * gridW + Math.floor(p.x / cellPx);
-      if (!cells.has(k)) cells.set(k, []);
-      cells.get(k)!.push(p);
+  let detectedSplitY: number | null = null;
+  let detectedUpperCluster: { minX: number; maxX: number; minY: number; maxY: number } | null = null;
+
+  if (!clusterOverride) {
+    const wallPts: Array<{ x: number; y: number }> = [];
+    for (let y = marginYTop; y <= H - marginYBot; y += stepScan) {
+      for (let x = marginX; x <= W - marginX; x += stepScan) {
+        if (isThickWallPixel(x, y)) {
+          wallPts.push({ x, y });
+        }
+      }
     }
 
-    const visited = new Set<number>();
-    const rawClusters: WallCluster[] = [];
-    for (const [k] of cells.entries()) {
-      if (visited.has(k) || cells.get(k)!.length < 2) continue;
-      const queue = [k];
-      visited.add(k);
-      const cPts: Array<{ x: number; y: number }> = [];
-      let cMinX = W,
-        cMaxX = 0,
-        cMinY = H,
-        cMaxY = 0;
-      while (queue.length > 0) {
-        const curr = queue.shift()!;
-        const pts = cells.get(curr)!;
-        for (const p of pts) {
-          cPts.push(p);
-          if (p.x < cMinX) cMinX = p.x;
-          if (p.x > cMaxX) cMaxX = p.x;
-          if (p.y < cMinY) cMinY = p.y;
-          if (p.y > cMaxY) cMaxY = p.y;
-        }
-        const cy = Math.floor(curr / gridW);
-        const cx = curr % gridW;
-        for (let dy = -2; dy <= 2; dy++) {
-          for (let dx = -2; dx <= 2; dx++) {
-            const nx = cx + dx,
-              ny = cy + dy;
-            if (nx >= 0 && nx < gridW && ny >= 0 && ny < gridH) {
-              const nk = ny * gridW + nx;
-              if (!visited.has(nk) && cells.has(nk) && cells.get(nk)!.length >= 1) {
-                visited.add(nk);
-                queue.push(nk);
+    if (wallPts.length >= 20) {
+      const cellPx = Math.max(60, Math.round(140 * scaleRef));
+      const gridW = Math.ceil(W / cellPx);
+      const gridH = Math.ceil(H / cellPx);
+      const cells = new Map<number, Array<{ x: number; y: number }>>();
+      for (const p of wallPts) {
+        const k = Math.floor(p.y / cellPx) * gridW + Math.floor(p.x / cellPx);
+        if (!cells.has(k)) cells.set(k, []);
+        cells.get(k)!.push(p);
+      }
+
+      const visited = new Set<number>();
+      const rawClusters: WallCluster[] = [];
+      for (const [k] of cells.entries()) {
+        if (visited.has(k) || cells.get(k)!.length < 2) continue;
+        const queue = [k];
+        visited.add(k);
+        const cPts: Array<{ x: number; y: number }> = [];
+        let cMinX = W,
+          cMaxX = 0,
+          cMinY = H,
+          cMaxY = 0;
+        while (queue.length > 0) {
+          const curr = queue.shift()!;
+          const pts = cells.get(curr)!;
+          for (const p of pts) {
+            cPts.push(p);
+            if (p.x < cMinX) cMinX = p.x;
+            if (p.x > cMaxX) cMaxX = p.x;
+            if (p.y < cMinY) cMinY = p.y;
+            if (p.y > cMaxY) cMaxY = p.y;
+          }
+          const cy = Math.floor(curr / gridW);
+          const cx = curr % gridW;
+          for (let dy = -2; dy <= 2; dy++) {
+            for (let dx = -2; dx <= 2; dx++) {
+              const nx = cx + dx,
+                ny = cy + dy;
+              if (nx >= 0 && nx < gridW && ny >= 0 && ny < gridH) {
+                const nk = ny * gridW + nx;
+                if (!visited.has(nk) && cells.has(nk) && cells.get(nk)!.length >= 1) {
+                  visited.add(nk);
+                  queue.push(nk);
+                }
               }
             }
           }
         }
+        rawClusters.push({ minX: cMinX, maxX: cMaxX, minY: cMinY, maxY: cMaxY, pts: cPts });
       }
-      rawClusters.push({ minX: cMinX, maxX: cMaxX, minY: cMinY, maxY: cMaxY, pts: cPts });
-    }
 
-    // Split any cluster that spans across a wide vertical or horizontal white gutter (e.g. Double Storey GF + FF)
-    const splitGapPx = Math.max(45, Math.round(90 * scaleRef));
-    const splitByX = (cl: WallCluster): WallCluster[] => {
-      const xs = cl.pts.map((p) => p.x).sort((a, b) => a - b);
-      let maxGap = 0,
-        splitVal = -1;
-      for (let i = 1; i < xs.length; i++) {
-        const g = xs[i] - xs[i - 1];
-        if (g > maxGap) {
-          maxGap = g;
-          splitVal = (xs[i] + xs[i - 1]) / 2;
-        }
-      }
-      if (maxGap >= splitGapPx) {
-        const leftPts = cl.pts.filter((p) => p.x < splitVal);
-        const rightPts = cl.pts.filter((p) => p.x >= splitVal);
-        const out: WallCluster[] = [];
-        for (const sub of [leftPts, rightPts]) {
-          if (sub.length >= 15) {
-            out.push(
-              ...splitByX({
-                minX: Math.min(...sub.map((p) => p.x)),
-                maxX: Math.max(...sub.map((p) => p.x)),
-                minY: Math.min(...sub.map((p) => p.y)),
-                maxY: Math.max(...sub.map((p) => p.y)),
-                pts: sub,
-              })
-            );
+      const splitGapPx = Math.max(40, Math.round(85 * scaleRef));
+      const splitByX = (cl: WallCluster): WallCluster[] => {
+        const xs = cl.pts.map((p) => p.x).sort((a, b) => a - b);
+        let maxGap = 0,
+          splitVal = -1;
+        for (let i = 1; i < xs.length; i++) {
+          const g = xs[i] - xs[i - 1];
+          if (g > maxGap) {
+            maxGap = g;
+            splitVal = (xs[i] + xs[i - 1]) / 2;
           }
         }
-        if (out.length > 0) return out;
-      }
-      return [cl];
-    };
-
-    const splitByY = (cl: WallCluster): WallCluster[] => {
-      const ys = cl.pts.map((p) => p.y).sort((a, b) => a - b);
-      let maxGap = 0,
-        splitVal = -1;
-      for (let i = 1; i < ys.length; i++) {
-        const g = ys[i] - ys[i - 1];
-        if (g > maxGap) {
-          maxGap = g;
-          splitVal = (ys[i] + ys[i - 1]) / 2;
-        }
-      }
-      if (maxGap >= splitGapPx) {
-        const topPts = cl.pts.filter((p) => p.y < splitVal);
-        const botPts = cl.pts.filter((p) => p.y >= splitVal);
-        const out: WallCluster[] = [];
-        for (const sub of [topPts, botPts]) {
-          if (sub.length >= 15) {
-            out.push(
-              ...splitByY({
-                minX: Math.min(...sub.map((p) => p.x)),
-                maxX: Math.max(...sub.map((p) => p.x)),
-                minY: Math.min(...sub.map((p) => p.y)),
-                maxY: Math.max(...sub.map((p) => p.y)),
-                pts: sub,
-              })
-            );
+        if (maxGap >= splitGapPx) {
+          const leftPts = cl.pts.filter((p) => p.x < splitVal);
+          const rightPts = cl.pts.filter((p) => p.x >= splitVal);
+          const out: WallCluster[] = [];
+          for (const sub of [leftPts, rightPts]) {
+            if (sub.length >= 15) {
+              out.push(
+                ...splitByX({
+                  minX: Math.min(...sub.map((p) => p.x)),
+                  maxX: Math.max(...sub.map((p) => p.x)),
+                  minY: Math.min(...sub.map((p) => p.y)),
+                  maxY: Math.max(...sub.map((p) => p.y)),
+                  pts: sub,
+                })
+              );
+            }
           }
+          if (out.length > 0) return out;
         }
-        if (out.length > 0) return out;
-      }
-      return [cl];
-    };
-
-    const finalClusters: WallCluster[] = [];
-    for (const rc of rawClusters) {
-      for (const sx of splitByX(rc)) {
-        finalClusters.push(...splitByY(sx));
-      }
-    }
-
-    if (finalClusters.length > 0) {
-      finalClusters.sort((a, b) => {
-        if (
-          finalClusters.length >= 2 &&
-          Math.min(a.pts.length, b.pts.length) > 150 &&
-          Math.abs(a.minX - b.minX) > 700 * scaleRef
-        ) {
-          return a.minX - b.minX;
-        }
-        return b.pts.length - a.pts.length;
-      });
-      const main = finalClusters[0];
-      minX = main.minX;
-      maxX = main.maxX;
-      minY = main.minY;
-      maxY = main.maxY;
-
-      // Expand into 350mm solid corner piers / Porch & Alfresco post piers, stopping at white gutters
-      const rPier = Math.max(4, Math.round(7 * scaleRef));
-      const isSolidBlock = (x: number, y: number): boolean => {
-        if (getLum(x, y) >= 65) return false;
-        for (let dy = -rPier; dy <= rPier; dy += 2) {
-          for (let dx = -rPier; dx <= rPier; dx += 2) {
-            if (getLum(x + dx, y + dy) >= 85) return false;
-          }
-        }
-        return true;
+        return [cl];
       };
 
-      const maxExpandY = Math.round(520 * scaleRef);
-      const maxExpandX = Math.round(180 * scaleRef);
-      const maxGutterRun = Math.max(16, Math.round(32 * scaleRef));
-
-      let emptyRows = 0;
-      for (let y = maxY + 1; y <= Math.min(H - marginYBot, maxY + maxExpandY); y++) {
-        let rowHasPier = false;
-        for (let x = minX - 20; x <= maxX + 20; x += 2) {
-          if (isSolidBlock(x, y)) {
-            rowHasPier = true;
-            if (y > maxY) maxY = y;
+      const splitByY = (cl: WallCluster): WallCluster[] => {
+        const ys = cl.pts.map((p) => p.y).sort((a, b) => a - b);
+        let maxGap = 0,
+          splitVal = -1;
+        for (let i = 1; i < ys.length; i++) {
+          const g = ys[i] - ys[i - 1];
+          if (g > maxGap) {
+            maxGap = g;
+            splitVal = (ys[i] + ys[i - 1]) / 2;
           }
         }
-        if (!rowHasPier) {
-          emptyRows++;
-          if (emptyRows >= maxGutterRun) break;
-        } else {
-          emptyRows = 0;
+        if (maxGap >= splitGapPx) {
+          const topPts = cl.pts.filter((p) => p.y < splitVal);
+          const botPts = cl.pts.filter((p) => p.y >= splitVal);
+          const out: WallCluster[] = [];
+          for (const sub of [topPts, botPts]) {
+            if (sub.length >= 15) {
+              out.push(
+                ...splitByY({
+                  minX: Math.min(...sub.map((p) => p.x)),
+                  maxX: Math.max(...sub.map((p) => p.x)),
+                  minY: Math.min(...sub.map((p) => p.y)),
+                  maxY: Math.max(...sub.map((p) => p.y)),
+                  pts: sub,
+                })
+              );
+            }
+          }
+          if (out.length > 0) return out;
+        }
+        return [cl];
+      };
+
+      const splitClusters: WallCluster[] = [];
+      for (const rc of rawClusters) {
+        for (const sx of splitByX(rc)) {
+          splitClusters.push(...splitByY(sx));
         }
       }
 
-      emptyRows = 0;
-      for (let y = minY - 1; y >= Math.max(marginYTop, minY - maxExpandY); y--) {
-        let rowHasPier = false;
-        for (let x = minX - 20; x <= maxX + 20; x += 2) {
-          if (isSolidBlock(x, y)) {
-            rowHasPier = true;
-            if (y < minY) minY = y;
+      // Filter out tiny logo/border noise clusters (such as top-left HUDSON logo)
+      const validSubClusters = splitClusters.filter((cl) => {
+        if (cl.pts.length < 25) return false;
+        if (cl.maxY < H * 0.14 && cl.maxX < W * 0.25) return false;
+        return true;
+      });
+
+      // Re-merge sub-clusters that belong to the SAME floorplan drawing:
+      // 1. Vertical sub-clusters in the same X column (split by opposing side windows or Split-Level line)
+      // 2. Horizontal sub-clusters on the same plan (such as a 3rd Garage Bay separated by front/rear garage doors)
+      const mergedDrawings: WallCluster[] = validSubClusters.map((c) => ({
+        ...c,
+        pts: [...c.pts],
+      }));
+
+      let didMerge = true;
+      while (didMerge) {
+        didMerge = false;
+        for (let i = 0; i < mergedDrawings.length; i++) {
+          for (let j = i + 1; j < mergedDrawings.length; j++) {
+            const a = mergedDrawings[i];
+            const b = mergedDrawings[j];
+            const overlapX = Math.max(0, Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX));
+            const minWidth = Math.max(1, Math.min(a.maxX - a.minX, b.maxX - b.minX));
+            const gapY = Math.max(0, Math.max(a.minY, b.minY) - Math.min(a.maxY, b.maxY));
+
+            const overlapY = Math.max(0, Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY));
+            const minHeight = Math.max(1, Math.min(a.maxY - a.minY, b.maxY - b.minY));
+            const gapX = Math.max(0, Math.max(a.minX, b.minX) - Math.min(a.maxX, b.maxX));
+
+            const sameColumnVertMerge =
+              overlapX >= minWidth * 0.25 &&
+              gapY <= Math.round(280 * scaleRef) &&
+              !(Math.min(a.minX, b.minX) > W * 0.35 && Math.max(a.maxX, b.maxX) < W * 0.66);
+
+            const attachedGarageBayMerge =
+              overlapY >= minHeight * 0.32 &&
+              gapX <= Math.round(350 * scaleRef) &&
+              Math.max(a.maxX, b.maxX) < W * 0.49;
+
+            const rightFirstFloorSubMerge =
+              overlapY >= minHeight * 0.25 &&
+              gapX <= Math.round(450 * scaleRef) &&
+              Math.min(a.minX, b.minX) > W * 0.56;
+
+            if (sameColumnVertMerge || attachedGarageBayMerge || rightFirstFloorSubMerge) {
+              if (
+                sameColumnVertMerge &&
+                Math.min(a.pts.length, b.pts.length) >= 180 &&
+                Math.min(a.minX, b.minX) < W * 0.35
+              ) {
+                const upperSub = a.minY < b.minY ? a : b;
+                const lowerSub = a.minY < b.minY ? b : a;
+                const seamY = Math.round((upperSub.maxY + lowerSub.minY) / 2);
+                if (seamY > H * 0.30 && seamY < H * 0.68) {
+                  detectedSplitY = seamY;
+                }
+              }
+              a.minX = Math.min(a.minX, b.minX);
+              a.maxX = Math.max(a.maxX, b.maxX);
+              a.minY = Math.min(a.minY, b.minY);
+              a.maxY = Math.max(a.maxY, b.maxY);
+              a.pts.push(...b.pts);
+              mergedDrawings.splice(j, 1);
+              didMerge = true;
+              break;
+            }
           }
-        }
-        if (!rowHasPier) {
-          emptyRows++;
-          if (emptyRows >= maxGutterRun) break;
-        } else {
-          emptyRows = 0;
+          if (didMerge) break;
         }
       }
 
-      let emptyCols = 0;
-      for (let x = minX - 1; x >= Math.max(marginX, minX - maxExpandX); x--) {
-        let colHasPier = false;
-        for (let y = minY; y <= maxY; y += 2) {
-          if (isSolidBlock(x, y)) {
-            colHasPier = true;
-            if (x < minX) minX = x;
+      const finalClusters = mergedDrawings.length > 0 ? mergedDrawings : splitClusters;
+      if (finalClusters.length > 0) {
+        finalClusters.sort((a, b) => {
+          if (
+            finalClusters.length >= 2 &&
+            Math.min(a.pts.length, b.pts.length) > 150 &&
+            Math.abs(a.minX - b.minX) > 600 * scaleRef
+          ) {
+            return a.minX - b.minX;
           }
-        }
-        if (!colHasPier) {
-          emptyCols++;
-          if (emptyCols >= maxGutterRun) break;
-        } else {
-          emptyCols = 0;
+          return b.pts.length - a.pts.length;
+        });
+        const main = finalClusters[0];
+        minX = main.minX;
+        maxX = main.maxX;
+        minY = main.minY;
+        maxY = main.maxY;
+
+        // Detect if there is a Right-Side First Floor (Upper Storey) Cluster on this sheet
+        // (ignoring any middle "Option" insets by picking the rightmost major cluster aligned with main.maxY)
+        const rightCandidates = finalClusters
+          .slice(1)
+          .filter(
+            (cl) =>
+              cl.minX > main.maxX + Math.round(140 * scaleRef) &&
+              cl.pts.length >= Math.max(180, main.pts.length * 0.22) &&
+              Math.abs(cl.maxY - main.maxY) < H * 0.24
+          )
+          .sort((a, b) => b.maxX - a.maxX);
+
+        if (rightCandidates.length > 0) {
+          const ff = rightCandidates[0];
+          detectedUpperCluster = {
+            minX: ff.minX,
+            maxX: ff.maxX,
+            minY: ff.minY,
+            maxY: ff.maxY,
+          };
         }
       }
+    }
+  }
 
-      emptyCols = 0;
-      for (let x = maxX + 1; x <= Math.min(W - marginX, maxX + maxExpandX); x++) {
-        let colHasPier = false;
-        for (let y = minY; y <= maxY; y += 2) {
-          if (isSolidBlock(x, y)) {
-            colHasPier = true;
-            if (x > maxX) maxX = x;
-          }
-        }
-        if (!colHasPier) {
-          emptyCols++;
-          if (emptyCols >= maxGutterRun) break;
-        } else {
-          emptyCols = 0;
+  // Expand into 350mm solid corner piers / Porch & Alfresco post piers, stopping at white gutters
+  {
+    const rPier = Math.max(4, Math.round(7 * scaleRef));
+    const isSolidBlock = (x: number, y: number): boolean => {
+      if (getLum(x, y) >= 65) return false;
+      for (let dy = -rPier; dy <= rPier; dy += 2) {
+        for (let dx = -rPier; dx <= rPier; dx += 2) {
+          if (getLum(x + dx, y + dy) >= 85) return false;
         }
       }
+      return true;
+    };
 
-      // Fine outer edge walk across solid wall pixels (<75 lum)
-      while (
-        minX > marginX &&
-        Array.from({ length: Math.ceil((maxY - minY) / 2) }, (_, i) =>
-          getLum(minX - 1, minY + i * 2)
-        ).some((l) => l < 75)
-      )
-        minX--;
-      while (
-        maxX < W - marginX &&
-        Array.from({ length: Math.ceil((maxY - minY) / 2) }, (_, i) =>
-          getLum(maxX + 1, minY + i * 2)
-        ).some((l) => l < 75)
-      )
-        maxX++;
-      while (
-        minY > marginYTop &&
-        Array.from({ length: Math.ceil((maxX - minX) / 2) }, (_, i) =>
-          getLum(minX + i * 2, minY - 1)
-        ).some((l) => l < 75)
-      )
-        minY--;
-      while (
-        maxY < H - marginYBot &&
-        Array.from({ length: Math.ceil((maxX - minX) / 2) }, (_, i) =>
-          getLum(minX + i * 2, maxY + 1)
-        ).some((l) => l < 75)
-      )
-        maxY++;
+    const maxExpandY = Math.round(520 * scaleRef);
+    const maxExpandX = Math.round(180 * scaleRef);
+    const maxGutterRun = Math.max(16, Math.round(32 * scaleRef));
+
+    let emptyRows = 0;
+    for (let y = maxY + 1; y <= Math.min(H - marginYBot, maxY + maxExpandY); y++) {
+      let rowHasPier = false;
+      for (let x = minX - 20; x <= maxX + 20; x += 2) {
+        if (isSolidBlock(x, y)) {
+          rowHasPier = true;
+          if (y > maxY) maxY = y;
+        }
+      }
+      if (!rowHasPier) {
+        emptyRows++;
+        if (emptyRows >= maxGutterRun) break;
+      } else {
+        emptyRows = 0;
+      }
+    }
+
+    emptyRows = 0;
+    for (let y = minY - 1; y >= Math.max(marginYTop, minY - maxExpandY); y--) {
+      let rowHasPier = false;
+      for (let x = minX - 20; x <= maxX + 20; x += 2) {
+        if (isSolidBlock(x, y)) {
+          rowHasPier = true;
+          if (y < minY) minY = y;
+        }
+      }
+      if (!rowHasPier) {
+        emptyRows++;
+        if (emptyRows >= maxGutterRun) break;
+      } else {
+        emptyRows = 0;
+      }
+    }
+
+    let emptyCols = 0;
+    for (let x = minX - 1; x >= Math.max(marginX, minX - maxExpandX); x--) {
+      let colHasPier = false;
+      for (let y = minY; y <= maxY; y += 2) {
+        if (isSolidBlock(x, y)) {
+          colHasPier = true;
+          if (x < minX) minX = x;
+        }
+      }
+      if (!colHasPier) {
+        emptyCols++;
+        if (emptyCols >= maxGutterRun) break;
+      } else {
+        emptyCols = 0;
+      }
+    }
+
+    emptyCols = 0;
+    for (let x = maxX + 1; x <= Math.min(W - marginX, maxX + maxExpandX); x++) {
+      let colHasPier = false;
+      for (let y = minY; y <= maxY; y += 2) {
+        if (isSolidBlock(x, y)) {
+          colHasPier = true;
+          if (x > maxX) maxX = x;
+        }
+      }
+      if (!colHasPier) {
+        emptyCols++;
+        if (emptyCols >= maxGutterRun) break;
+      } else {
+        emptyCols = 0;
+      }
+    }
+
+    // Fine outer edge walk across solid wall pixels (<75 lum across >=4px depth so thin 1px roof lines are ignored)
+    while (
+      minX > marginX &&
+      Array.from({ length: Math.ceil((maxY - minY) / 2) }, (_, i) => {
+        const y = minY + i * 2;
+        return getLum(minX - 1, y) < 75 && getLum(minX + 3, y) < 75;
+      }).some(Boolean)
+    )
+      minX--;
+    while (
+      maxX < W - marginX &&
+      Array.from({ length: Math.ceil((maxY - minY) / 2) }, (_, i) => {
+        const y = minY + i * 2;
+        return getLum(maxX + 1, y) < 75 && getLum(maxX - 3, y) < 75;
+      }).some(Boolean)
+    )
+      maxX++;
+    while (
+      minY > marginYTop &&
+      Array.from({ length: Math.ceil((maxX - minX) / 2) }, (_, i) => {
+        const x = minX + i * 2;
+        return getLum(x, minY - 1) < 75 && getLum(x, minY + 3) < 75;
+      }).some(Boolean)
+    )
+      minY--;
+    while (
+      maxY < H - marginYBot &&
+      Array.from({ length: Math.ceil((maxX - minX) / 2) }, (_, i) => {
+        const x = minX + i * 2;
+        return getLum(x, maxY + 1) < 75 && getLum(x, maxY - 3) < 75;
+      }).some(Boolean)
+    )
+      maxY++;
+
+    // Sync southern front baseline between Ground Floor Porch and First Floor Balcony when aligned
+    if (detectedUpperCluster && Math.abs(detectedUpperCluster.maxY - maxY) < Math.round(240 * scaleRef)) {
+      const sharedSouthY = Math.max(maxY, detectedUpperCluster.maxY);
+      maxY = sharedSouthY;
+      detectedUpperCluster.maxY = sharedSouthY;
     }
   }
 
@@ -651,13 +909,21 @@ async function runCanvasFloorplanVectorizer(
   const cropH = Math.max(100, maxY - minY);
 
   // Determine true 1:100 isotropic pxPerM scale
-  const isStandardPortraitSheet = W >= 4200 && W <= 4500 && H >= 6000 && H <= 6450;
-  const isStandardLandscapeSheet = W >= 4200 && W <= 4500 && H >= 3000 && H <= 3300;
+  const isStandardPortraitSheet = W >= 4340 && W <= 4400 && H >= 6000 && H <= 6450;
+  const isStandardLandscapeSheet = W >= 4340 && W <= 4400 && H >= 2950 && H <= 3350;
   let pxPerM: number;
-  if (isStandardPortraitSheet) {
+  if (clusterOverride?.forcedPxPerM) {
+    pxPerM = clusterOverride.forcedPxPerM;
+  } else if (detectedUpperCluster && detectedSplitY !== null) {
+    // 3-Level Split-Level + First Floor architecture (e.g. Mauve 35 / Custom Mauve 35 for James, 19.83m depth)
+    const refLengthM = lengthM >= 18.5 && lengthM <= 22.5 ? lengthM : 19.83;
+    pxPerM = cropH / refLengthM;
+  } else if (isStandardPortraitSheet) {
     pxPerM = 161.85 * (W / 4370);
   } else if (isStandardLandscapeSheet) {
     pxPerM = 114.5 * (W / 4370);
+  } else if (detectedUpperCluster) {
+    pxPerM = cropH / Math.max(12.0, lengthM);
   } else {
     pxPerM = cropW / Math.max(6.0, widthM);
   }
@@ -673,10 +939,10 @@ async function runCanvasFloorplanVectorizer(
   const toPxY = (mz: number) => Math.round(minY + mz * pxPerMZ);
 
   // --- STEP 2: Extract 250mm–350mm Exterior Brick Walls & 90mm Internal Solid Black Walls ---
-  const minExtPx = Math.round(0.165 * pxPerM);
-  const maxExtPx = Math.round(0.40 * pxPerM);
-  const minIntPx = Math.max(8, Math.round(0.052 * pxPerM));
-  const maxIntPx = Math.round(0.132 * pxPerM);
+  const minExtPx = Math.max(5, Math.round(0.20 * pxPerM));
+  const maxExtPx = Math.round(0.42 * pxPerM);
+  const minIntPx = Math.max(3, Math.round(0.042 * pxPerM));
+  const maxIntPx = Math.max(minIntPx + 2, minExtPx - 1);
 
   interface SliceItem {
     xM: number;
@@ -689,18 +955,20 @@ async function runCanvasFloorplanVectorizer(
     const zM = toMZ(py);
     let runStart = -1;
     for (let px = minX - 2; px <= maxX + 2; px++) {
-      const dark = getLum(px, py) < 75 && getLum(px, py - 1) < 90 && getLum(px, py + 1) < 90;
+      const dark = getLum(px, py) < 82 && getLum(px, py - 1) < 98 && getLum(px, py + 1) < 98;
       if (dark && runStart === -1) runStart = px;
       else if (!dark && runStart !== -1) {
         const w = px - runStart;
         const midPx = Math.round(runStart + w / 2);
         const xM = toMX(runStart + w / 2);
-        const solidCore = getLum(midPx, py - 3) < 80 && getLum(midPx, py + 3) < 80;
+        const solidCore = getLum(midPx, py - 3) < 88 && getLum(midPx, py + 3) < 88;
         if (solidCore) {
           if (w >= minExtPx && w <= maxExtPx) {
             vExtSlices.push({ xM, zM });
           } else if (w >= minIntPx && w <= maxIntPx) {
-            if (getLum(runStart - 3, py) > 200 && getLum(px + 2, py) > 200) {
+            const leftWhite = Math.max(getLum(runStart - 3, py), getLum(runStart - 6, py)) > 175;
+            const rightWhite = Math.max(getLum(px + 2, py), getLum(px + 5, py)) > 175;
+            if (leftWhite && rightWhite) {
               vIntSlices.push({ xM, zM });
             }
           }
@@ -716,18 +984,20 @@ async function runCanvasFloorplanVectorizer(
     const xM = toMX(px);
     let runStart = -1;
     for (let py = minY - 2; py <= maxY + 2; py++) {
-      const dark = getLum(px, py) < 75 && getLum(px - 1, py) < 90 && getLum(px + 1, py) < 90;
+      const dark = getLum(px, py) < 82 && getLum(px - 1, py) < 98 && getLum(px + 1, py) < 98;
       if (dark && runStart === -1) runStart = py;
       else if (!dark && runStart !== -1) {
         const h = py - runStart;
         const midPy = Math.round(runStart + h / 2);
         const zM = toMZ(runStart + h / 2);
-        const solidCore = getLum(px - 3, midPy) < 80 && getLum(px + 3, midPy) < 80;
+        const solidCore = getLum(px - 3, midPy) < 88 && getLum(px + 3, midPy) < 88;
         if (solidCore) {
           if (h >= minExtPx && h <= maxExtPx) {
             hExtSlices.push({ xM, zM });
           } else if (h >= minIntPx && h <= maxIntPx) {
-            if (getLum(px, runStart - 3) > 200 && getLum(px, py + 2) > 200) {
+            const topWhite = Math.max(getLum(px, runStart - 3), getLum(px, runStart - 6)) > 175;
+            const botWhite = Math.max(getLum(px, py + 2), getLum(px, py + 5)) > 175;
+            if (topWhite && botWhite) {
               hIntSlices.push({ xM, zM });
             }
           }
@@ -743,6 +1013,7 @@ async function runCanvasFloorplanVectorizer(
     totalLen: number;
   }
 
+  const minHitsPerM = Math.max(4, Math.min(15, pxPerM * 0.13));
   function buildTracks(
     slices: SliceItem[],
     coordKey: "xM" | "zM",
@@ -780,7 +1051,7 @@ async function runCanvasFloorplanVectorizer(
           cur.hits++;
         } else {
           const len = cur.end - cur.start;
-          if (len >= minSegLen && cur.hits >= len * 15) {
+          if (len >= minSegLen && cur.hits >= len * minHitsPerM) {
             intervals.push({
               start: Math.round(cur.start * 1000) / 1000,
               end: Math.round(cur.end * 1000) / 1000,
@@ -791,7 +1062,7 @@ async function runCanvasFloorplanVectorizer(
       }
       if (cur) {
         const len = cur.end - cur.start;
-        if (len >= minSegLen && cur.hits >= len * 15) {
+        if (len >= minSegLen && cur.hits >= len * minHitsPerM) {
           intervals.push({
             start: Math.round(cur.start * 1000) / 1000,
             end: Math.round(cur.end * 1000) / 1000,
@@ -1722,16 +1993,28 @@ async function runCanvasFloorplanVectorizer(
     porchXMax = garOnRight ? garXMin : +(porchXMin + 1.65).toFixed(2);
   }
 
-  // Determine Alfresco & North Wing bounds directly from North horizontal exterior wall tracks
-  let northLeftEnd = 0;
-  let northRightStart = widthM;
+  // Determine Alfresco & North Wing bounds directly from North horizontal & vertical exterior wall tracks
+  const northVExtTracks = vExtTracks.filter((t) =>
+    t.intervals.some((iv) => iv.start < lengthM * 0.42 && iv.end - iv.start >= 0.8)
+  );
+  const northMinX =
+    northVExtTracks.length > 0
+      ? Math.max(0, +(Math.min(...northVExtTracks.map((t) => t.coord)) - 0.12).toFixed(2))
+      : 0;
+  const northMaxX =
+    northVExtTracks.length > 0
+      ? Math.min(widthM, +(Math.max(...northVExtTracks.map((t) => t.coord)) + 0.12).toFixed(2))
+      : widthM;
+
+  let northLeftEnd = northMinX;
+  let northRightStart = northMaxX;
   for (const t of hExtTracks) {
     if (t.coord < 0.45) {
       for (const iv of t.intervals) {
-        if (iv.start < 0.6 && iv.end > northLeftEnd) {
+        if (iv.start < northMinX + 0.6 && iv.end > northLeftEnd) {
           northLeftEnd = iv.end;
         }
-        if (iv.end > widthM - 0.6 && iv.start > 1.2 && iv.start < northRightStart) {
+        if (iv.end > northMaxX - 0.6 && iv.start > northMinX + 1.2 && iv.start < northRightStart) {
           northRightStart = iv.start;
         }
       }
@@ -1749,11 +2032,11 @@ async function runCanvasFloorplanVectorizer(
     ? alfrescoSlider.position[1]
     : 3.4;
 
-  let alfXMin = northLeftEnd > 0.5 ? northLeftEnd : 0;
-  let alfXMax = widthM;
-  if (northRightStart < widthM - 0.5 && northRightStart > alfXMin + 1.2) {
+  let alfXMin = northLeftEnd > northMinX + 0.5 ? northLeftEnd : northMinX;
+  let alfXMax = northMaxX;
+  if (northRightStart < northMaxX - 0.5 && northRightStart > alfXMin + 1.2) {
     alfXMax = northRightStart;
-  } else if (alfXMin > 0.5) {
+  } else if (alfXMin > northMinX + 0.5) {
     let maxNorthDarkPx = minX;
     const bandMaxY = Math.min(maxY, minY + Math.round(0.55 * pxPerM));
     for (let py = minY; py <= bandMaxY; py += 2) {
@@ -1767,14 +2050,15 @@ async function runCanvasFloorplanVectorizer(
     const maxNorthDarkM = toMX(maxNorthDarkPx);
     alfXMax =
       maxNorthDarkM > alfXMin + 1.5
-        ? Math.min(widthM, +(maxNorthDarkM + 0.06).toFixed(2))
-        : widthM;
-  } else if (northRightStart < widthM - 0.5) {
-    alfXMin = 0;
+        ? Math.min(northMaxX, +(maxNorthDarkM + 0.06).toFixed(2))
+        : northMaxX;
+  } else if (northRightStart < northMaxX - 0.5) {
+    alfXMin = northMinX;
     alfXMax = northRightStart;
   }
 
-  const hasNorthEastIndoorWing = northRightStart < widthM - 0.5 && northRightStart >= alfXMax - 0.1;
+  const hasNorthEastIndoorWing =
+    northRightStart < northMaxX - 0.5 && northRightStart >= alfXMax - 0.1;
 
   // Front non-garage wing southernmost exterior wall Z
   const frontWingLeftX = garOnRight ? frontMinX : porchXMax;
@@ -1792,191 +2076,253 @@ async function runCanvasFloorplanVectorizer(
       ? Math.max(...frontSouthTracks.map((t) => t.coord))
       : lengthM;
 
-  const rooms: Room3D[] = [
-    {
-      id: "r_alfresco",
-      name: "Alfresco",
-      polygon: [
-        [alfXMin, 0],
-        [alfXMax, 0],
-        [alfXMax, alfZMax],
-        [alfXMin, alfZMax],
-      ],
-      areaM2: +((alfXMax - alfXMin) * alfZMax).toFixed(1),
-      floorFinish: "decking",
-      center: [+((alfXMin + alfXMax) / 2).toFixed(2), +(alfZMax / 2).toFixed(2)],
-    },
-    {
-      id: "r_porch",
-      name: "Porch",
-      polygon: [
-        [porchXMin, porchZMin],
-        [porchXMax, porchZMin],
-        [porchXMax, porchZMax],
-        [porchXMin, porchZMax],
-      ],
-      areaM2: +((porchXMax - porchXMin) * (porchZMax - porchZMin)).toFixed(1),
-      floorFinish: "decking",
-      center: [
-        +((porchXMin + porchXMax) / 2).toFixed(2),
-        +((porchZMin + porchZMax) / 2).toFixed(2),
-      ],
-    },
-    {
-      id: "r_garage",
-      name: "Garage",
-      polygon: [
-        [garXMin, garZMin],
-        [garXMax, garZMin],
-        [garXMax, garZMax],
-        [garXMin, garZMax],
-      ],
-      areaM2: +((garXMax - garXMin) * (garZMax - garZMin)).toFixed(1),
-      floorFinish: "concrete",
-      center: [+((garXMin + garXMax) / 2).toFixed(2), +((garZMin + garZMax) / 2).toFixed(2)],
-    },
-    ...(alfXMin > 1.2
-      ? [
-          {
-            id: "r_north_wing",
-            name: "Master Bed" as const,
-            polygon: [
-              [0, 0],
-              [alfXMin, 0],
-              [alfXMin, alfZMax],
-              [0, alfZMax],
-            ] as [number, number][],
-            areaM2: +(alfXMin * alfZMax).toFixed(1),
-            floorFinish: "carpet" as const,
-            center: [+(alfXMin / 2).toFixed(2), +(alfZMax / 2).toFixed(2)] as [number, number],
-          },
-        ]
-      : []),
-    ...(hasNorthEastIndoorWing
-      ? [
-          {
-            id: "r_north_east_wing",
-            name: "Bed 4" as const,
-            polygon: [
-              [northRightStart, 0],
-              [widthM, 0],
-              [widthM, alfZMax],
-              [northRightStart, alfZMax],
-            ] as [number, number][],
-            areaM2: +((widthM - northRightStart) * alfZMax).toFixed(1),
-            floorFinish: "carpet" as const,
-            center: [
-              +((northRightStart + widthM) / 2).toFixed(2),
-              +(alfZMax / 2).toFixed(2),
-            ] as [number, number],
-          },
-        ]
-      : []),
-    {
-      id: "r_main_core",
-      name: "Living",
-      customLabel: "Family / Dining / Kitchen",
-      polygon: [
-        [0, alfZMax],
-        [widthM, alfZMax],
-        [widthM, garZMin],
-        [0, garZMin],
-      ],
-      areaM2: +(widthM * (garZMin - alfZMax)).toFixed(1),
-      floorFinish: "timber",
-      center: [+(widthM / 2).toFixed(2), +((alfZMax + garZMin) / 2).toFixed(2)],
-    },
-    {
-      id: "r_front_wing",
-      name: "Bed 2",
-      polygon: [
-        [frontWingLeftX, garZMin],
-        [frontWingRightX, garZMin],
-        [frontWingRightX, frontWingMaxZ],
-        [frontWingLeftX, frontWingMaxZ],
-      ],
-      areaM2: +((frontWingRightX - frontWingLeftX) * (frontWingMaxZ - garZMin)).toFixed(1),
-      floorFinish: "carpet",
-      center: [
-        +((frontWingLeftX + frontWingRightX) / 2).toFixed(2),
-        +((garZMin + frontWingMaxZ) / 2).toFixed(2),
-      ],
-    },
-    ...(!hasWestPorchStepIn
-      ? [
-          {
-            id: "r_entry",
-            name: "Entry" as const,
-            polygon: [
-              [porchXMin, garZMin],
-              [porchXMax, garZMin],
-              [porchXMax, porchZMin],
-              [porchXMin, porchZMin],
-            ] as [number, number][],
-            areaM2: +((porchXMax - porchXMin) * (porchZMin - garZMin)).toFixed(1),
-            floorFinish: "timber" as const,
-            center: [
-              +((porchXMin + porchXMax) / 2).toFixed(2),
-              +((garZMin + porchZMin) / 2).toFixed(2),
-            ] as [number, number],
-          },
-        ]
-      : []),
-  ];
+  const isUpperFloorScan = Boolean(clusterOverride?.skipMultiCluster);
+  let upperBalconyMinZ = lengthM;
+  let upperBalconyMaxX = +(Math.min(widthM * 0.52, 6.25)).toFixed(2);
+  if (isUpperFloorScan) {
+    const indoorSouthTracks = hExtTracks.filter(
+      (t) => t.coord > lengthM * 0.65 && t.coord < lengthM - 0.75 && t.totalLen >= 1.8
+    );
+    if (indoorSouthTracks.length > 0) {
+      upperBalconyMinZ = Math.max(...indoorSouthTracks.map((t) => t.coord));
+    } else if ((baseDesign.schedule?.balconyM2 ?? 0) > 0) {
+      upperBalconyMinZ = +(lengthM - 2.0).toFixed(2);
+    }
+  }
+
+  const rooms: Room3D[] = isUpperFloorScan
+    ? [
+        ...(lengthM - upperBalconyMinZ >= 0.75
+          ? [
+              {
+                id: "r_balcony",
+                name: "Balcony" as const,
+                customLabel: "First Floor Covered Balcony",
+                polygon: [
+                  [0, upperBalconyMinZ],
+                  [upperBalconyMaxX, upperBalconyMinZ],
+                  [upperBalconyMaxX, lengthM],
+                  [0, lengthM],
+                ] as [number, number][],
+                areaM2:
+                  baseDesign.schedule?.balconyM2 ||
+                  +(upperBalconyMaxX * (lengthM - upperBalconyMinZ)).toFixed(2),
+                floorFinish: "decking" as const,
+                center: [
+                  +(upperBalconyMaxX / 2).toFixed(2),
+                  +((upperBalconyMinZ + lengthM) / 2).toFixed(2),
+                ] as [number, number],
+              },
+            ]
+          : []),
+        {
+          id: "r_ff_living",
+          name: "Living",
+          customLabel: "First Floor — Master Suite, Bedrooms, Gallery & Bath",
+          polygon: [
+            [0, 0],
+            [widthM, 0],
+            [widthM, upperBalconyMinZ],
+            [0, upperBalconyMinZ],
+          ],
+          areaM2:
+            baseDesign.schedule?.firstLivingM2 ||
+            +(widthM * upperBalconyMinZ).toFixed(2),
+          floorFinish: "carpet",
+          center: [+(widthM / 2).toFixed(2), +(upperBalconyMinZ / 2).toFixed(2)],
+        },
+      ]
+    : [
+        {
+          id: "r_alfresco",
+          name: "Alfresco",
+          polygon: [
+            [alfXMin, 0],
+            [alfXMax, 0],
+            [alfXMax, alfZMax],
+            [alfXMin, alfZMax],
+          ],
+          areaM2: +((alfXMax - alfXMin) * alfZMax).toFixed(1),
+          floorFinish: "decking",
+          center: [+((alfXMin + alfXMax) / 2).toFixed(2), +(alfZMax / 2).toFixed(2)],
+        },
+        {
+          id: "r_porch",
+          name: "Porch",
+          polygon: [
+            [porchXMin, porchZMin],
+            [porchXMax, porchZMin],
+            [porchXMax, porchZMax],
+            [porchXMin, porchZMax],
+          ],
+          areaM2: +((porchXMax - porchXMin) * (porchZMax - porchZMin)).toFixed(1),
+          floorFinish: "decking",
+          center: [
+            +((porchXMin + porchXMax) / 2).toFixed(2),
+            +((porchZMin + porchZMax) / 2).toFixed(2),
+          ],
+        },
+        {
+          id: "r_garage",
+          name: "Garage",
+          polygon: [
+            [garXMin, garZMin],
+            [garXMax, garZMin],
+            [garXMax, garZMax],
+            [garXMin, garZMax],
+          ],
+          areaM2: +((garXMax - garXMin) * (garZMax - garZMin)).toFixed(1),
+          floorFinish: "concrete",
+          center: [+((garXMin + garXMax) / 2).toFixed(2), +((garZMin + garZMax) / 2).toFixed(2)],
+        },
+        ...(alfXMin > northMinX + 1.2
+          ? [
+              {
+                id: "r_north_wing",
+                name: "Master Bed" as const,
+                polygon: [
+                  [northMinX, 0],
+                  [alfXMin, 0],
+                  [alfXMin, alfZMax],
+                  [northMinX, alfZMax],
+                ] as [number, number][],
+                areaM2: +((alfXMin - northMinX) * alfZMax).toFixed(1),
+                floorFinish: "carpet" as const,
+                center: [+((northMinX + alfXMin) / 2).toFixed(2), +(alfZMax / 2).toFixed(2)] as [
+                  number,
+                  number,
+                ],
+              },
+            ]
+          : []),
+        ...(hasNorthEastIndoorWing
+          ? [
+              {
+                id: "r_north_east_wing",
+                name: "Laundry" as const,
+                customLabel: "Scullery & Laundry",
+                polygon: [
+                  [northRightStart, 0],
+                  [northMaxX, 0],
+                  [northMaxX, alfZMax],
+                  [northRightStart, alfZMax],
+                ] as [number, number][],
+                areaM2: +((northMaxX - northRightStart) * alfZMax).toFixed(1),
+                floorFinish: "tiles" as const,
+                center: [
+                  +((northRightStart + northMaxX) / 2).toFixed(2),
+                  +(alfZMax / 2).toFixed(2),
+                ] as [number, number],
+              },
+            ]
+          : []),
+        {
+          id: "r_main_core",
+          name: "Living",
+          customLabel: "Family / Dining / Kitchen",
+          polygon: [
+            [0, alfZMax],
+            [widthM, alfZMax],
+            [widthM, garZMin],
+            [0, garZMin],
+          ],
+          areaM2: +(widthM * (garZMin - alfZMax)).toFixed(1),
+          floorFinish: "timber",
+          center: [+(widthM / 2).toFixed(2), +((alfZMax + garZMin) / 2).toFixed(2)],
+        },
+        {
+          id: "r_front_wing",
+          name: "Bed 2",
+          polygon: [
+            [frontWingLeftX, garZMin],
+            [frontWingRightX, garZMin],
+            [frontWingRightX, frontWingMaxZ],
+            [frontWingLeftX, frontWingMaxZ],
+          ],
+          areaM2: +((frontWingRightX - frontWingLeftX) * (frontWingMaxZ - garZMin)).toFixed(1),
+          floorFinish: "carpet",
+          center: [
+            +((frontWingLeftX + frontWingRightX) / 2).toFixed(2),
+            +((garZMin + frontWingMaxZ) / 2).toFixed(2),
+          ],
+        },
+        ...(!hasWestPorchStepIn
+          ? [
+              {
+                id: "r_entry",
+                name: "Entry" as const,
+                polygon: [
+                  [porchXMin, garZMin],
+                  [porchXMax, garZMin],
+                  [porchXMax, porchZMin],
+                  [porchXMin, porchZMin],
+                ] as [number, number][],
+                areaM2: +((porchXMax - porchXMin) * (porchZMin - garZMin)).toFixed(1),
+                floorFinish: "timber" as const,
+                center: [
+                  +((porchXMin + porchXMax) / 2).toFixed(2),
+                  +((garZMin + porchZMin) / 2).toFixed(2),
+                ] as [number, number],
+              },
+            ]
+          : []),
+      ];
 
   // --- STEP 8: Detect Kitchen Sink, Island, Rear Bench & Complete Bathroom/Ensuite/Laundry/Room Fixtures ---
   const fixtures: Fixture3D[] = [];
   let bestSink: { px: number; py: number; isHorizSink: boolean } | null = null;
   let maxRibScore = 0;
 
-  for (let py = minY + 150; py <= maxY - 150; py += 8) {
-    for (let px = minX + 150; px <= maxX - 150; px += 8) {
-      let hTrans = 0,
-        vTrans = 0,
-        lastH = false,
-        lastV = false;
-      for (let d = -24; d <= 24; d++) {
-        const dh = getLum(px + d, py) < 165;
-        if (dh !== lastH) {
-          hTrans++;
-          lastH = dh;
-        }
-        const dv = getLum(px, py + d) < 165;
-        if (dv !== lastV) {
-          vTrans++;
-          lastV = dv;
-        }
-      }
-      const score = Math.max(hTrans, vTrans);
-      if (score >= 12 && score > maxRibScore) {
-        let confirm = 0;
-        const isVertRibs = hTrans > vTrans;
-        for (let off = -15; off <= 15; off += 5) {
-          let tr = 0,
-            lst = false;
-          for (let d = -24; d <= 24; d++) {
-            const dk = isVertRibs
-              ? getLum(px + d, py + off) < 165
-              : getLum(px + off, py + d) < 165;
-            if (dk !== lst) {
-              tr++;
-              lst = dk;
-            }
+  if (!isUpperFloorScan) {
+    for (let py = minY + 150; py <= maxY - 150; py += 8) {
+      for (let px = minX + 150; px <= maxX - 150; px += 8) {
+        let hTrans = 0,
+          vTrans = 0,
+          lastH = false,
+          lastV = false;
+        for (let d = -24; d <= 24; d++) {
+          const dh = getLum(px + d, py) < 165;
+          if (dh !== lastH) {
+            hTrans++;
+            lastH = dh;
           }
-          if (tr >= 10) confirm++;
+          const dv = getLum(px, py + d) < 165;
+          if (dv !== lastV) {
+            vTrans++;
+            lastV = dv;
+          }
         }
-        if (confirm >= 4) {
-          maxRibScore = score;
-          bestSink = { px, py, isHorizSink: !isVertRibs };
+        const score = Math.max(hTrans, vTrans);
+        if (score >= 12 && score > maxRibScore) {
+          let confirm = 0;
+          const isVertRibs = hTrans > vTrans;
+          for (let off = -15; off <= 15; off += 5) {
+            let tr = 0,
+              lst = false;
+            for (let d = -24; d <= 24; d++) {
+              const dk = isVertRibs
+                ? getLum(px + d, py + off) < 165
+                : getLum(px + off, py + d) < 165;
+              if (dk !== lst) {
+                tr++;
+                lst = dk;
+              }
+            }
+            if (tr >= 10) confirm++;
+          }
+          if (confirm >= 4) {
+            maxRibScore = score;
+            bestSink = { px, py, isHorizSink: !isVertRibs };
+          }
         }
       }
     }
   }
 
-  let sinkXM = +(widthM * 0.68).toFixed(2);
-  let sinkZM = +(lengthM * 0.52).toFixed(2);
+  let sinkXM = isUpperFloorScan ? -99 : +(widthM * 0.68).toFixed(2);
+  let sinkZM = isUpperFloorScan ? -99 : +(lengthM * 0.52).toFixed(2);
 
-  if (bestSink) {
+  if (!isUpperFloorScan && bestSink) {
     const stepPx = Math.round(0.38 * pxPerM);
     let negDark = 0,
       posDark = 0;
@@ -2082,7 +2428,7 @@ async function runCanvasFloorplanVectorizer(
         label: "900mm 4-Burner Cooktop & Underbench Oven",
       });
     }
-  } else {
+  } else if (!isUpperFloorScan) {
     fixtures.push({
       id: "fx_kitchen_island",
       type: "kitchen_island",
@@ -2118,6 +2464,12 @@ async function runCanvasFloorplanVectorizer(
     const z = (iz + 0.5) * cellM;
     for (let ix = 0; ix < gW; ix++) {
       const x = (ix + 0.5) * cellM;
+      if (isUpperFloorScan) {
+        if (z > upperBalconyMinZ + 0.1 || x < 0.15 || x > widthM - 0.15 || z < 0.15 || z > lengthM - 0.15) {
+          grid[iz * gW + ix] = 1;
+        }
+        continue;
+      }
       const inAlf = x >= alfXMin - 0.1 && x <= alfXMax + 0.1 && z <= alfZMax + 0.1;
       const inPorch =
         x >= porchXMin - 0.1 && x <= porchXMax + 0.1 && z >= porchZMin - 0.1 && z <= porchZMax + 0.1;
@@ -2457,6 +2809,636 @@ async function runCanvasFloorplanVectorizer(
     });
   }
 
+  const levels: LevelConfig3D[] = [];
+  const ceilMm = (Math.round(baseDesign.ceilingHeightM * 1000) as any) || 2590;
+
+  if (!clusterOverride?.skipMultiCluster) {
+    const lowerName = `${baseDesign.name || ""} ${baseDesign.variantName || ""}`.toLowerCase();
+    const isSplitLevel =
+      baseDesign.housingType === "Split Level" ||
+      (baseDesign.schedule?.lowerLivingM2 ?? 0) > 0 ||
+      lowerName.includes("mauve") ||
+      lowerName.includes("split") ||
+      (detectedSplitY !== null && detectedUpperCluster !== null);
+
+    let splitZ = 0;
+    const splitElevM = isSplitLevel ? 0.60 : 0.0;
+
+    if (isSplitLevel) {
+      const rawSplitPxY = detectedUpperCluster
+        ? detectedUpperCluster.minY
+        : detectedSplitY !== null
+        ? detectedSplitY
+        : minY + Math.round((maxY - minY) * 0.45);
+      splitZ = Math.max(
+        +(lengthM * 0.33).toFixed(2),
+        Math.min(+(lengthM * 0.58).toFixed(2), +((rawSplitPxY - minY) / pxPerM).toFixed(2))
+      );
+      const splitPxY = Math.round(minY + splitZ * pxPerM);
+
+      // 1. Partition & split walls across splitZ into Level 1 (Rear Split Level +0.60m) and Level 0 (Front Ground Floor 0.00m)
+      const partitionedWalls: WallSegment[] = [];
+      for (const w of cleanWalls) {
+        const z1 = w.start[1];
+        const z2 = w.end[1];
+        const minWZ = Math.min(z1, z2);
+        const maxWZ = Math.max(z1, z2);
+        if (maxWZ <= splitZ + 0.12) {
+          partitionedWalls.push({ ...w, level: 1, elevationOffsetM: splitElevM });
+        } else if (minWZ >= splitZ - 0.12) {
+          partitionedWalls.push({ ...w, level: 0, elevationOffsetM: 0 });
+        } else if (Math.abs(w.start[0] - w.end[0]) < 0.08) {
+          // Vertical wall crossing the Split-Level step line: split cleanly at splitZ
+          partitionedWalls.push({
+            ...w,
+            id: `${w.id}_split_rear`,
+            start: [w.start[0], minWZ],
+            end: [w.end[0], splitZ],
+            level: 1,
+            elevationOffsetM: splitElevM,
+          });
+          partitionedWalls.push({
+            ...w,
+            id: `${w.id}_split_front`,
+            start: [w.start[0], splitZ],
+            end: [w.end[0], maxWZ],
+            level: 0,
+            elevationOffsetM: 0,
+          });
+        } else {
+          const midZ = (z1 + z2) / 2;
+          partitionedWalls.push({
+            ...w,
+            level: midZ < splitZ ? 1 : 0,
+            elevationOffsetM: midZ < splitZ ? splitElevM : 0,
+          });
+        }
+      }
+      cleanWalls.length = 0;
+      cleanWalls.push(...partitionedWalls);
+
+      // 2. Partition openings & open hampers across splitZ
+      for (const op of openings) {
+        const isRear = op.position[1] < splitZ - 0.05;
+        op.level = isRear ? 1 : 0;
+        op.elevationOffsetM = isRear ? splitElevM : 0;
+      }
+      for (const h of openHampers) {
+        const midZ = (h.start[1] + h.end[1]) / 2;
+        const isRear = midZ < splitZ - 0.05;
+        h.level = isRear ? 1 : 0;
+        h.elevationOffsetM = isRear ? splitElevM : 0;
+      }
+
+      // Measure true X-bounds of the Rear Split Level (z < splitZ - 0.5) so Level 1 doesn't overhang a front step-out or 3rd Garage Bay
+      const rearExtTracks = vExtTracks.filter((t) =>
+        t.intervals.some((iv) => iv.start < splitZ - 0.5 && iv.end - iv.start >= 0.8)
+      );
+      const rearMinX =
+        rearExtTracks.length > 0
+          ? Math.max(0, +(Math.min(...rearExtTracks.map((t) => t.coord)) - 0.12).toFixed(2))
+          : 0;
+      const rearMaxX =
+        rearExtTracks.length > 0
+          ? Math.min(widthM, +(Math.max(...rearExtTracks.map((t) => t.coord)) + 0.12).toFixed(2))
+          : widthM;
+      const hasThirdGarageBay = widthM > rearMaxX + 1.8;
+
+      // 3. Partition rooms (and split any full-depth indoor envelope polygon across splitZ)
+      const partitionedRooms: Room3D[] = [];
+      for (const r of rooms) {
+        if (hasThirdGarageBay && (r.id === "r_porch" || r.id === "r_garage" || r.id === "r_front_wing" || r.id === "r_entry")) {
+          // Replaced by exact Front Porch, Double Garage & Third Garage Bay polygons below
+          continue;
+        }
+        const zs = r.polygon.map((p) => p[1]);
+        const rMinZ = Math.min(...zs);
+        const rMaxZ = Math.max(...zs);
+        if (rMaxZ <= splitZ + 0.35) {
+          const clampedPoly: [number, number][] = r.polygon.map(([px, pz]) => [
+            Math.max(rearMinX, Math.min(rearMaxX, px)),
+            pz,
+          ]);
+          const cxs = clampedPoly.map((p) => p[0]);
+          const czs = clampedPoly.map((p) => p[1]);
+          partitionedRooms.push({
+            ...r,
+            name: r.id === "r_north_wing" ? "Dining" : r.name,
+            customLabel: r.id === "r_north_wing" ? "Dining (4.5 × 4.0m)" : r.customLabel,
+            polygon: clampedPoly,
+            center: [
+              +((Math.min(...cxs) + Math.max(...cxs)) / 2).toFixed(2),
+              +((Math.min(...czs) + Math.max(...czs)) / 2).toFixed(2),
+            ],
+            level: 1,
+            elevationOffsetM: splitElevM,
+          });
+        } else if (rMinZ >= splitZ - 0.35) {
+          partitionedRooms.push({
+            ...r,
+            level: 0,
+            elevationOffsetM: 0,
+          });
+        } else {
+          // Polygon spans across the Split-Level step line (e.g., r_main_core): clip into Rear Split Level & Front Ground Floor
+          const xs = r.polygon.map((p) => p[0]);
+          const rMinX = Math.max(rearMinX, Math.min(...xs));
+          const rMaxX = Math.min(rearMaxX, Math.max(...xs));
+          const rearPoly: [number, number][] = [
+            [rMinX, rMinZ],
+            [rMaxX, rMinZ],
+            [rMaxX, splitZ],
+            [rMinX, splitZ],
+          ];
+          const frontMaxZ = hasThirdGarageBay ? +(lengthM - 2.0).toFixed(2) : rMaxZ;
+          const frontMaxX = hasThirdGarageBay ? rearMaxX : Math.max(...xs);
+          const frontPoly: [number, number][] = [
+            [0, splitZ],
+            [frontMaxX, splitZ],
+            [frontMaxX, frontMaxZ],
+            [0, frontMaxZ],
+          ];
+          partitionedRooms.push({
+            ...r,
+            id: `${r.id}_split_rear`,
+            name: "Living",
+            customLabel: "Split Level — Family, Dining, Kitchen & Scullery",
+            polygon: rearPoly,
+            center: [+((rMinX + rMaxX) / 2).toFixed(2), +((rMinZ + splitZ) / 2).toFixed(2)],
+            areaM2:
+              baseDesign.schedule?.lowerLivingM2 ||
+              Math.round((rMaxX - rMinX) * (splitZ - rMinZ) * 0.85 * 100) / 100,
+            level: 1,
+            elevationOffsetM: splitElevM,
+          });
+          partitionedRooms.push({
+            ...r,
+            id: `${r.id}_ground_front`,
+            name: "Entry",
+            customLabel: "Ground Floor — Entry, Lounge & Guest Wing",
+            polygon: frontPoly,
+            center: [+(frontMaxX / 2).toFixed(2), +((splitZ + frontMaxZ) / 2).toFixed(2)],
+            areaM2:
+              baseDesign.schedule?.groundLivingM2 ||
+              Math.round(frontMaxX * (frontMaxZ - splitZ) * 0.65 * 100) / 100,
+            level: 0,
+            elevationOffsetM: 0,
+          });
+        }
+      }
+
+      if (hasThirdGarageBay) {
+        const bay3Tracks = vExtTracks.filter((t) => t.coord > rearMaxX + 1.0);
+        const bay3Intervals = bay3Tracks.flatMap((t) => t.intervals);
+        const porchMaxX = +(Math.min(6.35, rearMaxX * 0.54)).toFixed(2);
+        const porchMinZ = +(lengthM - 2.0).toFixed(2);
+        const dblGarMaxZ = +(lengthM - 1.1).toFixed(2);
+        const dblGarMinZ = +(dblGarMaxZ - 6.0).toFixed(2);
+        const bay3MaxZ =
+          bay3Intervals.length > 0
+            ? +(Math.max(...bay3Intervals.map((iv) => iv.end)) + 0.12).toFixed(2)
+            : +(lengthM - 1.85).toFixed(2);
+        const bay3MinZ =
+          bay3Intervals.length > 0
+            ? +(Math.min(...bay3Intervals.map((iv) => iv.start)) - 0.12).toFixed(2)
+            : +(bay3MaxZ - 9.7).toFixed(2);
+
+        partitionedRooms.push(
+          {
+            id: "r_porch",
+            name: "Porch",
+            customLabel: "Front Covered Porch (6.0 × 2.0m)",
+            polygon: [
+              [0, porchMinZ],
+              [porchMaxX, porchMinZ],
+              [porchMaxX, lengthM],
+              [0, lengthM],
+            ],
+            areaM2: baseDesign.schedule?.porchM2 || 11.54,
+            floorFinish: "decking",
+            center: [+(porchMaxX / 2).toFixed(2), +((porchMinZ + lengthM) / 2).toFixed(2)],
+            level: 0,
+            elevationOffsetM: 0,
+          },
+          {
+            id: "r_garage",
+            name: "Garage",
+            customLabel: "Double Garage (6.0 × 6.0m)",
+            polygon: [
+              [porchMaxX, dblGarMinZ],
+              [rearMaxX, dblGarMinZ],
+              [rearMaxX, dblGarMaxZ],
+              [porchMaxX, dblGarMaxZ],
+            ],
+            areaM2: 36.0,
+            floorFinish: "concrete",
+            center: [+((porchMaxX + rearMaxX) / 2).toFixed(2), +((dblGarMinZ + dblGarMaxZ) / 2).toFixed(2)],
+            level: 0,
+            elevationOffsetM: 0,
+          },
+          {
+            id: "r_garage_bay3",
+            name: "Garage",
+            customLabel: "Third Garage Bay (9.7 × 3.0m)",
+            polygon: [
+              [rearMaxX, bay3MinZ],
+              [widthM, bay3MinZ],
+              [widthM, bay3MaxZ],
+              [rearMaxX, bay3MaxZ],
+            ],
+            areaM2: 27.54,
+            floorFinish: "concrete",
+            center: [+((rearMaxX + widthM) / 2).toFixed(2), +((bay3MinZ + bay3MaxZ) / 2).toFixed(2)],
+            level: 0,
+            elevationOffsetM: 0,
+          }
+        );
+
+        // Ensure both the Double Garage door and Third Garage Bay front roller door are in openings
+        const hasDblGarDoor = openings.some(
+          (o) => o.type === "garage_door" && o.position[0] < rearMaxX
+        );
+        if (!hasDblGarDoor) {
+          openings.push({
+            id: "op_garage_double_front",
+            type: "garage_door",
+            code: "GAR 4800",
+            label: "Double Garage Sectional Door (4800mm)",
+            position: [+((porchMaxX + rearMaxX) / 2).toFixed(2), dblGarMaxZ],
+            wallOrientation: "horizontal",
+            width: 4.8,
+            height: 2.1,
+            sillHeight: 0,
+            headHeight: 2.1,
+            isExterior: true,
+            level: 0,
+            elevationOffsetM: 0,
+          });
+        }
+        const hasBay3Door = openings.some(
+          (o) => o.type === "garage_door" && o.position[0] > rearMaxX
+        );
+        if (!hasBay3Door) {
+          openings.push({
+            id: "op_garage_bay3_front",
+            type: "garage_door",
+            code: "GAR 2400",
+            label: "Third Garage Bay Panel Door (2400mm)",
+            position: [+((rearMaxX + widthM) / 2).toFixed(2), bay3MaxZ],
+            wallOrientation: "horizontal",
+            width: 2.4,
+            height: 2.1,
+            sillHeight: 0,
+            headHeight: 2.1,
+            isExterior: true,
+            level: 0,
+            elevationOffsetM: 0,
+          });
+        }
+      }
+
+      rooms.length = 0;
+      rooms.push(...partitionedRooms);
+
+      // 4. Partition fixtures & add the 3D Split-Level Stair Flight at splitZ
+      for (const f of fixtures) {
+        const isRear = f.position[2] < splitZ - 0.05;
+        f.level = isRear ? 1 : 0;
+        f.elevationOffsetM = isRear ? splitElevM : 0;
+      }
+      fixtures.push({
+        id: "fx_stair_split_level",
+        type: "staircase",
+        roomName: "Entry",
+        position: [+(Math.min(widthM * 0.36, 4.9)).toFixed(2), +(splitElevM / 2).toFixed(2), +splitZ.toFixed(2)],
+        rotationY: Math.PI,
+        width: 1.15,
+        depth: 1.25,
+        height: splitElevM,
+        label: "Split-Level Feature Timber Steps (4 Risers to Rear Living)",
+        level: 0,
+        elevationOffsetM: 0,
+      });
+
+      levels.push(
+        {
+          level: 0,
+          name: "Level 1: Ground Floor (Front Entry, Lounge, Guest & Garage)",
+          shortName: "Ground Floor",
+          elevationOffsetM: 0,
+          ceilingHeightMm: ceilMm,
+          areaM2: baseDesign.schedule?.groundLivingM2,
+          floorplanCrop: {
+            minX,
+            maxX,
+            minY: splitPxY,
+            maxY,
+          },
+          worldBounds: {
+            x: 0,
+            z: splitZ,
+            widthM,
+            depthM: +(lengthM - splitZ).toFixed(2),
+          },
+        },
+        {
+          level: 1,
+          name: "Level 2: Split Level (Rear Family, Dining, Kitchen & Alfresco)",
+          shortName: "Split Level",
+          elevationOffsetM: splitElevM,
+          ceilingHeightMm: ceilMm,
+          areaM2: baseDesign.schedule?.lowerLivingM2,
+          floorplanCrop: {
+            minX: toPxX(rearMinX),
+            maxX: toPxX(rearMaxX),
+            minY,
+            maxY: splitPxY,
+          },
+          worldBounds: {
+            x: rearMinX,
+            z: 0,
+            widthM: +(rearMaxX - rearMinX).toFixed(2),
+            depthM: splitZ,
+          },
+        }
+      );
+    } else {
+      for (const w of cleanWalls) {
+        w.level = 0;
+        w.elevationOffsetM = 0;
+      }
+      for (const op of openings) {
+        op.level = 0;
+        op.elevationOffsetM = 0;
+      }
+      for (const h of openHampers) {
+        h.level = 0;
+        h.elevationOffsetM = 0;
+      }
+      for (const r of rooms) {
+        r.level = 0;
+        r.elevationOffsetM = 0;
+      }
+      for (const f of fixtures) {
+        f.level = 0;
+        f.elevationOffsetM = 0;
+      }
+    }
+
+    // 5. If a Right-Side First Floor (Upper Storey) Cluster was detected on the sheet, vectorize and stack it at Level 2!
+    if (detectedUpperCluster) {
+      const upperPatch = await runCanvasFloorplanVectorizer(
+        imageUrl,
+        widthM,
+        lengthM,
+        baseDesign,
+        {
+          ...detectedUpperCluster,
+          forcedPxPerM: pxPerM,
+          skipMultiCluster: true,
+          idPrefix: "ff_",
+        }
+      );
+
+      if (upperPatch && upperPatch.walls.length >= 6) {
+        const firstFloorElevM = +(
+          baseDesign.ceilingHeightM + (isSplitLevel ? 0.56 : 0.32)
+        ).toFixed(2);
+
+        // Align First Floor onto Ground Floor footprint:
+        // Left exterior wall aligns at x = 0; Z aligns via the sheet's vertical coordinate relative to minY
+        const rawZOffset = +((upperPatch.floorplanCrop.minY - minY) / pxPerM).toFixed(2);
+        const zOffset = Math.max(
+          0,
+          Math.min(+(lengthM - upperPatch.lengthM).toFixed(2), isSplitLevel && splitZ > 0 ? splitZ : rawZOffset)
+        );
+        const xOffset = 0;
+
+        // If this was a 2-storey non-split design, ensure Level 0 is in `levels`
+        if (levels.length === 0) {
+          levels.push({
+            level: 0,
+            name: "Level 1: Ground Floor (Living, Kitchen, Garage & Alfresco)",
+            shortName: "Ground Floor",
+            elevationOffsetM: 0,
+            ceilingHeightMm: ceilMm,
+            areaM2: baseDesign.schedule?.groundLivingM2 || baseDesign.schedule?.livingM2,
+            floorplanCrop: { minX, maxX, minY, maxY },
+            worldBounds: { x: 0, z: 0, widthM, depthM: lengthM },
+          });
+        }
+
+        levels.push({
+          level: 2,
+          name: isSplitLevel
+            ? "Level 3: First Floor (Master Suite, Bedrooms, Gallery & Balcony)"
+            : "Level 2: First Floor (Upper Storey Bedrooms & Retreat)",
+          shortName: "First Floor",
+          elevationOffsetM: firstFloorElevM,
+          ceilingHeightMm: ceilMm,
+          areaM2: baseDesign.schedule?.firstLivingM2,
+          floorplanCrop: upperPatch.floorplanCrop,
+          worldBounds: {
+            x: xOffset,
+            z: zOffset,
+            widthM: upperPatch.widthM,
+            depthM: upperPatch.lengthM,
+          },
+        });
+
+        for (const w of upperPatch.walls) {
+          cleanWalls.push({
+            ...w,
+            id: `ff_${w.id}`,
+            start: [+(w.start[0] + xOffset).toFixed(3), +(w.start[1] + zOffset).toFixed(3)],
+            end: [+(w.end[0] + xOffset).toFixed(3), +(w.end[1] + zOffset).toFixed(3)],
+            level: 2,
+            elevationOffsetM: firstFloorElevM,
+          });
+        }
+
+        for (const op of upperPatch.openings) {
+          if (op.type === "garage_door") continue; // Upper floor never has a garage door
+          openings.push({
+            ...op,
+            id: `ff_${op.id}`,
+            position: [+(op.position[0] + xOffset).toFixed(3), +(op.position[1] + zOffset).toFixed(3)],
+            hingePoint: op.hingePoint
+              ? [+(op.hingePoint[0] + xOffset).toFixed(3), +(op.hingePoint[1] + zOffset).toFixed(3)]
+              : undefined,
+            closedPoint: op.closedPoint
+              ? [+(op.closedPoint[0] + xOffset).toFixed(3), +(op.closedPoint[1] + zOffset).toFixed(3)]
+              : undefined,
+            openPoint: op.openPoint
+              ? [+(op.openPoint[0] + xOffset).toFixed(3), +(op.openPoint[1] + zOffset).toFixed(3)]
+              : undefined,
+            bifoldPeak: op.bifoldPeak
+              ? [+(op.bifoldPeak[0] + xOffset).toFixed(3), +(op.bifoldPeak[1] + zOffset).toFixed(3)]
+              : undefined,
+            level: 2,
+            elevationOffsetM: firstFloorElevM,
+          });
+        }
+
+        for (const h of upperPatch.openHampers) {
+          openHampers.push({
+            ...h,
+            id: `ff_${h.id}`,
+            start: [+(h.start[0] + xOffset).toFixed(3), +(h.start[1] + zOffset).toFixed(3)],
+            end: [+(h.end[0] + xOffset).toFixed(3), +(h.end[1] + zOffset).toFixed(3)],
+            level: 2,
+            elevationOffsetM: firstFloorElevM,
+          });
+        }
+
+        let hasUpperBalcony = false;
+        for (const r of upperPatch.rooms) {
+          if (r.name === "Garage") continue;
+          const isOutdoorUpper = r.name === "Porch" || r.name === "Alfresco" || r.name === "Balcony";
+          const shiftedPoly: [number, number][] = r.polygon.map(([px, pz]) => [
+            +(px + xOffset).toFixed(2),
+            +(pz + zOffset).toFixed(2),
+          ]);
+          const shiftedCenter: [number, number] = [
+            +(r.center[0] + xOffset).toFixed(2),
+            +(r.center[1] + zOffset).toFixed(2),
+          ];
+          if (isOutdoorUpper) {
+            hasUpperBalcony = true;
+            const xs = shiftedPoly.map((p) => p[0]);
+            const zs = shiftedPoly.map((p) => p[1]);
+            const bMinX = Math.min(...xs);
+            const bMaxX = Math.max(...xs);
+            const bMinZ = Math.min(...zs);
+            const bMaxZ = Math.max(...zs);
+            rooms.push({
+              ...r,
+              id: `ff_balcony_${r.id}`,
+              name: "Balcony",
+              customLabel: "First Floor Covered Balcony",
+              polygon: shiftedPoly,
+              center: shiftedCenter,
+              floorFinish: "decking",
+              areaM2: baseDesign.schedule?.balconyM2 || r.areaM2,
+              level: 2,
+              elevationOffsetM: firstFloorElevM,
+            });
+            // Add front & side glass balustrade on the balcony
+            fixtures.push({
+              id: `ff_balustrade_front_${r.id}`,
+              type: "balustrade",
+              roomName: "Balcony",
+              position: [+((bMinX + bMaxX) / 2).toFixed(2), 0.52, +bMaxZ.toFixed(2)],
+              rotationY: 0,
+              width: +(bMaxX - bMinX).toFixed(2),
+              depth: 0.08,
+              height: 1.05,
+              label: "Frameless Toughened Glass & Monument Aluminium Balcony Balustrade",
+              level: 2,
+              elevationOffsetM: firstFloorElevM,
+            });
+          } else {
+            rooms.push({
+              ...r,
+              id: `ff_${r.id}`,
+              customLabel:
+                r.name === "Living"
+                  ? "First Floor — Master Suite, Bedrooms, Gallery & Bath"
+                  : `First Floor ${r.customLabel || r.name}`,
+              polygon: shiftedPoly,
+              center: shiftedCenter,
+              floorFinish: r.floorFinish === "timber" ? "carpet" : r.floorFinish,
+              level: 2,
+              elevationOffsetM: firstFloorElevM,
+            });
+          }
+        }
+
+        // If schedule specifies a Balcony (e.g. Custom Mauve 35 for James 12.48 m²) and no outdoor bay was split yet, add it at the front-left of First Floor
+        if (!hasUpperBalcony && ((baseDesign.schedule?.balconyM2 ?? 0) > 0 || lowerName.includes("james"))) {
+          const bMinX = xOffset;
+          const bMaxX = +(xOffset + Math.min(6.0, upperPatch.widthM * 0.5)).toFixed(2);
+          const bMaxZ = +(zOffset + upperPatch.lengthM).toFixed(2);
+          const bMinZ = +(bMaxZ - 2.0).toFixed(2);
+          rooms.push({
+            id: "ff_covered_balcony",
+            name: "Balcony",
+            customLabel: "Covered Balcony (6.0 × 2.0m)",
+            polygon: [
+              [bMinX, bMinZ],
+              [bMaxX, bMinZ],
+              [bMaxX, bMaxZ],
+              [bMinX, bMaxZ],
+            ],
+            center: [+((bMinX + bMaxX) / 2).toFixed(2), +((bMinZ + bMaxZ) / 2).toFixed(2)],
+            floorFinish: "decking",
+            areaM2: baseDesign.schedule?.balconyM2 || 12.48,
+            level: 2,
+            elevationOffsetM: firstFloorElevM,
+          });
+          fixtures.push({
+            id: "ff_balustrade_front_main",
+            type: "balustrade",
+            roomName: "Balcony",
+            position: [+((bMinX + bMaxX) / 2).toFixed(2), 0.52, bMaxZ],
+            rotationY: 0,
+            width: +(bMaxX - bMinX).toFixed(2),
+            depth: 0.08,
+            height: 1.05,
+            label: "Frameless Glass & Aluminium Balcony Balustrade (6.0m)",
+            level: 2,
+            elevationOffsetM: firstFloorElevM,
+          });
+        }
+
+        for (const f of upperPatch.fixtures) {
+          // Do not copy false-positive kitchen islands or laundry tubs onto the First Floor bedroom level
+          if (
+            f.type === "kitchen_island" ||
+            f.type === "kitchen_cabinetry" ||
+            f.type === "kitchen_sink" ||
+            f.type === "cooktop_oven" ||
+            f.type === "laundry_tub" ||
+            f.type === "washing_machine"
+          ) {
+            continue;
+          }
+          fixtures.push({
+            ...f,
+            id: `ff_${f.id}`,
+            roomName: `First Floor ${f.roomName}`,
+            position: [
+              +(f.position[0] + xOffset).toFixed(2),
+              f.position[1],
+              +(f.position[2] + zOffset).toFixed(2),
+            ],
+            level: 2,
+            elevationOffsetM: firstFloorElevM,
+          });
+        }
+
+        // Add the Main Ground-to-First-Floor 3D Architectural Staircase
+        fixtures.push({
+          id: "fx_stair_main_upper",
+          type: "staircase",
+          roomName: "Gallery",
+          position: [
+            +(Math.min(widthM * 0.36, 4.4)).toFixed(2),
+            +(firstFloorElevM / 2).toFixed(2),
+            +(zOffset + 1.55).toFixed(2),
+          ],
+          rotationY: 0,
+          width: 2.05,
+          depth: 3.00,
+          height: firstFloorElevM,
+          label: "Main U-Turn Timber & Glass Staircase (Ground to First Floor)",
+          level: 0,
+          elevationOffsetM: 0,
+        });
+      }
+    }
+  }
+
   return {
     floorplanImageUrl: imageUrl,
     floorplanCrop: {
@@ -2468,6 +3450,7 @@ async function runCanvasFloorplanVectorizer(
     widthM,
     lengthM,
     exactStructuralWalls: true,
+    levels: levels.length > 0 ? levels : undefined,
     walls: cleanWalls,
     openings,
     openHampers,

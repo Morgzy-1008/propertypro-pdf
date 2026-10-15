@@ -146,6 +146,7 @@ export function deduplicateWallSegments(walls: WallSegment[]): WallSegment[] {
     let mergedIntoExisting = false;
     for (let i = 0; i < kept.length; i++) {
       const k = kept[i];
+      if ((k.level ?? 0) !== (w.level ?? 0)) continue;
       const tol = k.isExterior || w.isExterior ? 0.22 : 0.16;
       if (isSegmentCoincident(w.start, w.end, k.start, k.end, tol)) {
         // If w extends beyond k along the same axis, expand k's span to cover both cleanly
@@ -213,24 +214,28 @@ export function deriveInternalWallsFromRooms(
   });
 
   edges.forEach((edge, idx) => {
-    const key = canonicalSegmentKey(edge.start, edge.end);
+    const rLevel = edge.room.level ?? 0;
+    const key = `L${rLevel}_${canonicalSegmentKey(edge.start, edge.end)}`;
     if (processedKeys.has(key)) return;
     processedKeys.add(key);
 
     const s = edge.start;
     const e = edge.end;
 
-    // Check if already covered by an existing or previously derived wall
-    const alreadyCovered = allCurrentWalls.some((w) =>
-      isSegmentCoincident(s, e, w.start, w.end, w.isExterior ? 0.22 : 0.16)
+    // Check if already covered by an existing or previously derived wall on the same level
+    const alreadyCovered = allCurrentWalls.some(
+      (w) =>
+        (w.level ?? 0) === rLevel &&
+        isSegmentCoincident(s, e, w.start, w.end, w.isExterior ? 0.22 : 0.16)
     );
 
     if (alreadyCovered) {
       return;
     }
 
-    // Find all rooms that border this edge
+    // Find all rooms on the same level that border this edge
     const neighborRooms = rooms.filter((r) => {
+      if ((r.level ?? 0) !== rLevel) return false;
       if (!r.polygon || r.polygon.length < 3) return false;
       for (let i = 0; i < r.polygon.length; i++) {
         const p1 = r.polygon[i];
@@ -243,10 +248,15 @@ export function deriveInternalWallsFromRooms(
     const isShared = neighborRooms.length > 1;
     const isPerimeter = !isShared;
 
-    const isOutdoorRoom = edge.room.name === "Porch" || edge.room.name === "Alfresco";
-    const bordersOutdoorRoom = neighborRooms.some((r) => r.name === "Porch" || r.name === "Alfresco");
+    const isOutdoorRoom =
+      edge.room.name === "Porch" ||
+      edge.room.name === "Alfresco" ||
+      edge.room.name === "Balcony";
+    const bordersOutdoorRoom = neighborRooms.some(
+      (r) => r.name === "Porch" || r.name === "Alfresco" || r.name === "Balcony"
+    );
 
-    // Outdoor perimeter edges (e.g. open sides of Porch/Alfresco) do not need solid walls
+    // Outdoor perimeter edges (e.g. open sides of Porch/Alfresco/Balcony) do not need solid walls
     if (isOutdoorRoom && isPerimeter) {
       return;
     }
@@ -266,6 +276,8 @@ export function deriveInternalWallsFromRooms(
       height: edge.room.ceilingHeight || ceilingHeightM,
       isExterior: isExteriorBarrier,
       material,
+      level: rLevel,
+      elevationOffsetM: edge.room.elevationOffsetM ?? 0,
     };
 
     allCurrentWalls.push(newWall);

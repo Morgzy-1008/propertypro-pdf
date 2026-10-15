@@ -78,6 +78,10 @@ export const SPECIAL_LOCAL_FLOORPLANS: Record<string, string> = {
 };
 
 export function resolveLocalFloorplanUrl(name: string, fallbackUrl?: string): string {
+  const lower = (name || "").trim().toLowerCase();
+  if (lower.includes("mauve") && (lower.includes("james") || lower.includes("custom") || lower.includes("modified"))) {
+    return "/floorplans/MAUVE 35 CUSTOM JAMES.png";
+  }
   const key = planKey(name);
   if (SPECIAL_LOCAL_FLOORPLANS[key]) return SPECIAL_LOCAL_FLOORPLANS[key];
   if (fallbackUrl && fallbackUrl.startsWith("/floorplans/")) return fallbackUrl;

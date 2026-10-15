@@ -160,14 +160,15 @@ function extractSteppedFootprintSpans(design: BuildingDesign3D): FootprintSpan[]
  */
 export function generateProceduralHipRoof(
   design: BuildingDesign3D,
-  customConfig?: Partial<RoofConfig>
+  customConfig?: Partial<RoofConfig>,
+  elevationOffsetM = 0
 ): RoofGeometryResult {
   const config: RoofConfig = {
     ...design.roof,
     ...customConfig,
   };
 
-  const ffl = 0.30; // Foundation slab top height
+  const ffl = 0.30 + elevationOffsetM; // Foundation slab top height + level elevation offset
   const ceilingH = design.ceilingHeightM;
   const eavesOverhang = config.eavesOverhangM || 0.45;
   const pitchRad = ((config.pitchDeg || 22.5) * Math.PI) / 180;

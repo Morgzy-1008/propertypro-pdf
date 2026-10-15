@@ -787,21 +787,113 @@ export class ThreeStudioSceneManager {
     lotTurfMesh.receiveShadow = true;
     this.buildingGroup.add(lotTurfMesh);
 
-    // Concrete Slab Foundation (300mm FFL)
+    // Helper to extrude stepped slabs/plinths cleanly from room polygons on a level
+    const addRoomPolygonSlabs = (
+      levelRooms: Room3D[],
+      baseY: number,
+      slabDepth: number,
+      mat: THREE.Material,
+      padM = 0.06
+    ) => {
+      for (const room of levelRooms) {
+        if (!room.polygon || room.polygon.length < 3) continue;
+        const cx =
+          room.polygon.reduce((acc, p) => acc + p[0], 0) / room.polygon.length;
+        const cz =
+          room.polygon.reduce((acc, p) => acc + p[1], 0) / room.polygon.length;
+        const shape = new THREE.Shape();
+        room.polygon.forEach(([px, pz], idx) => {
+          const ex = px + (px >= cx ? padM : -padM);
+          const ez = pz + (pz >= cz ? padM : -padM);
+          if (idx === 0) shape.moveTo(ex, -ez);
+          else shape.lineTo(ex, -ez);
+        });
+        shape.closePath();
+        const geom = new THREE.ExtrudeGeometry(shape, {
+          depth: slabDepth,
+          bevelEnabled: false,
+        });
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.y = baseY;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.buildingGroup.add(mesh);
+      }
+    };
+
+    // Concrete Slab Foundation (300mm FFL on Level 0)
     const slabW = this.design.widthM;
     const slabL = this.design.lengthM;
-    const slabGeom = new THREE.BoxGeometry(slabW, 0.30, slabL);
     const slabMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
-    const slabMesh = new THREE.Mesh(slabGeom, slabMat);
-    slabMesh.position.set(slabW / 2, 0.15, slabL / 2);
-    slabMesh.receiveShadow = true;
-    this.buildingGroup.add(slabMesh);
+    const level0Rooms = (this.design.rooms || []).filter((r) => (r.level ?? 0) === 0);
+    if (level0Rooms.length > 0 && this.design.levels && this.design.levels.length > 1) {
+      addRoomPolygonSlabs(level0Rooms, 0.0, 0.30, slabMat, 0.08);
+    } else {
+      const slabGeom = new THREE.BoxGeometry(slabW, 0.30, slabL);
+      const slabMesh = new THREE.Mesh(slabGeom, slabMat);
+      slabMesh.position.set(slabW / 2, 0.15, slabL / 2);
+      slabMesh.receiveShadow = true;
+      this.buildingGroup.add(slabMesh);
+    }
 
-    // Exposed Aggregate Concrete Driveway to Garage
-    const garageOpening = (this.design.openings || []).find((op) => op.type === "garage_door");
-    const garageX = garageOpening ? garageOpening.position[0] : (slabW - 3.5);
+    // Multi-Level Structural Plinths (Split Level) & Suspended Upper-Storey Floor Slabs
+    if (this.design.levels && this.design.levels.length > 1) {
+      for (const lvl of this.design.levels) {
+        if (lvl.elevationOffsetM <= 0.05) continue;
+        if (this.activeLevelFilter !== "all" && this.activeLevelFilter < lvl.level) continue;
+        const lvlRooms = (this.design.rooms || []).filter((r) => (r.level ?? 0) === lvl.level);
+        const b = lvl.worldBounds;
+        const lW = Math.max(1.0, b.widthM);
+        const lL = Math.max(1.0, b.depthM);
+        const cX = b.x + lW / 2;
+        const cZ = b.z + lL / 2;
+
+        if (lvl.elevationOffsetM < 1.5) {
+          // Raised Split-Level Concrete Subfloor Plinth (e.g. +600mm rear split level)
+          const plinthH = 0.30 + lvl.elevationOffsetM;
+          const plinthMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.72 });
+          if (lvlRooms.length > 0) {
+            addRoomPolygonSlabs(lvlRooms, 0.0, plinthH, plinthMat, 0.08);
+          } else {
+            const plinthGeom = new THREE.BoxGeometry(lW, plinthH, lL);
+            const plinthMesh = new THREE.Mesh(plinthGeom, plinthMat);
+            plinthMesh.position.set(cX, plinthH / 2, cZ);
+            plinthMesh.castShadow = true;
+            plinthMesh.receiveShadow = true;
+            this.buildingGroup.add(plinthMesh);
+          }
+        } else {
+          // Upper-Storey Suspended Concrete / Posi-Strut Floor Slab (300mm depth below upper FFL)
+          const upperSlabH = 0.30;
+          const upperFFL = 0.30 + lvl.elevationOffsetM;
+          const upperSlabMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.45 });
+          if (lvlRooms.length > 0) {
+            addRoomPolygonSlabs(lvlRooms, upperFFL - upperSlabH, upperSlabH, upperSlabMat, 0.08);
+          } else {
+            const upperSlabGeom = new THREE.BoxGeometry(lW + 0.08, upperSlabH, lL + 0.08);
+            const upperSlabMesh = new THREE.Mesh(upperSlabGeom, upperSlabMat);
+            upperSlabMesh.position.set(cX, upperFFL - upperSlabH / 2, cZ);
+            upperSlabMesh.castShadow = true;
+            upperSlabMesh.receiveShadow = true;
+            this.buildingGroup.add(upperSlabMesh);
+          }
+        }
+      }
+    }
+
+    // Exposed Aggregate Concrete Driveway to Garage (spans single, double, or triple garage bays)
+    const garageOpenings = (this.design.openings || []).filter((op) => op.type === "garage_door");
+    const garageOpening = garageOpenings[0];
+    let garageX = garageOpening ? garageOpening.position[0] : (slabW - 3.5);
     const garageZ = garageOpening ? garageOpening.position[1] : (isSouthFront ? slabL : 0);
-    const driveW = garageOpening ? Math.max(5.0, garageOpening.width + 0.4) : 5.5;
+    let driveW = garageOpening ? Math.max(5.0, garageOpening.width + 0.4) : 5.5;
+    if (garageOpenings.length > 1) {
+      const minGarX = Math.min(...garageOpenings.map((g) => g.position[0] - g.width / 2));
+      const maxGarX = Math.max(...garageOpenings.map((g) => g.position[0] + g.width / 2));
+      garageX = (minGarX + maxGarX) / 2;
+      driveW = Math.max(driveW, maxGarX - minGarX + 0.5);
+    }
 
     if (isSouthFront) {
       const driveStartZ = garageZ;
@@ -1243,6 +1335,7 @@ export class ThreeStudioSceneManager {
   }
 
   private showBlueprintUnderlay = true;
+  private activeLevelFilter: "all" | number = "all";
 
   public setBlueprintUnderlay(show: boolean): void {
     this.showBlueprintUnderlay = show;
@@ -1251,6 +1344,15 @@ export class ThreeStudioSceneManager {
 
   public getBlueprintUnderlay(): boolean {
     return this.showBlueprintUnderlay;
+  }
+
+  public setLevelFilter(level: "all" | number): void {
+    this.activeLevelFilter = level;
+    this.rebuildScene(true);
+  }
+
+  public getLevelFilter(): "all" | number {
+    return this.activeLevelFilter;
   }
 
   private buildRoomFloors(): void {
@@ -1265,10 +1367,107 @@ export class ThreeStudioSceneManager {
     if (hasBlueprintUnderlay && this.design.floorplanImageUrl && this.design.floorplanCrop) {
       const wM = this.design.widthM;
       const lM = this.design.lengthM;
-      const crop = this.design.floorplanCrop;
+      const mainCrop = this.design.floorplanCrop;
       const url = encodeURI(this.design.floorplanImageUrl);
 
-      // Crisp white architectural drawing sheet base on top of slab
+      if (this.design.levels && this.design.levels.length > 1) {
+        const levelEntries = this.design.levels.filter(
+          (lvl) => this.activeLevelFilter === "all" || lvl.level === this.activeLevelFilter
+        );
+        const levelMats: {
+          lvl: (typeof levelEntries)[number];
+          mat: THREE.MeshBasicMaterial;
+          mesh: THREE.Mesh;
+        }[] = [];
+
+        for (const lvl of levelEntries) {
+          const b = lvl.worldBounds;
+          const pW = Math.max(0.5, b.widthM);
+          const pL = Math.max(0.5, b.depthM);
+          const pX = b.x + pW / 2;
+          const pZ = b.z + pL / 2;
+          const pY = 0.308 + (lvl.elevationOffsetM || 0);
+
+          const baseGeom = new THREE.PlaneGeometry(pW, pL);
+          const baseMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            alphaTest: 0.05,
+          });
+          const baseMesh = new THREE.Mesh(baseGeom, baseMat);
+          baseMesh.rotation.x = -Math.PI / 2;
+          baseMesh.position.set(pX, pY, pZ);
+          baseMesh.visible = false;
+          this.buildingGroup.add(baseMesh);
+          levelMats.push({ lvl, mat: baseMat, mesh: baseMesh });
+        }
+
+        if (typeof document !== "undefined" && levelMats.length > 0) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            for (const { lvl, mat, mesh } of levelMats) {
+              const sx = lvl.floorplanCrop.minX;
+              const sy = lvl.floorplanCrop.minY;
+              const sw = Math.max(16, lvl.floorplanCrop.maxX - lvl.floorplanCrop.minX);
+              const sh = Math.max(16, lvl.floorplanCrop.maxY - lvl.floorplanCrop.minY);
+              const b = lvl.worldBounds;
+              const pW = Math.max(0.5, b.widthM);
+              const pL = Math.max(0.5, b.depthM);
+
+              const canvas = document.createElement("canvas");
+              canvas.width = sw;
+              canvas.height = sh;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                const lvlRooms = (this.design?.rooms || []).filter(
+                  (r) => (r.level ?? 0) === lvl.level && r.polygon && r.polygon.length >= 3
+                );
+                if (lvlRooms.length > 0) {
+                  ctx.save();
+                  ctx.beginPath();
+                  const padM = 0.28;
+                  for (const room of lvlRooms) {
+                    const cx =
+                      room.polygon.reduce((acc, p) => acc + p[0], 0) / room.polygon.length;
+                    const cz =
+                      room.polygon.reduce((acc, p) => acc + p[1], 0) / room.polygon.length;
+                    room.polygon.forEach(([wx, wz], idx) => {
+                      const ex = wx + (wx >= cx ? padM : -padM);
+                      const ez = wz + (wz >= cz ? padM : -padM);
+                      const px = ((ex - b.x) / pW) * sw;
+                      const py = ((ez - b.z) / pL) * sh;
+                      if (idx === 0) ctx.moveTo(px, py);
+                      else ctx.lineTo(px, py);
+                    });
+                    ctx.closePath();
+                  }
+                  ctx.clip();
+                }
+
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, sw, sh);
+                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+                if (lvlRooms.length > 0) {
+                  ctx.restore();
+                }
+
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.colorSpace = THREE.SRGBColorSpace;
+                tex.anisotropy = 8;
+                tex.needsUpdate = true;
+                mat.map = tex;
+                mat.needsUpdate = true;
+                mesh.visible = true;
+              }
+            }
+          };
+          img.src = url;
+        }
+        return;
+      }
+
+      // Single-Level Crisp White Architectural Drawing Sheet Base on Top of Slab
       const baseGeom = new THREE.PlaneGeometry(wM, lM);
       const baseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
       const baseMesh = new THREE.Mesh(baseGeom, baseMat);
@@ -1280,8 +1479,8 @@ export class ThreeStudioSceneManager {
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
-          const cropW = crop.maxX - crop.minX;
-          const cropH = crop.maxY - crop.minY;
+          const cropW = mainCrop.maxX - mainCrop.minX;
+          const cropH = mainCrop.maxY - mainCrop.minY;
           const canvas = document.createElement("canvas");
           canvas.width = cropW;
           canvas.height = cropH;
@@ -1289,7 +1488,7 @@ export class ThreeStudioSceneManager {
           if (ctx) {
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, cropW, cropH);
-            ctx.drawImage(img, crop.minX, crop.minY, cropW, cropH, 0, 0, cropW, cropH);
+            ctx.drawImage(img, mainCrop.minX, mainCrop.minY, cropW, cropH, 0, 0, cropW, cropH);
             const tex = new THREE.CanvasTexture(canvas);
             tex.colorSpace = THREE.SRGBColorSpace;
             tex.anisotropy = 8;
@@ -1332,6 +1531,7 @@ export class ThreeStudioSceneManager {
     }
 
     (this.design.rooms || []).forEach((room) => {
+      if (this.activeLevelFilter !== "all" && (room.level ?? 0) !== this.activeLevelFilter) return;
       if (!room.polygon || room.polygon.length < 3) return;
 
       const shape = new THREE.Shape();
@@ -1346,7 +1546,7 @@ export class ThreeStudioSceneManager {
       const floorMat = this.materials[room.floorFinish] || this.materials.timber;
       const floorMesh = new THREE.Mesh(floorGeom, floorMat);
       floorMesh.rotation.x = Math.PI / 2;
-      floorMesh.position.y = 0.305; // Slightly above foundation slab
+      floorMesh.position.y = 0.305 + (room.elevationOffsetM || 0); // Level-aware floor finish elevation
       floorMesh.receiveShadow = true;
       this.buildingGroup.add(floorMesh);
     });
@@ -1354,9 +1554,9 @@ export class ThreeStudioSceneManager {
 
   /**
    * Determines whether a world-space point (px, pz) lies inside the enclosed indoor
-   * interior of the home (excluding open-air Alfresco and Porch zones).
+   * interior of the home on the given level (excluding open-air Alfresco, Porch, and Balcony zones).
    */
-  private isPointIndoors(px: number, pz: number): boolean {
+  private isPointIndoors(px: number, pz: number, level = 0): boolean {
     if (!this.design) return false;
     const W = this.design.widthM || 10.55;
     const L = this.design.lengthM || 20.27;
@@ -1366,15 +1566,17 @@ export class ThreeStudioSceneManager {
 
     const pt = new THREE.Vector2(px, pz);
     for (const room of this.design.rooms || []) {
+      if ((room.level ?? 0) !== level) continue;
       const rName = (room.name || "").toLowerCase();
-      if (rName.includes("alfresco") || rName.includes("porch")) {
+      if (rName.includes("alfresco") || rName.includes("porch") || rName.includes("balcony")) {
         if (room.polygon && room.polygon.length >= 3 && pointInPolygon(pt, room.polygon)) {
           return false;
         }
       }
     }
 
-    const walls = this.design.walls || [];
+    const levelWalls = (this.design.walls || []).filter((w) => (w.level ?? 0) === level);
+    const walls = levelWalls.length > 0 ? levelWalls : (this.design.walls || []);
     if (walls.length > 0) {
       let minXAtZ = Infinity;
       let maxXAtZ = -Infinity;
@@ -1411,7 +1613,8 @@ export class ThreeStudioSceneManager {
     isExterior: boolean,
     posX: number,
     posZ: number,
-    angle: number
+    angle: number,
+    level = 0
   ): { bothIndoors: boolean; inSign: 1 | -1 } {
     if (!isExterior) {
       return { bothIndoors: true, inSign: 1 };
@@ -1420,8 +1623,8 @@ export class ThreeStudioSceneManager {
     const nPlusZ = Math.cos(angle);
     const sampleDist = 0.42;
 
-    const plusIndoors = this.isPointIndoors(posX + nPlusX * sampleDist, posZ + nPlusZ * sampleDist);
-    const minusIndoors = this.isPointIndoors(posX - nPlusX * sampleDist, posZ - nPlusZ * sampleDist);
+    const plusIndoors = this.isPointIndoors(posX + nPlusX * sampleDist, posZ + nPlusZ * sampleDist, level);
+    const minusIndoors = this.isPointIndoors(posX - nPlusX * sampleDist, posZ - nPlusZ * sampleDist, level);
 
     if (plusIndoors && minusIndoors) {
       return { bothIndoors: true, inSign: 1 };
@@ -1449,20 +1652,22 @@ export class ThreeStudioSceneManager {
     isExterior: boolean,
     posX: number,
     posZ: number,
-    angle: number
+    angle: number,
+    level = 0
   ): THREE.Material | THREE.Material[] {
-    const { bothIndoors, inSign } = this.classifyWallSides(isExterior, posX, posZ, angle);
+    const { bothIndoors, inSign } = this.classifyWallSides(isExterior, posX, posZ, angle, level);
     if (bothIndoors) {
       return this.materials.interiorWall;
     }
-    const plusZMat = inSign === 1 ? this.materials.interiorWall : this.materials.brick;
-    const minusZMat = inSign === 1 ? this.materials.brick : this.materials.interiorWall;
+    const extMat = level >= 2 ? this.materials.cladding : this.materials.brick;
+    const plusZMat = inSign === 1 ? this.materials.interiorWall : extMat;
+    const minusZMat = inSign === 1 ? extMat : this.materials.interiorWall;
 
     return [
       this.materials.interiorWall, // +X jamb reveal (painted)
       this.materials.interiorWall, // -X jamb reveal (painted)
-      this.materials.brick,        // +Y top
-      this.materials.brick,        // -Y bottom
+      extMat,                      // +Y top
+      extMat,                      // -Y bottom
       plusZMat,                    // +Z face
       minusZMat,                   // -Z face
     ];
@@ -1507,7 +1712,7 @@ export class ThreeStudioSceneManager {
 
   /**
    * Renders a wall segment along with its structural top cross-section cap:
-   * - External Walls (250mm Face Brick outside + Painted White Plaster inside)
+   * - External Walls (250mm Face Brick / Upper Cladding outside + Painted White Plaster inside)
    * - Internal Walls (90mm Total): 10mm white plaster + 70mm structural stud frame + 10mm white plaster
    */
   private addStructuralWallPiece(
@@ -1519,10 +1724,11 @@ export class ThreeStudioSceneManager {
     isExterior: boolean,
     posX: number,
     posZ: number,
-    angle: number
+    angle: number,
+    level = 0
   ): void {
-    const { bothIndoors, inSign } = this.classifyWallSides(isExterior, posX, posZ, angle);
-    const mat = this.getWallMaterials(isExterior, posX, posZ, angle);
+    const { bothIndoors, inSign } = this.classifyWallSides(isExterior, posX, posZ, angle, level);
+    const mat = this.getWallMaterials(isExterior, posX, posZ, angle, level);
     const geom = new THREE.BoxGeometry(len, pieceH, thickness);
     const mesh = new THREE.Mesh(geom, mat);
     mesh.position.set(posX, yCenter, posZ);
@@ -1616,12 +1822,15 @@ export class ThreeStudioSceneManager {
   private buildWallsAndOpenings(): void {
     if (!this.design) return;
     const ceilingH = this.design.ceilingHeightM;
-    const ffl = 0.30;
     const openings = (this.design.openings || []).map((op) => this.getEffectiveOpening(op));
     const walls = this.design.walls || [];
 
     // Walls
     walls.forEach((wall) => {
+      const wallLevel = wall.level ?? 0;
+      if (this.activeLevelFilter !== "all" && wallLevel !== this.activeLevelFilter) return;
+
+      const ffl = 0.30 + (wall.elevationOffsetM || 0);
       const p1 = new THREE.Vector2(wall.start[0], wall.start[1]);
       const p2 = new THREE.Vector2(wall.end[0], wall.end[1]);
       const wallLen = p1.distanceTo(p2);
@@ -1631,9 +1840,10 @@ export class ThreeStudioSceneManager {
       const midX = (p1.x + p2.x) / 2;
       const midZ = (p1.y + p2.y) / 2;
 
-      // Find openings situated along this wall (must also match wall orientation if specified)
+      // Find openings situated along this wall on the SAME level
       const isWallHorizontal = Math.abs(p1.y - p2.y) <= Math.abs(p1.x - p2.x);
       const wallOpenings = openings.filter((op) => {
+        if ((op.level ?? 0) !== wallLevel) return false;
         if (op.wallOrientation) {
           const opHoriz = op.wallOrientation === "horizontal";
           if (opHoriz !== isWallHorizontal) return false;
@@ -1656,7 +1866,8 @@ export class ThreeStudioSceneManager {
           wall.isExterior,
           midX,
           midZ,
-          angle
+          angle,
+          wallLevel
         );
       } else {
         // Wall with Openings: Subdivide into exact scaled piers, sill walls, and lintel headers!
@@ -1698,14 +1909,15 @@ export class ThreeStudioSceneManager {
               wall.isExterior,
               posX,
               posZ,
-              angle
+              angle,
+              wallLevel
             );
           }
 
           const openMid = (openStart + openEnd) / 2;
           const oX = p1.x + Math.cos(angle) * openMid;
           const oZ = p1.y + Math.sin(angle) * openMid;
-          const openMat = this.getWallMaterials(wall.isExterior, oX, oZ, angle);
+          const openMat = this.getWallMaterials(wall.isExterior, oX, oZ, angle, wallLevel);
 
           // 2. Sill Wall under window (0 to sillHeight)
           if (op.sillHeight > 0.05) {
@@ -1751,7 +1963,8 @@ export class ThreeStudioSceneManager {
             wall.isExterior,
             posX,
             posZ,
-            angle
+            angle,
+            wallLevel
           );
         }
       }
@@ -1769,9 +1982,10 @@ export class ThreeStudioSceneManager {
     const ceilingH = this.design.ceilingHeightM;
     const upgradeHeights =
       ceilingH >= 2.70 && this.design.fitout?.upgradeDoorJoineryHeights !== false;
-    const ffl = 0.30;
 
     this.design.openHampers.forEach((hamper) => {
+      if (this.activeLevelFilter !== "all" && (hamper.level ?? 0) !== this.activeLevelFilter) return;
+      const ffl = 0.30 + (hamper.elevationOffsetM || 0);
       const p1 = new THREE.Vector2(hamper.start[0], hamper.start[1]);
       const p2 = new THREE.Vector2(hamper.end[0], hamper.end[1]);
       const len = p1.distanceTo(p2);
@@ -2382,6 +2596,8 @@ export class ThreeStudioSceneManager {
     const stoneThicknessM = fitout.benchtopThicknessMm === 40 ? 0.045 : 0.022;
 
     allFixtures.forEach((fix) => {
+      if (this.activeLevelFilter !== "all" && (fix.level ?? 0) !== this.activeLevelFilter) return;
+
       const isFurnitureType =
         fix.type === "bed_queen" ||
         fix.type === "bed_double" ||
@@ -2390,7 +2606,8 @@ export class ThreeStudioSceneManager {
         fix.type === "cinema_seating" ||
         fix.type === "tv_console" ||
         fix.type === "tv_entertainment_unit";
-      const isJoineryType = !isFurnitureType;
+      const isStructuralFeature = fix.type === "staircase" || fix.type === "balustrade";
+      const isJoineryType = !isFurnitureType && !isStructuralFeature;
 
       if (isJoineryType && fitout.showJoineryAndSinks === false) return;
       if (isFurnitureType && fitout.showFurniture === false) return;
@@ -3055,6 +3272,76 @@ export class ThreeStudioSceneManager {
           });
         });
 
+      } else if (fix.type === "staircase") {
+        // Architectural 3D Timber-Tread Staircase with Steel Stringers & Glass Balustrade
+        const totalRise = Math.max(0.45, fix.height || 0.60);
+        const stepCount = Math.max(3, Math.min(18, Math.round(totalRise / 0.175)));
+        const stepRise = totalRise / stepCount;
+        const stepRun = fix.depth / stepCount;
+        const treadMat = new THREE.MeshStandardMaterial({ color: 0xb47e4f, roughness: 0.32 });
+        const riserMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55 });
+        const stringerMat = this.materials.frame;
+
+        for (let s = 0; s < stepCount; s++) {
+          const yTop = (s + 1) * stepRise;
+          const zCenter = fix.depth / 2 - (s + 0.5) * stepRun;
+
+          // Solid Timber Tread
+          const treadGeom = new THREE.BoxGeometry(fix.width - 0.04, 0.038, stepRun + 0.025);
+          const treadMesh = new THREE.Mesh(treadGeom, treadMat);
+          treadMesh.position.set(0, yTop - 0.019, zCenter);
+          treadMesh.castShadow = true;
+          treadMesh.receiveShadow = true;
+          group.add(treadMesh);
+
+          // Painted White Riser
+          const riserGeom = new THREE.BoxGeometry(fix.width - 0.06, stepRise, 0.018);
+          const riserMesh = new THREE.Mesh(riserGeom, riserMat);
+          riserMesh.position.set(0, yTop - stepRise / 2, zCenter + stepRun / 2);
+          group.add(riserMesh);
+        }
+
+        // Sloped Steel Side Stringers & Handrails on full-flight stairs
+        if (totalRise >= 1.2) {
+          const flightSlopeLen = Math.hypot(fix.depth, totalRise);
+          const slopeAngle = Math.atan2(totalRise, fix.depth);
+          [-fix.width / 2 + 0.03, fix.width / 2 - 0.03].forEach((sx) => {
+            const stringerGeom = new THREE.BoxGeometry(0.045, 0.22, flightSlopeLen);
+            const stringerMesh = new THREE.Mesh(stringerGeom, stringerMat);
+            stringerMesh.position.set(sx, totalRise / 2 - 0.06, 0);
+            stringerMesh.rotation.x = slopeAngle;
+            group.add(stringerMesh);
+
+            const railGeom = new THREE.BoxGeometry(0.04, 0.04, flightSlopeLen);
+            const railMesh = new THREE.Mesh(railGeom, stringerMat);
+            railMesh.position.set(sx, totalRise / 2 + 0.92, 0);
+            railMesh.rotation.x = slopeAngle;
+            group.add(railMesh);
+          });
+        }
+
+      } else if (fix.type === "balustrade") {
+        // Frameless Toughened Glass Balcony Balustrade with Monument Aluminium Top Rail & Posts
+        const balH = fix.height || 1.05;
+        const glassGeom = new THREE.BoxGeometry(fix.width, balH - 0.06, 0.024);
+        const glassMesh = new THREE.Mesh(glassGeom, this.materials.glass);
+        glassMesh.position.set(0, (balH - 0.06) / 2 + 0.02, 0);
+        group.add(glassMesh);
+
+        const topRailGeom = new THREE.BoxGeometry(fix.width, 0.045, 0.065);
+        const topRailMesh = new THREE.Mesh(topRailGeom, this.materials.frame);
+        topRailMesh.position.set(0, balH - 0.022, 0);
+        group.add(topRailMesh);
+
+        const postCount = Math.max(2, Math.round(fix.width / 1.35) + 1);
+        for (let p = 0; p < postCount; p++) {
+          const px = -fix.width / 2 + (p / (postCount - 1)) * fix.width;
+          const postGeom = new THREE.BoxGeometry(0.05, balH, 0.05);
+          const postMesh = new THREE.Mesh(postGeom, this.materials.frame);
+          postMesh.position.set(px, balH / 2, 0);
+          group.add(postMesh);
+        }
+
       } else {
         // Generic Joinery / Cabinetry
         const genGeom = new THREE.BoxGeometry(fix.width, fix.height, fix.depth);
@@ -3063,7 +3350,7 @@ export class ThreeStudioSceneManager {
         group.add(genMesh);
       }
 
-      group.position.set(fix.position[0], ffl, fix.position[2]);
+      group.position.set(fix.position[0], ffl + (fix.elevationOffsetM || 0), fix.position[2]);
       group.rotation.y = fix.rotationY;
       this.fixturesGroup.add(group);
     });
@@ -3071,14 +3358,59 @@ export class ThreeStudioSceneManager {
 
   private buildRoof(): void {
     if (!this.design) return;
-    if (!this.design.roof.showRoof || this.design.roof.cutawayMode) {
+    if (
+      !this.design.roof.showRoof ||
+      this.design.roof.cutawayMode ||
+      this.activeLevelFilter !== "all"
+    ) {
       this.roofGroup.visible = false;
+      return;
+    }
+
+    if (this.design.levels && this.design.levels.length > 1) {
+      const upperLvl = this.design.levels.find((l) => (l.elevationOffsetM || 0) >= 2.0);
+      const upperMaxX = upperLvl
+        ? upperLvl.worldBounds.x + upperLvl.worldBounds.widthM
+        : Infinity;
+
+      for (const lvl of this.design.levels) {
+        let levelWalls = (this.design.walls || []).filter((w) => (w.level ?? 0) === lvl.level);
+        let levelRooms = (this.design.rooms || []).filter((r) => (r.level ?? 0) === lvl.level);
+        const levelOpenings = (this.design.openings || []).filter((o) => (o.level ?? 0) === lvl.level);
+
+        // When an upper floor sits directly over the Ground Floor (lvl 0), only roof Ground Floor wings projecting outside the upper floor footprint (e.g. 3rd Garage Bay)
+        if (lvl.level === 0 && upperLvl) {
+          levelRooms = levelRooms.filter((r) => {
+            const maxX = Math.max(...r.polygon.map((p) => p[0]));
+            return maxX > upperMaxX + 0.5;
+          });
+          levelWalls = levelWalls.filter((w) => Math.max(w.start[0], w.end[0]) > upperMaxX - 0.3);
+        }
+        if (levelWalls.length === 0 && levelRooms.length === 0) continue;
+
+        const tierDesign: BuildingDesign3D = {
+          ...this.design,
+          walls: levelWalls,
+          rooms: levelRooms,
+          openings: levelOpenings,
+        };
+        const { roofMesh, fasciaMesh, gutterMesh } = generateProceduralHipRoof(
+          tierDesign,
+          this.design.roof,
+          lvl.elevationOffsetM || 0
+        );
+        this.roofGroup.add(roofMesh);
+        this.roofGroup.add(fasciaMesh);
+        this.roofGroup.add(gutterMesh);
+      }
+      this.roofGroup.visible = true;
       return;
     }
 
     const { roofMesh, fasciaMesh, gutterMesh } = generateProceduralHipRoof(
       this.design,
-      this.design.roof
+      this.design.roof,
+      0
     );
 
     this.roofGroup.add(roofMesh);
@@ -3111,6 +3443,8 @@ export class ThreeStudioSceneManager {
     const room = (this.design.rooms || []).find((r) => r.name === roomName || r.customLabel === roomName);
     if (!room) return;
 
+    const elevOffset = room.elevationOffsetM || 0;
+
     if (this.cameraMode === "walkthrough") {
       let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
       for (const p of room.polygon) {
@@ -3123,7 +3457,7 @@ export class ThreeStudioSceneManager {
       // Stand inside the room corner with natural diagonal perspective across the room
       const eyeX = minX + (maxX - minX) * 0.28;
       const eyeZ = minZ + (maxZ - minZ) * 0.28;
-      this.walkPosition.set(eyeX, 1.65 + 0.30, eyeZ);
+      this.walkPosition.set(eyeX, 1.65 + 0.30 + elevOffset, eyeZ);
 
       const lookTargetX = minX + (maxX - minX) * 0.72;
       const lookTargetZ = minZ + (maxZ - minZ) * 0.72;
@@ -3134,7 +3468,7 @@ export class ThreeStudioSceneManager {
       this.camera.fov = 72; // Wide interior lens for immersive virtual tour
       this.camera.updateProjectionMatrix();
     } else {
-      this.orbitTarget.set(room.center[0], 1.2, room.center[1]);
+      this.orbitTarget.set(room.center[0], 1.2 + elevOffset, room.center[1]);
       this.orbitDistance = 14;
       this.orbitPhi = Math.PI / 3.4;
       this.updateOrbitCamera();
@@ -3342,16 +3676,20 @@ export class ThreeStudioSceneManager {
 
   public updateDesign(newDesign: BuildingDesign3D | null): void {
     const isNewPlan = !this.design || !newDesign || this.design.id !== newDesign.id;
+    if (isNewPlan) {
+      this.activeLevelFilter = "all";
+    }
     this.design = newDesign
       ? ensureOutdoorZonesOpenAndFurnished(ensureCompleteWallNetwork(newDesign))
       : null;
     if (this.design) {
       const centerX = this.design.widthM / 2;
       const centerZ = this.design.lengthM / 2;
-      this.orbitTarget.set(centerX, 1.2, centerZ);
+      const isMultiLevel = Boolean(this.design.levels && this.design.levels.length > 1);
+      this.orbitTarget.set(centerX, isMultiLevel ? 2.2 : 1.2, centerZ);
       if (isNewPlan) {
         const maxDim = Math.max(this.design.widthM, this.design.lengthM);
-        this.orbitDistance = Math.max(16, maxDim * 1.35);
+        this.orbitDistance = Math.max(18, maxDim * (isMultiLevel ? 1.48 : 1.35));
         this.orbitTheta = Math.PI / 4;
         this.orbitPhi = Math.PI / 3.2;
       }
