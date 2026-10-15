@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { MapPin, Loader2, X, Building, Check } from "lucide-react";
-import { searchAustralianAddresses, type AddressSuggestion } from "@/lib/address/addressService";
+import {
+  searchAustralianAddresses,
+  searchLocalInstantAddresses,
+  type AddressSuggestion,
+} from "@/lib/address/addressService";
 
 export interface AddressAutocompleteInputProps {
   value: string;
@@ -37,8 +41,9 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<any>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Debounced address search
+  // Address search with AbortController and instant local rendering
   const performSearch = useCallback(
     async (query: string) => {
       const q = query.trim();
@@ -49,17 +54,40 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
         return;
       }
 
+      // 1. Immediately display instant local matches (<1ms)
+      const instant = searchLocalInstantAddresses(q, { limit, state: stateFilter });
+      if (instant.length > 0) {
+        setSuggestions(instant);
+        setIsOpen(true);
+      }
+
+      // 2. Abort previous in-flight request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       setIsLoading(true);
       try {
-        const results = await searchAustralianAddresses(q, { limit, state: stateFilter });
-        setSuggestions(results);
-        setIsOpen(results.length > 0);
-        setHighlightedIndex(-1);
-      } catch (err) {
-        console.warn("Address search failed:", err);
-        setSuggestions([]);
+        const results = await searchAustralianAddresses(q, {
+          limit,
+          state: stateFilter,
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted && results.length > 0) {
+          setSuggestions(results);
+          setIsOpen(true);
+          setHighlightedIndex(-1);
+        }
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          console.warn("Address search failed:", err);
+        }
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     },
     [limit, stateFilter]
@@ -69,16 +97,63 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
     const val = e.target.value;
     onChange(val);
 
+    const q = val.trim();
+    if (q.length < 2) {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      setSuggestions([]);
+      setIsOpen(false);
+      setIsLoading(false);
+      return;
+    }
+
+    // 1. INSTANT LOCAL LOOKUP (<1ms, 0 delay): suggestions appear synchronously on keystroke!
+    const instantMatches = searchLocalInstantAddresses(q, { limit, state: stateFilter });
+    if (instantMatches.length > 0) {
+      setSuggestions(instantMatches);
+      setIsOpen(true);
+      setHighlightedIndex(-1);
+    }
+
+    // 2. Cancel prior in-flight network call
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    // 3. Fast 90ms debounce for remote background geocode enrichment
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
-    debounceTimerRef.current = setTimeout(() => {
-      performSearch(val);
-    }, 250);
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        setIsLoading(true);
+        const remoteResults = await searchAustralianAddresses(q, {
+          limit,
+          state: stateFilter,
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted && remoteResults.length > 0) {
+          setSuggestions(remoteResults);
+          setIsOpen(true);
+        }
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          console.warn("Address search background fetch failed:", err);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    }, 90);
   };
 
   const handleSelect = (suggestion: AddressSuggestion) => {
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     onSelectAddress(suggestion);
     setIsOpen(false);
     setSuggestions([]);
@@ -86,6 +161,8 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
   };
 
   const handleClear = () => {
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     onChange("");
     setSuggestions([]);
     setIsOpen(false);
@@ -128,6 +205,7 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
 
@@ -143,8 +221,16 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            if (suggestions.length > 0) setIsOpen(true);
-            else if (value.trim().length >= 2) performSearch(value);
+            if (suggestions.length > 0) {
+              setIsOpen(true);
+            } else if (value.trim().length >= 2) {
+              const instant = searchLocalInstantAddresses(value.trim(), { limit, state: stateFilter });
+              if (instant.length > 0) {
+                setSuggestions(instant);
+                setIsOpen(true);
+              }
+              performSearch(value);
+            }
           }}
           disabled={disabled}
           autoFocus={autoFocus}

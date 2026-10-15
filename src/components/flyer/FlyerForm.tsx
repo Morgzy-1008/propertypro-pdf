@@ -19,7 +19,7 @@ import { MULBERRY_FACADES } from "./acreageFacades.data";
 import { HUDSON_FACADES } from "./facades.data";
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
-import { INCLUSION_RANGES, defaultInclusions, baseRangeItems, type FlyerData, type TemplateId } from "./types";
+import { INCLUSION_RANGES, defaultInclusions, baseRangeItems, detectFlyerState, type FlyerData, type TemplateId } from "./types";
 import { ESTATE_PRESETS, matchEstatePreset } from "./sitingEngine";
 import {
   BASE_PARTNER_DEVELOPERS,
@@ -1258,6 +1258,15 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               if (item.lotNumber) {
                 set("lotId", item.lotNumber);
               }
+              const st = item.state?.toUpperCase();
+              if (st === "NSW" || st === "QLD") {
+                set("state", st);
+                if (st === "NSW") {
+                  set("contactOffice", "Hudson Homes New South Wales");
+                } else {
+                  set("contactOffice", "Hudson Homes Queensland");
+                }
+              }
               if (item.suburb) {
                 set("suburb", item.suburb);
                 onLocationChange("suburb", item.suburb);
@@ -1289,6 +1298,15 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                   set("suburb", item.suburb);
                   onLocationChange("suburb", item.suburb);
                 }
+                const st = item.state?.toUpperCase();
+                if (st === "NSW" || st === "QLD") {
+                  set("state", st);
+                  if (st === "NSW") {
+                    set("contactOffice", "Hudson Homes New South Wales");
+                  } else {
+                    set("contactOffice", "Hudson Homes Queensland");
+                  }
+                }
                 if (item.estate || item.suburb) {
                   if (item.estate) set("estate", item.estate);
                   const matched = matchEstatePreset(item.estate || "", item.suburb || "");
@@ -1306,7 +1324,39 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           </div>
           <Field label="Estate" value={data.estate} onChange={(v) => onLocationChange("estate", v)} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+
+        {/* State / Region selector & tag */}
+        <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 mt-2">
+          <div>
+            <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Flyer State &amp; Tag</div>
+            <div className="text-[10px] text-slate-400">Controls NSW / QLD license, office &amp; terms</div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {(["NSW", "QLD"] as const).map((st) => {
+              const currentFlyerState = detectFlyerState(data);
+              const isSelected = currentFlyerState === st;
+              return (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => {
+                    set("state", st);
+                    set("contactOffice", st === "NSW" ? "Hudson Homes New South Wales" : "Hudson Homes Queensland");
+                  }}
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                    isSelected
+                      ? "bg-brand-navy text-brand-gold border border-brand-gold/60 shadow-xs"
+                      : "bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800"
+                  }`}
+                >
+                  {st}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-3">
           <Field label="Land m²" value={data.landSize} onChange={setLandSize} placeholder="e.g. 450" />
           <Field
             label="Frontage m"
@@ -1870,12 +1920,23 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               <div className={`text-[10px] font-bold tracking-wider uppercase ${
                 isLight ? "text-slate-700" : "text-slate-400"
               }`}>
-                Total Package Price
+                {data.priceType && data.priceType !== "None" ? `${data.priceType} ` : ""}Total Package Price
               </div>
               <div className={`text-[10px] ${
                 isLight ? "text-slate-500" : "text-slate-400"
               }`}>
-                House ({data.housePrice || "$0"}) + Land ({data.landPrice || "$0"}){costsNum > 0 ? ` + Costs (${formatAud(costsNum)})` : ""}
+                {costsNum > 0 ? (
+                  <>
+                    <span className="font-semibold text-brand-gold">House &amp; Inclusions ({formatAud((parseAud(data.housePrice) || 0) + costsNum)})</span> + Land ({data.landPrice || "$0"}) = Total ({formattedTotalPrice})
+                    <div className="text-[9px] text-slate-400 mt-0.5">
+                      Base house {data.housePrice || "$0"} + {formatAud(costsNum)} inclusions &amp; site costs
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    House ({data.housePrice || "$0"}) + Land ({data.landPrice || "$0"}) = Total ({formattedTotalPrice})
+                  </>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -1887,6 +1948,37 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
             </div>
           </div>
         )}
+
+        {/* Price Type selector */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label className={`text-xs font-medium tracking-wide ${isLight ? "text-slate-700 font-semibold" : "text-slate-300"}`}>
+              Price Display Prefix / Type
+            </Label>
+            <span className="text-[10px] text-brand-gold font-medium">Shown on flyer price</span>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5 p-1 rounded-lg bg-slate-950/70 border border-slate-800">
+            {[
+              { id: "From", label: "From" },
+              { id: "Fixed Price", label: "Fixed Price" },
+              { id: "Guide", label: "Price Guide" },
+              { id: "None", label: "None" },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => set("priceType", opt.id)}
+                className={`px-2 py-1 rounded text-xs font-semibold text-center transition-all ${
+                  (data.priceType || "From") === opt.id
+                    ? "bg-brand-navy text-brand-gold border border-brand-gold/60 shadow-xs"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <Field label="Headline" value={data.headline} onChange={(v) => set("headline", v)} placeholder="e.g. Complete Turn-Key Package" />
 

@@ -520,6 +520,8 @@ export interface PlanModificationAnalysis {
   detectionSource?: "gemini_vision" | "deterministic" | "hybrid" | "canvas_vision";
   geminiNotes?: string;
   canvasNotes?: string;
+  isPureCustomPlan?: boolean;
+  customPlanTitle?: string;
   ceilingHeightM?: number;
   scaleCalibration?: {
     mmPerPixel: number;

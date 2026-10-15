@@ -141,6 +141,7 @@ export interface FlyerData {
 
   costs: AdditionalCosts;
   landscaping: boolean;
+  priceType?: "From" | "Fixed Price" | "Guide" | "None" | string;
   price: string;
 
   housePrice: string;
@@ -207,12 +208,43 @@ export const DEFAULT_TERMS_CONCISE =
 export const DEFAULT_TERMS_FULL =
   "Terms and conditions apply. Images are indicative only. Floor plans based on Classic facade and will adjust for alternatives. Standard included site costs are for a cleared residential site up to 450m2, with up to 1 metre fall across the building platform, M class slab and with all services available at site boundaries (excludes battle-axe and rural sites). Home and Land packages are subject to developer design and statutory authorities' approval. Additional allowances may be required for an individual lots or housing estates. Package pricing does not include stamp duty, legal fees or other costs that may be incurred with the purchase of land. Photographs and other images used within marketing material may show fixtures, fittings or finishes which are not supplied by Hudson Homes, or which are only available in some designs or when selected as additional upgrades. Please speak to a Hudson Homes New Home Consultant who is able to provide a building contract that specifically outlines the fixtures, finishes and features that you will receive, and selections from the builder's standard range. Hudson Homes agrees to complete construction of the home on time as specified in the signed HIA agreement (subject to any inclement weather, holiday period closure or other permissible time extensions that are beyond our control). Hudson Homes reserves the right to alter any advertised price without notice. Other promotional offers by Hudson Homes are not applicable unless specified. All plans and images are copyright of Hudson Homes Pty Ltd ABN 92 623 431 685. Builders Lic: 15078318.";
 
+/**
+ * Robust detection of whether a flyer belongs to New South Wales (NSW) or Queensland (QLD).
+ * Checks explicit state, postcodes (2xxx = NSW, 4xxx = QLD), address/suburb keywords,
+ * contact office, and active division.
+ */
+export function detectFlyerState(d: FlyerData): "NSW" | "QLD" {
+  if (d.state === "NSW") return "NSW";
+  if (d.state === "QLD") return "QLD";
+
+  const combined = `${d.address || ""} ${d.suburb || ""} ${d.estate || ""} ${d.contactOffice || ""}`.toLowerCase();
+
+  // 1. Postcode detection
+  if (/\b2\d{3}\b/.test(combined)) return "NSW";
+  if (/\b4\d{3}\b/.test(combined)) return "QLD";
+
+  // 2. Explicit state abbreviations or names
+  if (/\b(nsw|new south wales)\b/i.test(combined)) return "NSW";
+  if (/\b(qld|queensland)\b/i.test(combined)) return "QLD";
+
+  // 3. Known NSW growth corridors & suburbs
+  const nswSuburbsRegex = /\b(sydney|parramatta|oran park|box hill|marsden park|austral|leppington|calderwood|menangle|the gables|blacktown|penrith|liverpool|hunter|newcastle|central coast|wollongong|schofields|gregory hills|wilton|bingara gorge|catherine field|lochinvar|huntlee|north rothbury|kellyville|rouse hill|appin|cobbitty|edmondson park|minto|campbelltown|camden|picton|tahmoor|mittagong|bowral|shellharbour|kiama|nowra|cessnock|maitland|singleton|muswellbrook)\b/i;
+  if (nswSuburbsRegex.test(combined)) return "NSW";
+
+  // 4. Known QLD growth corridors & suburbs
+  const qldSuburbsRegex = /\b(brisbane|gold coast|sunshine coast|moreton bay|logan|ipswich|flagstone|yarrabilba|greenbank|spring mountain|springfield|ripley|south ripley|palmview|baringa|nirimba|pelican waters|burpengary|morayfield|narangba|mango hill|north lakes|pimpama|coomera|upper coomera|ormeau|helensvale|south maclean|bahrs scrub|walloon|redbank plains)\b/i;
+  if (qldSuburbsRegex.test(combined)) return "QLD";
+
+  // 5. Active division fallback
+  if (typeof window !== "undefined" && localStorage.getItem("hudson_active_division") === "NSW") {
+    return "NSW";
+  }
+
+  return "QLD";
+}
+
 export function getTermsText(d: FlyerData): string {
-  const isNsw = Boolean(
-    (d.suburb && /sydney|parramatta|oran park|box hill|marsden park|austral|leppington|calderwood|menangle|the gables|blacktown|penrith|liverpool|hunter|newcastle|central coast|wollongong|nsw/i.test(d.suburb)) ||
-    (d.contactOffice && /nsw|parramatta|marsden/i.test(d.contactOffice)) ||
-    (typeof window !== "undefined" && localStorage.getItem("hudson_active_division") === "NSW")
-  );
+  const isNsw = detectFlyerState(d) === "NSW";
 
   let text = d.termsType === "full" ? DEFAULT_TERMS_FULL : DEFAULT_TERMS_CONCISE;
   if (d.termsType === "custom" && d.customTerms?.trim()) {
@@ -243,6 +275,7 @@ export const defaultFlyer: FlyerData = {
   costs: defaultCosts("single-storey"),
   landscaping: false,
 
+  priceType: "From",
   price: "",
   housePrice: "",
   landPrice: "",

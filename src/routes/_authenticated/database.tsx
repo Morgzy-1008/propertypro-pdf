@@ -20,6 +20,8 @@ import {
   CheckCircle2,
   Sparkles,
   Compass,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +65,11 @@ import {
   getDeletedPkgIds,
   extractLotStage,
   getLotState,
+  archiveStaleDatabaseRecords,
+  restoreArchivedLot,
+  restoreArchivedPackage,
+  isRecordStale,
+  ARCHIVE_STALE_DAYS,
   DB_SYNC_CHANNEL_NAME,
   broadcastDatabaseChange,
   type Lot,
@@ -122,8 +129,8 @@ export const Route = createFileRoute("/_authenticated/database")({
   component: DatabasePage,
 });
 
-const LOT_STATUS = ["available", "on_hold", "sold", "nhc_exclusive"] as const;
-const PKG_STATUS = ["draft", "live", "sold", "nhc_exclusive"] as const;
+const LOT_STATUS = ["available", "on_hold", "sold", "nhc_exclusive", "archived"] as const;
+const PKG_STATUS = ["draft", "live", "sold", "nhc_exclusive", "archived"] as const;
 
 /** Capital letter at the start of each word, acronyms preserved. */
 function titleCase(value: string | null | undefined) {
@@ -144,6 +151,7 @@ function titleCase(value: string | null | undefined) {
 /** Human label for a lot/package status pill or dropdown item. */
 function statusLabel(value: string) {
   if (value === "nhc_exclusive") return "NHC Exclusive";
+  if (value === "archived") return "Archived (>14d)";
   return titleCase(value.replace("_", " "));
 }
 
@@ -189,6 +197,8 @@ function statusTone(value: string, isLight = false) {
       return "bg-blue-50 text-blue-950 border-blue-400 font-semibold shadow-[0_0_10px_rgba(59,130,246,0.45)] ring-1 ring-blue-400/40";
     if (value === "sold")
       return "bg-rose-50 text-rose-950 border-rose-400 font-bold shadow-[0_0_10px_rgba(244,63,94,0.45)] ring-1 ring-rose-400/40";
+    if (value === "archived")
+      return "bg-slate-100 text-slate-700 border-slate-400 font-semibold shadow-xs";
     return "bg-slate-100 text-slate-700 border-slate-300";
   }
   if (value === "available" || value === "live")
@@ -199,6 +209,8 @@ function statusTone(value: string, isLight = false) {
     return "bg-blue-500/20 text-blue-300 border-blue-500/60 shadow-[0_0_12px_rgba(59,130,246,0.5)] ring-1 ring-blue-500/40";
   if (value === "sold")
     return "bg-rose-950/70 text-rose-300 border-rose-500/60 shadow-[0_0_12px_rgba(244,63,94,0.5)] ring-1 ring-rose-500/40 font-bold";
+  if (value === "archived")
+    return "bg-slate-800/80 text-slate-300 border-slate-600 shadow-xs font-medium";
   return "bg-slate-800/60 text-slate-400 border-slate-800";
 }
 
@@ -210,7 +222,9 @@ function StatusPill({ value, isLight = false }: { value: string; isLight?: boole
         ? "bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.9)]"
         : value === "nhc_exclusive"
           ? "bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.9)]"
-          : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)]";
+          : value === "archived"
+            ? "bg-slate-400 shadow-[0_0_8px_rgba(148,163,184,0.9)]"
+            : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)]";
 
   return (
     <span
@@ -1493,7 +1507,10 @@ function DatabasePage() {
     "price_asc" | "price_desc" | "suburb" | "design" | "house_price" | "land_price"
   >("price_asc");
   const [pkgStatusFilter, setPkgStatusFilter] = useState<
-    "ALL" | "live" | "draft" | "sold" | "nhc_exclusive"
+    "ALL" | "live" | "draft" | "sold" | "nhc_exclusive" | "archived" | "ALL_WITH_ARCHIVED"
+  >("ALL");
+  const [lotStatusFilter, setLotStatusFilter] = useState<
+    "ALL" | "available" | "on_hold" | "sold" | "nhc_exclusive" | "archived" | "ALL_WITH_ARCHIVED"
   >("ALL");
   const [pkgBedFilter, setPkgBedFilter] = useState<"ALL" | "3" | "4" | "5+">("ALL");
   const [openPkgSuburbs, setOpenPkgSuburbs] = useState<string[]>(() => {
@@ -1735,6 +1752,16 @@ function DatabasePage() {
     const list = lots.filter((l) => {
       const lotState = l.state || getLotState(l);
       if (stateFilter !== "ALL" && lotState !== stateFilter) return false;
+
+      // Status filter: by default "ALL" hides archived so active view is clean and uncluttered
+      if (lotStatusFilter === "ALL") {
+        if (l.status === "archived") return false;
+      } else if (lotStatusFilter === "archived") {
+        if (l.status !== "archived") return false;
+      } else if (lotStatusFilter !== "ALL_WITH_ARCHIVED") {
+        if (l.status !== lotStatusFilter) return false;
+      }
+
       if (!q) return true;
       return [l.estate, l.suburb, l.lot_number, l.address, l.developer, l.notes]
         .filter(Boolean)
@@ -1753,7 +1780,7 @@ function DatabasePage() {
       if (a.titled !== b.titled) return a.titled ? -1 : 1;
       return (a.registration_date ?? "9999").localeCompare(b.registration_date ?? "9999");
     });
-  }, [lots, query, lotSort, stateFilter]);
+  }, [lots, query, lotSort, lotStatusFilter, stateFilter]);
 
   const stateLotGroups = useMemo(() => {
     const states: ("QLD" | "NSW")[] = stateFilter === "ALL" ? ["QLD", "NSW"] : [stateFilter];
@@ -1808,8 +1835,14 @@ function DatabasePage() {
       const pkgState = p.state || (lot ? getLotState(lot) : "QLD");
       if (stateFilter !== "ALL" && pkgState !== stateFilter) return false;
 
-      // Status filter
-      if (pkgStatusFilter !== "ALL" && p.status !== pkgStatusFilter) return false;
+      // Status filter: by default "ALL" hides archived so active view is clean and uncluttered
+      if (pkgStatusFilter === "ALL") {
+        if (p.status === "archived") return false;
+      } else if (pkgStatusFilter === "archived") {
+        if (p.status !== "archived") return false;
+      } else if (pkgStatusFilter !== "ALL_WITH_ARCHIVED") {
+        if (p.status !== pkgStatusFilter) return false;
+      }
 
       // Bed filter
       if (pkgBedFilter !== "ALL") {
@@ -2445,16 +2478,59 @@ function DatabasePage() {
                 onChange={(e) => setQuery(e.target.value)}
               />
               {tab === "lots" ? (
-                <Select value={lotSort} onValueChange={(v) => setLotSort(v as typeof lotSort)}>
-                  <SelectTrigger className={`h-9 w-[180px] rounded-lg text-xs ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
-                    <SelectItem value="registration">Sort: Registration</SelectItem>
-                    <SelectItem value="land_price">Sort: Land price</SelectItem>
-                    <SelectItem value="land_size">Sort: Land size</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={lotSort} onValueChange={(v) => setLotSort(v as typeof lotSort)}>
+                    <SelectTrigger className={`h-9 w-[160px] rounded-lg text-xs ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
+                      <SelectItem value="registration">Sort: Registration</SelectItem>
+                      <SelectItem value="land_price">Sort: Land price</SelectItem>
+                      <SelectItem value="land_size">Sort: Land size</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Lot Status Filter Dropdown */}
+                  <Select value={lotStatusFilter} onValueChange={(v) => setLotStatusFilter(v as typeof lotStatusFilter)}>
+                    <SelectTrigger className={`h-9 w-[165px] rounded-lg text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
+                      <SelectItem value="ALL">All Active ({lots.filter((l) => l.status !== "archived").length})</SelectItem>
+                      <SelectItem value="available">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                          Available ({lots.filter((l) => l.status === "available").length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="on_hold">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.9)]" />
+                          On Hold ({lots.filter((l) => l.status === "on_hold").length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="sold">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" />
+                          Sold ({lots.filter((l) => l.status === "sold").length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="nhc_exclusive">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
+                          Exclusive ({lots.filter((l) => l.status === "nhc_exclusive").length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="archived">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_6px_rgba(148,163,184,0.9)]" />
+                          Archived (&gt;14d) ({lots.filter((l) => l.status === "archived").length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="ALL_WITH_ARCHIVED">All (Inc. Archived) ({lots.length})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Package Sort Dropdown */}
@@ -2474,11 +2550,11 @@ function DatabasePage() {
 
                   {/* Package Status Filter Dropdown */}
                   <Select value={pkgStatusFilter} onValueChange={(v) => setPkgStatusFilter(v as typeof pkgStatusFilter)}>
-                    <SelectTrigger className={`h-9 w-[155px] rounded-lg text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
+                    <SelectTrigger className={`h-9 w-[165px] rounded-lg text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
-                      <SelectItem value="ALL">All Statuses ({packages.length})</SelectItem>
+                      <SelectItem value="ALL">All Active ({packages.filter((p) => p.status !== "archived").length})</SelectItem>
                       <SelectItem value="live">
                         <span className="flex items-center gap-1.5">
                           <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
@@ -2503,6 +2579,13 @@ function DatabasePage() {
                           Exclusive ({packages.filter((p) => p.status === "nhc_exclusive").length})
                         </span>
                       </SelectItem>
+                      <SelectItem value="archived">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_6px_rgba(148,163,184,0.9)]" />
+                          Archived (&gt;14d) ({packages.filter((p) => p.status === "archived").length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="ALL_WITH_ARCHIVED">All (Inc. Archived) ({packages.length})</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -2521,6 +2604,23 @@ function DatabasePage() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2 sm:ml-auto">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={`text-xs gap-1.5 font-medium ${isLight ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 shadow-xs" : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"}`}
+                  onClick={() => {
+                    const res = archiveStaleDatabaseRecords();
+                    setLots(res.lots);
+                    setPackages(res.packages);
+                    toast.success("Database cleanup complete", {
+                      description: `Archived ${res.archivedLotsCount} lots and ${res.archivedPkgsCount} packages older than 14 days.`,
+                    });
+                  }}
+                  title="Archive any packages or lots not updated in 14 days"
+                >
+                  <Archive className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Archive Stale (&gt;14d)</span>
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -3032,7 +3132,9 @@ function DatabasePage() {
                                         ? "bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.9)]"
                                         : s === "nhc_exclusive"
                                           ? "bg-blue-400 shadow-[0_0_6px_rgba(59,130,246,0.9)]"
-                                          : "bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]"
+                                          : s === "archived"
+                                            ? "bg-slate-400 shadow-[0_0_6px_rgba(148,163,184,0.9)]"
+                                            : "bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]"
                                   }`}
                                 />
                                 {statusLabel(s)}
@@ -3097,6 +3199,21 @@ function DatabasePage() {
 
                       <td className="p-3">
                         <div className="flex justify-end gap-1.5">
+                          {l.status === "archived" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className={`text-xs gap-1 font-medium ${isLight ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"}`}
+                              onClick={() => {
+                                const updated = restoreArchivedLot(l.id);
+                                setLots(updated);
+                                toast.success("Lot restored to active", { description: `${l.estate} Lot ${l.lot_number || ""}` });
+                              }}
+                              title="Restore this lot back to active (available)"
+                            >
+                              <RotateCcw className="h-3 w-3 text-emerald-400" /> Restore
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -3779,6 +3896,21 @@ function DatabasePage() {
                                       </td>
                                       <td className="p-3">
                                         <div className="flex justify-end gap-1">
+                                          {p.status === "archived" && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className={`text-xs gap-1 font-medium ${isLight ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"}`}
+                                              onClick={() => {
+                                                const updated = restoreArchivedPackage(p.id);
+                                                setPackages(updated);
+                                                toast.success("Package restored to live", { description: `${p.name || p.design}` });
+                                              }}
+                                              title="Restore this package back to active (live)"
+                                            >
+                                              <RotateCcw className="h-3 w-3 text-emerald-400" /> Restore
+                                            </Button>
+                                          )}
                                           <Button
                                             size="sm"
                                             variant="outline"

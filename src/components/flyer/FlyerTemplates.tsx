@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { BedDouble, Bath, Car, Ruler, MapPin, Phone, Mail, Maximize2, Loader2 } from "lucide-react";
-import { getRange, rangeItems, getTermsText, type FlyerData } from "./types";
+import { getRange, rangeItems, getTermsText, detectFlyerState, type FlyerData } from "./types";
+import { costsTotal } from "@/lib/additionalCosts";
 import { consultantVCard } from "./consultants";
 import { QrCode } from "./QrCode";
-import { formatPrice } from "@/lib/pricing";
+import { formatPrice, parseAud } from "@/lib/pricing";
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
 /**
@@ -346,17 +347,16 @@ export function ContactStrip({ d, showTerms = true }: { d: FlyerData; showTerms?
   const name = d.contactName || "Morgan Hales";
   const phone = d.contactPhone || "0417 571 864";
   const email = d.contactEmail || "Morgan.hales@hudsonhomes.com.au";
-  const office = d.contactOffice || "Hudson Homes Queensland";
 
-  const isNsw = Boolean(
-    d.state === "NSW" ||
-    (d.suburb && /sydney|parramatta|oran park|box hill|marsden park|austral|leppington|calderwood|menangle|the gables|blacktown|penrith|liverpool|hunter|newcastle|central coast|wollongong|nsw/i.test(d.suburb)) ||
-    (d.address && /\bnsw\b/i.test(d.address)) ||
-    (d.estate && /nsw|marsden|parramatta|box hill/i.test(d.estate)) ||
-    (d.contactOffice && /nsw|parramatta|marsden|sydney/i.test(d.contactOffice)) ||
-    (typeof window !== "undefined" && localStorage.getItem("hudson_active_division") === "NSW")
-  );
+  const isNsw = detectFlyerState(d) === "NSW";
   const flyerState = isNsw ? "NSW" : "QLD";
+
+  let office = d.contactOffice;
+  if (!office || (isNsw && /queensland|qld/i.test(office))) {
+    office = isNsw ? "Hudson Homes New South Wales" : "Hudson Homes Queensland";
+  } else if (!isNsw && /new south wales|nsw/i.test(office)) {
+    office = "Hudson Homes Queensland";
+  }
 
   const packagesUrl =
     typeof window !== "undefined"
@@ -554,7 +554,11 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
               {d.headline.toUpperCase()}
             </div>
             <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
-              <span className="text-[2.9mm] font-semibold tracking-[0.2em] text-brand-ink/50">FROM</span>
+              {d.priceType !== "None" && (d.priceType || "From").trim() && (
+                <span className="text-[2.9mm] font-semibold tracking-[0.2em] text-brand-ink/50 uppercase">
+                  {(d.priceType || "From").trim()}
+                </span>
+              )}
               <span className="font-display text-[9mm] leading-none text-brand-navy">
                 {formatPrice(d.price)}
               </span>
@@ -639,7 +643,11 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
             <div className="rounded-[1.2mm] bg-brand-sand px-[2mm] py-[2mm]">
               <div className="text-[2.3mm] font-bold tracking-[0.12em] text-brand-ink/60 whitespace-nowrap">HOUSE ONLY</div>
               <div className="font-display text-[5.2mm] leading-[1.1] text-brand-navy">
-                {formatPrice(d.housePrice)}
+                {(() => {
+                  const costsNum = costsTotal(d.costs);
+                  const houseCostWithInclusions = (parseAud(d.housePrice) || 0) + costsNum;
+                  return formatPrice(houseCostWithInclusions > 0 ? houseCostWithInclusions : d.housePrice);
+                })()}
               </div>
             </div>
           </div>
@@ -693,11 +701,17 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
 /* ---------------------- 2-Page Showcase Booklet ------------------------- */
 export function ShowcaseCover({ d }: { d: FlyerData }) {
   const { isDouble, isSingleGarage } = getFlyerStoreyAndGarage(d);
+  const isNsw = detectFlyerState(d) === "NSW";
   const highlights = [
     { title: "Master Suite Retreat", desc: "Private ensuite and spacious walk-in robe sanctuary" },
     { title: "Gourmet Designer Kitchen", desc: "Stone benchtops, premium appliances & walk-in pantry" },
     { title: "Open-Plan Living & Dining", desc: "Expansive light-filled spaces connecting to outdoors" },
-    { title: "Covered Alfresco Entertaining", desc: "Seamless indoor-outdoor Queensland lifestyle flow" },
+    {
+      title: "Covered Alfresco Entertaining",
+      desc: isNsw
+        ? "Seamless indoor-outdoor New South Wales lifestyle flow"
+        : "Seamless indoor-outdoor Queensland lifestyle flow",
+    },
   ];
 
   return (
@@ -745,7 +759,12 @@ export function ShowcaseCover({ d }: { d: FlyerData }) {
             {d.floorplanName}
           </div>
           <div className="text-right">
-            <div className="text-[2.5mm] font-bold tracking-[0.18em] text-brand-ink/50">TOTAL PACKAGE PRICE</div>
+            <div className="text-[2.5mm] font-bold tracking-[0.18em] text-brand-ink/50">
+              {d.priceType !== "None" && (d.priceType || "").trim()
+                ? `${(d.priceType || "From").trim().toUpperCase()} `
+                : ""}
+              TOTAL PACKAGE PRICE
+            </div>
             <div className="font-display text-[9.5mm] leading-none text-brand-navy">
               {formatPrice(d.price)}
             </div>
@@ -900,7 +919,11 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
               NEW HOME DESIGN
             </div>
             <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
-              <span className="text-[2.9mm] font-semibold tracking-[0.2em] text-brand-ink/50">FROM</span>
+              {d.priceType !== "None" && (d.priceType || "From").trim() && (
+                <span className="text-[2.9mm] font-semibold tracking-[0.2em] text-brand-ink/50 uppercase">
+                  {(d.priceType || "From").trim()}
+                </span>
+              )}
               <span className="font-display text-[9mm] leading-none text-brand-navy">
                 {formatPrice(d.housePrice)}
               </span>
@@ -970,7 +993,9 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
           </ul>
 
           <div className="mt-[3mm] rounded-[1.2mm] bg-brand-sand px-[2.2mm] py-[2mm]">
-            <div className="text-[2.3mm] font-bold tracking-[0.12em] text-brand-ink/60 whitespace-nowrap">BUILD PRICE FROM</div>
+            <div className="text-[2.3mm] font-bold tracking-[0.12em] text-brand-ink/60 whitespace-nowrap">
+              {d.priceType === "Fixed Price" ? "FIXED BUILD PRICE" : "BUILD PRICE FROM"}
+            </div>
             <div className="font-display text-[6.2mm] leading-[1.1] text-brand-navy">
               {formatPrice(d.housePrice)}
             </div>
@@ -1046,7 +1071,11 @@ export function ExpressFlyerV2({ d }: { d: FlyerData }) {
               {d.headline.toUpperCase()}
             </div>
             <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
-              <span className="text-[2.9mm] font-semibold tracking-[0.2em] text-brand-ink/50">FROM</span>
+              {d.priceType !== "None" && (d.priceType || "From").trim() && (
+                <span className="text-[2.9mm] font-semibold tracking-[0.2em] text-brand-ink/50 uppercase">
+                  {(d.priceType || "From").trim()}
+                </span>
+              )}
               <span className="font-display text-[9mm] leading-none text-brand-navy">
                 {formatPrice(d.price)}
               </span>
@@ -1131,7 +1160,11 @@ export function ExpressFlyerV2({ d }: { d: FlyerData }) {
             <div className="rounded-[1.2mm] bg-brand-sand px-[2mm] py-[2mm]">
               <div className="text-[2.3mm] font-bold tracking-[0.12em] text-brand-ink/60 whitespace-nowrap">HOUSE ONLY</div>
               <div className="font-display text-[5.2mm] leading-[1.1] text-brand-navy">
-                {formatPrice(d.housePrice)}
+                {(() => {
+                  const costsNum = costsTotal(d.costs);
+                  const houseCostWithInclusions = (parseAud(d.housePrice) || 0) + costsNum;
+                  return formatPrice(houseCostWithInclusions > 0 ? houseCostWithInclusions : d.housePrice);
+                })()}
               </div>
             </div>
           </div>
@@ -1203,7 +1236,11 @@ export function HouseOnlyFlyerV2({ d }: { d: FlyerData }) {
               NEW HOME DESIGN
             </div>
             <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
-              <span className="text-[2.9mm] font-semibold tracking-[0.2em] text-brand-ink/50">FROM</span>
+              {d.priceType !== "None" && (d.priceType || "From").trim() && (
+                <span className="text-[2.9mm] font-semibold tracking-[0.2em] text-brand-ink/50 uppercase">
+                  {(d.priceType || "From").trim()}
+                </span>
+              )}
               <span className="font-display text-[9mm] leading-none text-brand-navy">
                 {formatPrice(d.housePrice)}
               </span>
@@ -1273,7 +1310,9 @@ export function HouseOnlyFlyerV2({ d }: { d: FlyerData }) {
           </ul>
 
           <div className="mt-[3mm] rounded-[1.2mm] bg-brand-sand px-[2.2mm] py-[2mm]">
-            <div className="text-[2.3mm] font-bold tracking-[0.12em] text-brand-ink/60 whitespace-nowrap">BUILD PRICE FROM</div>
+            <div className="text-[2.3mm] font-bold tracking-[0.12em] text-brand-ink/60 whitespace-nowrap">
+              {d.priceType === "Fixed Price" ? "FIXED BUILD PRICE" : "BUILD PRICE FROM"}
+            </div>
             <div className="font-display text-[6.2mm] leading-[1.1] text-brand-navy">
               {formatPrice(d.housePrice)}
             </div>

@@ -106,7 +106,7 @@ export async function renderFileToHighResFloorplanUrl(
     if (!ctx) return fallbackDataUrl;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await (page as any).render({ canvasContext: ctx, viewport, canvas }).promise;
     return canvas.toDataURL("image/png");
   } catch (err) {
     console.warn("[RuntimeFloorplanVectorizer] High-res PDF render fallback:", err);

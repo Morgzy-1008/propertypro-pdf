@@ -18,7 +18,7 @@ export interface Lot {
   land_price: number | null;
   titled: boolean | null;
   registration_date: string | null;
-  status: "available" | "on_hold" | "sold" | "nhc_exclusive";
+  status: "available" | "on_hold" | "sold" | "nhc_exclusive" | "archived";
   exclusive_consultants: string[] | null;
   deadline: string | null;
   notes: string | null;
@@ -45,7 +45,7 @@ export interface Pkg {
   cars: string | null;
   floorplan_size: string | null;
   state?: "QLD" | "NSW";
-  status: "live" | "draft" | "sold" | "nhc_exclusive";
+  status: "live" | "draft" | "sold" | "nhc_exclusive" | "archived";
   exclusive_consultants: string[] | null;
   flyer_json: Record<string, unknown> | null;
   flyer_data?: unknown;
@@ -450,6 +450,43 @@ export function sanitizePackageForStorage(p: Pkg): Pkg {
   } as Pkg;
 }
 
+export const ARCHIVE_STALE_DAYS = 14;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Checks if a lot or package record has not been updated in more than the specified threshold (default 14 days).
+ */
+export function isRecordStale(updatedAt: string | null | undefined, days: number = ARCHIVE_STALE_DAYS): boolean {
+  if (!updatedAt) return false;
+  const time = new Date(updatedAt).getTime();
+  if (isNaN(time)) return false;
+  return Date.now() - time > days * MS_PER_DAY;
+}
+
+export function autoArchiveStaleLots(lots: Lot[]): { lots: Lot[]; changed: boolean } {
+  let changed = false;
+  const updated = lots.map((l) => {
+    if (l.status !== "archived" && l.status !== "sold" && isRecordStale(l.updated_at)) {
+      changed = true;
+      return { ...l, status: "archived" as const };
+    }
+    return l;
+  });
+  return { lots: updated, changed };
+}
+
+export function autoArchiveStalePackages(pkgs: Pkg[]): { packages: Pkg[]; changed: boolean } {
+  let changed = false;
+  const updated = pkgs.map((p) => {
+    if (p.status !== "archived" && p.status !== "sold" && isRecordStale(p.updated_at)) {
+      changed = true;
+      return { ...p, status: "archived" as const };
+    }
+    return p;
+  });
+  return { packages: updated, changed };
+}
+
 export function getLocalLots(): Lot[] {
   const deletedIds = getDeletedLotIds();
   if (inMemoryLots !== null) {
@@ -468,8 +505,14 @@ export function getLocalLots(): Lot[] {
               ...l,
               id: isValidUuid(l.id) ? l.id : (toValidUuid(l.id) || generateUuid()),
             }));
-          inMemoryLots = cleanLots;
-          return cleanLots;
+          const { lots: finalLots, changed } = autoArchiveStaleLots(cleanLots);
+          inMemoryLots = finalLots;
+          if (changed && typeof window !== "undefined") {
+            try {
+              localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(finalLots));
+            } catch {}
+          }
+          return finalLots;
         }
       } else {
         inMemoryLots = [];
@@ -482,9 +525,10 @@ export function getLocalLots(): Lot[] {
   // Only use seed data if the database was NEVER initialized before
   const seed = generateSeedData();
   const cleanSeed = seed.lots.filter((l) => !deletedIds.has(l.id));
-  inMemoryLots = cleanSeed;
-  saveLocalLots(cleanSeed);
-  return cleanSeed;
+  const { lots: finalSeedLots } = autoArchiveStaleLots(cleanSeed);
+  inMemoryLots = finalSeedLots;
+  saveLocalLots(finalSeedLots);
+  return finalSeedLots;
 }
 
 export function saveLocalLots(lots: Lot[]): void {
@@ -520,8 +564,14 @@ export function getLocalPackages(): Pkg[] {
         const sanitized: Pkg[] = parsed
           .filter((p: Pkg) => p && p.id && !deletedIds.has(p.id))
           .map(sanitizePackageForStorage);
-        inMemoryPackages = sanitized;
-        return sanitized;
+        const { packages: finalPkgs, changed } = autoArchiveStalePackages(sanitized);
+        inMemoryPackages = finalPkgs;
+        if (changed && typeof window !== "undefined") {
+          try {
+            localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(finalPkgs));
+          } catch {}
+        }
+        return finalPkgs;
       }
     }
   } catch (e) {
@@ -529,9 +579,10 @@ export function getLocalPackages(): Pkg[] {
   }
   const seed = generateSeedData();
   const cleanSeed = seed.packages.filter((p) => !deletedIds.has(p.id));
-  inMemoryPackages = cleanSeed;
-  saveLocalPackages(cleanSeed);
-  return cleanSeed;
+  const { packages: finalSeedPkgs } = autoArchiveStalePackages(cleanSeed);
+  inMemoryPackages = finalSeedPkgs;
+  saveLocalPackages(finalSeedPkgs);
+  return finalSeedPkgs;
 }
 
 export function saveLocalPackages(packages: Pkg[]): void {
@@ -741,4 +792,76 @@ export function extractLotStage(lot: { notes?: string | null }): string {
   const match = lot.notes.match(/Stage\s*([A-Za-z0-9\.\-]+)/i);
   return match ? `Stage ${match[1].trim()}` : "";
 }
+
+/**
+ * Manually or automatically triggers archiving for any lot or package older than 14 days.
+ */
+export function archiveStaleDatabaseRecords(): {
+  archivedLotsCount: number;
+  archivedPkgsCount: number;
+  lots: Lot[];
+  packages: Pkg[];
+} {
+  const lots = getLocalLots();
+  const pkgs = getLocalPackages();
+
+  const { lots: archivedLots, changed: lotsChanged } = autoArchiveStaleLots(lots);
+  const { packages: archivedPkgs, changed: pkgsChanged } = autoArchiveStalePackages(pkgs);
+
+  const archivedLotsCount = archivedLots.filter((l) => l.status === "archived").length;
+  const archivedPkgsCount = archivedPkgs.filter((p) => p.status === "archived").length;
+
+  if (lotsChanged) {
+    saveLocalLots(archivedLots);
+  }
+  if (pkgsChanged) {
+    saveLocalPackages(archivedPkgs);
+  }
+
+  return {
+    archivedLotsCount,
+    archivedPkgsCount,
+    lots: archivedLots,
+    packages: archivedPkgs,
+  };
+}
+
+/**
+ * Restores an archived lot back to active 'available' status with a refreshed timestamp.
+ */
+export function restoreArchivedLot(id: string): Lot[] {
+  const current = getLocalLots();
+  const idx = current.findIndex((l) => l.id === id);
+  if (idx >= 0) {
+    const updated = [...current];
+    updated[idx] = {
+      ...updated[idx],
+      status: "available",
+      updated_at: new Date().toISOString(),
+    };
+    saveLocalLots(updated);
+    return updated;
+  }
+  return current;
+}
+
+/**
+ * Restores an archived package back to active 'live' status with a refreshed timestamp.
+ */
+export function restoreArchivedPackage(id: string): Pkg[] {
+  const current = getLocalPackages();
+  const idx = current.findIndex((p) => p.id === id);
+  if (idx >= 0) {
+    const updated = [...current];
+    updated[idx] = {
+      ...updated[idx],
+      status: "live",
+      updated_at: new Date().toISOString(),
+    };
+    saveLocalPackages(updated);
+    return updated;
+  }
+  return current;
+}
+
 

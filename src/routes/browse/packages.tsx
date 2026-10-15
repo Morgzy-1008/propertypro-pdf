@@ -95,7 +95,7 @@ function PackagesBrowse() {
       const rawPkgs = (pkgRes.data ?? []) as any[];
       if (rawPkgs.length > 0) {
         rawPkgs
-          .filter((p) => p.status !== "sold")
+          .filter((p) => p.status !== "sold" && p.status !== "archived")
           .forEach((p) => {
             const lot = p.lot_id ? lotById.get(p.lot_id) : null;
             const formatted = formatPublicPackage({ ...p, land_lots: lot });

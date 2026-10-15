@@ -191,6 +191,7 @@ export async function listPublicLots(): Promise<PublicLot[]> {
         "id, estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer, developer_contact_name, developer_contact_phone, developer_contact_email, status"
       )
       .neq("status", "sold")
+      .neq("status" as any, "archived")
       .order("created_at", { ascending: false });
 
     if (error) {
