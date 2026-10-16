@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   FolderOpen,
   Search,
@@ -12,6 +12,9 @@ import {
   CheckSquare,
   Square,
   FileText,
+  FileDown,
+  FileCode,
+  Loader2,
   Home,
   User,
   Plus,
@@ -37,6 +40,7 @@ import {
   generateQuoteNumber,
   resolveItemCategory,
   rehydrateAndRecalculateQuote,
+  formatEstimateFileName,
 } from "@/lib/quoting/quoteEngine";
 import { createNewBlankQuote, recoverAllHistoricalQuotes, loadAllQuotesAsync } from "@/lib/quoting/quoteStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
@@ -44,6 +48,8 @@ import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 import { getActiveStaffUser, type StaffProfile } from "@/lib/authSession";
 import { useTheme } from "@/lib/theme";
+import { downloadA4Pdf } from "@/lib/downloadPdf";
+import { QuotePdfDocument } from "./QuotePdfDocument";
 
 interface QuoteEstimatesDialogProps {
   open: boolean;
@@ -179,6 +185,34 @@ export function QuoteEstimatesDialog({
   const [activeStaff, setActiveStaff] = useState<StaffProfile | null>(() => getActiveStaffUser());
   const [scopeFilter, setScopeFilter] = useState<"mine" | "all">("mine");
   const [selectedQuoteIds, setSelectedQuoteIds] = useState<Set<string>>(new Set());
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
+  const [pdfRenderQuote, setPdfRenderQuote] = useState<FullQuote | null>(null);
+  const hiddenPdfRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadSavedQuotePdf = async (q: FullQuote) => {
+    if (downloadingPdfId) return;
+    setDownloadingPdfId(q.id);
+    const toastId = toast.loading(`Preparing estimate PDF #${q.quoteNumber || "MH"}...`);
+    try {
+      const rehydrated = rehydrateAndRecalculateQuote(q);
+      setPdfRenderQuote(rehydrated);
+      // Wait for React to render into hidden container and fonts/DOM to settle
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+      const container = hiddenPdfRef.current;
+      if (!container) throw new Error("PDF render container unavailable");
+      const filename = formatEstimateFileName(rehydrated);
+      await downloadA4Pdf(container, filename);
+      toast.success(`Downloaded Builders Estimate PDF for #${rehydrated.quoteNumber || "MH"}`, { id: toastId });
+    } catch (err) {
+      console.error("Download saved quote PDF error:", err);
+      toast.error("Could not generate estimate PDF", { id: toastId });
+    } finally {
+      setDownloadingPdfId(null);
+      setPdfRenderQuote(null);
+    }
+  };
 
   const isMyQuote = (q: FullQuote) => {
     if (!activeStaff) return true;
@@ -884,15 +918,33 @@ export function QuoteEstimatesDialog({
 
                         <button
                           type="button"
-                          onClick={() => handleExportJson(q)}
-                          title="Export JSON Backup"
-                          className={`p-2 rounded-lg transition-colors ${
+                          onClick={() => handleDownloadSavedQuotePdf(q)}
+                          disabled={downloadingPdfId === q.id}
+                          title="Download Builders Estimate PDF"
+                          className={`p-2 rounded-lg transition-colors cursor-pointer ${
                             isLight
-                              ? "text-slate-600 hover:text-emerald-700 hover:bg-slate-100"
-                              : "text-slate-400 hover:text-emerald-400 hover:bg-slate-800"
+                              ? "text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
+                              : "text-emerald-400 hover:text-emerald-200 hover:bg-emerald-950/60"
                           }`}
                         >
-                          <Download className="h-3.5 w-3.5" />
+                          {downloadingPdfId === q.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                          ) : (
+                            <FileDown className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleExportJson(q)}
+                          title="Export JSON Backup (.json)"
+                          className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                            isLight
+                              ? "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                          }`}
+                        >
+                          <FileCode className="h-3.5 w-3.5" />
                         </button>
 
                         <button
@@ -925,6 +977,26 @@ export function QuoteEstimatesDialog({
             })
           )}
         </div>
+
+        {/* Hidden render host for 1-click PDF download from saved quotes list */}
+        {pdfRenderQuote && (
+          <div
+            ref={hiddenPdfRef}
+            className="light normal-mode"
+            style={{
+              position: "fixed",
+              left: "-9999px",
+              top: "0",
+              width: "794px",
+              opacity: 0,
+              pointerEvents: "none",
+              zIndex: -9999,
+            }}
+            aria-hidden="true"
+          >
+            <QuotePdfDocument quote={pdfRenderQuote} coverVersion="v1" />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

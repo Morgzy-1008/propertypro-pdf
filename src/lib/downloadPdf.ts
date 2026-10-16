@@ -17,10 +17,59 @@ export function buildFlyerPdfFilename(data: FlyerData): string {
 function safeFilename(value: string) {
   const cleaned = value
     .trim()
+    .replace(/\.pdf$/i, "")
     .replace(/[\\/:*?"<>|]+/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  return `${cleaned || "H+L - Hudson Homes Flyer"}.pdf`;
+  return `${cleaned || "Hudson Homes - Builders Estimate"}.pdf`;
+}
+
+/** Embeds a hidden, selectable, and searchable text layer on the jsPDF page so that text search and OCR work. */
+function embedSearchableTextLayer(pdf: any, clone: HTMLElement) {
+  try {
+    const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT, null);
+    let node: Node | null;
+    const textItems: { text: string; x: number; y: number; fontSize: number }[] = [];
+
+    const hostRect = clone.getBoundingClientRect();
+    const mmPerPxX = 210 / (hostRect.width || 794);
+    const mmPerPxY = 297 / (hostRect.height || 1123);
+
+    while ((node = walker.nextNode())) {
+      const val = (node.nodeValue || "").replace(/\s+/g, " ").trim();
+      if (!val) continue;
+      const parent = node.parentElement;
+      if (!parent) continue;
+      const tag = parent.tagName.toLowerCase();
+      if (tag === "script" || tag === "style" || tag === "svg") continue;
+
+      const rect = parent.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+
+      const relX = Math.max(0, (rect.left - hostRect.left) * mmPerPxX);
+      const relY = Math.max(0, (rect.top - hostRect.top) * mmPerPxY) + 3; // +3mm baseline offset
+
+      if (relX < 210 && relY < 297) {
+        const computedSize = parseFloat(window.getComputedStyle(parent).fontSize) || 12;
+        textItems.push({
+          text: val,
+          x: relX,
+          y: relY,
+          fontSize: Math.max(6, Math.min(16, computedSize * 0.75)),
+        });
+      }
+    }
+
+    if (textItems.length > 0) {
+      pdf.setTextColor(0, 0, 0);
+      for (const item of textItems) {
+        pdf.setFontSize(item.fontSize);
+        pdf.text(item.text, item.x, item.y, { maxWidth: 195 });
+      }
+    }
+  } catch (err) {
+    console.warn("Could not embed searchable text layer:", err);
+  }
 }
 
 /** Renders high-resolution print-ready A4 sheets and returns the jsPDF instance. */
@@ -29,7 +78,10 @@ export async function renderA4PdfDocument(root?: ParentNode) {
   let sheets: HTMLElement[] = [];
   
   if (root) {
-    sheets = Array.from(root.querySelectorAll<HTMLElement>(".quote-page, .flyer-page"));
+    const all = Array.from(root.querySelectorAll<HTMLElement>(".quote-page, .flyer-page"));
+    // Exclude offscreen export container duplicate pages if visible preview pages exist
+    const visibleOnly = all.filter((el) => !el.closest("#quote-pdf-export-container"));
+    sheets = visibleOnly.length > 0 ? visibleOnly : all;
   }
   
   if (!sheets.length) {
@@ -214,6 +266,9 @@ export async function renderA4PdfDocument(root?: ParentNode) {
         pdf.addPage([210, 297], "portrait");
       }
 
+      // Embed searchable text layer under the high-resolution canvas image
+      embedSearchableTextLayer(pdf, clone);
+
       // Use high-quality JPEG with fallback for crystal-clear output
       try {
         const imgData = canvas.toDataURL("image/jpeg", 0.95);
@@ -247,6 +302,7 @@ export async function renderA4PdfDocument(root?: ParentNode) {
         if (pagesAddedCount > 0) {
           pdf.addPage([210, 297], "portrait");
         }
+        embedSearchableTextLayer(pdf, clone);
         const imgData = fallbackCanvas.toDataURL("image/jpeg", 0.90);
         pdf.addImage(imgData, "JPEG", 0, 0, 210, 297, undefined, "FAST");
         pagesAddedCount++;
@@ -264,7 +320,32 @@ export async function renderA4PdfDocument(root?: ParentNode) {
 /** Downloads high-resolution print-ready A4 sheets directly as a PDF. */
 export async function downloadA4Pdf(root: ParentNode | undefined, filename: string) {
   const pdf = await renderA4PdfDocument(root);
-  pdf.save(safeFilename(filename));
+  const outFilename = safeFilename(filename);
+
+  pdf.setProperties({
+    title: outFilename.replace(/\.pdf$/i, ""),
+    subject: "Hudson Homes Official Builders Estimate",
+    author: "Hudson Homes Pty Ltd",
+    creator: "Hudson Homes Quoting Engine",
+  });
+
+  try {
+    const blob = new Blob([pdf.output("blob")], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = outFilename;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 15000);
+  } catch (blobErr) {
+    console.warn("Direct blob download failed, falling back to pdf.save():", blobErr);
+    pdf.save(outFilename);
+  }
 }
 
 /** Renders high-resolution print-ready A4 sheets directly into a PDF Blob. */

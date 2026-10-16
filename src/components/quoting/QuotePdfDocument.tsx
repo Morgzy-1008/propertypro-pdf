@@ -1719,14 +1719,14 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               {/* Row 1: Owner/s Details & New Home Consultant */}
               <div className="grid grid-cols-2 gap-10">
                 <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-3">
-                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Owner/s Details</span>
-                  <span className="font-black text-slate-950 text-xs sm:text-[13px] text-right truncate">
+                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap flex-none">Owner/s Details</span>
+                  <span className="font-black text-slate-950 text-xs sm:text-[13px] text-right break-words max-w-[65%] leading-snug">
                     {clientCombinedNames || "Client Name"}
                   </span>
                 </div>
                 <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-3">
-                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">New Home Consultant</span>
-                  <span className="font-black text-slate-950 text-xs sm:text-[13px] text-right truncate">
+                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap flex-none">New Home Consultant</span>
+                  <span className="font-black text-slate-950 text-xs sm:text-[13px] text-right break-words max-w-[65%] leading-snug">
                     {client.consultantName || "Morgan Hales"}
                     {client.consultantPhone ? ` · ${client.consultantPhone}` : ""}
                   </span>
@@ -1735,8 +1735,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
               {/* Row 2: Proposed Site Address */}
               <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-4">
-                <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Proposed Site Address</span>
-                <span className="font-black text-slate-950 text-xs sm:text-[13px] text-right truncate">
+                <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap flex-none">Proposed Site Address</span>
+                <span className="font-black text-slate-950 text-xs sm:text-[13px] text-right break-words max-w-[75%] leading-snug">
                   {siteAddressFull}
                 </span>
               </div>
@@ -1744,13 +1744,13 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               {/* Row 3: Estimate No/ Version & Estimate Valid To */}
               <div className="grid grid-cols-2 gap-10 pt-0.5">
                 <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-3">
-                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Estimate No/ Version</span>
+                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap flex-none">Estimate No/ Version</span>
                   <span className="font-black text-slate-950 font-mono text-xs sm:text-[13px] text-right">
                     {quote.quoteNumber || "MH678"} / Version {client.estimateVersion || 1}
                   </span>
                 </div>
                 <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-3">
-                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Estimate Valid To</span>
+                  <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap flex-none">Estimate Valid To</span>
                   <span className="font-black text-slate-950 font-mono text-xs sm:text-[13px] text-right">
                     {formattedValidDate} (14-Day Validity)
                   </span>
@@ -1759,8 +1759,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
               {/* Row 4: Consultant Notes */}
               <div className="border-b border-slate-300 pb-1.5 flex items-baseline justify-between gap-4">
-                <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap">Consultant Notes</span>
-                <span className="font-semibold text-slate-800 text-right truncate">
+                <span className="text-slate-500 font-bold uppercase text-[11px] tracking-wider whitespace-nowrap flex-none">Consultant Notes</span>
+                <span className="font-semibold text-slate-800 text-right break-words max-w-[75%] leading-snug">
                   {client.notes || `${client.consultantOffice || "Display Centre"} · Issued ${formattedCreatedDate}`}
                 </span>
               </div>
@@ -2210,7 +2210,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               </div>
               <div className="bg-slate-50 border border-slate-200/90 border-t-2 border-t-emerald-600 rounded-sm py-1.5 px-2 text-center">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Dwelling Type</span>
-                <span className="text-sm sm:text-base font-black text-slate-950 block truncate">{secondDwelling.housingType}</span>
+                <span className="text-sm sm:text-base font-black text-slate-950 block break-words leading-tight">{secondDwelling.housingType}</span>
               </div>
             </div>
 
@@ -2624,11 +2624,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                       </div>
                       <div className="grid grid-cols-2 gap-x-5 gap-y-1 px-1.5">
                         {cat.items.map((itemText, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-[10.5px] leading-tight text-slate-800 font-medium">
+                          <div key={idx} className="flex items-start gap-1.5 text-[10px] leading-tight text-slate-800 font-medium">
                             <Check
-                              className="h-3.5 w-3.5 flex-none text-[#0099d8] stroke-[2.5]"
+                              className="h-3 w-3 flex-none text-[#0099d8] stroke-[2.5] mt-0.5"
                             />
-                            <span className="truncate">{itemText}</span>
+                            <span className="break-words leading-tight">{itemText}</span>
                           </div>
                         ))}
                       </div>

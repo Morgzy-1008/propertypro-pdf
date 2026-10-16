@@ -1925,24 +1925,39 @@ export function generateQuoteNumber(
  * Example: Hudson Estimate_Ronald_Jasper 26_H2.pdf
  */
 export function formatEstimateFileName(quote: FullQuote): string {
-  const clean1 = (quote.client.clientName || "").trim().replace(/^(mr|mrs|ms|miss|dr|prof)\.?\s+/i, "");
+  const clean1 = (quote.client?.clientName || "").trim().replace(/^(mr|mrs|ms|miss|dr|prof)\.?\s+/i, "");
   const client1First = clean1.split(/\s+/)[0] || "Client";
-  const clean2 = (quote.client.hasClient2 && quote.client.client2Name ? quote.client.client2Name : "")
+  const clean2 = (quote.client?.hasClient2 && quote.client?.client2Name ? quote.client.client2Name : "")
     .trim()
     .replace(/^(mr|mrs|ms|miss|dr|prof)\.?\s+/i, "");
   const client2First = clean2 ? clean2.split(/\s+/)[0] : "";
   const clientPart = client2First ? `${client1First} & ${client2First}` : client1First;
-  const isCustomPlan =
-    quote.design.mode === "custom_floorplan" ||
-    Boolean(quote.design.isModifiedFloorplan) ||
-    Boolean(quote.design.designName?.toLowerCase().includes("custom"));
-  const houseName = isCustomPlan ? "custom plan" : (getEffectiveDesignName(quote.design) || "Floorplan");
 
-  const specTier = quote.design.specTier || "";
+  const isCustomPlan =
+    quote.design?.mode === "custom_floorplan" ||
+    Boolean(quote.design?.isModifiedFloorplan) ||
+    Boolean(quote.design?.designName?.toLowerCase().includes("custom"));
+  
+  let effName = getEffectiveDesignName(quote.design) || "";
+  if (!effName || effName.toLowerCase().includes("no design selected")) {
+    effName = "Custom Plan";
+  }
+  const houseName = isCustomPlan ? "custom plan" : effName;
+
+  const specTier = quote.design?.specTier || "";
+  const tierUpper = String(specTier).toUpperCase();
   let inclusionCode = "H2";
-  if (specTier.includes("H1") || specTier.toLowerCase().includes("smart") || specTier.toLowerCase().includes("base")) inclusionCode = "H1";
-  else if (specTier.includes("H3") || specTier.toLowerCase().includes("luxury")) inclusionCode = "H3";
-  else inclusionCode = "H2";
+  if (tierUpper.includes("FHB") || tierUpper.includes("START SMART") || tierUpper.includes("FIRST HOME") || tierUpper.includes("SS")) {
+    inclusionCode = "FHB";
+  } else if (tierUpper.includes("IP") || tierUpper.includes("INVEST")) {
+    inclusionCode = "IP";
+  } else if (tierUpper.includes("H3") || tierUpper.includes("LUXURY")) {
+    inclusionCode = "H3";
+  } else if (tierUpper.includes("H1") || tierUpper.includes("SMART") || tierUpper.includes("BASE")) {
+    inclusionCode = "H1";
+  } else {
+    inclusionCode = "H2";
+  }
 
   const rawFilename = `Hudson Estimate_${clientPart}_${houseName}_${inclusionCode}`;
   return rawFilename.replace(/[/\\?%*:|"<>]/g, "_").replace(/\s+/g, " ").trim();
