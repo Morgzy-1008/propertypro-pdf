@@ -429,7 +429,12 @@ function renderSingleElevation(
     <!-- Column 2: Design & Client Details -->
     <text x="295" y="495" font-family="sans-serif" font-size="9" fill="#64748b">DESIGN / CLIENT:</text>
     <text x="295" y="512" font-family="sans-serif" font-size="12" font-weight="bold" fill="#0f172a">
-      ${design.name} ${design.variantName ? `(${design.variantName})` : ""}
+      ${(() => {
+        const rawTitle = design.variantName && !design.variantName.includes("1:100")
+          ? `${design.name} (${design.variantName})`
+          : design.name;
+        return rawTitle.length > 30 ? rawTitle.slice(0, 28) + "..." : rawTitle;
+      })()}
     </text>
     <text x="295" y="527" font-family="sans-serif" font-size="9" fill="#475569">
       Total: ${design.schedule.totalM2}m² | Ceiling: ${Math.round(design.ceilingHeightM * 1000)}mm
@@ -521,7 +526,10 @@ export async function exportElevationsPdf(
 
     pdf.setFontSize(11);
     pdf.setTextColor(245, 158, 11);
-    pdf.text(`${design.name} ${design.variantName ? `- ${design.variantName}` : ""}`, 310, 27);
+    const pdfDesignTitle = design.variantName && !design.variantName.includes("1:100")
+      ? `${design.name} - ${design.variantName}`
+      : design.name;
+    pdf.text(pdfDesignTitle.length > 30 ? pdfDesignTitle.slice(0, 28) + "..." : pdfDesignTitle, 310, 27);
 
     // Subtitle & View
     pdf.setTextColor(15, 23, 42);

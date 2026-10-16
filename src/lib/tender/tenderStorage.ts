@@ -16,6 +16,7 @@ import type {
 
 import { HUDSON_FACADES } from "@/components/flyer/facades.data";
 import { getActiveStaffUser, KNOWN_STAFF_PROFILES } from "@/lib/authSession";
+import { isValidUuid } from "@/lib/uuid";
 
 export function findFloorplanUrl(designName: string): string {
   if (!designName) return "";
@@ -221,14 +222,16 @@ export async function getTenderFromSupabase(idOrSubNo: string): Promise<TenderSu
       return (byNotes.flyer_data as any).tender as TenderSubmission;
     }
 
-    const { data: byId } = await supabase
-      .from("packages")
-      .select("flyer_data")
-      .eq("id", idOrSubNo)
-      .maybeSingle();
+    if (isValidUuid(idOrSubNo)) {
+      const { data: byId } = await supabase
+        .from("packages")
+        .select("flyer_data")
+        .eq("id", idOrSubNo)
+        .maybeSingle();
 
-    if (byId?.flyer_data && (byId.flyer_data as any).tender) {
-      return (byId.flyer_data as any).tender as TenderSubmission;
+      if (byId?.flyer_data && (byId.flyer_data as any).tender) {
+        return (byId.flyer_data as any).tender as TenderSubmission;
+      }
     }
   } catch (err) {
     console.warn("Supabase tender lookup fallback:", err);

@@ -191,14 +191,15 @@ export async function listPublicLots(): Promise<PublicLot[]> {
         "id, estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer, developer_contact_name, developer_contact_phone, developer_contact_email, status"
       )
       .neq("status", "sold")
-      .neq("status" as any, "archived")
       .order("created_at", { ascending: false });
 
     if (error) {
       console.warn("[listPublicLots] Error querying land_lots:", error);
     }
 
-    const lots: PublicLot[] = (rows || []).map((r) => {
+    const lots: PublicLot[] = (rows || [])
+      .filter((r) => (r as any).status !== "archived")
+      .map((r) => {
       const state = determineState({ state: (r as any).state, estate: r.estate, suburb: r.suburb, address: r.address });
       return {
         id: (r as any).id,
