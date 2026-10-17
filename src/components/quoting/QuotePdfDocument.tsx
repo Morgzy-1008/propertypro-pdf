@@ -1789,10 +1789,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 {(() => {
                   const isMod = !!design.isModifiedFloorplan || design.mode === "modified";
                   const modCalc = isMod ? calculateModifiedFloorplanPricing(design) : null;
-                  const stdBaselinePrice =
-                    Number(design.standardBasePrice) ||
-                    (modCalc ? modCalc.standardBasePrice : Number(pricing.baseHousePrice)) ||
-                    0;
+                  const stdBaselinePrice = isMod
+                    ? (modCalc ? modCalc.standardBasePrice : Number(design.standardBasePrice) || Number(pricing.baseHousePrice) || 0)
+                    : (Number(pricing.baseHousePrice) || Number(design.basePrice) || Number(design.standardBasePrice) || 0);
 
                   return (
                     <tr className="bg-white">

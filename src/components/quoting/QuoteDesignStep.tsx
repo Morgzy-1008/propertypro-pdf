@@ -734,7 +734,7 @@ export function QuoteDesignStep({
 
     const plans = plansForDesign(m.name);
     const floorplanUrl = plans[0]?.url || "";
-    const basePrice = getTierPrice(m, design.specTier, detectedHousingType);
+    const basePrice = getTierPrice(m, design.specTier, detectedHousingType, division);
     const stdAreas = getStandardAreaBreakdown(m.name, detectedHousingType, m.m2);
 
     let effectiveM2 = m.m2;
@@ -805,6 +805,8 @@ export function QuoteDesignStep({
       onChange({
         specTier: tier,
         basePrice: effectiveBasePrice,
+        standardBasePrice: effectiveBasePrice,
+        hasExplicitlySelectedTier: true,
         ...(nextLandscaping ? { landscapingSelected: true, landscapingCost: nextLandscapingCost } : {}),
       });
       return;
@@ -823,6 +825,7 @@ export function QuoteDesignStep({
       specTier: tier,
       standardBasePrice: stdPrice,
       basePrice: effectiveBasePrice,
+      hasExplicitlySelectedTier: true,
       ...(nextLandscaping ? { landscapingSelected: true, landscapingCost: nextLandscapingCost } : {}),
     });
   };
@@ -2756,6 +2759,8 @@ export function QuoteDesignStep({
                       onChange({
                         specTier: tier.id,
                         basePrice: tierPrice,
+                        standardBasePrice: tierPrice,
+                        hasExplicitlySelectedTier: true,
                       });
                       toast.success(`Inclusions set to ${tier.label}`);
                     }}

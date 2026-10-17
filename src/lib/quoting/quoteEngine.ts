@@ -2495,6 +2495,9 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
     tier = "H2 Design Inclusions";
   }
   quote.design.specTier = tier;
+  if (tierUpper.includes("H3") || tierUpper.includes("H1") || tierUpper.includes("IP") || tierUpper.includes("FHB") || quote.design.hasExplicitlySelectedTier) {
+    quote.design.hasExplicitlySelectedTier = true;
+  }
 
   // Sanitize siteConditions acoustic attenuation allowance
   if (quote.siteConditions) {
@@ -2540,11 +2543,25 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
     if (quote.design.mode === "custom_floorplan") {
       quote.design.designM2 = totalM2;
       quote.design.basePrice = calculateCustomFloorplanPrice(quote.design.customSpec, tier);
+      quote.design.standardBasePrice = quote.design.basePrice;
     }
   }
 
   // 3. Update Base Price for Modified or Standard Designs
   if (quote.design.mode === "modified" || quote.design.isModifiedFloorplan) {
+    const div = (quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
+    const housingType = getHousingTypeForDesign(quote.design.designName, quote.design.housingType);
+    quote.design.housingType = housingType;
+    const models = getHousingTypePrices(div)[housingType] || [];
+    const matched = models.find(
+      (m) => m.name.toLowerCase() === (quote.design.designName || "").toLowerCase()
+    );
+    if (matched) {
+      const stdPrice = getTierPrice(matched, tier, housingType, div);
+      if (stdPrice > 0) {
+        quote.design.standardBasePrice = stdPrice;
+      }
+    }
     const modCalc = calculateModifiedFloorplanPricing(quote.design);
     quote.design.basePrice = modCalc.modifiedBasePrice;
     quote.design.modifiedDesignM2 = modCalc.modifiedTotalM2;

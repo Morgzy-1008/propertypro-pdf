@@ -188,6 +188,7 @@ export function V2StepInclusions({
       specTier: tier,
       basePrice: nextBasePrice,
       standardBasePrice: nextStdBasePrice,
+      hasExplicitlySelectedTier: true,
     });
 
     toast.success(`Inclusion level set to ${tier}!`);

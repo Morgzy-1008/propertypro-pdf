@@ -261,9 +261,9 @@ export function V2StepFloorPlan({
       const upper = design.specTier.toUpperCase();
       if (upper.includes("IP") || upper.includes("INVEST")) return "IP";
       if (upper.includes("FHB") || upper.includes("START SMART") || upper.includes("FIRST HOME") || upper.includes("SMART SERIES")) return "FHB";
-      if (design.hasExplicitlySelectedTier) {
-        if (upper.includes("H1")) return "H1";
-        if (upper.includes("H3")) return "H3";
+      if (upper.includes("H3") || upper.includes("LUXURY")) return "H3";
+      if (upper.includes("H1") || upper.includes("SMART LIVING") || upper.includes("SMART INCLUSIONS")) return "H1";
+      if (design.hasExplicitlySelectedTier || (upper.includes("H2") && design.hasExplicitlySelectedTier)) {
         return "H2";
       }
     }
@@ -275,11 +275,9 @@ export function V2StepFloorPlan({
       const upper = design.specTier.toUpperCase();
       if (upper.includes("IP") || upper.includes("INVEST")) setSelectedTierCode("IP");
       else if (upper.includes("FHB") || upper.includes("START SMART") || upper.includes("FIRST HOME") || upper.includes("SMART SERIES")) setSelectedTierCode("FHB");
-      else if (design.hasExplicitlySelectedTier) {
-        if (upper.includes("H1")) setSelectedTierCode("H1");
-        else if (upper.includes("H3")) setSelectedTierCode("H3");
-        else setSelectedTierCode("H2");
-      }
+      else if (upper.includes("H3") || upper.includes("LUXURY")) setSelectedTierCode("H3");
+      else if (upper.includes("H1") || upper.includes("SMART LIVING") || upper.includes("SMART INCLUSIONS")) setSelectedTierCode("H1");
+      else if (design.hasExplicitlySelectedTier) setSelectedTierCode("H2");
     }
   }, [design.specTier, design.hasExplicitlySelectedTier]);
 
@@ -427,6 +425,7 @@ export function V2StepFloorPlan({
             standardBasePrice: newBasePrice,
             basePrice: newBasePrice,
             designM2: matched.row.m2,
+            hasExplicitlySelectedTier: design.hasExplicitlySelectedTier,
           });
         }
       }
@@ -826,9 +825,12 @@ export function V2StepFloorPlan({
       designName: row.name,
       modelName: row.name,
       designM2: row.m2,
+      standardDesignM2: row.m2,
       housingType: type,
       basePrice,
+      standardBasePrice: basePrice,
       specTier: tier,
+      hasExplicitlySelectedTier: Boolean(selectedTierCode),
       bedrooms: planInfo?.beds ? Number(planInfo.beds) : (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3)),
       bathrooms: planInfo?.baths ? Number(planInfo.baths) : 1,
       garage: planInfo?.cars ? Number(planInfo.cars) : (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1)),
@@ -865,38 +867,46 @@ export function V2StepFloorPlan({
 
     const tier = tierDef.tier;
     let nextBasePrice = design.basePrice || 350000;
+    let nextStdBasePrice = design.standardBasePrice || nextBasePrice;
 
     if (designMode === "standard" && currentModel) {
       nextBasePrice = getTierPrice(currentModel.row, tier, houseType, division);
+      nextStdBasePrice = nextBasePrice;
     } else if (designMode === "modified" && design.baseDesignCandidate) {
       const candModel = allModels.find(
         (m) => m.row.name.toLowerCase() === design.baseDesignCandidate!.modelName.toLowerCase()
       );
       if (candModel) {
         const stdBase = getTierPrice(candModel.row, tier, houseType, division);
+        nextStdBasePrice = stdBase;
         const calc = calculateModifiedFloorplanPricing({
           ...design,
           specTier: tier,
           basePrice: stdBase,
+          standardBasePrice: stdBase,
         });
         nextBasePrice = calc.modifiedBasePrice;
       }
     } else if (designMode === "modified" && currentModel) {
       const stdBase = getTierPrice(currentModel.row, tier, houseType, division);
+      nextStdBasePrice = stdBase;
       const calc = calculateModifiedFloorplanPricing({
         ...design,
         specTier: tier,
         basePrice: stdBase,
+        standardBasePrice: stdBase,
       });
       nextBasePrice = calc.modifiedBasePrice;
     } else if (designMode === "custom") {
       nextBasePrice = calculateCustomFloorplanPrice(design.customSpec, tier);
+      nextStdBasePrice = nextBasePrice;
     }
 
     setSelectedTierCode(tierDef.shortCode);
     onChange({
       specTier: tier,
       basePrice: nextBasePrice,
+      standardBasePrice: nextStdBasePrice,
       hasExplicitlySelectedTier: true,
     });
     toast.success(`Selected ${tierDef.title} (${tierDef.shortCode})`);
@@ -947,7 +957,7 @@ export function V2StepFloorPlan({
           ? "IP Investor Pack"
           : "FHB Start Smart")
       : (design.specTier || "H2 Design Collection");
-    const stdBasePrice = getTierPrice(row, tier, type);
+    const stdBasePrice = getTierPrice(row, tier, type, division);
     const planInfo = plansForDesign(row.name)[0];
     const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
 
@@ -1021,6 +1031,7 @@ export function V2StepFloorPlan({
       housingType: type,
       standardBasePrice: stdBasePrice,
       basePrice: calc.modifiedBasePrice,
+      hasExplicitlySelectedTier: Boolean(selectedTierCode),
       bedrooms: planInfo?.beds ? Number(planInfo.beds) : (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3)),
       bathrooms: planInfo?.baths ? Number(planInfo.baths) : 1,
       garage: planInfo?.cars ? Number(planInfo.cars) : (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1)),
