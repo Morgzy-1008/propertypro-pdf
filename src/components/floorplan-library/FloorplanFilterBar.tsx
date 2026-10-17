@@ -8,14 +8,12 @@ import {
   Car,
   Ruler,
   DollarSign,
-  Grid2X2,
   LayoutGrid,
 } from "lucide-react";
 import type {
   FloorplanFiltersState,
   HouseTypeFilter,
   SortOption,
-  ViewMode,
 } from "@/lib/floorplan-library/floorplanLibraryEngine";
 
 interface FloorplanFilterBarProps {
@@ -28,8 +26,6 @@ interface FloorplanFilterBarProps {
   totalCount: number;
   filteredCount: number;
   typeCounts?: Record<HouseTypeFilter, number>;
-  viewMode?: ViewMode;
-  onViewModeChange?: (mode: ViewMode) => void;
   isLight: boolean;
 }
 
@@ -87,8 +83,6 @@ export function FloorplanFilterBar({
   totalCount,
   filteredCount,
   typeCounts,
-  viewMode = "grid-3",
-  onViewModeChange,
   isLight,
 }: FloorplanFilterBarProps) {
   // Count active non-default filters
@@ -221,42 +215,6 @@ export function FloorplanFilterBar({
                   Name: A to Z
                 </option>
               </select>
-            </div>
-
-            {/* View Mode Toggle: 2 Across (XL) vs 3 Across */}
-            <div
-              className={`flex items-center p-1 rounded-xl border shrink-0 ${
-                isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900 border-slate-800"
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => onViewModeChange?.("grid-2")}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  viewMode === "grid-2"
-                    ? "bg-indigo-600 text-white shadow-sm font-black"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-                title="2 Across: Extra Large Floorplans (Maximized Readability)"
-              >
-                <Grid2X2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">2 Across (XL)</span>
-                <span className="sm:hidden">2-XL</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onViewModeChange?.("grid-3")}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  viewMode === "grid-3"
-                    ? "bg-indigo-600 text-white shadow-sm font-black"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-                title="3 Across: Standard Grid"
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">3 Across</span>
-                <span className="sm:hidden">3</span>
-              </button>
             </div>
 
             {/* Division Toggle (QLD / NSW) */}

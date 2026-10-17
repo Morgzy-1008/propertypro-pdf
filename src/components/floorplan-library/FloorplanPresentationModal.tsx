@@ -17,6 +17,11 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import type { FloorplanLibraryItem } from "@/lib/floorplan-library/floorplanLibraryEngine";
 import { getActiveStaffUser } from "@/lib/authSession";
 import { canAccess3dStudio } from "@/lib/access";
+import { Sparkles } from "lucide-react";
+import {
+  DesignFacadeLibraryModal,
+  type DesignFacadeOption,
+} from "./DesignFacadeLibraryModal";
 
 interface FloorplanPresentationModalProps {
   item: FloorplanLibraryItem | null;
@@ -34,6 +39,8 @@ export function FloorplanPresentationModal({
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isMirrored, setIsMirrored] = useState(false);
   const [showFacade, setShowFacade] = useState(false);
+  const [selectedFacade, setSelectedFacade] = useState<DesignFacadeOption | null>(null);
+  const [isFacadeModalOpen, setIsFacadeModalOpen] = useState(false);
 
   useEffect(() => {
     if (item?.defaultVariantIndex !== undefined) {
@@ -172,20 +179,30 @@ export function FloorplanPresentationModal({
             </button>
 
             {/* Facade Switch */}
-            {activeVariant.facadeUrl && (
+            <button
+              type="button"
+              onClick={() => setShowFacade(!showFacade)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                showFacade
+                  ? "bg-amber-500 text-slate-950 border-amber-400"
+                  : isLight
+                  ? "bg-white border-slate-200 text-slate-700"
+                  : "bg-slate-900 border-slate-800 text-slate-300"
+              }`}
+            >
+              <Home className="h-3.5 w-3.5" />
+              <span>{showFacade ? "Floorplan" : `${selectedFacade?.name || "Classic"} Facade`}</span>
+            </button>
+
+            {showFacade && (
               <button
                 type="button"
-                onClick={() => setShowFacade(!showFacade)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
-                  showFacade
-                    ? "bg-amber-500 text-slate-950 border-amber-400"
-                    : isLight
-                    ? "bg-white border-slate-200 text-slate-700"
-                    : "bg-slate-900 border-slate-800 text-slate-300"
-                }`}
+                onClick={() => setIsFacadeModalOpen(true)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
+                title={`Browse full facade library for ${activeVariant.label}`}
               >
-                <Home className="h-3.5 w-3.5" />
-                <span>{showFacade ? "Floorplan" : "Classic Facade"}</span>
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>All Facades</span>
               </button>
             )}
 
@@ -212,12 +229,22 @@ export function FloorplanPresentationModal({
               transformOrigin: "center center",
             }}
           >
-            {showFacade && activeVariant.facadeUrl ? (
-              <img
-                src={activeVariant.facadeUrl}
-                alt={`${activeVariant.label} Facade`}
-                className="max-h-[75vh] max-w-full object-contain rounded-xl shadow-xl"
-              />
+            {showFacade ? (
+              <div
+                onClick={() => setIsFacadeModalOpen(true)}
+                className="relative flex flex-col items-center justify-center cursor-pointer group"
+                title="Click to browse all available facades for this design"
+              >
+                <img
+                  src={selectedFacade?.url || activeVariant.facadeUrl || "/facades/classic-double-garage.jpg"}
+                  alt={`${activeVariant.label} Facade`}
+                  className="max-h-[70vh] max-w-full object-contain rounded-xl shadow-xl transition-transform duration-200 group-hover:scale-[1.02]"
+                />
+                <div className="mt-3 px-3.5 py-1.5 rounded-xl bg-slate-950/85 border border-amber-500/50 text-white text-xs font-bold flex items-center gap-1.5 shadow-md group-hover:border-amber-400">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                  <span>{selectedFacade?.name || "Classic"} Facade • Click to browse all available facades</span>
+                </div>
+              </div>
             ) : (
               <img
                 src={activeVariant.url}
@@ -300,6 +327,20 @@ export function FloorplanPresentationModal({
           </div>
         </div>
       </div>
+
+      {/* Full Facade Library for this design */}
+      <DesignFacadeLibraryModal
+        isOpen={isFacadeModalOpen}
+        onClose={() => setIsFacadeModalOpen(false)}
+        designName={activeVariant.label || item.designName}
+        housingType={item.housingType}
+        currentFacadeName={selectedFacade?.name || "Classic"}
+        onSelectFacade={(facade) => {
+          setSelectedFacade(facade);
+          setShowFacade(true);
+        }}
+        isLight={isLight}
+      />
     </div>
   );
 }

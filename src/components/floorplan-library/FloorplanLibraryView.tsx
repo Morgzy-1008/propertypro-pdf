@@ -23,7 +23,6 @@ import {
   type FloorplanLibraryItem,
   type FloorplanFiltersState,
   type HouseTypeFilter,
-  type ViewMode,
 } from "@/lib/floorplan-library/floorplanLibraryEngine";
 import { FloorplanFilterBar } from "./FloorplanFilterBar";
 import { FloorplanCard } from "./FloorplanCard";
@@ -38,22 +37,6 @@ export function FloorplanLibraryView() {
   // Check URL query parameters for pre-selected design or filters
   const searchParams = useSearch({ strict: false }) as Record<string, string | undefined>;
   const initialQuery = searchParams?.design || searchParams?.q || "";
-
-  // View Mode: 2 Across (XL) vs 3 Across (Standard)
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    try {
-      const saved = localStorage.getItem("hudson_floorplan_view_mode");
-      if (saved === "grid-2" || saved === "grid-3") return saved;
-    } catch {}
-    return "grid-2"; // Default to 2 across (Extra Large!) so floorplans are instantly massive and easy to view
-  });
-
-  const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
-    try {
-      localStorage.setItem("hudson_floorplan_view_mode", mode);
-    } catch {}
-  };
 
   // 1. Load all floorplans
   const [division, setDivision] = useState<"QLD" | "NSW">(divisionContext);
@@ -277,8 +260,6 @@ export function FloorplanLibraryView() {
           totalCount={allFloorplans.length}
           filteredCount={filteredPlans.length}
           typeCounts={typeCounts}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
           isLight={isLight}
         />
 
@@ -305,19 +286,13 @@ export function FloorplanLibraryView() {
             </button>
           </div>
         ) : (
-          <div
-            className={`grid gap-6 w-full ${
-              viewMode === "grid-2"
-                ? "grid-cols-1 lg:grid-cols-2"
-                : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-            }`}
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
             {filteredPlans.map((item) => (
               <FloorplanCard
                 key={item.id}
                 item={item}
                 activeTier={filters.inclusionsTier}
-                viewMode={viewMode}
+                division={division}
                 onOpenZoom={setSelectedZoomItem}
                 isLight={isLight}
               />
