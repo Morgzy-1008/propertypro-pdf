@@ -1595,7 +1595,11 @@ export function calculateQuotePricing(
   const councilSetbackRelaxationCost = site.councilSetbackRelaxationRequired
     ? (Number(site.councilSetbackRelaxationCost) || 2000)
     : 0;
-  const trafficCost = site.trafficControlRequired ? (Number(site.trafficControlCost) || 10000) : 0;
+  const trafficCost = (site.trafficControlRequired || (Number(site.trafficControlCost) > 0))
+    ? (site.trafficControlCost !== undefined && site.trafficControlCost !== null && !isNaN(Number(site.trafficControlCost))
+        ? Number(site.trafficControlCost)
+        : 6500)
+    : 0;
   const dualLivingCost = site.dualLivingInfrastructureRequired ? (Number(site.dualLivingInfrastructureCost) || 23000) : 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 

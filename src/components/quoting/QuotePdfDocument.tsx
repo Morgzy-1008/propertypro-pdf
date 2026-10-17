@@ -961,11 +961,13 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
   // Council & Statutory
   const councilDaCost = siteConditions.councilDaRequired ? (siteConditions.councilDaCost ?? 8000) : 0;
-  const trafficCost = siteConditions.trafficControlRequired ? (siteConditions.trafficControlCost ?? 10000) : 0;
   const dualLivingCost = siteConditions.dualLivingInfrastructureRequired ? (siteConditions.dualLivingInfrastructureCost ?? 23000) : 0;
   const sedimentCost = Number(siteConditions.sedimentAssetProtectionCost) || 0;
 
   // Geotechnical Allowances (lump sum allowance, user editable)
+  const trafficCost = (siteConditions.trafficControlRequired || (Number(siteConditions.trafficControlCost) > 0))
+    ? (siteConditions.trafficControlCost !== undefined ? Number(siteConditions.trafficControlCost) : 6500)
+    : 0;
   const pieringRate = siteConditions.siteType === "kdrb" ? 50 : siteConditions.siteType === "brownfield" ? 30 : 25;
   const pieringCost = (siteConditions.pieringCost !== undefined && !isNaN(Number(siteConditions.pieringCost)) && Number(siteConditions.pieringCost) > 0)
     ? Number(siteConditions.pieringCost)
@@ -1211,17 +1213,6 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           },
         ]
       : []),
-    ...(siteConditions.trafficControlRequired
-      ? [
-          {
-            id: "traffic_control",
-            name: "Traffic Management Plan & Safety Control",
-            description: "Certified Traffic Guidance Scheme (TGS) and pedestrian safety barriers during deliveries.",
-            qtyLabel: "1 Setup",
-            amount: trafficCost,
-          },
-        ]
-      : []),
     ...(siteConditions.dualLivingInfrastructureRequired
       ? [
           {
@@ -1333,6 +1324,17 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             description: "Provisional contingency allowance for unforeseen sub-surface or site conditions subject to engineer verification.",
             qtyLabel: "1 Allowance",
             amount: Number(siteConditions.unknownSiteConditionsAllowance),
+          },
+        ]
+      : []),
+    ...(trafficCost > 0
+      ? [
+          {
+            id: "traffic_control",
+            name: "Traffic Management Plan & Control Allowance",
+            description: "Certified Traffic Guidance Scheme (TGS), spotters, safety barriers & signage allowance.",
+            qtyLabel: "1 Allowance",
+            amount: trafficCost,
           },
         ]
       : []),

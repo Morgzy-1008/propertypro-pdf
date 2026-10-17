@@ -224,7 +224,10 @@ export function parseQuoteFromEstimatePdf(rawText: string, filename?: string): F
   const cctvSewerReportRequired = text.includes("CCTV Sewer Pipe Camera Inspection");
   const sewerBridgingRequired = text.includes("Sewer Line Bridging");
   const councilDaRequired = text.includes("Council Development Application (DA)");
-  const trafficControlRequired = text.includes("Traffic Management Plan & Safety Control");
+  const trafficControlRequired =
+    text.includes("Traffic Management Plan") ||
+    text.includes("Traffic Guidance") ||
+    text.includes("Traffic Control");
   const dualLivingInfrastructureRequired = text.includes("Dual Living Infrastructure Charge");
   const screwPieringRequired = text.includes("Allowance for Screw Piering");
 

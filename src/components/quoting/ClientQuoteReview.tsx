@@ -481,7 +481,9 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
     : 0;
 
   const councilDaCost = site.councilDaRequired ? (site.councilDaCost ?? 8000) : 0;
-  const trafficCost = site.trafficControlRequired ? (site.trafficControlCost ?? 10000) : 0;
+  const trafficCost = (site.trafficControlRequired || (Number(site.trafficControlCost) > 0))
+    ? (site.trafficControlCost !== undefined ? Number(site.trafficControlCost) : 6500)
+    : 0;
   const screwPieringCost = site.screwPieringRequired
     ? (site.screwPieringCost !== undefined && !isNaN(Number(site.screwPieringCost))
         ? Number(site.screwPieringCost)
@@ -1276,19 +1278,6 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               </div>
             )}
 
-            {/* Traffic Control */}
-            {site.trafficControlRequired && (
-              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-white block">Traffic Management Plan</span>
-                  <span className="text-slate-400 text-[11px]">TGS &amp; Safety Signage</span>
-                </div>
-                <span className="font-mono font-bold text-emerald-400">
-                  +{formatAud(trafficCost)}
-                </span>
-              </div>
-            )}
-
             {/* Dual Living Infrastructure */}
             {site.dualLivingInfrastructureRequired && (
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
@@ -1324,6 +1313,19 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                 </div>
                 <span className="font-mono font-bold text-emerald-400">
                   +{formatAud(rockCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Traffic Management & Control Allowance */}
+            {trafficCost > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Traffic Management Plan Allowance</span>
+                  <span className="text-slate-400 text-[11px]">Site Traffic Control, Spotters &amp; Signage</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(trafficCost)}
                 </span>
               </div>
             )}

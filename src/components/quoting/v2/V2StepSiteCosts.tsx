@@ -1360,6 +1360,7 @@ export function V2StepSiteCosts({
                     {formatAud(
                       (site.retainingWallAllowance || 0) +
                       (site.materialHandlingAllowance || 0) +
+                      (site.trafficControlCost || 0) +
                       (site.outOfZoneSurcharge || 0) +
                       (site.rockExcavationAllowance || 0) +
                       (site.unknownSiteConditionsAllowance || 0)
@@ -1368,7 +1369,7 @@ export function V2StepSiteCosts({
                 )}
               </div>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Enter provisional contingency allowances for retaining walls, materials handling, travel zones, rock excavation, and unforeseen ground conditions.
+                Enter provisional contingency allowances for retaining walls, materials handling, traffic control &amp; safety, travel zones, rock excavation, and unforeseen ground conditions.
               </p>
             </div>
           </div>
@@ -1410,6 +1411,31 @@ export function V2StepSiteCosts({
               </div>
             </div>
 
+            {/* Traffic Control Allowance */}
+            <div className="space-y-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                Traffic Control Allowance
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
+                <Input
+                  type="number"
+                  step="500"
+                  value={site.trafficControlCost || 0}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    onChange({
+                      trafficControlCost: val,
+                      trafficControlRequired: val > 0,
+                    });
+                  }}
+                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
             {/* Out of Zone Surcharge */}
             <div className="space-y-2">
               <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
@@ -1447,7 +1473,7 @@ export function V2StepSiteCosts({
             </div>
 
             {/* Unknown Site Conditions Allowance */}
-            <div className="space-y-2 sm:col-span-2 lg:col-span-2">
+            <div className="space-y-2">
               <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 Unknown Site Conditions Allowance (Contingency)
               </Label>
@@ -2181,36 +2207,6 @@ export function V2StepSiteCosts({
                       onChange({
                         dualLivingInfrastructureRequired: checked,
                         dualLivingInfrastructureCost: checked ? 23000 : 0,
-                      })
-                    }
-                  />
-                </div>
-
-                {/* Traffic Control */}
-                <div
-                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
-                    site.trafficControlRequired
-                      ? isLight ? "bg-cyan-50/70 border-cyan-300" : "bg-cyan-950/20 border-cyan-500/40"
-                      : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm sm:text-base font-bold block">Traffic Guidance &amp; Safety Control</span>
-                      {site.trafficControlRequired && (
-                        <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
-                          +{formatAud(site.trafficControlCost || 6500)}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-slate-400 mt-0.5 block">Permits, spotters &amp; signs ($6,500)</span>
-                  </div>
-                  <Switch
-                    checked={Boolean(site.trafficControlRequired)}
-                    onCheckedChange={(checked) =>
-                      onChange({
-                        trafficControlRequired: checked,
-                        trafficControlCost: checked ? 6500 : 0,
                       })
                     }
                   />

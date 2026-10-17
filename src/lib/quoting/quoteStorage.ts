@@ -286,8 +286,6 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
     councilDaCost: 11000,
     councilSetbackRelaxationRequired: false,
     councilSetbackRelaxationCost: 2000,
-    trafficControlRequired: false,
-    trafficControlCost: 10000,
     dualLivingInfrastructureRequired: false,
     dualLivingInfrastructureCost: 23000,
 
@@ -298,6 +296,8 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
     rockExcavationAllowance: 0,
     retainingWallAllowance: 0,
     materialHandlingAllowance: 0,
+    trafficControlRequired: false,
+    trafficControlCost: 0,
     sedimentAssetProtectionCost: 0,
     outOfZoneSurcharge: 0,
     unknownSiteConditionsAllowance: 0,

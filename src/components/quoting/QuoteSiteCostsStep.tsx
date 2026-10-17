@@ -288,7 +288,6 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
 
   // Council & Statutory
   const councilDaCost = site.councilDaRequired ? (site.councilDaCost ?? 8000) : 0;
-  const trafficCost = site.trafficControlRequired ? (site.trafficControlCost ?? 10000) : 0;
   const dualLivingCost = site.dualLivingInfrastructureRequired ? (site.dualLivingInfrastructureCost ?? 23000) : 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
@@ -301,6 +300,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
     : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
+  const trafficCost = (site.trafficControlRequired || (Number(site.trafficControlCost) > 0))
+    ? (site.trafficControlCost !== undefined ? Number(site.trafficControlCost) : 6500)
+    : 0;
 
   const existingIsDouble = site.existingDwellingStoreys === "double" || isDouble;
   const isBrick = site.existingDwellingMaterial === "brick";
@@ -414,9 +416,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
   };
 
   const handleTrafficStep = (delta: number) => {
-    const current = site.trafficControlCost ?? 10000;
-    const next = Math.max(2500, current + delta);
-    onSiteChange({ trafficControlCost: next, trafficControlRequired: true });
+    const current = Number(site.trafficControlCost) || (site.trafficControlRequired ? 6500 : 0);
+    const next = Math.max(0, current + delta);
+    onSiteChange({ trafficControlCost: next, trafficControlRequired: next > 0 });
   };
 
   const handleSetbackRelaxationStep = (delta: number) => {
@@ -1680,78 +1682,6 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             </div>
           </div>
 
-          {/* Traffic Control ($10,000 with increments of $2,500) */}
-          <div
-            onClick={() => onSiteChange({ trafficControlRequired: !site.trafficControlRequired })}
-            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
-              site.trafficControlRequired
-                ? isLight
-                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
-                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : isLight
-                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
-                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>Traffic Management Plan</span>
-              {site.trafficControlRequired ? (
-                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
-                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/20 text-emerald-300"
-                }`}>
-                  <Check className="h-3 w-3" /> Selected
-                </span>
-              ) : (
-                <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
-                  isLight
-                    ? "bg-slate-100 text-slate-700 border-slate-300"
-                    : "bg-slate-900/80 text-slate-300 border-slate-700"
-                }`}>
-                  Optional
-                </span>
-              )}
-            </div>
-
-            <div
-              className={`flex items-center justify-between gap-1.5 pt-2 mt-2 border-t ${
-                isLight ? "border-slate-200" : "border-slate-800"
-              }`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={() => handleTrafficStep(-2500)}
-                className={`p-1 rounded transition-colors ${
-                  isLight
-                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
-                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
-                }`}
-                title="Decrease $2,500"
-              >
-                <Minus className="h-3 w-3" />
-              </button>
-              <span className={`font-bold text-xs font-mono ${
-                site.trafficControlRequired
-                  ? (isLight ? "text-emerald-700" : "text-emerald-400")
-                  : (isLight ? "text-slate-700" : "text-slate-400")
-              }`}>
-                {formatAud(site.trafficControlCost ?? 10000)}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleTrafficStep(2500)}
-                className={`p-1 rounded transition-colors ${
-                  isLight
-                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
-                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
-                }`}
-                title="Increase $2,500"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
-          </div>
-
           {/* Infrastructure Fee for Dual Living ($23,000) */}
           <div
             onClick={() => onSiteChange({ dualLivingInfrastructureRequired: !site.dualLivingInfrastructureRequired })}
@@ -2321,6 +2251,108 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                     : "bg-slate-800 hover:bg-slate-700 text-slate-300"
                 }`}
                 title="Increase $2,500"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+
+          {/* Traffic Management & Control Allowance */}
+          <div
+            onClick={() => {
+              const current = Number(site.trafficControlCost) || 0;
+              const next = current > 0 ? 0 : 6500;
+              onSiteChange({
+                trafficControlCost: next,
+                trafficControlRequired: next > 0,
+              });
+            }}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+              (site.trafficControlCost ?? 0) > 0 || site.trafficControlRequired
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`font-bold text-xs flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
+                <Truck className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
+                Traffic Management Plan Allowance
+              </span>
+              {((site.trafficControlCost ?? 0) > 0 || site.trafficControlRequired) ? (
+                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/20 text-emerald-300"
+                }`}>
+                  <Check className="h-3 w-3" /> Selected
+                </span>
+              ) : (
+                <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
+                  isLight
+                    ? "bg-slate-100 text-slate-700 border-slate-300"
+                    : "bg-slate-900/80 text-slate-300 border-slate-700"
+                }`}>
+                  Optional
+                </span>
+              )}
+            </div>
+
+            <div
+              className={`flex items-center justify-between gap-1.5 pt-2 mt-2 border-t ${
+                isLight ? "border-slate-200" : "border-slate-800"
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => handleTrafficStep(-500)}
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
+                title="Decrease $500"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+
+              <div className="relative flex-1">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                  $
+                </span>
+                <Input
+                  type="number"
+                  min={0}
+                  step={500}
+                  value={site.trafficControlCost ?? (site.trafficControlRequired ? 6500 : 0)}
+                  onChange={(e) => {
+                    const val = e.target.value === "" ? 0 : Number(e.target.value);
+                    const safeVal = Math.max(0, isNaN(val) ? 0 : val);
+                    onSiteChange({
+                      trafficControlCost: safeVal,
+                      trafficControlRequired: safeVal > 0,
+                    });
+                  }}
+                  className={`h-7 pl-5 pr-1.5 text-xs font-mono font-bold text-right ${
+                    isLight
+                      ? "bg-white border-slate-300 text-emerald-800 focus:border-emerald-500"
+                      : "bg-slate-950 border-slate-700 text-emerald-400 focus:border-emerald-500"
+                  }`}
+                  placeholder="0"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleTrafficStep(500)}
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
+                title="Increase $500"
               >
                 <Plus className="h-3 w-3" />
               </button>
