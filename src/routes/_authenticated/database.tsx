@@ -47,7 +47,6 @@ import logoUrl from "@/assets/hudson-homes-logo.png";
 import { formatAud } from "@/lib/pricing";
 import { pdfDocumentToPagesAndText, pdfPagesToDataUrls } from "@/lib/pdfPages";
 import { DevelopersDialog } from "@/components/database/DevelopersDialog";
-import { PricelistsTab } from "@/components/database/PricelistsTab";
 import { devKey, listDevelopers, rememberDeveloper } from "@/lib/developers";
 import { parseDeveloperPriceList, extractLotsFromText, type ParsedLot } from "@/lib/parseLotList";
 import {
@@ -1480,7 +1479,7 @@ function DatabasePage() {
   const { mode } = useTheme();
   const isLight = mode === "normal";
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"lots" | "packages" | "pricelists">("lots");
+  const [tab, setTab] = useState<"lots" | "packages">("lots");
   const [stateFilter, setStateFilter] = useState<"ALL" | "QLD" | "NSW">("ALL");
   const [lots, setLots] = useState<Lot[]>([]);
   const [packages, setPackages] = useState<Pkg[]>([]);
@@ -2384,7 +2383,7 @@ function DatabasePage() {
       <main className="space-y-5 p-4 sm:p-6 relative z-10 flex-1 max-w-[1700px] mx-auto w-full">
         <div className="flex flex-wrap items-center gap-3">
           <div className={`flex rounded-xl border ${isLight ? "border-slate-200 bg-white shadow-xs" : "border-slate-800/90 bg-slate-900/90 shadow-inner"} p-1 backdrop-blur-md`}>
-            {(["lots", "packages", "pricelists"] as const).map((t) => (
+            {(["lots", "packages"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -2394,13 +2393,9 @@ function DatabasePage() {
                       ? isLight
                         ? "bg-cyan-100 text-cyan-900 border border-cyan-300 shadow-xs font-bold"
                         : "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : t === "packages"
-                        ? isLight
-                          ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-bold"
-                          : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-amber-200 border border-brand-gold/40 shadow-sm"
-                        : isLight
-                          ? "bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs font-bold"
-                          : "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
+                      : isLight
+                        ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-amber-200 border border-brand-gold/40 shadow-sm"
                     : isLight
                       ? "text-slate-600 hover:text-slate-900"
                       : "text-slate-400 hover:text-slate-200"
@@ -2408,16 +2403,12 @@ function DatabasePage() {
               >
                 {t === "lots"
                   ? `Land lots (${lots.length})`
-                  : t === "packages"
-                    ? `Packages (${packages.length})`
-                    : "Price Lists (FHB & 2026)"}
+                  : `Packages (${packages.length})`}
               </button>
             ))}
           </div>
 
-          {tab !== "pricelists" && (
-            <>
-              {/* State Division Filter Tabs: All | Queensland (QLD) | New South Wales (NSW) */}
+          {/* State Division Filter Tabs: All | Queensland (QLD) | New South Wales (NSW) */}
               <div className={`flex rounded-xl border ${isLight ? "border-slate-200 bg-white shadow-xs" : "border-slate-800/90 bg-slate-900/90 shadow-inner"} p-1 backdrop-blur-md`}>
                 <button
                   type="button"
@@ -2651,8 +2642,6 @@ function DatabasePage() {
                   </>
                 )}
               </div>
-            </>
-          )}
         </div>
 
         {tab === "lots" && selLots.length > 0 && (
@@ -3279,7 +3268,7 @@ function DatabasePage() {
               )}
             </table>
           </div>
-        ) : tab === "packages" ? (
+        ) : (
           <div className="space-y-4">
             {/* Packages Overhead Summary Cards / Totals */}
             <div
@@ -3982,30 +3971,26 @@ function DatabasePage() {
               </table>
             </div>
           </div>
-        ) : (
-          <PricelistsTab isLight={isLight} initialStateFilter={stateFilter} />
         )}
 
         {/* Global Live Availability Status Legend with Atmospheric Glows */}
-        {tab !== "pricelists" && (
-          <div
-            className={`mt-4 pt-3 pb-1 flex flex-wrap items-center gap-3 text-xs border-t ${
-              isLight ? "border-slate-200 text-slate-600" : "border-slate-800/60 text-slate-400"
-            }`}
-          >
-            <span className={`font-semibold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-              Availability Status Legend:
-            </span>
-            <StatusPill value="available" isLight={isLight} />
-            <span className="text-[11px] mr-2">Available for sale</span>
-            <StatusPill value="on_hold" isLight={isLight} />
-            <span className="text-[11px] mr-2">Client hold (24h)</span>
-            <StatusPill value="sold" isLight={isLight} />
-            <span className="text-[11px] mr-2">Unconditionally sold</span>
-            <StatusPill value="nhc_exclusive" isLight={isLight} />
-            <span className="text-[11px]">NHC exclusive release</span>
-          </div>
-        )}
+        <div
+          className={`mt-4 pt-3 pb-1 flex flex-wrap items-center gap-3 text-xs border-t ${
+            isLight ? "border-slate-200 text-slate-600" : "border-slate-800/60 text-slate-400"
+          }`}
+        >
+          <span className={`font-semibold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+            Availability Status Legend:
+          </span>
+          <StatusPill value="available" isLight={isLight} />
+          <span className="text-[11px] mr-2">Available for sale</span>
+          <StatusPill value="on_hold" isLight={isLight} />
+          <span className="text-[11px] mr-2">Client hold (24h)</span>
+          <StatusPill value="sold" isLight={isLight} />
+          <span className="text-[11px] mr-2">Unconditionally sold</span>
+          <StatusPill value="nhc_exclusive" isLight={isLight} />
+          <span className="text-[11px]">NHC exclusive release</span>
+        </div>
 
       {/* Offscreen host for direct A4 PDF download */}
       <div
