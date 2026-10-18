@@ -92,3 +92,20 @@ CRITICAL REQUIREMENT: You must NEVER invent, assume, or guess facts, data, specs
      b) Any queued messages from the user are immediately dequeued and processed without delay.
      c) If no user message was queued, the 5-second timer fires, and you resume execution smoothly on the subsequent turn (re-arming the 10-minute heartbeat with `schedule(DurationSeconds=600)`).
 2. **Subagent Supervision**: Actively check on running subagents (using `manage_subagents` and inspecting transcripts/tasks) to ensure they remain on track, adhere strictly to user constraints, and make tangible progress without stalling.
+
+## 10. Automated High-Reasoning Validation Cadence (Every 5 Prompts)
+MANDATORY CADENCE: On every 5 prompts received from the user, the agent MUST automatically trigger a comprehensive validation audit using a high-reasoning subagent (`Model: 'pro'`).
+1. **Prompt Counting & Persistence**:
+   - Maintain and inspect `<appDataDir>/brain/<conversation-id>/scratch/prompt_audit_tracker.json` on each prompt.
+   - Increment `total_prompts` and `prompts_since_last_audit`.
+2. **Automated Audit Trigger (Cadence = 5 Prompts)**:
+   - When `prompts_since_last_audit >= 5`:
+     - Automatically invoke `high_reasoning_validator` using `invoke_subagent` with `Model: 'pro'`.
+     - The validator subagent thoroughly audits:
+       a) All git commits and changes made over the last 5 prompts via `git log -n 5 --stat` and `git diff`.
+       b) Build integrity: runs `npm run build` to verify 0 compiler errors.
+       c) Empirical visual verification: runs Playwright browser scripts to inspect modified UI and captured screenshots.
+       d) Zero hallucinations or regressions in business logic, pricing, or catalog rules.
+     - Reset `prompts_since_last_audit` to 0 and record the audit timestamp and scorecard.
+3. **Validation Scorecard Presentation**:
+   - Present the validator subagent's structured scorecard in the user-facing response with full transparency.
