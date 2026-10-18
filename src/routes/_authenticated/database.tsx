@@ -150,7 +150,7 @@ function titleCase(value: string | null | undefined) {
 /** Human label for a lot/package status pill or dropdown item. */
 function statusLabel(value: string) {
   if (value === "nhc_exclusive") return "NHC Exclusive";
-  if (value === "archived") return "Archived (>14d)";
+  if (value === "archived") return "Archived";
   return titleCase(value.replace("_", " "));
 }
 
@@ -558,13 +558,32 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
   const [batchEstate, setBatchEstate] = useState("");
   const [batchStage, setBatchStage] = useState("");
 
-  const existingKeys = useMemo(
-    () => new Set(existingLots.map((l) => dupeKey(l.estate, l.suburb, l.lot_number))),
+  const getMatchingExistingLot = useCallback(
+    (r: BatchLotRow) => {
+      if (!r.lot_number) return undefined;
+      const rLot = String(r.lot_number).trim().toLowerCase().replace(/^lot\s*/i, "");
+      const rEstate = (r.estate || "").trim().toLowerCase();
+      const rSuburb = (r.suburb || "").trim().toLowerCase();
+
+      return existingLots.find((l) => {
+        const lLot = String(l.lot_number ?? "").trim().toLowerCase().replace(/^lot\s*/i, "");
+        const lEstate = (l.estate || "").trim().toLowerCase();
+        const lSuburb = (l.suburb || "").trim().toLowerCase();
+
+        if (rEstate && lEstate && rEstate === lEstate && rLot === lLot) {
+          if (rSuburb && lSuburb && rSuburb !== lSuburb) return false;
+          return true;
+        }
+        return false;
+      });
+    },
     [existingLots],
   );
 
-  const isDupe = (r: BatchLotRow) =>
-    Boolean(r.lot_number) && existingKeys.has(dupeKey(r.estate, r.suburb, r.lot_number));
+  const isExistingLot = useCallback(
+    (r: BatchLotRow) => Boolean(getMatchingExistingLot(r)),
+    [getMatchingExistingLot],
+  );
 
   const resetForm = () => {
     setDocs([]);
@@ -890,10 +909,31 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
   }, [rows, activeDocFilter]);
 
   const selectedRows = useMemo(() => {
-    return rows.filter((r) => picked[r.rowId] && !isDupe(r) && (r.lot_number || r.land_price));
-  }, [rows, picked, existingKeys]);
+    return rows.filter((r) => picked[r.rowId] && (r.lot_number || r.land_price));
+  }, [rows, picked]);
 
-  const dupeCount = rows.filter(isDupe).length;
+  const updateCount = useMemo(() => selectedRows.filter(isExistingLot).length, [selectedRows, isExistingLot]);
+  const newCount = selectedRows.length - updateCount;
+
+  const unlistedLotsCount = useMemo(() => {
+    if (!selectedRows.length) return 0;
+    const importedEstates = new Set(
+      selectedRows.map((r) => (r.estate || "").trim().toLowerCase()).filter(Boolean)
+    );
+    const incomingKeys = new Set(
+      selectedRows
+        .filter((r) => r.lot_number)
+        .map((r) => `${(r.estate || "").trim().toLowerCase()}|${String(r.lot_number).trim().toLowerCase().replace(/^lot\s*/i, "")}`)
+    );
+    return existingLots.filter((l) => {
+      if (l.status === "archived" || l.status === "sold") return false;
+      const lEstate = (l.estate || "").trim().toLowerCase();
+      if (!importedEstates.has(lEstate)) return false;
+      const lKey = `${lEstate}|${String(l.lot_number ?? "").trim().toLowerCase().replace(/^lot\s*/i, "")}`;
+      return !incomingKeys.has(lKey);
+    }).length;
+  }, [selectedRows, existingLots]);
+
   const validSizes = rows.map((r) => r.land_size).filter((s): s is number => typeof s === "number" && s > 0);
   const avgSize = validSizes.length ? Math.round(validSizes.reduce((a, b) => a + b, 0) / validSizes.length) : null;
   const validPrices = rows.map((r) => r.land_price).filter((p): p is number => typeof p === "number" && p > 0);
@@ -902,12 +942,12 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
 
   const allFilteredChecked =
     filteredRows.length > 0 &&
-    filteredRows.every((r) => isDupe(r) || picked[r.rowId]);
+    filteredRows.every((r) => picked[r.rowId]);
 
   const toggleAllFiltered = (checked: boolean) => {
     const next = { ...picked };
     filteredRows.forEach((r) => {
-      if (!isDupe(r)) next[r.rowId] = checked;
+      next[r.rowId] = checked;
     });
     setPicked(next);
   };
@@ -919,43 +959,156 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     }
 
     setBusy(true);
-    setBusyMessage(`Importing ${selectedRows.length} lots across ${docs.length || 1} price lists…`);
+    setBusyMessage(`Processing ${selectedRows.length} lots across ${docs.length || 1} price lists…`);
 
-    const newLots: Lot[] = selectedRows.map((r) => {
+    const currentLots = getLocalLots();
+    const currentPkgs = getLocalPackages();
+
+    // 1. Identify estates & stages in this import
+    const importedEstates = new Set(
+      selectedRows.map((r) => (r.estate || "").trim().toLowerCase()).filter(Boolean)
+    );
+    const stagesByEstate = new Map<string, Set<string>>();
+    for (const r of selectedRows) {
+      const eKey = (r.estate || "").trim().toLowerCase();
+      if (!stagesByEstate.has(eKey)) stagesByEstate.set(eKey, new Set());
+      const stg = (r.stage || "").trim().toLowerCase();
+      if (stg) stagesByEstate.get(eKey)!.add(stg);
+    }
+
+    // Partition selected rows into updates vs new adds
+    const lotsToUpdateMap = new Map<string, BatchLotRow>(); // existingLot.id -> incoming row
+    const lotsToAdd: Lot[] = [];
+
+    for (const r of selectedRows) {
+      const match = getMatchingExistingLot(r);
       const rowStage = (r.stage || "").trim();
       const stagePrefix = rowStage ? (rowStage.toLowerCase().startsWith("stage") ? rowStage : `Stage ${rowStage}`) : null;
       const combinedNotes = [stagePrefix, r.notes].filter(Boolean).join(" · ") || null;
 
-      return {
-        id: generateUuid(),
-        estate: r.estate.trim() || "Hudson Estate",
-        suburb: r.suburb.trim() || "Queensland",
-        developer: r.developer?.trim() || null,
-        developer_contact_name: r.contactName?.trim() || null,
-        developer_contact_phone: r.contactPhone?.trim() || null,
-        developer_contact_email: r.contactEmail?.trim() || null,
-        lot_number: r.lot_number ? String(r.lot_number).trim() : null,
-        address: r.address ? String(r.address).trim() : null,
-        land_size: r.land_size ? Number(r.land_size) : null,
-        frontage: r.frontage ? Number(r.frontage) : null,
-        land_price: r.land_price ? Number(r.land_price) : null,
-        registration_date: r.titled ? null : (r.registration_date ? String(r.registration_date).trim() : null),
-        titled: Boolean(r.titled),
-        status: (r.status ?? "available") as Lot["status"],
-        exclusive_consultants: null,
-        deadline: null,
-        notes: combinedNotes,
-        updated_at: new Date().toISOString(),
-      };
+      if (match) {
+        lotsToUpdateMap.set(match.id, r);
+      } else {
+        lotsToAdd.push({
+          id: generateUuid(),
+          estate: r.estate.trim() || "Hudson Estate",
+          suburb: r.suburb.trim() || "Queensland",
+          developer: r.developer?.trim() || null,
+          developer_contact_name: r.contactName?.trim() || null,
+          developer_contact_phone: r.contactPhone?.trim() || null,
+          developer_contact_email: r.contactEmail?.trim() || null,
+          lot_number: r.lot_number ? String(r.lot_number).trim() : null,
+          address: r.address ? String(r.address).trim() : null,
+          land_size: r.land_size ? Number(r.land_size) : null,
+          frontage: r.frontage ? Number(r.frontage) : null,
+          land_price: r.land_price ? Number(r.land_price) : null,
+          registration_date: r.titled ? null : (r.registration_date ? String(r.registration_date).trim() : null),
+          titled: Boolean(r.titled),
+          status: (r.status ?? "available") as Lot["status"],
+          exclusive_consultants: null,
+          deadline: null,
+          notes: combinedNotes,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    // 2. Process current lots:
+    // - Update existing matching lots
+    // - Archive any unlisted lots in the imported estates/stages instantly
+    const newlyArchivedLotIds = new Set<string>();
+    let updatedCount = 0;
+    let archivedCount = 0;
+
+    const nextLots: Lot[] = currentLots.map((existing) => {
+      const normEstate = (existing.estate || "").trim().toLowerCase();
+      // Match found: update existing lot with latest price & details
+      if (lotsToUpdateMap.has(existing.id)) {
+        const r = lotsToUpdateMap.get(existing.id)!;
+        const rowStage = (r.stage || "").trim();
+        const stagePrefix = rowStage ? (rowStage.toLowerCase().startsWith("stage") ? rowStage : `Stage ${rowStage}`) : null;
+        const combinedNotes = [stagePrefix, r.notes].filter(Boolean).join(" · ") || existing.notes;
+        updatedCount++;
+        return {
+          ...existing,
+          estate: r.estate.trim() || existing.estate,
+          suburb: r.suburb.trim() || existing.suburb,
+          developer: r.developer?.trim() || existing.developer,
+          developer_contact_name: r.contactName?.trim() || existing.developer_contact_name,
+          developer_contact_phone: r.contactPhone?.trim() || existing.developer_contact_phone,
+          developer_contact_email: r.contactEmail?.trim() || existing.developer_contact_email,
+          land_size: r.land_size != null ? Number(r.land_size) : existing.land_size,
+          frontage: r.frontage != null ? Number(r.frontage) : existing.frontage,
+          land_price: r.land_price != null ? Number(r.land_price) : existing.land_price,
+          registration_date: r.titled ? null : (r.registration_date ? String(r.registration_date).trim() : existing.registration_date),
+          titled: Boolean(r.titled),
+          status: (r.status ?? "available") as Lot["status"],
+          notes: combinedNotes,
+          updated_at: new Date().toISOString(),
+        };
+      }
+
+      // No match: if in imported estate and active, check if its stage is part of the import
+      if (importedEstates.has(normEstate) && existing.status !== "archived" && existing.status !== "sold") {
+        const estateStages = stagesByEstate.get(normEstate);
+        const existingStage = extractLotStage(existing).toLowerCase();
+        const stageMatches = !estateStages || estateStages.size === 0 || (existingStage && estateStages.has(existingStage));
+
+        if (stageMatches) {
+          newlyArchivedLotIds.add(existing.id);
+          archivedCount++;
+          const archiveNote = "Auto-archived: omitted from latest price list update";
+          const notes = existing.notes ? `${existing.notes} · ${archiveNote}` : archiveNote;
+          return {
+            ...existing,
+            status: "archived" as const,
+            notes,
+            updated_at: new Date().toISOString(),
+          };
+        }
+      }
+
+      return existing;
     });
 
-    const currentLots = getLocalLots();
-    saveLocalLots([...newLots, ...currentLots]);
+    const finalLots = [...lotsToAdd, ...nextLots];
+    saveLocalLots(finalLots);
 
+    // 3. Automatically & instantly archive packages linked to newly archived lots
+    let archivedPkgCount = 0;
+    const finalPkgs: Pkg[] = currentPkgs.map((p) => {
+      if (p.status !== "archived" && p.status !== "sold") {
+        if (p.lot_id && newlyArchivedLotIds.has(p.lot_id)) {
+          archivedPkgCount++;
+          return {
+            ...p,
+            status: "archived" as const,
+            updated_at: new Date().toISOString(),
+          };
+        }
+      }
+      return p;
+    });
+
+    if (archivedPkgCount > 0) {
+      saveLocalPackages(finalPkgs);
+    }
+
+    // 4. Batch sync to Supabase Cloud
     try {
-      await syncLotsBatchToSupabase(newLots);
+      const lotsToSyncCloud = [
+        ...lotsToAdd,
+        ...finalLots.filter((l) => lotsToUpdateMap.has(l.id) || newlyArchivedLotIds.has(l.id)),
+      ];
+      if (lotsToSyncCloud.length > 0) {
+        await syncLotsBatchToSupabase(lotsToSyncCloud);
+      }
+      if (archivedPkgCount > 0) {
+        const pkgsToSync = finalPkgs.filter((p) => p.lot_id && newlyArchivedLotIds.has(p.lot_id));
+        await syncPackagesBatchToSupabase(pkgsToSync);
+      }
     } catch (err) {
-      console.warn("[ImportDialog] syncLotsBatchToSupabase notice:", err);
+      console.warn("[ImportDialog] syncBatchToSupabase notice:", err);
     }
 
     for (const d of docs) {
@@ -972,8 +1125,8 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     setBusy(false);
     setBusyMessage("");
     toast.success(
-      `Successfully imported ${newLots.length} lots across ${docs.length || 1} price lists!${
-        dupeCount ? ` (${dupeCount} duplicates skipped)` : ""
+      `Import complete: ${lotsToAdd.length} added, ${updatedCount} updated, ${archivedCount} unlisted archived instantly${
+        archivedPkgCount ? ` (${archivedPkgCount} packages archived)` : ""
       }`
     );
     resetForm();
@@ -1173,8 +1326,16 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                 </span>
                 <span className="text-muted-foreground">·</span>
                 <span className="text-muted-foreground font-semibold text-foreground">
-                  {selectedRows.length} selected for import
+                  {selectedRows.length} selected for import ({newCount} new, {updateCount} to update)
                 </span>
+                {unlistedLotsCount > 0 && (
+                  <>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="inline-flex items-center gap-1 text-slate-400 font-medium px-2 py-0.5 rounded bg-slate-500/10 border border-slate-500/20">
+                      {unlistedLotsCount} unlisted in estate will archive automatically
+                    </span>
+                  </>
+                )}
                 {avgSize && (
                   <>
                     <span className="text-muted-foreground">·</span>
@@ -1278,9 +1439,9 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
               </Button>
             </div>
 
-            {dupeCount > 0 && (
-              <p className="text-xs text-orange-400">
-                {dupeCount} lot{dupeCount === 1 ? " is" : "s are"} already in the database and will be skipped.
+            {updateCount > 0 && (
+              <p className="text-xs text-blue-400">
+                {updateCount} lot{updateCount === 1 ? " is" : "s are"} already in the database and will be updated with latest prices and specs.
               </p>
             )}
 
@@ -1313,30 +1474,38 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                 </thead>
                 <tbody className="divide-y">
                   {filteredRows.map((r) => {
-                    const dupe = isDupe(r);
+                    const isExisting = isExistingLot(r);
                     const suspicious = isSuspiciousInversion(r);
                     return (
                       <tr
                         key={r.rowId}
-                        className={`${dupe ? "bg-muted/40 text-muted-foreground" : ""} ${
-                          suspicious ? "bg-amber-500/5" : ""
-                        }`}
+                        className={`${suspicious ? "bg-amber-500/5" : ""}`}
                       >
                         <td className="p-2">
                           <input
                             type="checkbox"
                             className="h-3.5 w-3.5 cursor-pointer"
-                            disabled={dupe}
-                            checked={!dupe && Boolean(picked[r.rowId])}
+                            checked={Boolean(picked[r.rowId])}
                             onChange={(e) =>
                               setPicked((prev) => ({ ...prev, [r.rowId]: e.target.checked }))
                             }
                           />
                         </td>
                         <td className="p-1">
-                          <span className="inline-block truncate max-w-[90px] text-[10px] text-muted-foreground" title={r.docName}>
-                            {r.docName}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-block truncate max-w-[80px] text-[10px] text-muted-foreground" title={r.docName}>
+                              {r.docName}
+                            </span>
+                            {isExisting ? (
+                              <span className="inline-flex items-center px-1 rounded text-[9px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                Update
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-1 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                New
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-1">
                           <input
@@ -1538,9 +1707,10 @@ function DatabasePage() {
   const load = useCallback(async (opts?: { silent?: boolean; force?: boolean }) => {
     const isSilent = opts?.silent ?? false;
     if (!isSilent) {
-      // Instant load from localStorage cache
-      const localL = getLocalLots();
-      const localP = getLocalPackages();
+      // Instant load and automatic archive sweep for un-updated/stale records
+      const cleanDb = archiveStaleDatabaseRecords();
+      const localL = cleanDb.lots;
+      const localP = cleanDb.packages;
       setLots(localL);
       setPackages(localP);
       if (localL.length > 0) {
@@ -2006,6 +2176,26 @@ function DatabasePage() {
       void syncLotToSupabase(updatedLot);
       return next;
     });
+
+    if (patch.status === "archived" || patch.status === "sold") {
+      setPackages((prev) => {
+        let pkgsChanged = false;
+        const next = prev.map((p) => {
+          if (p.lot_id === id && p.status !== "archived" && p.status !== "sold") {
+            pkgsChanged = true;
+            return { ...p, status: "archived" as const, updated_at: new Date().toISOString() };
+          }
+          return p;
+        });
+        if (pkgsChanged) {
+          saveLocalPackages(next);
+          const changedPkgs = next.filter((p) => p.lot_id === id && p.status === "archived");
+          void syncPackagesBatchToSupabase(changedPkgs);
+        }
+        return next;
+      });
+    }
+
     setTimeout(() => setIsSaving(false), 800);
   };
 
@@ -2075,6 +2265,25 @@ function DatabasePage() {
       }
       return next;
     });
+    if (patch.status === "archived" || patch.status === "sold") {
+      setPackages((prevPkgs) => {
+        let pkgsChanged = false;
+        const nextPkgs = prevPkgs.map((p) => {
+          if (p.lot_id && selSet.has(p.lot_id) && p.status !== "archived" && p.status !== "sold") {
+            pkgsChanged = true;
+            return { ...p, status: "archived" as const, updated_at: new Date().toISOString() };
+          }
+          return p;
+        });
+        if (pkgsChanged) {
+          saveLocalPackages(nextPkgs);
+          const changedPkgs = nextPkgs.filter((p) => p.lot_id && selSet.has(p.lot_id) && p.status === "archived");
+          void syncPackagesBatchToSupabase(changedPkgs);
+        }
+        return nextPkgs;
+      });
+    }
+
     setBulkBusy(false);
     setTimeout(() => setIsSaving(false), 800);
     toast.success(`${selLots.length} lots ${label}`);
@@ -2515,7 +2724,7 @@ function DatabasePage() {
                       <SelectItem value="archived">
                         <span className="flex items-center gap-1.5">
                           <span className="h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_6px_rgba(148,163,184,0.9)]" />
-                          Archived (&gt;14d) ({lots.filter((l) => l.status === "archived").length})
+                          Archived ({lots.filter((l) => l.status === "archived").length})
                         </span>
                       </SelectItem>
                       <SelectItem value="ALL_WITH_ARCHIVED">All (Inc. Archived) ({lots.length})</SelectItem>
@@ -2573,7 +2782,7 @@ function DatabasePage() {
                       <SelectItem value="archived">
                         <span className="flex items-center gap-1.5">
                           <span className="h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_6px_rgba(148,163,184,0.9)]" />
-                          Archived (&gt;14d) ({packages.filter((p) => p.status === "archived").length})
+                          Archived ({packages.filter((p) => p.status === "archived").length})
                         </span>
                       </SelectItem>
                       <SelectItem value="ALL_WITH_ARCHIVED">All (Inc. Archived) ({packages.length})</SelectItem>
@@ -2595,23 +2804,6 @@ function DatabasePage() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2 sm:ml-auto">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className={`text-xs gap-1.5 font-medium ${isLight ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 shadow-xs" : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"}`}
-                  onClick={() => {
-                    const res = archiveStaleDatabaseRecords();
-                    setLots(res.lots);
-                    setPackages(res.packages);
-                    toast.success("Database cleanup complete", {
-                      description: `Archived ${res.archivedLotsCount} lots and ${res.archivedPkgsCount} packages older than 14 days.`,
-                    });
-                  }}
-                  title="Archive any packages or lots not updated in 14 days"
-                >
-                  <Archive className="h-3.5 w-3.5 text-amber-400" />
-                  <span>Archive Stale (&gt;14d)</span>
-                </Button>
                 <Button
                   size="sm"
                   variant="outline"

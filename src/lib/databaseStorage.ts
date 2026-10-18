@@ -450,17 +450,16 @@ export function sanitizePackageForStorage(p: Pkg): Pkg {
   } as Pkg;
 }
 
-export const ARCHIVE_STALE_DAYS = 14;
+export const ARCHIVE_STALE_DAYS = 0;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Checks if a lot or package record has not been updated in more than the specified threshold (default 14 days).
+ * Checks if a lot or package record has not been updated (missing or invalid timestamp).
  */
-export function isRecordStale(updatedAt: string | null | undefined, days: number = ARCHIVE_STALE_DAYS): boolean {
-  if (!updatedAt) return false;
+export function isRecordStale(updatedAt: string | null | undefined, _days: number = 0): boolean {
+  if (!updatedAt) return true;
   const time = new Date(updatedAt).getTime();
-  if (isNaN(time)) return false;
-  return Date.now() - time > days * MS_PER_DAY;
+  return isNaN(time);
 }
 
 export function autoArchiveStaleLots(lots: Lot[]): { lots: Lot[]; changed: boolean } {
@@ -468,19 +467,33 @@ export function autoArchiveStaleLots(lots: Lot[]): { lots: Lot[]; changed: boole
   const updated = lots.map((l) => {
     if (l.status !== "archived" && l.status !== "sold" && isRecordStale(l.updated_at)) {
       changed = true;
-      return { ...l, status: "archived" as const };
+      return { ...l, status: "archived" as const, updated_at: new Date().toISOString() };
     }
     return l;
   });
   return { lots: updated, changed };
 }
 
-export function autoArchiveStalePackages(pkgs: Pkg[]): { packages: Pkg[]; changed: boolean } {
+export function autoArchiveStalePackages(pkgs: Pkg[], currentLots?: Lot[]): { packages: Pkg[]; changed: boolean } {
   let changed = false;
+  const lots = currentLots || inMemoryLots || [];
+  const lotMap = new Map(lots.map((l) => [l.id, l]));
+
   const updated = pkgs.map((p) => {
-    if (p.status !== "archived" && p.status !== "sold" && isRecordStale(p.updated_at)) {
-      changed = true;
-      return { ...p, status: "archived" as const };
+    if (p.status !== "archived" && p.status !== "sold") {
+      // 1. If package has no updated timestamp, archive automatically
+      if (isRecordStale(p.updated_at)) {
+        changed = true;
+        return { ...p, status: "archived" as const, updated_at: new Date().toISOString() };
+      }
+      // 2. If package is attached to a lot that has been archived or sold, archive package instantly
+      if (p.lot_id && lotMap.has(p.lot_id)) {
+        const parentLot = lotMap.get(p.lot_id)!;
+        if (parentLot.status === "archived" || parentLot.status === "sold") {
+          changed = true;
+          return { ...p, status: "archived" as const, updated_at: new Date().toISOString() };
+        }
+      }
     }
     return p;
   });
@@ -806,7 +819,7 @@ export function archiveStaleDatabaseRecords(): {
   const pkgs = getLocalPackages();
 
   const { lots: archivedLots, changed: lotsChanged } = autoArchiveStaleLots(lots);
-  const { packages: archivedPkgs, changed: pkgsChanged } = autoArchiveStalePackages(pkgs);
+  const { packages: archivedPkgs, changed: pkgsChanged } = autoArchiveStalePackages(pkgs, archivedLots);
 
   const archivedLotsCount = archivedLots.filter((l) => l.status === "archived").length;
   const archivedPkgsCount = archivedPkgs.filter((p) => p.status === "archived").length;
