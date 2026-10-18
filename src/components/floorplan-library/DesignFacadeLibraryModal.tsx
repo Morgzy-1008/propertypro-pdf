@@ -13,6 +13,48 @@ import {
 import { getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { getActiveDivision, type Division } from "@/lib/divisionContext";
+import {
+  useFacadeThumbnail,
+  primeFacadeThumbnails,
+} from "@/lib/floorplan-library/facadeThumbnailCache";
+
+function FacadeCardImage({
+  url,
+  name,
+  children,
+}: {
+  url: string;
+  name: string;
+  children?: React.ReactNode;
+}) {
+  const thumbUrl = useFacadeThumbnail(url);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div className="relative aspect-[16/9] w-full bg-slate-950 overflow-hidden">
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 animate-pulse flex items-center justify-center">
+          <Sparkles className="h-4 w-4 text-amber-500/40 animate-spin" />
+        </div>
+      )}
+      <img
+        src={thumbUrl || url}
+        alt={`${name} Facade Render`}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setIsLoaded(true)}
+        className={`w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-300 ${
+          isLoaded ? "opacity-100" : "opacity-0"
+        }`}
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).src = "/facades/classic-double-garage.jpg";
+          setIsLoaded(true);
+        }}
+      />
+      {children}
+    </div>
+  );
+}
 
 export interface DesignFacadeOption {
   id?: string;
@@ -90,6 +132,12 @@ export function DesignFacadeLibraryModal({
         (f.note && f.note.toLowerCase().includes(q))
     );
   }, [allFacades, searchQuery]);
+
+  // Batch prime thumbnails from IndexedDB/cache when modal opens
+  useEffect(() => {
+    if (!isOpen || allFacades.length === 0) return;
+    primeFacadeThumbnails(allFacades.map((f) => f.url));
+  }, [isOpen, allFacades]);
 
   if (!isOpen) return null;
 
@@ -223,19 +271,7 @@ export function DesignFacadeLibraryModal({
                     }`}
                   >
                     {/* Facade Render Image */}
-                    <div className="relative aspect-[16/9] w-full bg-slate-950 overflow-hidden">
-                      <img
-                        src={facade.url}
-                        alt={`${facade.name} Facade Render`}
-                        loading="lazy"
-                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          // Fallback to classic if an image fails
-                          (e.currentTarget as HTMLImageElement).src =
-                            "/facades/classic-double-garage.jpg";
-                        }}
-                      />
-
+                    <FacadeCardImage url={facade.url} name={facade.name}>
                       {/* Selected Badge Overlay */}
                       {isSelected && (
                         <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black text-[10px] flex items-center gap-1 shadow-md">
@@ -256,7 +292,7 @@ export function DesignFacadeLibraryModal({
                           </span>
                         )}
                       </div>
-                    </div>
+                    </FacadeCardImage>
 
                     {/* Card Footer: Name & Action */}
                     <div className="p-3 flex items-center justify-between gap-2">
