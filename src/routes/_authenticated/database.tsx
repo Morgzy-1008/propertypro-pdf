@@ -1665,10 +1665,7 @@ function DatabasePage() {
   const [bulkStage, setBulkStage] = useState("");
   const [bulkPrice, setBulkPrice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [openSuburbs, setOpenSuburbs] = useState<string[]>(() => {
-    const local = getLocalLots();
-    return Array.from(new Set(local.map((l) => l.suburb.trim().toLowerCase())));
-  });
+  const [openSuburbs, setOpenSuburbs] = useState<string[]>([]);
   const isOpen = (key: string) => openSuburbs.includes(key);
 
   const [pkgSort, setPkgSort] = useState<
@@ -1681,20 +1678,7 @@ function DatabasePage() {
     "ALL" | "available" | "on_hold" | "sold" | "nhc_exclusive" | "archived" | "ALL_WITH_ARCHIVED"
   >("ALL");
   const [pkgBedFilter, setPkgBedFilter] = useState<"ALL" | "3" | "4" | "5+">("ALL");
-  const [openPkgSuburbs, setOpenPkgSuburbs] = useState<string[]>(() => {
-    const localP = getLocalPackages();
-    const localL = getLocalLots();
-    return Array.from(
-      new Set(
-        localP.map((p) => {
-          const lot = p.lot_id ? localL.find((l) => l.id === p.lot_id) : undefined;
-          return (lot?.suburb || (p.flyer_data as any)?.suburb || "General Releases")
-            .trim()
-            .toLowerCase();
-        }),
-      ),
-    );
-  });
+  const [openPkgSuburbs, setOpenPkgSuburbs] = useState<string[]>([]);
   const isPkgSubOpen = (key: string) => openPkgSuburbs.includes(key);
 
   const [downloadingPkgId, setDownloadingPkgId] = useState<string | null>(null);
@@ -1713,22 +1697,6 @@ function DatabasePage() {
       const localP = cleanDb.packages;
       setLots(localL);
       setPackages(localP);
-      if (localL.length > 0) {
-        setOpenSuburbs((prev) =>
-          prev.length === 0
-            ? Array.from(new Set(localL.map((l) => l.suburb.trim().toLowerCase())))
-            : prev,
-        );
-      }
-      if (localP.length > 0) {
-        const pSubs = localP.map((p) => {
-          const lot = p.lot_id ? localL.find((l) => l.id === p.lot_id) : undefined;
-          return (lot?.suburb || (p.flyer_data as any)?.suburb || "General Releases")
-            .trim()
-            .toLowerCase();
-        });
-        setOpenPkgSuburbs((prev) => (prev.length === 0 ? Array.from(new Set(pSubs)) : prev));
-      }
       if (localL.length > 0 || localP.length > 0) {
         setLoading(false);
       } else {
@@ -1742,18 +1710,6 @@ function DatabasePage() {
       if (synced) {
         setLots(synced.lots);
         setPackages(synced.packages);
-        setOpenSuburbs((prev) =>
-          prev.length === 0
-            ? Array.from(new Set(synced.lots.map((l) => l.suburb.trim().toLowerCase())))
-            : prev,
-        );
-        const pSubs = synced.packages.map((p) => {
-          const lot = p.lot_id ? synced.lots.find((l) => l.id === p.lot_id) : undefined;
-          return (lot?.suburb || (p.flyer_data as any)?.suburb || "General Releases")
-            .trim()
-            .toLowerCase();
-        });
-        setOpenPkgSuburbs((prev) => (prev.length === 0 ? Array.from(new Set(pSubs)) : prev));
         const now = new Date();
         setLastSyncTime(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       }
@@ -3090,9 +3046,40 @@ function DatabasePage() {
                               ({stateGroup.suburbsCount} suburbs · {stateGroup.lotsCount} lots)
                             </span>
                           </div>
-                          <span className={`text-[11px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"} hidden sm:inline-block`}>
-                            {stateGroup.subtitle}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className={`text-[11px] font-medium px-2 py-0.5 rounded transition-colors ${
+                                isLight
+                                  ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                              }`}
+                              onClick={() => {
+                                const keys = stateGroup.suburbGroups.map((g) => g.key);
+                                setOpenSuburbs((prev) => Array.from(new Set([...prev, ...keys])));
+                              }}
+                            >
+                              Expand All
+                            </button>
+                            <span className="text-slate-600 text-xs">·</span>
+                            <button
+                              type="button"
+                              className={`text-[11px] font-medium px-2 py-0.5 rounded transition-colors ${
+                                isLight
+                                  ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                              }`}
+                              onClick={() => {
+                                const keys = new Set(stateGroup.suburbGroups.map((g) => g.key));
+                                setOpenSuburbs((prev) => prev.filter((k) => !keys.has(k)));
+                              }}
+                            >
+                              Collapse All
+                            </button>
+                            <span className={`text-[11px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"} hidden sm:inline-block ml-2`}>
+                              {stateGroup.subtitle}
+                            </span>
+                          </div>
                         </div>
 
                       </td>
@@ -3701,6 +3688,37 @@ function DatabasePage() {
                                   {money(stateGroup.minPrice)} – {money(stateGroup.maxPrice)}
                                 </span>
                               )}
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  className={`text-[11px] font-medium px-2 py-0.5 rounded transition-colors ${
+                                    isLight
+                                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                                  }`}
+                                  onClick={() => {
+                                    const keys = stateGroup.suburbGroups.map((g) => g.key);
+                                    setOpenPkgSuburbs((prev) => Array.from(new Set([...prev, ...keys])));
+                                  }}
+                                >
+                                  Expand All
+                                </button>
+                                <span className="text-slate-600 text-xs">·</span>
+                                <button
+                                  type="button"
+                                  className={`text-[11px] font-medium px-2 py-0.5 rounded transition-colors ${
+                                    isLight
+                                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                                  }`}
+                                  onClick={() => {
+                                    const keys = new Set(stateGroup.suburbGroups.map((g) => g.key));
+                                    setOpenPkgSuburbs((prev) => prev.filter((k) => !keys.has(k)));
+                                  }}
+                                >
+                                  Collapse All
+                                </button>
+                              </div>
                               <span
                                 className={`text-[11px] ${
                                   isLight ? "text-slate-600 font-medium" : "text-slate-400"

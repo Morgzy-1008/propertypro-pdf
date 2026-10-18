@@ -164,9 +164,8 @@ export function getLotState(lot: { state?: "QLD" | "NSW"; suburb?: string | null
 
 /** Generates a complete default seed dataset of Lots and Packages for both QLD and NSW */
 // Baseline timestamp for seeded demo packages/lots so they don't all say "Just now" on initial load
-const BASE_SEED_DATE = new Date("2025-02-14T08:30:00Z").getTime();
 function getSeedTimestamp(offsetHours = 0): string {
-  return new Date(BASE_SEED_DATE - offsetHours * 3600 * 1000).toISOString();
+  return new Date(Date.now() - offsetHours * 3600 * 1000).toISOString();
 }
 
 export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
@@ -454,10 +453,10 @@ export const ARCHIVE_STALE_DAYS = 0;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Checks if a lot or package record has not been updated (missing or invalid timestamp).
+ * Checks if a lot or package record has an invalid timestamp.
  */
 export function isRecordStale(updatedAt: string | null | undefined, _days: number = 0): boolean {
-  if (!updatedAt) return true;
+  if (!updatedAt) return false;
   const time = new Date(updatedAt).getTime();
   return isNaN(time);
 }
@@ -465,9 +464,9 @@ export function isRecordStale(updatedAt: string | null | undefined, _days: numbe
 export function autoArchiveStaleLots(lots: Lot[]): { lots: Lot[]; changed: boolean } {
   let changed = false;
   const updated = lots.map((l) => {
-    if (l.status !== "archived" && l.status !== "sold" && isRecordStale(l.updated_at)) {
+    if (!l.updated_at) {
       changed = true;
-      return { ...l, status: "archived" as const, updated_at: new Date().toISOString() };
+      return { ...l, updated_at: new Date().toISOString() };
     }
     return l;
   });
@@ -480,22 +479,20 @@ export function autoArchiveStalePackages(pkgs: Pkg[], currentLots?: Lot[]): { pa
   const lotMap = new Map(lots.map((l) => [l.id, l]));
 
   const updated = pkgs.map((p) => {
-    if (p.status !== "archived" && p.status !== "sold") {
-      // 1. If package has no updated timestamp, archive automatically
-      if (isRecordStale(p.updated_at)) {
+    let pCopy = p;
+    if (!pCopy.updated_at) {
+      changed = true;
+      pCopy = { ...pCopy, updated_at: new Date().toISOString() };
+    }
+    // If package is attached to a lot that has been archived or sold, archive package instantly
+    if (pCopy.status !== "archived" && pCopy.status !== "sold" && pCopy.lot_id && lotMap.has(pCopy.lot_id)) {
+      const parentLot = lotMap.get(pCopy.lot_id)!;
+      if (parentLot.status === "archived" || parentLot.status === "sold") {
         changed = true;
-        return { ...p, status: "archived" as const, updated_at: new Date().toISOString() };
-      }
-      // 2. If package is attached to a lot that has been archived or sold, archive package instantly
-      if (p.lot_id && lotMap.has(p.lot_id)) {
-        const parentLot = lotMap.get(p.lot_id)!;
-        if (parentLot.status === "archived" || parentLot.status === "sold") {
-          changed = true;
-          return { ...p, status: "archived" as const, updated_at: new Date().toISOString() };
-        }
+        return { ...pCopy, status: "archived" as const, updated_at: new Date().toISOString() };
       }
     }
-    return p;
+    return pCopy;
   });
   return { packages: updated, changed };
 }
@@ -512,15 +509,38 @@ export function getLocalLots(): Lot[] {
       if (raw !== null) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          const cleanLots = parsed
+          let cleanLots = parsed
             .filter((l: Lot) => l && l.id && !deletedIds.has(l.id))
             .map((l: Lot) => ({
               ...l,
               id: isValidUuid(l.id) ? l.id : (toValidUuid(l.id) || generateUuid()),
+              updated_at: l.updated_at || new Date().toISOString(),
             }));
-          const { lots: finalLots, changed } = autoArchiveStaleLots(cleanLots);
+
+          let changed = false;
+          // Self-healing: if active lots were swept to 0 by legacy stale logic, restore them
+          const activeLotsCount = cleanLots.filter((l) => l.status !== "archived").length;
+          if (activeLotsCount === 0 && cleanLots.length > 0) {
+            console.log("[databaseStorage] Healing catalog: restoring active status to lots...");
+            cleanLots = cleanLots.map((l) => {
+              if (!l.notes?.includes("Auto-archived: omitted from latest price list update") && l.status !== "sold") {
+                changed = true;
+                return { ...l, status: "available" as const, updated_at: new Date().toISOString() };
+              }
+              return l;
+            });
+          }
+
+          // If lots list is empty, repopulate from seed catalog
+          if (cleanLots.length === 0) {
+            const seed = generateSeedData();
+            cleanLots = seed.lots.filter((l) => !deletedIds.has(l.id));
+            changed = true;
+          }
+
+          const { lots: finalLots, changed: staleChanged } = autoArchiveStaleLots(cleanLots);
           inMemoryLots = finalLots;
-          if (changed && typeof window !== "undefined") {
+          if ((changed || staleChanged) && typeof window !== "undefined") {
             try {
               localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(finalLots));
             } catch {}
@@ -574,12 +594,34 @@ export function getLocalPackages(): Pkg[] {
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        const sanitized: Pkg[] = parsed
+        let sanitized: Pkg[] = parsed
           .filter((p: Pkg) => p && p.id && !deletedIds.has(p.id))
           .map(sanitizePackageForStorage);
-        const { packages: finalPkgs, changed } = autoArchiveStalePackages(sanitized);
+
+        let changed = false;
+        // Self-healing: if active packages were swept to 0, restore them
+        const activePkgsCount = sanitized.filter((p) => p.status !== "archived").length;
+        if (activePkgsCount === 0 && sanitized.length > 0) {
+          console.log("[databaseStorage] Healing catalog: restoring active status to packages...");
+          sanitized = sanitized.map((p) => {
+            if (p.status !== "sold") {
+              changed = true;
+              return { ...p, status: "live" as const, updated_at: new Date().toISOString() };
+            }
+            return p;
+          });
+        }
+
+        // If packages list is empty, repopulate from seed catalog
+        if (sanitized.length === 0) {
+          const seed = generateSeedData();
+          sanitized = seed.packages.filter((p) => !deletedIds.has(p.id));
+          changed = true;
+        }
+
+        const { packages: finalPkgs, changed: staleChanged } = autoArchiveStalePackages(sanitized);
         inMemoryPackages = finalPkgs;
-        if (changed && typeof window !== "undefined") {
+        if ((changed || staleChanged) && typeof window !== "undefined") {
           try {
             localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(finalPkgs));
           } catch {}
