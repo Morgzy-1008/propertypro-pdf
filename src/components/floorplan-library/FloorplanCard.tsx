@@ -41,6 +41,7 @@ interface FloorplanCardProps {
   isLight: boolean;
   isClientMode?: boolean;
   hidePricing?: boolean;
+  consultantId?: string;
   onEnquire?: (variant: FloorplanRecord, facadeName?: string) => void;
 }
 
@@ -52,6 +53,7 @@ export function FloorplanCard({
   isLight,
   isClientMode = false,
   hidePricing = false,
+  consultantId,
   onEnquire,
 }: FloorplanCardProps) {
   const navigate = useNavigate();
@@ -131,8 +133,14 @@ export function FloorplanCard({
 
   const handleCopyLink = () => {
     try {
+      const c =
+        consultantId ||
+        (typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("c")
+          : null) ||
+        (division === "NSW" ? "steve-slisar" : "morgan-hales");
       const url = isClientMode
-        ? `${window.location.origin}/floorplans?design=${encodeURIComponent(activeVariant.label)}`
+        ? `${window.location.origin}/floorplans?c=${encodeURIComponent(c)}&design=${encodeURIComponent(activeVariant.label)}`
         : `${window.location.origin}/floorplan-library?design=${encodeURIComponent(activeVariant.label)}`;
       navigator.clipboard.writeText(url);
       setCopied(true);

@@ -58,9 +58,10 @@ export function ExportCustomerLinkModal({
   const [showPricing, setShowPricing] = useState<boolean>(true);
   const [showQr, setShowQr] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [linkStyle, setLinkStyle] = useState<"clean" | "ultraShort" | "token">("clean");
 
-  // Generate secure customer link
-  const { url, token } = useMemo(() => {
+  // Generate customer link options (Clean Short is primary default)
+  const { cleanUrl, ultraShortUrl, tokenUrl } = useMemo(() => {
     return generateCustomerLink({
       division,
       consultantId: selectedConsultantId,
@@ -70,11 +71,13 @@ export function ExportCustomerLinkModal({
     });
   }, [division, selectedConsultantId, includeSpecificDesign, activeDesignName, showPricing]);
 
+  const activeUrl = linkStyle === "clean" ? cleanUrl : linkStyle === "ultraShort" ? ultraShortUrl : tokenUrl;
+
   const handleCopy = () => {
     try {
-      navigator.clipboard.writeText(url);
+      navigator.clipboard.writeText(activeUrl);
       setCopied(true);
-      toast.success("Customer link copied to clipboard!");
+      toast.success("Shortened customer link copied to clipboard!");
       setTimeout(() => setCopied(false), 2500);
     } catch {
       toast.error("Failed to copy to clipboard");
@@ -82,7 +85,7 @@ export function ExportCustomerLinkModal({
   };
 
   const handleOpenPreview = () => {
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.open(activeUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -217,15 +220,60 @@ export function ExportCustomerLinkModal({
           </div>
 
           {/* Generated Link Box */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Secure Customer Link
-              </span>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
+                  Format:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLinkStyle("clean")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-black cursor-pointer transition-all ${
+                    linkStyle === "clean"
+                      ? "bg-emerald-500 text-slate-950 shadow-xs"
+                      : isLight
+                      ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                  title="Clean, branded, readable link (Recommended)"
+                >
+                  Clean Short
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLinkStyle("ultraShort")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-black cursor-pointer transition-all ${
+                    linkStyle === "ultraShort"
+                      ? "bg-cyan-500 text-slate-950 shadow-xs"
+                      : isLight
+                      ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                  title="Shortest path (/f) for SMS"
+                >
+                  Ultra-Short
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLinkStyle("token")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
+                    linkStyle === "token"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : isLight
+                      ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                  title="Full signed cryptographic token"
+                >
+                  Full Token
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setShowQr(!showQr)}
-                className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer ml-auto"
               >
                 <QrIcon className="h-3.5 w-3.5" />
                 <span>{showQr ? "Hide QR Code" : "Show QR Code"}</span>
@@ -237,16 +285,22 @@ export function ExportCustomerLinkModal({
                 isLight ? "bg-slate-100 border-slate-300 text-slate-800" : "bg-slate-950 border-slate-800 text-slate-300"
               }`}
             >
-              <span className="truncate flex-1">{url}</span>
+              <span className="truncate flex-1">{activeUrl}</span>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="p-1.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-sans text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+                className="p-1.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-sans text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors active:scale-95"
               >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 <span>{copied ? "Copied" : "Copy Link"}</span>
               </button>
             </div>
+
+            <p className="text-[11px] text-slate-400 px-1">
+              {linkStyle === "clean" && "✨ Short, clean, and customer-friendly. Ideal for SMS, WhatsApp, and email."}
+              {linkStyle === "ultraShort" && "⚡ Ultra-compact URL format (/f) for character-limited SMS."}
+              {linkStyle === "token" && "🔒 Full 90-day HMAC cryptographic signed token."}
+            </p>
           </div>
 
           {/* QR Code Container */}
@@ -257,7 +311,7 @@ export function ExportCustomerLinkModal({
               }`}
             >
               <div className="p-3 bg-white rounded-xl shadow-md">
-                <QrCode url={url} size={180} />
+                <QrCode url={activeUrl} size={180} />
               </div>
               <p className="text-[11px] text-slate-400 text-center max-w-xs">
                 Scan with any mobile camera to open the private customer floorplan gallery instantly.

@@ -9,6 +9,8 @@ interface FloorplansSearchParams {
   consultant?: string;
   design?: string;
   q?: string;
+  noprice?: string;
+  pricing?: string;
 }
 
 export const Route = createFileRoute("/floorplans")({
@@ -21,6 +23,8 @@ export const Route = createFileRoute("/floorplans")({
       consultant: typeof search.consultant === "string" ? search.consultant : undefined,
       design: typeof search.design === "string" ? search.design : undefined,
       q: typeof search.q === "string" ? search.q : undefined,
+      noprice: typeof search.noprice === "string" ? search.noprice : undefined,
+      pricing: typeof search.pricing === "string" ? search.pricing : undefined,
     };
   },
   head: () => ({

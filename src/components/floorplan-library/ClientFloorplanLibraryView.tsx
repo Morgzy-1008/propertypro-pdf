@@ -19,6 +19,8 @@ import { useTheme } from "@/lib/theme";
 import { CONSULTANTS, type Consultant } from "@/components/flyer/consultants";
 import {
   verifyCustomerToken,
+  resolveCustomerAccess,
+  matchConsultant,
   type VerifiedCustomerSession,
   CLIENT_SESSION_STORAGE_KEY,
 } from "@/lib/floorplan-library/customerLinkSecurity";
@@ -40,64 +42,56 @@ export function ClientFloorplanLibraryView() {
   const { mode } = useTheme();
   const isLight = mode === "normal";
 
-  // Parse search params
+  // Parse search params with instant window.location fallback
   const searchParams = useSearch({ strict: false }) as Record<string, string | undefined>;
-  const tokenParam = searchParams?.token || null;
-  const designParam = searchParams?.design || searchParams?.q || "";
-  const stateParam = searchParams?.state || searchParams?.division || null;
-  const consultantParam = searchParams?.c || searchParams?.consultant || null;
+  const windowParams = useMemo(() => {
+    if (typeof window === "undefined") return {};
+    const sp = new URLSearchParams(window.location.search);
+    const result: Record<string, string> = {};
+    sp.forEach((v, k) => {
+      result[k] = v;
+    });
+    return result;
+  }, []);
 
-  // 1. Verify access security
+  const tokenParam = searchParams?.token || windowParams.token || null;
+  const designParam = searchParams?.design || windowParams.design || searchParams?.q || windowParams.q || "";
+  const stateParam = searchParams?.state || windowParams.state || searchParams?.division || windowParams.division || null;
+  const consultantParam = searchParams?.c || windowParams.c || searchParams?.consultant || windowParams.consultant || null;
+  const nopriceParam = searchParams?.noprice || windowParams.noprice || searchParams?.pricing || windowParams.pricing || null;
+
+  // 1. Verify access security: Supports clean short links, signed tokens, or active sessions
   const verifiedSession: VerifiedCustomerSession = useMemo(() => {
-    // If token provided in URL, verify and persist
-    if (tokenParam) {
-      return verifyCustomerToken(tokenParam);
-    }
-    // Check if user already authenticated in session storage
-    if (typeof window !== "undefined") {
-      const stored = sessionStorage.getItem(CLIENT_SESSION_STORAGE_KEY);
-      if (stored) {
-        return verifyCustomerToken(stored);
-      }
-    }
-    // Check if staff user is logged in (allows staff to preview client mode)
-    if (typeof window !== "undefined") {
-      const isStaff =
-        localStorage.getItem("hudson_hub_unlocked") === "true" ||
-        sessionStorage.getItem("hudson_hub_unlocked") === "true";
-      if (isStaff) {
-        return {
-          valid: true,
-          division: stateParam === "NSW" ? "NSW" : "QLD",
-          consultantId: consultantParam || undefined,
-          preselectedDesign: designParam || undefined,
-          showPricing: true,
-        };
-      }
-    }
-
-    return {
-      valid: false,
-      division: "QLD",
-      showPricing: true,
-      reason: "Access token missing",
-    };
-  }, [tokenParam, stateParam, consultantParam, designParam]);
+    return resolveCustomerAccess({
+      token: tokenParam,
+      c: consultantParam,
+      consultant: consultantParam,
+      state: stateParam,
+      division: stateParam,
+      design: designParam,
+      q: designParam,
+      noprice: nopriceParam,
+      pricing: nopriceParam,
+    });
+  }, [tokenParam, stateParam, consultantParam, designParam, nopriceParam]);
 
   // Assigned consultant info
   const consultant: Consultant | undefined = useMemo(() => {
-    const id = consultantParam || verifiedSession.consultantId;
+    const id = verifiedSession.consultantId || consultantParam;
     if (id) {
-      return (
-        CONSULTANTS.find((c) => c.id.toLowerCase() === id.toLowerCase()) ||
-        CONSULTANTS.find((c) => c.name.toLowerCase().includes(id.toLowerCase()))
-      );
+      return matchConsultant(id);
     }
     return CONSULTANTS.find((c) => c.division === verifiedSession.division) || CONSULTANTS[0];
   }, [consultantParam, verifiedSession]);
 
   // Division (QLD / NSW)
   const [division, setDivision] = useState<"QLD" | "NSW">(verifiedSession.division || "QLD");
+
+  useEffect(() => {
+    if (verifiedSession.division && verifiedSession.division !== division) {
+      setDivision(verifiedSession.division);
+    }
+  }, [verifiedSession.division]);
 
   // Load plans
   const allFloorplans = useMemo(() => loadAllFloorplanLibraryItems(division), [division]);
@@ -303,6 +297,7 @@ export function ClientFloorplanLibraryView() {
           <div className="flex items-center gap-2 sm:gap-3">
             {consultant && (
               <div
+                data-testid="client-consultant-card"
                 className={`hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-2xl border text-xs ${
                   isLight ? "bg-slate-100 border-slate-300 text-slate-800" : "bg-slate-900 border-slate-800 text-slate-200"
                 }`}
@@ -311,7 +306,7 @@ export function ClientFloorplanLibraryView() {
                   {consultant.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <span className="font-bold block leading-tight">{consultant.name}</span>
+                  <span data-testid="client-consultant-name" className="font-bold block leading-tight">{consultant.name}</span>
                   <a
                     href={`tel:${consultant.phone.replace(/\s+/g, "")}`}
                     className="text-[10px] text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1"
@@ -325,6 +320,7 @@ export function ClientFloorplanLibraryView() {
 
             {consultant?.phone && (
               <a
+                data-testid="client-consultant-mobile-call"
                 href={`tel:${consultant.phone.replace(/\s+/g, "")}`}
                 className="md:hidden p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center cursor-pointer"
                 title={`Call ${consultant.name}`}
@@ -423,6 +419,7 @@ export function ClientFloorplanLibraryView() {
                 isLight={isLight}
                 isClientMode={true}
                 hidePricing={!verifiedSession.showPricing}
+                consultantId={consultant?.id}
                 onEnquire={handleOpenEnquiry}
               />
             ))}
