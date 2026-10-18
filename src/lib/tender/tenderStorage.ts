@@ -75,6 +75,8 @@ export const STANDARD_DOCUMENT_SLOTS: Omit<TenderDocumentSlot, "fileDataUrl" | "
   { id: "plan_of_subdivision", label: "Plan of Subdivision (POD) / Street Plan", category: "land_siting", required: false },
   { id: "covenant_guidelines", label: "Estate Covenant Guidelines", category: "land_siting", required: false },
   { id: "bushfire_report", label: "Bushfire Hazard Assessment Report (BAL)", category: "engineering_reports", required: false },
+  { id: "flood_report", label: "Flood Overlay Assessment Report (Hydraulic)", category: "engineering_reports", required: false },
+  { id: "acoustic_report", label: "Acoustic Noise Corridor Assessment Report", category: "engineering_reports", required: false },
   { id: "compaction_report", label: "Compaction / Fill Certificate", category: "engineering_reports", required: false },
   { id: "soil_wind_rating", label: "Soil Test & Wind Rating Report", category: "engineering_reports", required: false },
   { id: "sewer_drainage_plan", label: "Sewer & Drainage Diagram", category: "engineering_reports", required: false },
@@ -126,6 +128,10 @@ export function getStandardizedDocumentFileName(
       return `${cleanSurname}_Covenant Guidelines.${ext}`;
     case "bushfire_report":
       return `${cleanSurname}_Bushfire Hazard Assessment BAL Report.${ext}`;
+    case "flood_report":
+      return `${cleanSurname}_Flood Overlay Assessment Report.${ext}`;
+    case "acoustic_report":
+      return `${cleanSurname}_Acoustic Noise Corridor Assessment Report.${ext}`;
     case "compaction_report":
       return `${cleanSurname}_Compaction Certificate.${ext}`;
     case "soil_wind_rating":
@@ -734,11 +740,29 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       isStructural: false,
     });
   }
-  if (s.bushfireBal && s.bushfireBal !== "None" && (s.bushfireCost || 0) > 0) {
+  if (s.bushfireBal && s.bushfireBal !== "None" && s.bushfireBal !== "BAL-LOW" && (s.bushfireCost || 0) > 0) {
     processedVariations.push({
       id: `var_bushfire_${Date.now()}`,
-      description: `Bushfire Attack Level Protection Specification (${s.bushfireBal})`,
+      description: `Bushfire Attack Level Protection Specification (${s.bushfireBal}) (subject to initial site reports)`,
       cost: s.bushfireCost,
+      category: "all_variations",
+      isStructural: false,
+    });
+  }
+  if (s.acousticTier && s.acousticTier !== "None" && (s.acousticCost || 0) > 0) {
+    processedVariations.push({
+      id: `var_acoustic_${Date.now()}`,
+      description: `Acoustic Noise Corridor Attenuation Package (${s.acousticTier}) (subject to initial site reports)`,
+      cost: s.acousticCost,
+      category: "all_variations",
+      isStructural: false,
+    });
+  }
+  if (s.floodOverlayRequired && (s.floodOverlayCost || 0) > 0) {
+    processedVariations.push({
+      id: `var_flood_${Date.now()}`,
+      description: `Slab Elevation & Flood Pad Works (${s.slabElevationMeters || 0.3}m) (subject to initial site reports)`,
+      cost: s.floodOverlayCost,
       category: "all_variations",
       isStructural: false,
     });

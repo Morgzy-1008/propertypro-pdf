@@ -954,8 +954,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const slabHeight = siteConditions.slabElevationMeters ?? 0.3;
   const calculatedSlabCost = Math.round(slabHeight * 270 * gfaM2);
   const floodCost = siteConditions.floodOverlayRequired
-    ? (siteConditions.floodOverlayCost !== undefined && siteConditions.floodOverlayCost !== null && siteConditions.floodOverlayCost > 0
-        ? siteConditions.floodOverlayCost
+    ? (siteConditions.floodOverlayCost !== undefined && siteConditions.floodOverlayCost !== null && !isNaN(Number(siteConditions.floodOverlayCost))
+        ? Math.max(0, Number(siteConditions.floodOverlayCost))
         : calculatedSlabCost)
     : 0;
 
@@ -1101,12 +1101,12 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           },
         ]
       : []),
-    ...(siteConditions.floodOverlayRequired
+    ...(siteConditions.floodOverlayRequired && floodCost > 0
       ? [
           {
             id: "flood_overlay",
             name: `Slab Elevation & Flood Pad Works (${slabHeight}m Elevation)`,
-            description: `Engineered building pad elevation for minimum floor level compliance ($270 × ${slabHeight}m × ${gfaM2} m² GFA).`,
+            description: `Engineered building pad elevation for minimum floor level compliance ($270 × ${slabHeight}m × ${gfaM2} m² GFA). (provisional allowance, subject to initial site reports)`,
             qtyLabel: `${slabHeight}m elevation`,
             amount: floodCost,
           },

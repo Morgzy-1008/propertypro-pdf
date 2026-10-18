@@ -109,16 +109,18 @@ const NSW_COUNCIL_REGIONS: { name: string; fee: number }[] = [
 ];
 
 const BAL_OPTIONS = [
-  { id: "BAL-12.5", label: "BAL 12.5 (Low)", cost: 5500 },
-  { id: "BAL-19", label: "BAL 19 (Moderate)", cost: 8900 },
-  { id: "BAL-29", label: "BAL 29 (High)", cost: 14500 },
-  { id: "BAL-40", label: "BAL 40 (Very High)", cost: 26000 },
+  { id: "BAL-LOW", label: "BAL-LOW ($0 - Report Only / Low Risk)", cost: 0 },
+  { id: "BAL-12.5", label: "BAL 12.5 (Low) - $5,500", cost: 5500 },
+  { id: "BAL-19", label: "BAL 19 (Moderate) - $8,900", cost: 8900 },
+  { id: "BAL-29", label: "BAL 29 (High) - $14,500", cost: 14500 },
+  { id: "BAL-40", label: "BAL 40 (Very High) - $26,000", cost: 26000 },
 ];
 
 const ACOUSTIC_CATEGORIES = [
-  { id: "Category 1", label: "Category 1 (Suburban Arterial)", cost: 3800 },
-  { id: "Category 2", label: "Category 2 (State Route / Major Highway)", cost: 7200 },
-  { id: "Category 3", label: "Category 3 (Rail Corridor / Direct Motorway)", cost: 12500 },
+  { id: "None", label: "None ($0 - Report Only / No Attenuation)", cost: 0 },
+  { id: "Category 1", label: "Category 1 (Suburban Arterial) - $3,800", cost: 3800 },
+  { id: "Category 2", label: "Category 2 (State Route / Major Highway) - $7,200", cost: 7200 },
+  { id: "Category 3", label: "Category 3 (Rail Corridor / Direct Motorway) - $12,500", cost: 12500 },
 ];
 
 export function V2StepSiteCosts({
@@ -439,9 +441,9 @@ export function V2StepSiteCosts({
     if (active) {
       onChange({
         bushfireReportRequired: true,
-        bushfireReportCost: 850,
+        bushfireReportCost: site.bushfireReportCost || 850,
         bushfireBal: site.bushfireBal === "None" ? "BAL-12.5" : site.bushfireBal || "BAL-12.5",
-        bushfireCost: site.bushfireCost > 0 ? site.bushfireCost : 5500,
+        bushfireCost: typeof site.bushfireCost === "number" ? site.bushfireCost : 5500,
       });
     } else {
       onChange({
@@ -459,9 +461,9 @@ export function V2StepSiteCosts({
     if (active) {
       onChange({
         floodReportRequired: true,
-        floodReportCost: 7600,
-        floodOverlayRequired: true,
-        floodOverlayCost: (site.floodOverlayCost ?? 0) > 0 ? site.floodOverlayCost : 6500,
+        floodReportCost: site.floodReportCost || 7600,
+        floodOverlayRequired: typeof site.floodOverlayRequired === "boolean" ? site.floodOverlayRequired : true,
+        floodOverlayCost: typeof site.floodOverlayCost === "number" ? site.floodOverlayCost : 6500,
       });
     } else {
       onChange({
@@ -479,9 +481,9 @@ export function V2StepSiteCosts({
     if (active) {
       onChange({
         acousticReportRequired: true,
-        acousticReportCost: 1200,
+        acousticReportCost: site.acousticReportCost || 1200,
         acousticTier: site.acousticTier === "None" ? "Category 1" : site.acousticTier || "Category 1",
-        acousticCost: site.acousticCost > 0 ? site.acousticCost : 3800,
+        acousticCost: typeof site.acousticCost === "number" ? site.acousticCost : 3800,
       });
     } else {
       onChange({
@@ -492,6 +494,27 @@ export function V2StepSiteCosts({
       });
     }
   };
+
+  // Sync overlay state toggles from props
+  useEffect(() => {
+    setHasBushfire(Boolean(site.bushfireReportRequired || (site.bushfireCost || 0) > 0));
+  }, [site.bushfireReportRequired, site.bushfireCost]);
+
+  useEffect(() => {
+    setHasFlood(Boolean(site.floodReportRequired || (site.floodOverlayCost || 0) > 0));
+  }, [site.floodReportRequired, site.floodOverlayCost]);
+
+  useEffect(() => {
+    setHasAcoustic(Boolean(site.acousticReportRequired || (site.acousticCost || 0) > 0));
+  }, [site.acousticReportRequired, site.acousticCost]);
+
+  const isBushfireReportOnly = !site.bushfireCost || site.bushfireCost === 0 || site.bushfireBal === "BAL-LOW" || site.bushfireBal === "None";
+  const isFloodReportOnly = !site.floodOverlayCost || site.floodOverlayCost === 0 || !site.floodOverlayRequired;
+  const isAcousticReportOnly = !site.acousticCost || site.acousticCost === 0 || site.acousticTier === "None";
+
+  const totalBushfire = (site.bushfireReportRequired ? (Number(site.bushfireReportCost) || 850) : 0) + (isBushfireReportOnly ? 0 : (Number(site.bushfireCost) || 0));
+  const totalFlood = (site.floodReportRequired ? (Number(site.floodReportCost) || 7600) : 0) + (isFloodReportOnly ? 0 : (Number(site.floodOverlayCost) || 0));
+  const totalAcoustic = (site.acousticReportRequired ? (Number(site.acousticReportCost) || 1200) : 0) + (isAcousticReportOnly ? 0 : (Number(site.acousticCost) || 0));
 
   // Toggle Sewer (Sewer Main Running Through The Block - Image 1)
   const handleToggleSewer = (active: boolean) => {
@@ -1647,6 +1670,7 @@ export function V2StepSiteCosts({
           <div className="space-y-4">
             {/* 1. BUSHFIRE */}
             <div
+              data-testid="card-overlay-bushfire"
               className={`p-5 rounded-2xl border transition-all ${
                 hasBushfire
                   ? isLight
@@ -1667,12 +1691,14 @@ export function V2StepSiteCosts({
                       </span>
                       {hasBushfire && (
                         <Badge variant="outline" className="text-xs font-mono font-bold text-orange-600 dark:text-orange-400 border-orange-500/40">
-                          +{formatAud((site.bushfireReportCost || 850) + (site.bushfireCost || 5500))}
+                          +{formatAud(totalBushfire)} {isBushfireReportOnly ? "(Report Only)" : ""}
                         </Badge>
                       )}
                     </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">
-                      Auto-includes $850 Bushfire Management Report
+                      {isBushfireReportOnly
+                        ? "Report Only ($850) — $0 construction allowance (subject to initial site reports)"
+                        : `Auto-includes $850 Bushfire Management Report + ${formatAud(site.bushfireCost || 5500)} BAL allowance`}
                     </span>
                   </div>
                 </div>
@@ -1680,49 +1706,183 @@ export function V2StepSiteCosts({
               </div>
 
               {hasBushfire && (
-                <div className="mt-4 pt-4 border-t border-orange-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">BAL Rating Level</Label>
-                    <Select
-                      value={site.bushfireBal || "BAL-12.5"}
-                      onValueChange={(val) => {
-                        const matched = BAL_OPTIONS.find((b) => b.id === val);
+                <div className="mt-4 pt-4 border-t border-orange-500/20 space-y-4">
+                  {/* Mode Selector: Report Only ($0) vs Report + Allowance */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1 rounded-xl bg-slate-200/60 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
                         onChange({
-                          bushfireBal: val as any,
-                          bushfireCost: matched ? matched.cost : 5500,
+                          bushfireReportRequired: true,
+                          bushfireReportCost: site.bushfireReportCost || 850,
+                          bushfireCost: 0,
+                          bushfireBal: "BAL-LOW",
                         });
                       }}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        isBushfireReportOnly
+                          ? isLight
+                            ? "bg-white text-orange-600 shadow-xs border border-orange-200"
+                            : "bg-orange-500 text-white shadow-xs"
+                          : isLight
+                          ? "text-slate-600 hover:text-slate-900"
+                          : "text-slate-400 hover:text-white"
+                      }`}
                     >
-                      <SelectTrigger className="h-11 text-sm font-bold rounded-xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BAL_OPTIONS.map((b) => (
-                          <SelectItem key={b.id} value={b.id} className="py-2 text-sm">
-                            {b.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>Report Only ($0 Allowance)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange({
+                          bushfireReportRequired: true,
+                          bushfireReportCost: site.bushfireReportCost || 850,
+                          bushfireCost: (site.bushfireCost && site.bushfireCost > 0) ? site.bushfireCost : 5500,
+                          bushfireBal: (site.bushfireBal && site.bushfireBal !== "None" && site.bushfireBal !== "BAL-LOW") ? site.bushfireBal : "BAL-12.5",
+                        });
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        !isBushfireReportOnly
+                          ? isLight
+                            ? "bg-white text-orange-600 shadow-xs border border-orange-200"
+                            : "bg-orange-500 text-white shadow-xs"
+                          : isLight
+                          ? "text-slate-600 hover:text-slate-900"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <Hammer className="h-3.5 w-3.5" />
+                      <span>Report + Construction Allowance</span>
+                    </button>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">BAL Construction Cost ($)</Label>
-                    <Input
-                      type="number"
-                      step="100"
-                      value={site.bushfireCost || 5500}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => onChange({ bushfireCost: parseFloat(e.target.value) || 0 })}
-                      className="h-11 text-base font-mono font-bold rounded-xl"
-                    />
-                  </div>
+                  {isBushfireReportOnly ? (
+                    <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-3 ${
+                      isLight
+                        ? "bg-orange-50/90 border-orange-200 text-orange-950"
+                        : "bg-orange-950/30 border-orange-500/30 text-orange-200"
+                    }`}>
+                      <FileText className="h-4 w-4 text-orange-500 mt-0.5 flex-none" />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm">Report Only Mode — $0 Construction Allowance</span>
+                          <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
+                            $0 Physical Works
+                          </Badge>
+                        </div>
+                        <p className="text-[11.5px] opacity-90 leading-relaxed">
+                          Includes $850 Bushfire Management Report to verify and confirm the site has no additional overlays (e.g. BAL-LOW / non-combustible). If the site report determines a BAL rating applies, switch to <strong>Report + Construction Allowance</strong> to include the required physical works.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">BAL Rating Level</Label>
+                          <Select
+                            value={site.bushfireBal || "BAL-12.5"}
+                            onValueChange={(val) => {
+                              const matched = BAL_OPTIONS.find((b) => b.id === val);
+                              onChange({
+                                bushfireBal: val as any,
+                                bushfireCost: matched ? matched.cost : 5500,
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="h-11 text-sm font-bold rounded-xl">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {BAL_OPTIONS.map((b) => (
+                                <SelectItem key={b.id} value={b.id} className="py-2 text-sm">
+                                  {b.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                              BAL Construction Cost ($)
+                            </Label>
+                            <span className="text-[10px] text-slate-400 italic">
+                              (subject to initial site reports)
+                            </span>
+                          </div>
+                          <Input
+                            type="number"
+                            step="100"
+                            placeholder="0"
+                            value={site.bushfireCost > 0 ? site.bushfireCost : ""}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                              onChange({ bushfireCost: parseFloat(cleaned) || 0 });
+                            }}
+                            className="h-11 text-base font-mono font-bold rounded-xl"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick adjustments */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            onChange({
+                              bushfireReportRequired: true,
+                              bushfireReportCost: site.bushfireReportCost || 850,
+                              bushfireCost: 0,
+                              bushfireBal: "BAL-LOW",
+                            });
+                          }}
+                          className="h-8 text-[11px] font-bold text-orange-600 dark:text-orange-400 border-orange-500/30 hover:bg-orange-500/10 cursor-pointer"
+                        >
+                          Set to $0 (Report Only)
+                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!site.bushfireCost || site.bushfireCost <= 0}
+                            onClick={() => {
+                              const nextVal = Math.max(0, (site.bushfireCost || 0) - 2500);
+                              onChange({ bushfireCost: nextVal });
+                            }}
+                            className="h-8 text-xs font-bold font-mono px-2.5 rounded-lg border-slate-300 dark:border-slate-700 cursor-pointer"
+                          >
+                            <Minus className="h-3 w-3 mr-1" /> $2,500
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const nextVal = (site.bushfireCost || 0) + 2500;
+                              onChange({ bushfireCost: nextVal });
+                            }}
+                            className="h-8 text-xs font-bold font-mono px-2.5 rounded-lg border-slate-300 dark:border-slate-700 cursor-pointer"
+                          >
+                            <Plus className="h-3 w-3 mr-1" /> $2,500
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* 2. FLOOD */}
             <div
+              data-testid="card-overlay-flood"
               className={`p-5 rounded-2xl border transition-all ${
                 hasFlood
                   ? isLight
@@ -1743,12 +1903,14 @@ export function V2StepSiteCosts({
                       </span>
                       {hasFlood && (
                         <Badge variant="outline" className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 border-blue-500/40">
-                          +{formatAud((site.floodReportCost || 7600) + (site.floodOverlayCost || 6500))}
+                          +{formatAud(totalFlood)} {isFloodReportOnly ? "(Report Only)" : ""}
                         </Badge>
                       )}
                     </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">
-                      Auto-includes $7,600 Hydraulic Assessment Report
+                      {isFloodReportOnly
+                        ? "Report Only ($7,600) — $0 flood allowance (subject to initial site reports)"
+                        : `Auto-includes $7,600 Hydraulic Assessment Report + ${formatAud(site.floodOverlayCost || 6500)} flood allowance`}
                     </span>
                   </div>
                 </div>
@@ -1756,28 +1918,168 @@ export function V2StepSiteCosts({
               </div>
 
               {hasFlood && (
-                <div className="mt-4 pt-4 border-t border-blue-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                  <div className="text-xs sm:text-sm text-slate-400">
-                    Slab elevation &amp; elevated piering construction works
+                <div className="mt-4 pt-4 border-t border-blue-500/20 space-y-4">
+                  {/* Mode Selector: Report Only ($0) vs Report + Allowance */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1 rounded-xl bg-slate-200/60 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange({
+                          floodReportRequired: true,
+                          floodReportCost: site.floodReportCost || 7600,
+                          floodOverlayCost: 0,
+                          floodOverlayRequired: false,
+                        });
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        isFloodReportOnly
+                          ? isLight
+                            ? "bg-white text-blue-600 shadow-xs border border-blue-200"
+                            : "bg-blue-500 text-white shadow-xs"
+                          : isLight
+                          ? "text-slate-600 hover:text-slate-900"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>Report Only ($0 Allowance)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange({
+                          floodReportRequired: true,
+                          floodReportCost: site.floodReportCost || 7600,
+                          floodOverlayRequired: true,
+                          floodOverlayCost: (site.floodOverlayCost && site.floodOverlayCost > 0) ? site.floodOverlayCost : 6500,
+                        });
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        !isFloodReportOnly
+                          ? isLight
+                            ? "bg-white text-blue-600 shadow-xs border border-blue-200"
+                            : "bg-blue-500 text-white shadow-xs"
+                          : isLight
+                          ? "text-slate-600 hover:text-slate-900"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <Hammer className="h-3.5 w-3.5" />
+                      <span>Report + Construction Allowance</span>
+                    </button>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Flood Allowance Cost ($)</Label>
-                    <Input
-                      type="number"
-                      step="500"
-                      value={site.floodOverlayCost || 6500}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => onChange({ floodOverlayCost: parseFloat(e.target.value) || 0 })}
-                      className="h-11 text-base font-mono font-bold rounded-xl"
-                    />
-                  </div>
+                  {isFloodReportOnly ? (
+                    <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-3 ${
+                      isLight
+                        ? "bg-blue-50/90 border-blue-200 text-blue-950"
+                        : "bg-blue-950/30 border-blue-500/30 text-blue-200"
+                    }`}>
+                      <FileText className="h-4 w-4 text-blue-500 mt-0.5 flex-none" />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm">Report Only Mode — $0 Construction Allowance</span>
+                          <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
+                            $0 Physical Works
+                          </Badge>
+                        </div>
+                        <p className="text-[11.5px] opacity-90 leading-relaxed">
+                          Includes $7,600 Hydraulic Assessment Report to assess overland flow and verify whether the proposed slab level is above the Defined Flood Level (DFL). If the report identifies that slab elevation or elevated piering is required, switch to <strong>Report + Construction Allowance</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                        <div className="text-xs sm:text-sm text-slate-400">
+                          Slab elevation &amp; elevated piering construction works
+                          <div className="text-[11px] text-slate-500 mt-0.5 italic">
+                            (subject to initial site reports)
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                              Flood Allowance Cost ($)
+                            </Label>
+                            <span className="text-[10px] text-slate-400 italic">
+                              (subject to initial site reports)
+                            </span>
+                          </div>
+                          <Input
+                            type="number"
+                            step="500"
+                            placeholder="0"
+                            value={site.floodOverlayCost > 0 ? site.floodOverlayCost : ""}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                              onChange({
+                                floodOverlayCost: parseFloat(cleaned) || 0,
+                                floodOverlayRequired: true,
+                              });
+                            }}
+                            className="h-11 text-base font-mono font-bold rounded-xl"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick adjustments */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            onChange({
+                              floodReportRequired: true,
+                              floodReportCost: site.floodReportCost || 7600,
+                              floodOverlayCost: 0,
+                              floodOverlayRequired: false,
+                            });
+                          }}
+                          className="h-8 text-[11px] font-bold text-blue-600 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/10 cursor-pointer"
+                        >
+                          Set to $0 (Report Only)
+                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!site.floodOverlayCost || site.floodOverlayCost <= 0}
+                            onClick={() => {
+                              const nextVal = Math.max(0, (site.floodOverlayCost || 0) - 2500);
+                              onChange({ floodOverlayCost: nextVal, floodOverlayRequired: nextVal > 0 });
+                            }}
+                            className="h-8 text-xs font-bold font-mono px-2.5 rounded-lg border-slate-300 dark:border-slate-700 cursor-pointer"
+                          >
+                            <Minus className="h-3 w-3 mr-1" /> $2,500
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const nextVal = (site.floodOverlayCost || 0) + 2500;
+                              onChange({ floodOverlayCost: nextVal, floodOverlayRequired: true });
+                            }}
+                            className="h-8 text-xs font-bold font-mono px-2.5 rounded-lg border-slate-300 dark:border-slate-700 cursor-pointer"
+                          >
+                            <Plus className="h-3 w-3 mr-1" /> $2,500
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* 3. ACOUSTIC */}
             <div
+              data-testid="card-overlay-acoustic"
               className={`p-5 rounded-2xl border transition-all ${
                 hasAcoustic
                   ? isLight
@@ -1798,12 +2100,14 @@ export function V2StepSiteCosts({
                       </span>
                       {hasAcoustic && (
                         <Badge variant="outline" className="text-xs font-mono font-bold text-purple-600 dark:text-purple-400 border-purple-500/40">
-                          +{formatAud((site.acousticReportCost || 1200) + (site.acousticCost || 3800))}
+                          +{formatAud(totalAcoustic)} {isAcousticReportOnly ? "(Report Only)" : ""}
                         </Badge>
                       )}
                     </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">
-                      Auto-includes $1,200 Certified Acoustic Engineer Report
+                      {isAcousticReportOnly
+                        ? "Report Only ($1,200) — $0 glazing allowance (subject to initial site reports)"
+                        : `Auto-includes $1,200 Certified Acoustic Engineer Report + ${formatAud(site.acousticCost || 3800)} acoustic package`}
                     </span>
                   </div>
                 </div>
@@ -1811,43 +2115,176 @@ export function V2StepSiteCosts({
               </div>
 
               {hasAcoustic && (
-                <div className="mt-4 pt-4 border-t border-purple-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Noise Category</Label>
-                    <Select
-                      value={site.acousticTier || "Category 1"}
-                      onValueChange={(val) => {
-                        const matched = ACOUSTIC_CATEGORIES.find((c) => c.id === val);
+                <div className="mt-4 pt-4 border-t border-purple-500/20 space-y-4">
+                  {/* Mode Selector: Report Only ($0) vs Report + Allowance */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1 rounded-xl bg-slate-200/60 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
                         onChange({
-                          acousticTier: val as any,
-                          acousticCost: matched ? matched.cost : 3800,
+                          acousticReportRequired: true,
+                          acousticReportCost: site.acousticReportCost || 1200,
+                          acousticCost: 0,
+                          acousticTier: "None",
                         });
                       }}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        isAcousticReportOnly
+                          ? isLight
+                            ? "bg-white text-purple-600 shadow-xs border border-purple-200"
+                            : "bg-purple-500 text-white shadow-xs"
+                          : isLight
+                          ? "text-slate-600 hover:text-slate-900"
+                          : "text-slate-400 hover:text-white"
+                      }`}
                     >
-                      <SelectTrigger className="h-11 text-sm font-bold rounded-xl">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ACOUSTIC_CATEGORIES.map((c) => (
-                          <SelectItem key={c.id} value={c.id} className="py-2 text-sm">
-                            {c.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>Report Only ($0 Allowance)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange({
+                          acousticReportRequired: true,
+                          acousticReportCost: site.acousticReportCost || 1200,
+                          acousticCost: (site.acousticCost && site.acousticCost > 0) ? site.acousticCost : 3800,
+                          acousticTier: (site.acousticTier && site.acousticTier !== "None") ? site.acousticTier : "Category 1",
+                        });
+                      }}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        !isAcousticReportOnly
+                          ? isLight
+                            ? "bg-white text-purple-600 shadow-xs border border-purple-200"
+                            : "bg-purple-500 text-white shadow-xs"
+                          : isLight
+                          ? "text-slate-600 hover:text-slate-900"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <Hammer className="h-3.5 w-3.5" />
+                      <span>Report + Construction Allowance</span>
+                    </button>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Acoustic Glazing &amp; Seals Cost ($)</Label>
-                    <Input
-                      type="number"
-                      step="200"
-                      value={site.acousticCost || 3800}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => onChange({ acousticCost: parseFloat(e.target.value) || 0 })}
-                      className="h-11 text-base font-mono font-bold rounded-xl"
-                    />
-                  </div>
+                  {isAcousticReportOnly ? (
+                    <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-3 ${
+                      isLight
+                        ? "bg-purple-50/90 border-purple-200 text-purple-950"
+                        : "bg-purple-950/30 border-purple-500/30 text-purple-200"
+                    }`}>
+                      <FileText className="h-4 w-4 text-purple-500 mt-0.5 flex-none" />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm">Report Only Mode — $0 Construction Allowance</span>
+                          <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
+                            $0 Physical Works
+                          </Badge>
+                        </div>
+                        <p className="text-[11.5px] opacity-90 leading-relaxed">
+                          Includes $1,200 Certified Acoustic Engineer Report to test noise corridor levels and confirm if any acoustic glazing or insulation upgrades are necessary. If the acoustic report specifies required attenuation, switch to <strong>Report + Construction Allowance</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Noise Category</Label>
+                          <Select
+                            value={site.acousticTier || "Category 1"}
+                            onValueChange={(val) => {
+                              const matched = ACOUSTIC_CATEGORIES.find((c) => c.id === val);
+                              onChange({
+                                acousticTier: val as any,
+                                acousticCost: matched ? matched.cost : 3800,
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="h-11 text-sm font-bold rounded-xl">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ACOUSTIC_CATEGORIES.map((c) => (
+                                <SelectItem key={c.id} value={c.id} className="py-2 text-sm">
+                                  {c.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                              Acoustic Glazing &amp; Seals Cost ($)
+                            </Label>
+                            <span className="text-[10px] text-slate-400 italic">
+                              (subject to initial site reports)
+                            </span>
+                          </div>
+                          <Input
+                            type="number"
+                            step="200"
+                            placeholder="0"
+                            value={site.acousticCost > 0 ? site.acousticCost : ""}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                              onChange({ acousticCost: parseFloat(cleaned) || 0 });
+                            }}
+                            className="h-11 text-base font-mono font-bold rounded-xl"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick adjustments */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            onChange({
+                              acousticReportRequired: true,
+                              acousticReportCost: site.acousticReportCost || 1200,
+                              acousticCost: 0,
+                              acousticTier: "None",
+                            });
+                          }}
+                          className="h-8 text-[11px] font-bold text-purple-600 dark:text-purple-400 border-purple-500/30 hover:bg-purple-500/10 cursor-pointer"
+                        >
+                          Set to $0 (Report Only)
+                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!site.acousticCost || site.acousticCost <= 0}
+                            onClick={() => {
+                              const nextVal = Math.max(0, (site.acousticCost || 0) - 2500);
+                              onChange({ acousticCost: nextVal });
+                            }}
+                            className="h-8 text-xs font-bold font-mono px-2.5 rounded-lg border-slate-300 dark:border-slate-700 cursor-pointer"
+                          >
+                            <Minus className="h-3 w-3 mr-1" /> $2,500
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const nextVal = (site.acousticCost || 0) + 2500;
+                              onChange({ acousticCost: nextVal });
+                            }}
+                            className="h-8 text-xs font-bold font-mono px-2.5 rounded-lg border-slate-300 dark:border-slate-700 cursor-pointer"
+                          >
+                            <Plus className="h-3 w-3 mr-1" /> $2,500
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

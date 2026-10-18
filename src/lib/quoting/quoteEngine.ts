@@ -1569,12 +1569,14 @@ export function calculateQuotePricing(
 
   // Site Overlay Physical Allowances (RHS)
   const bushfireCost =
-    site.bushfireCost !== undefined && site.bushfireCost !== null && !isNaN(Number(site.bushfireCost)) && Number(site.bushfireCost) > 0
-      ? Number(site.bushfireCost)
-      : getBushfireCost(site.bushfireBal, isDouble, design, gfaM2);
+    site.bushfireCost !== undefined && site.bushfireCost !== null && !isNaN(Number(site.bushfireCost))
+      ? Math.max(0, Number(site.bushfireCost))
+      : (site.bushfireBal && site.bushfireBal !== "None" && site.bushfireBal !== "BAL-LOW"
+          ? getBushfireCost(site.bushfireBal, isDouble, design, gfaM2)
+          : 0);
   const slabElevationCost = site.floodOverlayRequired
-    ? (site.floodOverlayCost !== undefined && site.floodOverlayCost !== null && !isNaN(Number(site.floodOverlayCost)) && site.floodOverlayCost > 0
-        ? Number(site.floodOverlayCost)
+    ? (site.floodOverlayCost !== undefined && site.floodOverlayCost !== null && !isNaN(Number(site.floodOverlayCost))
+        ? Math.max(0, Number(site.floodOverlayCost))
         : Math.round((Number(site.slabElevationMeters) || 0.3) * 270 * gfaM2))
     : 0;
   const isAcousticSelected =
@@ -1585,9 +1587,9 @@ export function calculateQuotePricing(
     );
 
   const acousticCost = isAcousticSelected
-    ? site.acousticCost !== undefined && site.acousticCost !== null && !isNaN(Number(site.acousticCost)) && Number(site.acousticCost) > 0
-        ? Number(site.acousticCost)
-        : getAcousticCost(site.acousticTier, isDouble, design, gfaM2)
+    ? (site.acousticCost !== undefined && site.acousticCost !== null && !isNaN(Number(site.acousticCost))
+        ? Math.max(0, Number(site.acousticCost))
+        : getAcousticCost(site.acousticTier, isDouble, design, gfaM2))
     : 0;
 
   // Council & Statutory

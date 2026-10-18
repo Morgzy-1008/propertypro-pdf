@@ -1139,7 +1139,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
             )}
 
             {/* Flood Overlay Works */}
-            {site.floodOverlayRequired && (
+            {site.floodOverlayRequired && floodCost > 0 && (
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-white block">Slab Elevation Works</span>
