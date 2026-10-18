@@ -18,6 +18,8 @@ import {
   FileText,
   Shield,
   HelpCircle,
+  Plus,
+  Minus,
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -1423,122 +1425,177 @@ export function V2StepSiteCosts({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {/* Retaining Wall Allowance */}
-            <div className="space-y-2">
-              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Retaining Wall Allowance
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
-                <Input
-                  type="number"
-                  step="500"
-                  value={site.retainingWallAllowance || 0}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => onChange({ retainingWallAllowance: parseFloat(e.target.value) || 0 })}
-                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
-                />
-              </div>
-            </div>
+          {(() => {
+            const siteAllowancesList = [
+              {
+                field: "retainingWallAllowance" as const,
+                title: "Retaining Wall Allowance",
+                icon: Hammer,
+                desc: "Provisional retaining wall allowance for cut & fill earthworks (subject to initial site reports).",
+                value: site.retainingWallAllowance || 0,
+                onChange: (val: number) => onChange({ retainingWallAllowance: val }),
+              },
+              {
+                field: "materialHandlingAllowance" as const,
+                title: "Material Handling & Access",
+                icon: Truck,
+                desc: "Specialized crane truck offloading, spotters and restricted lot access (subject to initial site reports).",
+                value: site.materialHandlingAllowance || 0,
+                onChange: (val: number) => onChange({ materialHandlingAllowance: val }),
+              },
+              {
+                field: "trafficControlCost" as const,
+                title: "Traffic Control Allowance",
+                icon: AlertTriangle,
+                desc: "Safety signage, barriers, traffic guidance scheme and controllers (subject to initial site reports).",
+                value: site.trafficControlCost || 0,
+                onChange: (val: number) =>
+                  onChange({
+                    trafficControlCost: val,
+                    trafficControlRequired: val > 0,
+                  }),
+              },
+              {
+                field: "outOfZoneSurcharge" as const,
+                title: "Out of Zone Surcharge",
+                icon: Compass,
+                desc: "Extended delivery travel, freight and contractor logistics allowance (subject to initial site reports).",
+                value: site.outOfZoneSurcharge || 0,
+                onChange: (val: number) => onChange({ outOfZoneSurcharge: val }),
+              },
+              {
+                field: "rockExcavationAllowance" as const,
+                title: "Rock Breaker Allowance",
+                icon: Shovel,
+                desc: "Provisional hydraulic rock breaker for sub-surface trenching & rock (subject to initial site reports).",
+                value: site.rockExcavationAllowance || 0,
+                onChange: (val: number) => onChange({ rockExcavationAllowance: val }),
+              },
+              {
+                field: "unknownSiteConditionsAllowance" as const,
+                title: "Unknown Site Conditions Allowance (Contingency)",
+                icon: Shield,
+                desc: "Provisional contingency for unforeseen sub-surface site conditions (subject to initial site reports).",
+                value: site.unknownSiteConditionsAllowance || 0,
+                onChange: (val: number) => onChange({ unknownSiteConditionsAllowance: val }),
+              },
+            ];
 
-            {/* Material Handling Allowance */}
-            <div className="space-y-2">
-              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Material Handling &amp; Access
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
-                <Input
-                  type="number"
-                  step="500"
-                  value={site.materialHandlingAllowance || 0}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => onChange({ materialHandlingAllowance: parseFloat(e.target.value) || 0 })}
-                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
-                />
-              </div>
-            </div>
+            const handleAllowanceStep = (field: string, delta: number) => {
+              const item = siteAllowancesList.find((a) => a.field === field);
+              if (!item) return;
+              const current = item.value;
+              const next = Math.max(0, current + delta);
+              item.onChange(next);
+            };
 
-            {/* Traffic Control Allowance */}
-            <div className="space-y-2">
-              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Traffic Control Allowance
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
-                <Input
-                  type="number"
-                  step="500"
-                  value={site.trafficControlCost || 0}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value) || 0;
-                    onChange({
-                      trafficControlCost: val,
-                      trafficControlRequired: val > 0,
-                    });
-                  }}
-                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
-                  placeholder="0"
-                />
-              </div>
-            </div>
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {siteAllowancesList.map((item) => {
+                  const IconComp = item.icon;
+                  const isSelected = item.value > 0;
+                  return (
+                    <div
+                      key={item.field}
+                      data-testid={`allowance-card-${item.field}`}
+                      className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? isLight
+                            ? "bg-emerald-50/70 border-emerald-300 ring-1 ring-emerald-500/20 shadow-xs"
+                            : "bg-emerald-950/20 border-emerald-500/40 ring-1 ring-emerald-500/20 shadow-xs"
+                          : isLight
+                          ? "bg-slate-50/80 border-slate-200"
+                          : "bg-slate-950/60 border-slate-800"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <IconComp className={`h-4 w-4 flex-none ${isSelected ? "text-emerald-500" : "text-slate-400"}`} />
+                            <Label className={`text-xs sm:text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-900" : "text-white"}`}>
+                              {item.title}
+                            </Label>
+                          </div>
+                          {isSelected ? (
+                            <Badge variant="outline" className="text-xs font-mono font-bold text-emerald-500 border-emerald-500/40 bg-emerald-500/10 shrink-0">
+                              {formatAud(item.value)}
+                            </Badge>
+                          ) : (
+                            <span className="text-[11px] font-mono text-slate-400 shrink-0">$0</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+                          {item.desc}
+                        </p>
+                      </div>
 
-            {/* Out of Zone Surcharge */}
-            <div className="space-y-2">
-              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Out of Zone Surcharge
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
-                <Input
-                  type="number"
-                  step="500"
-                  value={site.outOfZoneSurcharge || 0}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => onChange({ outOfZoneSurcharge: parseFloat(e.target.value) || 0 })}
-                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
-                />
-              </div>
-            </div>
+                      <div className="space-y-2 mt-auto">
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="2500"
+                            data-testid={`input-${item.field}`}
+                            value={item.value > 0 ? item.value : ""}
+                            placeholder="0"
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const clean = e.target.value.replace(/^0+(?=\d)/, "");
+                              const num = clean === "" ? 0 : parseFloat(clean) || 0;
+                              item.onChange(num);
+                            }}
+                            className={`h-12 text-base font-mono pl-8 pr-3 rounded-xl font-bold ${
+                              isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-800 text-white"
+                            }`}
+                          />
+                        </div>
 
-            {/* Rock Breaker Allowance */}
-            <div className="space-y-2">
-              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Rock Breaker Allowance
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
-                <Input
-                  type="number"
-                  step="500"
-                  value={site.rockExcavationAllowance || 0}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => onChange({ rockExcavationAllowance: parseFloat(e.target.value) || 0 })}
-                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
-                />
+                        {/* Quick Step Buttons: - $2,500 and + $2,500 */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={item.value <= 0}
+                            onClick={() => handleAllowanceStep(item.field, -2500)}
+                            data-testid={`dec-${item.field}`}
+                            className={`flex-1 h-9 rounded-xl text-xs font-mono font-bold gap-1 cursor-pointer transition-all ${
+                              item.value <= 0
+                                ? "opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 text-slate-400"
+                                : isLight
+                                ? "bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-xs"
+                                : "bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700"
+                            }`}
+                            title="Decrease by $2,500"
+                          >
+                            <Minus className="h-3.5 w-3.5 stroke-[2.5]" />
+                            <span>$2,500</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAllowanceStep(item.field, 2500)}
+                            data-testid={`inc-${item.field}`}
+                            className={`flex-1 h-9 rounded-xl text-xs font-mono font-bold gap-1 cursor-pointer transition-all ${
+                              isLight
+                                ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs"
+                                : "bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border-emerald-500/40"
+                            }`}
+                            title="Increase by $2,500"
+                          >
+                            <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                            <span>$2,500</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-
-            {/* Unknown Site Conditions Allowance */}
-            <div className="space-y-2">
-              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Unknown Site Conditions Allowance (Contingency)
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
-                <Input
-                  type="number"
-                  step="500"
-                  value={site.unknownSiteConditionsAllowance || 0}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => onChange({ unknownSiteConditionsAllowance: parseFloat(e.target.value) || 0 })}
-                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
-                />
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {revealedStage === 5 && (
             <div className="flex justify-end pt-4 mt-5 border-t border-slate-700/20">

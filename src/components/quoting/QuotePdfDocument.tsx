@@ -1277,7 +1277,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {
             id: "rock_excavation",
             name: "Rock Excavation Allowance",
-            description: "Hydraulic rock breaker allowance for sub-surface trenching.",
+            description: "Hydraulic rock breaker allowance for sub-surface trenching (provisional allowance, subject to initial site reports).",
             qtyLabel: "1 Allowance",
             amount: rockCost,
           },
@@ -1288,7 +1288,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {
             id: "retaining_wall",
             name: "Retaining Wall Allowance",
-            description: "Concrete sleeper or masonry retaining wall structure allowance.",
+            description: "Concrete sleeper or masonry retaining wall structure allowance (provisional allowance, subject to initial site reports).",
             qtyLabel: "1 Allowance",
             amount: retainingCost,
           },
@@ -1299,7 +1299,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {
             id: "material_handling",
             name: "Material Handling & Restricted Access Allowance",
-            description: "Specialized material handling, crane truck offloading, spotters, or restricted access due to limited access, overhead powerlines, or narrow lot.",
+            description: "Specialized material handling, crane truck offloading, spotters, or restricted access (provisional allowance, subject to initial site reports).",
             qtyLabel: "1 Allowance",
             amount: Number(siteConditions.materialHandlingAllowance),
           },
@@ -1310,7 +1310,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {
             id: "out_of_zone",
             name: "Out of Zone Surcharge",
-            description: "Builder delivery and contractor travel allowance beyond standard operating zone.",
+            description: "Builder delivery and contractor travel allowance beyond standard operating zone (provisional allowance, subject to initial site reports).",
             qtyLabel: "1 Allowance",
             amount: Number(siteConditions.outOfZoneSurcharge),
           },
@@ -1321,7 +1321,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {
             id: "unknown_site_conditions",
             name: "Unknown Site Conditions Allowance",
-            description: "Provisional contingency allowance for unforeseen sub-surface or site conditions subject to engineer verification.",
+            description: "Provisional contingency allowance for unforeseen sub-surface or site conditions (provisional allowance, subject to initial site reports).",
             qtyLabel: "1 Allowance",
             amount: Number(siteConditions.unknownSiteConditionsAllowance),
           },
@@ -1332,7 +1332,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {
             id: "traffic_control",
             name: "Traffic Management Plan & Control Allowance",
-            description: "Certified Traffic Guidance Scheme (TGS), spotters, safety barriers & signage allowance.",
+            description: "Certified Traffic Guidance Scheme (TGS), spotters, safety barriers & signage allowance (provisional allowance, subject to initial site reports).",
             qtyLabel: "1 Allowance",
             amount: trafficCost,
           },

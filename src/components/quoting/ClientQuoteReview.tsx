@@ -1304,15 +1304,28 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               </div>
             )}
 
-            {/* Rock */}
-            {rockCost > 0 && (
+            {/* Retaining Wall */}
+            {retainingCost > 0 && (
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-white block">Rock Excavation Allowance</span>
-                  <span className="text-slate-400 text-[11px]">Sub-surface Excavator</span>
+                  <span className="font-bold text-white block">Retaining Wall Allowance</span>
+                  <span className="text-slate-400 text-[11px]">Concrete Sleeper Wall (subject to initial site reports)</span>
                 </div>
                 <span className="font-mono font-bold text-emerald-400">
-                  +{formatAud(rockCost)}
+                  +{formatAud(retainingCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Material Handling */}
+            {Number(site.materialHandlingAllowance) > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Material Handling &amp; Access</span>
+                  <span className="text-slate-400 text-[11px]">Crane Offloading &amp; Access (subject to initial site reports)</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(Number(site.materialHandlingAllowance))}
                 </span>
               </div>
             )}
@@ -1322,10 +1335,49 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-white block">Traffic Management Plan Allowance</span>
-                  <span className="text-slate-400 text-[11px]">Site Traffic Control, Spotters &amp; Signage</span>
+                  <span className="text-slate-400 text-[11px]">Site Traffic Control, Spotters &amp; Signage (subject to initial site reports)</span>
                 </div>
                 <span className="font-mono font-bold text-emerald-400">
                   +{formatAud(trafficCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Out of Zone */}
+            {Number(site.outOfZoneSurcharge) > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Out of Zone Surcharge</span>
+                  <span className="text-slate-400 text-[11px]">Builder Travel &amp; Logistics (subject to initial site reports)</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(Number(site.outOfZoneSurcharge))}
+                </span>
+              </div>
+            )}
+
+            {/* Rock */}
+            {rockCost > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Rock Excavation Allowance</span>
+                  <span className="text-slate-400 text-[11px]">Sub-surface Excavator (subject to initial site reports)</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(rockCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Unknown Site Conditions */}
+            {Number(site.unknownSiteConditionsAllowance) > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Unknown Site Conditions Allowance</span>
+                  <span className="text-slate-400 text-[11px]">Sub-surface Ground Contingency (subject to initial site reports)</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(Number(site.unknownSiteConditionsAllowance))}
                 </span>
               </div>
             )}

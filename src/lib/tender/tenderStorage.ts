@@ -665,8 +665,44 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
   if (s.retainingWallAllowance && s.retainingWallAllowance > 0) {
     processedVariations.push({
       id: `var_retaining_wall_${Date.now()}`,
-      description: "Concrete Sleeper Retaining Wall Allowance",
+      description: "Concrete Sleeper Retaining Wall Allowance (subject to initial site reports)",
       cost: s.retainingWallAllowance,
+      category: "all_variations",
+      isStructural: false,
+    });
+  }
+  if (s.materialHandlingAllowance && s.materialHandlingAllowance > 0) {
+    processedVariations.push({
+      id: `var_material_handling_${Date.now()}`,
+      description: "Material Handling & Restricted Access Allowance (subject to initial site reports)",
+      cost: s.materialHandlingAllowance,
+      category: "all_variations",
+      isStructural: false,
+    });
+  }
+  if (s.trafficControlCost && s.trafficControlCost > 0) {
+    processedVariations.push({
+      id: `var_traffic_control_${Date.now()}`,
+      description: "Traffic Management Plan & Control Allowance (subject to initial site reports)",
+      cost: s.trafficControlCost,
+      category: "all_variations",
+      isStructural: false,
+    });
+  }
+  if (s.outOfZoneSurcharge && s.outOfZoneSurcharge > 0) {
+    processedVariations.push({
+      id: `var_out_of_zone_${Date.now()}`,
+      description: "Out of Zone Surcharge (subject to initial site reports)",
+      cost: s.outOfZoneSurcharge,
+      category: "all_variations",
+      isStructural: false,
+    });
+  }
+  if (s.unknownSiteConditionsAllowance && s.unknownSiteConditionsAllowance > 0) {
+    processedVariations.push({
+      id: `var_unknown_site_${Date.now()}`,
+      description: "Unknown Site Conditions Allowance (subject to initial site reports)",
+      cost: s.unknownSiteConditionsAllowance,
       category: "all_variations",
       isStructural: false,
     });
@@ -674,7 +710,7 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
   if (s.rockExcavationAllowance && s.rockExcavationAllowance > 0) {
     processedVariations.push({
       id: `var_rock_${Date.now()}`,
-      description: "Provisional Rock Excavation Allowance",
+      description: "Provisional Rock Excavation Allowance (subject to initial site reports)",
       cost: s.rockExcavationAllowance,
       category: "all_variations",
       isStructural: false,
