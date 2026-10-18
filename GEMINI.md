@@ -75,3 +75,20 @@ CRITICAL REQUIREMENT: You must NEVER invent, assume, or guess facts, data, specs
 5. **In-App AI Grounding**:
    - Any AI assistant or generative feature built into the app must be strictly grounded with deterministic registries, master specifications, and authoritative statutory data.
    - In-app agents must never provide fabricated estimates, hallucinations, or apologetic refusals ("cannot answer with 100% confidence")—they must provide authoritative, grounded answers or transparently cite statutory authority constraints.
+
+## 9. Proactive Progress Updates, Subagent Monitoring & Queue Flushing
+1. **10-Minute Heartbeat Updates & Turn-Yielding**:
+   - Whenever working on a task that requires multi-step implementation, long-running background tasks, or subagent delegation, proactively provide a concise progress update every 10 minutes.
+   - Use the `schedule` tool with `DurationSeconds=600` (10 minutes) during extended executions so status notifications fire reliably.
+   - **CRITICAL Turn-Yielding Rule**: When the 10-minute timer notification fires, you MUST NOT simply call another tool and continue silently. You MUST:
+     1. Post a visible, user-facing markdown progress update in chat detailing:
+        - ⏱️ **Elapsed Time & Milestones**: What was completed in the last 10 minutes.
+        - 🔨 **Current Focus**: What file, component, or test is actively being worked on.
+        - 📋 **Next Step**: What the immediate next action is.
+     2. Set a 5-second self-continuation timer using `schedule(DurationSeconds=5, Prompt="Resume task: [next step]", TimerCondition="any")`.
+     3. **Immediately END your turn with NO further tools called in that step.**
+   - **Why Turn-Yielding is Mandatory**: In Antigravity, user messages typed while tools are running are held in a queue. Queued messages are ONLY released and delivered into context when an agent yields its turn. Yielding every 10 minutes guarantees that:
+     a) The user visibly receives their 10-minute progress update in the chat window.
+     b) Any queued messages from the user are immediately dequeued and processed without delay.
+     c) If no user message was queued, the 5-second timer fires, and you resume execution smoothly on the subsequent turn (re-arming the 10-minute heartbeat with `schedule(DurationSeconds=600)`).
+2. **Subagent Supervision**: Actively check on running subagents (using `manage_subagents` and inspecting transcripts/tasks) to ensure they remain on track, adhere strictly to user constraints, and make tangible progress without stalling.
