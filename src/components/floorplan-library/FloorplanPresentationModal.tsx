@@ -78,7 +78,7 @@ export function FloorplanPresentationModal({
     const isDouble =
       item.housingType === "Double Storey" ||
       item.housingType === "double" ||
-      Boolean(activeVariant.label && /cinnamon|mauve/i.test(activeVariant.label));
+      Boolean(activeVariant.label && /cinnamon|mauve|maroon/i.test(activeVariant.label));
 
     const suitable = getFacadesForDesignAndHousingType(
       activeVariant.label || item.designName,

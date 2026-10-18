@@ -152,7 +152,7 @@ export function QuoteFacadeRenderPreview({
 
   const facadeName = design.facadeName || (design.designName ? "Classic" : "");
   const housingType = design.housingType || "Single Storey";
-  const isDoubleFrontSplit = Boolean(design.designName && /cinnamon|mauve/i.test(design.designName));
+  const isDoubleFrontSplit = Boolean(design.designName && /cinnamon|mauve|maroon/i.test(design.designName));
   const isDouble = isDoubleStoreyDesign(
     design.designName,
     housingType,

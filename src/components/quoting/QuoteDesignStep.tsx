@@ -74,7 +74,7 @@ import {
 } from "@/lib/quoting/quoteEngine";
 import { duplexFacadesForDesign } from "@/components/flyer/duplexFacades.data";
 import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/facadePricing";
-import { isSingleGarageDesign, findFacadeForDesign } from "@/lib/quoting/facadeLookup";
+import { isSingleGarageDesign, isNarrowDoubleStorey, findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { FacadeLibrary } from "@/components/flyer/FacadeLibraryDialog";
 import { fileToImageDataUrl } from "@/components/flyer/fileToImage";
 import { QuoteFacadeRenderPreview, QuoteFacadeEnlargeModal } from "./QuoteFacadeRenderPreview";
@@ -382,14 +382,52 @@ export function getFacadesForDesignAndHousingType(
     }
   }
 
-  // Cinnamon and Mauve are split-level designs with normal double storey front facades - treat as standard double storey
-  const isDoubleFrontSplit = designName ? /cinnamon|mauve/i.test(designName) : false;
+  // Cobalt is a dedicated side-split design with its own 4 verified side-split facade renders.
+  // It must ONLY show the 4 Cobalt split facades (never single storey or non-split facades).
+  const isCobalt = Boolean(designName && /cobalt/i.test(designName));
+  if (isCobalt) {
+    return [
+      { name: "Classic", uplift: 0, range: "Split Level", id: "classic-cobalt", url: "/facades/classic-cobalt.png" },
+      { name: "Hamptons", uplift: isNsw ? 21400 : 22000, range: "Split Level", id: "hamptons-cobalt", url: "/facades/hamptons-cobalt.png" },
+      { name: "Infinity", uplift: isNsw ? 26900 : 27500, range: "Split Level", id: "infinity-cobalt", url: "/facades/infinity-cobalt.png" },
+      { name: "Vogue", uplift: isNsw ? 41200 : 42200, range: "Split Level", id: "vogue-cobalt", url: "/facades/vogue-cobalt.png" },
+    ];
+  }
+
+  // Cinnamon, Mauve, and Maroon are split-level designs with normal double storey front facades - treat as standard double storey
+  const isDoubleFrontSplit = designName ? /cinnamon|mauve|maroon/i.test(designName) : false;
   if (isDoubleFrontSplit) {
     return isNsw ? NSW_DOUBLE_STOREY_FACADES : HOUSING_FACADES["Double Storey"];
   }
 
   if (housingType === "Split Level") {
     return isNsw ? NSW_SPLIT_DESIGN_FACADES : HOUSING_FACADES["Split Level"];
+  }
+
+  // Narrow Double Storey designs (Carolinas, Turquoise, Sabel/Sable)
+  if (isNarrowDoubleStorey(designName)) {
+    const narrowList: { name: string; qldUplift: number; nswUplift: number; id: string; url: string }[] = [
+      { name: "Classic", qldUplift: 0, nswUplift: 0, id: "classic-narrow-dg", url: "/facades/classic-dg-narrow-dg.png" },
+      { name: "Classic Plus", qldUplift: 5800, nswUplift: 5200, id: "classic-plus-double-garage", url: "/facades/classic-plus-double-garage.png" },
+      { name: "Deco", qldUplift: 12500, nswUplift: 12200, id: "deco-narrow-dg", url: "/facades/deco-narrow-dg.png" },
+      { name: "Novare", qldUplift: 14100, nswUplift: 13800, id: "novare-narrow-dg", url: "/facades/novare-narrow-dg.png" },
+      { name: "Contemporary", qldUplift: 16400, nswUplift: 16000, id: "contemporary-narrow-dg", url: "/facades/contemporary-narrow-dg.png" },
+      { name: "Majestic", qldUplift: 16400, nswUplift: 16000, id: "majestic-narrow-dg", url: "/facades/majestic-narrow-dg.png" },
+      { name: "Mantra", qldUplift: 16400, nswUplift: 16000, id: "mantra-double-garage", url: "/facades/mantra-double-garage.png" },
+      { name: "Marina", qldUplift: 16400, nswUplift: 16000, id: "marina-narrow-dg", url: "/facades/marina-narrow-dg.png" },
+      { name: "Vista", qldUplift: 24900, nswUplift: 24400, id: "vista-narrow-dg", url: "/facades/vista-narrow-dg.png" },
+      { name: "Chateaux", qldUplift: 25000, nswUplift: 24500, id: "chateaux-narrow-dg", url: "/facades/chateaux-narrow-dg.png" },
+      { name: "Madison", qldUplift: 33000, nswUplift: 32300, id: "madison-narrow-dg", url: "/facades/madison-narrow-dg.png" },
+      { name: "Sierra", qldUplift: 39100, nswUplift: 38300, id: "sierra-narrow-dg", url: "/facades/sierra-narrow-dg.png" },
+      { name: "Meridian", qldUplift: 53800, nswUplift: 52700, id: "meridian-narrow-dg", url: "/facades/meridian-narrow-dg.png" },
+    ];
+    return narrowList.map((f) => ({
+      name: f.name,
+      uplift: isNsw ? f.nswUplift : f.qldUplift,
+      range: "Narrow Double Storey",
+      id: f.id,
+      url: f.url,
+    }));
   }
 
   if (housingType === "Double Storey" || housingType === "double") {
@@ -522,7 +560,7 @@ export function QuoteDesignStep({
     });
   }, [design.designName, design.housingType, design.specTier, design.facadeName, design.isCustomFacade, design.isModifiedFloorplan, design.landscapingSelected, design.landscapingLandSize]);
 
-  const isDoubleFrontSplit = Boolean(design.designName && /cinnamon|mauve/i.test(design.designName));
+  const isDoubleFrontSplit = Boolean(design.designName && /cinnamon|mauve|maroon/i.test(design.designName));
   const isDouble =
     design.mode === "custom_floorplan"
       ? customSpec.storeys === "double"

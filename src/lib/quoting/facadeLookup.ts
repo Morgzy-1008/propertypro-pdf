@@ -26,16 +26,29 @@ export function isNarrowDoubleStorey(designNameOrId?: string): boolean {
 export function isSingleGarageDesign(designName?: string, housingType?: string): boolean {
   if (!designName && !housingType) return false;
   const lower = `${designName || ""} ${housingType || ""}`.toLowerCase().trim();
-  return (
+  if (
     lower.includes("(s/g)") ||
     lower.includes("s/g") ||
     lower.includes("single garage") ||
-    lower.includes("single-garage") ||
+    lower.includes("single-garage")
+  ) {
+    return true;
+  }
+
+  // Single storey families that are strictly single garage
+  if (
     lower.startsWith("hazel") ||
     lower.startsWith("canary") ||
+    lower.startsWith("indigo") ||
+    lower.startsWith("iris")
+  ) {
+    return true;
+  }
+
+  // Double storey specific single garage models
+  if (
     lower.startsWith("cerise 20") ||
-    lower.startsWith("indigo (qld only)") ||
-    lower.startsWith("iris") ||
+    lower.startsWith("emerald 28") ||
     lower.startsWith("lime") ||
     lower.startsWith("mint") ||
     lower.startsWith("terracotta 23") ||
@@ -43,9 +56,15 @@ export function isSingleGarageDesign(designName?: string, housingType?: string):
     lower.startsWith("ruby 21") ||
     lower.startsWith("ruby 23") ||
     lower.startsWith("ruby 28") ||
-    lower.startsWith("orchid") ||
-    lower.startsWith("robin")
-  );
+    lower.startsWith("orchid 23") ||
+    lower.startsWith("orchid 25") ||
+    lower.startsWith("robin 5") ||
+    lower.startsWith("robin 8")
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -74,7 +93,7 @@ function resolveWithPreRendered(item: FacadeItem | undefined): FacadeItem | unde
  * Strictly differentiates:
  * 1. Duplex / Dual Living (Cayenne, Maize, Magnolia, Raven, Teal, Alabaster, Wisteria)
  * 2. Acreage / Mulberry
- * 3. Split Level
+ * 3. Split Level (Cobalt side split vs Cinnamon/Mauve/Maroon front/rear double storey elevation)
  * 4. Narrow Double Storey (Carolinas, Turquoise, Sabel/Sable)
  * 5. Standard Double Storey (Burgundy, Jasper, Sapphire, Emerald, Diamond, Onyx, Ruby, Aston, Opal, Topaz, etc.)
  * 6. Single Storey
@@ -91,9 +110,9 @@ export function findFacadeForDesign(
 
   const rawKey = facadeNameOrId.trim().toLowerCase();
   const baseKey = normalizeFacadeKey(facadeNameOrId);
-  // Cinnamon and Mauve are split-level designs that have a normal double storey facade from the front.
+  // Cinnamon, Mauve, and Maroon are split-level designs that have a normal double storey facade from the front.
   // Treat them as standard Double Storey for all facade lookups (e.g. Classic -> classic-double-garage, NOT cobalt).
-  const isDoubleFrontSplit = Boolean(designName && /cinnamon|mauve/i.test(designName));
+  const isDoubleFrontSplit = Boolean(designName && /cinnamon|mauve|maroon/i.test(designName));
   const effectiveIsDouble = isDouble || isDoubleFrontSplit;
   const effectiveHousingType = isDoubleFrontSplit ? "Double Storey" : housingType;
   const isNarrowDouble = effectiveIsDouble && !isDoubleFrontSplit && isNarrowDoubleStorey(designName);
@@ -214,8 +233,20 @@ export function findFacadeForDesign(
     }
   }
 
-  // SPLIT LEVEL RESOLUTION (Cobalt facades) - Bypassed for Cinnamon and Mauve which use standard Double Storey facades
-  if (!isDoubleFrontSplit && (effectiveHousingType === "Split Level" || effectiveHousingType === "Split" || /cobalt|split/i.test(rawKey))) {
+  // SPLIT LEVEL RESOLUTION (Cobalt facades) - Bypassed for Cinnamon, Mauve, and Maroon which use standard Double Storey facades
+  const isCobalt = Boolean(designName && /cobalt/i.test(designName)) || /cobalt/i.test(rawKey);
+  if (isCobalt) {
+    const splitIdMap: Record<string, string> = {
+      classic: "classic-cobalt",
+      hamptons: "hamptons-cobalt",
+      hampton: "hamptons-cobalt",
+      infinity: "infinity-cobalt",
+      vogue: "vogue-cobalt",
+    };
+    const targetId = splitIdMap[baseKey] || "classic-cobalt";
+    const found = HUDSON_FACADES.find((f) => f.id === targetId);
+    if (found) return resolveWithPreRendered(found);
+  } else if (!isDoubleFrontSplit && (effectiveHousingType === "Split Level" || effectiveHousingType === "Split" || /cobalt|split/i.test(rawKey))) {
     const splitIdMap: Record<string, string> = {
       classic: "classic-cobalt",
       hamptons: "hamptons-cobalt",
@@ -253,6 +284,10 @@ export function findFacadeForDesign(
         const found = HUDSON_FACADES.find((f) => f.id === narrowDoubleIdMap[baseKey]);
         if (found) return resolveWithPreRendered(found);
       }
+
+      // Fallback for Narrow Double Storey: ALWAYS fall back to classic-narrow-dg, NEVER wide double garage
+      const defaultNarrow = HUDSON_FACADES.find((f) => f.id === "classic-narrow-dg");
+      if (defaultNarrow) return resolveWithPreRendered(defaultNarrow);
     } else {
       // === STANDARD DOUBLE STOREY (Burgundy, Jasper, Sapphire, Emerald, Diamond, Onyx, Ruby, Aston, Opal, Topaz, etc.) ===
       const isSingleGarage = isSingleGarageDesign(designName, housingType);

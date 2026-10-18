@@ -321,7 +321,7 @@ export function facadePriceForDesign(
     return table[base] ?? FACADE_PRICES.acreage[base] ?? facadePriceFor(name, "acreage");
   }
 
-  if (family === "cinnamon") {
+  if (family === "cinnamon" || family === "mauve" || family === "maroon") {
     return facadePriceFor(name, "double");
   }
 
@@ -367,16 +367,29 @@ export function facadeGarage(item: { id?: string; name: string; url?: string; ra
 export function isSingleGarageDesign(designName?: string, housingType?: string): boolean {
   if (!designName && !housingType) return false;
   const lower = `${designName || ""} ${housingType || ""}`.toLowerCase().trim();
-  return (
+  if (
     lower.includes("(s/g)") ||
     lower.includes("s/g") ||
     lower.includes("single garage") ||
-    lower.includes("single-garage") ||
+    lower.includes("single-garage")
+  ) {
+    return true;
+  }
+
+  // Single storey families that are strictly single garage
+  if (
     lower.startsWith("hazel") ||
     lower.startsWith("canary") ||
+    lower.startsWith("indigo") ||
+    lower.startsWith("iris")
+  ) {
+    return true;
+  }
+
+  // Double storey specific single garage models
+  if (
     lower.startsWith("cerise 20") ||
-    lower.startsWith("indigo (qld only)") ||
-    lower.startsWith("iris") ||
+    lower.startsWith("emerald 28") ||
     lower.startsWith("lime") ||
     lower.startsWith("mint") ||
     lower.startsWith("terracotta 23") ||
@@ -384,9 +397,15 @@ export function isSingleGarageDesign(designName?: string, housingType?: string):
     lower.startsWith("ruby 21") ||
     lower.startsWith("ruby 23") ||
     lower.startsWith("ruby 28") ||
-    lower.startsWith("orchid") ||
-    lower.startsWith("robin")
-  );
+    lower.startsWith("orchid 23") ||
+    lower.startsWith("orchid 25") ||
+    lower.startsWith("robin 5") ||
+    lower.startsWith("robin 8")
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /** How many garage spaces a floorplan's car count implies (2+ car = double). */

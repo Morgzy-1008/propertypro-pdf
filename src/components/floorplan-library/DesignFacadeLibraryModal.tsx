@@ -106,7 +106,7 @@ export function DesignFacadeLibraryModal({
     const isDouble =
       effectiveHousingType === "Double Storey" ||
       effectiveHousingType === "double" ||
-      Boolean(effectiveDesign && /cinnamon|mauve/i.test(effectiveDesign));
+      Boolean(effectiveDesign && /cinnamon|mauve|maroon/i.test(effectiveDesign));
 
     const suitable = getFacadesForDesignAndHousingType(effectiveDesign, effectiveHousingType, division);
 
