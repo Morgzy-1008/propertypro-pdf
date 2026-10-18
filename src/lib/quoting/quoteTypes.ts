@@ -5,16 +5,22 @@ export type UnitType = "fixed" | "per_lm" | "per_m2" | "custom_qty" | "sqm" | "p
 export type HousingTypeFilter = "all" | "single" | "double" | "split" | "dual_living" | "granny_flat";
 
 export type CatalogueCategory =
+  | "extensions"
   | "floorplan_extensions"
+  | "ceiling_height"
   | "structural"
-  | "doors_windows"
-  | "external"
+  | "electrical"
+  | "colour_upgrades"
+  | "kitchen"
   | "internal_kitchen"
+  | "bathroom"
   | "internal_bathroom"
+  | "flooring"
+  | "external"
+  | "doors_windows"
   | "internal_bedrooms"
   | "internal_laundry"
   | "internal_general"
-  | "colour_upgrades"
   | "site_earthworks"
   | "council_statutory";
 

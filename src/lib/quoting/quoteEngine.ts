@@ -449,6 +449,18 @@ export function resolveItemCategory(item: { name: string; description?: string; 
   return item.category || "structural";
 }
 
+export function normalizeCategoryToSection(cat?: string): CatalogueCategory {
+  if (!cat) return "internal_general";
+  if (cat === "extensions" || cat === "floorplan_extensions") return "extensions";
+  if (cat === "ceiling_height" || cat === "structural") return "ceiling_height";
+  if (cat === "electrical" || cat === "colour_upgrades") return "electrical";
+  if (cat === "kitchen" || cat === "internal_kitchen") return "kitchen";
+  if (cat === "bathroom" || cat === "internal_bathroom") return "bathroom";
+  if (cat === "flooring" || cat === "internal_flooring") return "flooring";
+  if (cat === "external") return "external";
+  return cat as CatalogueCategory;
+}
+
 /**
  * Standard SQM Additional Rates as specified:
  * Single Storey:
@@ -1703,16 +1715,22 @@ export function calculateQuotePricing(
 
   // Group line items by category
   const categoryGroups: Record<CatalogueCategory, QuoteSelectedLineItem[]> = {
+    extensions: [],
     floorplan_extensions: [],
+    ceiling_height: [],
     structural: [],
-    doors_windows: [],
-    external: [],
+    electrical: [],
+    colour_upgrades: [],
+    kitchen: [],
     internal_kitchen: [],
+    bathroom: [],
     internal_bathroom: [],
+    flooring: [],
+    external: [],
+    doors_windows: [],
     internal_bedrooms: [],
     internal_laundry: [],
     internal_general: [],
-    colour_upgrades: [],
     site_earthworks: [],
     council_statutory: [],
   };
@@ -1726,7 +1744,8 @@ export function calculateQuotePricing(
     if (item.isClientSelectable && item.clientSelected === false) continue;
     // When modifiedAreas are managed via calculateModifiedFloorplanPricing, skip any legacy mod_area_* items in lineItems so they are never double-counted
     if (hasAuthoritativeModifiedAreas && item.id.startsWith("mod_area_")) continue;
-    const cat = resolveItemCategory(item);
+    const rawCat = resolveItemCategory(item);
+    const cat = normalizeCategoryToSection(rawCat);
     const effectiveRate = getItemRateForInclusion(item, design?.specTier);
     const qty = Number(item.quantity) || 1;
     const subtotal = Math.round(qty * effectiveRate);
@@ -1755,17 +1774,19 @@ export function calculateQuotePricing(
     for (const z of modCalc.zones) {
       if (z.deltaM2 !== 0 && z.costAdjustment !== 0) {
         const hasExisting =
-          categoryGroups.structural.some((it) => it.id === `mod_area_${z.key}`) ||
-          categoryGroups.floorplan_extensions.some((it) => it.id === `mod_area_${z.key}`);
+          categoryGroups.extensions.some((it) => it.id === `mod_area_${z.key}`) ||
+          categoryGroups.floorplan_extensions.some((it) => it.id === `mod_area_${z.key}`) ||
+          categoryGroups.ceiling_height.some((it) => it.id === `mod_area_${z.key}`) ||
+          categoryGroups.structural.some((it) => it.id === `mod_area_${z.key}`);
         if (!hasExisting) {
           const isReduction = z.deltaM2 < 0;
           const detailedDesc = isReduction
             ? `${z.label} Reduction (${z.deltaM2.toFixed(2)} m²)`
             : `${z.label} Extension (+${z.deltaM2.toFixed(2)} m²)`;
 
-          categoryGroups.structural.push({
+          categoryGroups.extensions.push({
             id: `mod_area_${z.key}`,
-            category: "structural",
+            category: "extensions",
             name: isReduction ? `${z.label} Reduction` : `${z.label} Extension`,
             description: detailedDesc,
             unitType: "fixed",
@@ -1787,16 +1808,17 @@ export function calculateQuotePricing(
   let variationsSubtotal = 0;
 
   const categoryOrder: CatalogueCategory[] = [
-    "floorplan_extensions",
-    "structural",
-    "doors_windows",
+    "extensions",
+    "ceiling_height",
+    "electrical",
+    "kitchen",
+    "bathroom",
+    "flooring",
     "external",
-    "internal_kitchen",
-    "internal_bathroom",
+    "doors_windows",
     "internal_bedrooms",
     "internal_laundry",
     "internal_general",
-    "colour_upgrades",
     "site_earthworks",
     "council_statutory",
   ];

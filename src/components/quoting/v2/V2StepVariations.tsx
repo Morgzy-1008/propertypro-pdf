@@ -82,7 +82,7 @@ export const VARIATION_SECTIONS: VariationSectionDef[] = [
   },
   {
     id: "ceiling_height",
-    label: "Ceiling Height & Structural",
+    label: "Ceiling Height",
     icon: "🏛️",
     subtitle: "Ground & upper floor ceilings, raked roofs & architectural square set",
   },
@@ -94,19 +94,19 @@ export const VARIATION_SECTIONS: VariationSectionDef[] = [
   },
   {
     id: "kitchen",
-    label: "Kitchen & Joinery",
+    label: "Kitchen",
     icon: "🍳",
     subtitle: "40mm stone waterfall ends, undermount sink & butler's pantry",
   },
   {
     id: "bathroom",
-    label: "Bathrooms & Wet Areas",
+    label: "Bathrooms",
     icon: "🚿",
     subtitle: "Floor to ceiling tiles, frameless screens & recessed soap niche",
   },
   {
     id: "flooring",
-    label: "Flooring & Internal Finishes",
+    label: "Flooring",
     icon: "🧱",
     subtitle: "600x600 porcelain tiling, hybrid timber planks & carpet underlay",
   },
@@ -156,7 +156,7 @@ export function V2StepVariations({
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
   const [customDescription, setCustomDescription] = useState("");
-  const [customCategory, setCustomCategory] = useState("internal_general");
+  const [customCategory, setCustomCategory] = useState<string>("extensions");
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
 
   // Top Search Dropdown State & Refs
@@ -834,13 +834,40 @@ export function V2StepVariations({
     onChange(lineItems.filter((it) => it.id !== id));
   };
 
+  // Helper to resolve user-friendly category badge for search results
+  const resolveCategoryPill = (cat?: string) => {
+    const c = (cat || "").toLowerCase();
+    if (c.includes("extension")) {
+      return { label: "Extensions", icon: "📐", color: "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800" };
+    }
+    if (c.includes("ceiling") || c.includes("structural")) {
+      return { label: "Ceiling Height", icon: "🏛️", color: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800" };
+    }
+    if (c.includes("elect") || c.includes("colour") || c.includes("aircon") || c.includes("hvac")) {
+      return { label: "Electrical", icon: "⚡", color: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800" };
+    }
+    if (c.includes("kitchen")) {
+      return { label: "Kitchen", icon: "🍳", color: "bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border-orange-200 dark:border-orange-800" };
+    }
+    if (c.includes("bath")) {
+      return { label: "Bathrooms", icon: "🚿", color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800" };
+    }
+    if (c.includes("floor") || c.includes("carpet") || c.includes("tile")) {
+      return { label: "Flooring", icon: "🧱", color: "bg-stone-100 text-stone-800 dark:bg-stone-900 dark:text-stone-300 border-stone-200 dark:border-stone-700" };
+    }
+    if (c.includes("ext") || c.includes("land") || c.includes("driveway")) {
+      return { label: "External", icon: "🌿", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800" };
+    }
+    return { label: "Variation", icon: "⭐", color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700" };
+  };
+
   // Search variations & catalogue filtered (instant 1-char search + pre-filled on focus)
   const searchResults = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
     // 1. If empty query, pre-fill top catalogue/popular options for instant selection
     if (!query) {
-      return POPULAR_VARIATIONS.filter(isItemVisibleForDesign).slice(0, 8).map((p) => {
+      return POPULAR_VARIATIONS.filter(isItemVisibleForDesign).slice(0, 10).map((p) => {
         const cal = getCalibratedPreset(p);
         return {
           id: cal.id,
@@ -861,7 +888,8 @@ export function V2StepVariations({
         isItemVisibleForDesign(p) &&
         (p.name.toLowerCase().includes(query) ||
           p.description.toLowerCase().includes(query) ||
-          p.group.toLowerCase().includes(query))
+          p.group.toLowerCase().includes(query) ||
+          p.category.toLowerCase().includes(query))
     ).map((p) => {
       const cal = getCalibratedPreset(p);
       return {
@@ -906,7 +934,7 @@ export function V2StepVariations({
       }
     }
 
-    return combined.slice(0, 12);
+    return combined.slice(0, 16);
   }, [searchQuery, isDouble, isH3, tierRates]);
 
   const getSearchDraftQty = (item: (typeof searchResults)[0]): number => {
@@ -1050,8 +1078,8 @@ export function V2StepVariations({
 
         {/* Header Controls: Variation Search Bar + Custom Variation Button + Live Variations Total */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 self-start sm:self-center">
-          {/* Variation Search Bar */}
-          <div className="relative w-64 sm:w-72 md:w-80" ref={searchContainerRef}>
+          {/* Variation Search Bar - Wide, Accessible & Easy to Read */}
+          <div className="relative w-full sm:w-80 md:w-96 lg:w-[480px] xl:w-[540px]" ref={searchContainerRef}>
             <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
             <Input
               ref={searchInputRef}
@@ -1085,49 +1113,76 @@ export function V2StepVariations({
               </button>
             )}
 
-            {/* Floating Dropdown Results */}
+            {/* Floating Dropdown Results - Wide, highly readable & easy to select */}
             {isSearchOpen && searchResults.length > 0 && (
               <div
-                className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-96 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                className={`absolute right-0 top-full mt-2 z-50 w-[92vw] sm:w-[640px] md:w-[760px] lg:w-[840px] max-w-[calc(100vw-24px)] max-h-[520px] overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl divide-y ${
                   isLight
-                    ? "bg-white/98 border-slate-200 text-slate-900 divide-y divide-slate-100 shadow-slate-900/10"
-                    : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80 shadow-black/50"
+                    ? "bg-white/98 border-slate-200 text-slate-900 divide-slate-100 shadow-slate-900/15"
+                    : "bg-slate-950/98 border-slate-800 text-white divide-slate-800/80 shadow-black/60"
                 }`}
               >
+                {/* Dropdown Header */}
+                <div
+                  className={`p-3 px-4 flex items-center justify-between text-xs sticky top-0 z-10 backdrop-blur-md border-b ${
+                    isLight ? "bg-slate-50/95 border-slate-200 text-slate-600" : "bg-slate-900/95 border-slate-800 text-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Search className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="font-bold">
+                      {searchQuery ? `Matching Variations for "${searchQuery}"` : "Popular Upgrades & Catalogue"}
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/30">
+                      {searchResults.length} results
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 hidden sm:inline font-mono">ESC to close</span>
+                </div>
+
                 {searchResults.map((item) => {
                   const isAlreadyAdded = lineItems.some(
                     (it) => (it.catalogueItemId === item.id || it.id === item.id) && it.isIncluded
                   );
                   const draftQty = getSearchDraftQty(item);
                   const calcTotal = Math.round(draftQty * item.unitRate);
+                  const catMeta = resolveCategoryPill(item.category || (item.preset?.group));
 
                   return (
                     <div
                       key={item.id}
-                      className={`p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-colors ${
-                        isLight ? "hover:bg-slate-50" : "hover:bg-slate-900/80"
+                      className={`p-3.5 sm:px-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-colors border-b last:border-b-0 ${
+                        isLight ? "border-slate-100 hover:bg-slate-50/80" : "border-slate-800/80 hover:bg-slate-900/70"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`font-bold text-xs sm:text-sm truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`font-bold text-sm leading-snug ${isLight ? "text-slate-900" : "text-white"}`}>
                             {item.name}
                           </span>
-                          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase">
-                            {item.unitType}
+                          <span className={`text-[10.5px] px-2 py-0.5 rounded-full font-bold border inline-flex items-center gap-1 ${catMeta.color}`}>
+                            <span>{catMeta.icon}</span>
+                            <span>{catMeta.label}</span>
+                          </span>
+                          <span className="text-[10.5px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono font-bold">
+                            {item.unitType === "sqm"
+                              ? `${formatAud(item.unitRate)}/m²`
+                              : item.unitType === "per_bath"
+                              ? `${formatAud(item.unitRate)}/bath`
+                              : formatAud(item.unitRate)}
                           </span>
                         </div>
                         {item.description && (
-                          <p className="text-[11px] text-slate-400 truncate mt-0.5 max-w-xs">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                             {item.description}
                           </p>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 flex-none self-end sm:self-center">
+                      <div className="flex items-center gap-2.5 flex-none self-end sm:self-center">
                         {/* Inline quantity / sqm controls */}
                         {item.unitType === "sqm" ? (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1">
                             <Input
                               type="number"
                               min="1"
@@ -1137,12 +1192,12 @@ export function V2StepVariations({
                                 const val = parseFloat(e.target.value) || 0;
                                 setSearchDraftQuantities((prev) => ({ ...prev, [item.id]: val }));
                               }}
-                              className="w-14 h-7 text-center font-mono font-bold text-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded-md px-1"
+                              className="w-14 h-7 text-center font-mono font-bold text-xs bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 rounded-md px-1"
                             />
-                            <span className="text-[10px] text-slate-400 font-semibold">m²</span>
+                            <span className="text-xs text-slate-500 font-bold">m²</span>
                           </div>
                         ) : item.unitType === "per_bath" ? (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1">
                             <Input
                               type="number"
                               min="1"
@@ -1152,12 +1207,12 @@ export function V2StepVariations({
                                 const val = parseInt(e.target.value, 10) || 0;
                                 setSearchDraftQuantities((prev) => ({ ...prev, [item.id]: val }));
                               }}
-                              className="w-12 h-7 text-center font-mono font-bold text-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded-md px-1"
+                              className="w-12 h-7 text-center font-mono font-bold text-xs bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 rounded-md px-1"
                             />
-                            <span className="text-[10px] text-slate-400 font-semibold">baths</span>
+                            <span className="text-xs text-slate-500 font-bold">baths</span>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1">
                             <Input
                               type="number"
                               min="1"
@@ -1167,13 +1222,13 @@ export function V2StepVariations({
                                 const val = parseInt(e.target.value, 10) || 0;
                                 setSearchDraftQuantities((prev) => ({ ...prev, [item.id]: val }));
                               }}
-                              className="w-12 h-7 text-center font-mono font-bold text-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded-md px-1"
+                              className="w-12 h-7 text-center font-mono font-bold text-xs bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 rounded-md px-1"
                             />
-                            <span className="text-[10px] text-slate-400 font-semibold">qty</span>
+                            <span className="text-xs text-slate-500 font-bold">qty</span>
                           </div>
                         )}
 
-                        <span className="font-mono font-bold text-xs text-emerald-500 w-16 text-right">
+                        <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400 w-20 text-right">
                           {calcTotal < 0
                             ? `-${formatAud(Math.abs(calcTotal))}`
                             : calcTotal === 0
@@ -1186,19 +1241,19 @@ export function V2StepVariations({
                           size="sm"
                           variant={isAlreadyAdded ? "secondary" : "default"}
                           onClick={() => handleAddOrUpdateFromSearch(item, draftQty)}
-                          className={`h-7 px-2.5 text-xs font-bold rounded-lg gap-1 cursor-pointer ${
+                          className={`h-8 px-3.5 text-xs font-bold rounded-lg gap-1.5 cursor-pointer ${
                             isAlreadyAdded
-                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                              : "bg-emerald-500 hover:bg-emerald-400 text-slate-950"
+                              ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30"
+                              : "bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold"
                           }`}
                         >
                           {isAlreadyAdded ? (
                             <>
-                              <Check className="h-3 w-3 text-emerald-400" /> Added
+                              <Check className="h-3.5 w-3.5 text-emerald-500" /> Added
                             </>
                           ) : (
                             <>
-                              <Plus className="h-3 w-3" /> Add
+                              <Plus className="h-3.5 w-3.5" /> Add
                             </>
                           )}
                         </Button>
@@ -1206,27 +1261,61 @@ export function V2StepVariations({
                     </div>
                   );
                 })}
+
+                {/* Dropdown Footer: Quick Custom Variation Shortcut */}
+                <div
+                  className={`p-3 px-4 flex items-center justify-between text-xs sticky bottom-0 z-10 backdrop-blur-md border-t ${
+                    isLight ? "bg-slate-50/95 border-slate-200 text-slate-600" : "bg-slate-900/95 border-slate-800 text-slate-300"
+                  }`}
+                >
+                  <span className="text-slate-500">Need something bespoke not listed above?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomName(searchQuery);
+                      if (selectedCategory !== "all") {
+                        setCustomCategory(selectedCategory);
+                      }
+                      setIsCustomDialogOpen(true);
+                      setIsSearchOpen(false);
+                    }}
+                    className="text-emerald-500 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> + Custom Variation
+                  </button>
+                </div>
               </div>
             )}
 
             {isSearchOpen && searchQuery.trim().length >= 1 && searchResults.length === 0 && (
               <div
-                className={`absolute left-0 right-0 top-full mt-2 z-50 p-4 rounded-2xl border text-center text-xs shadow-2xl backdrop-blur-xl ${
-                  isLight ? "bg-white border-slate-200 text-slate-500" : "bg-slate-950 border-slate-800 text-slate-400"
+                className={`absolute right-0 top-full mt-2 z-50 w-[92vw] sm:w-[540px] max-w-[calc(100vw-24px)] p-6 rounded-2xl border text-center text-xs shadow-2xl backdrop-blur-xl ${
+                  isLight ? "bg-white border-slate-200 text-slate-600 shadow-slate-900/15" : "bg-slate-950 border-slate-800 text-slate-300 shadow-black/60"
                 }`}
               >
-                No matching variations found for "{searchQuery}".
-                <button
+                <div className="flex justify-center mb-2">
+                  <Search className="h-8 w-8 text-slate-400 stroke-1" />
+                </div>
+                <div className="font-bold text-sm text-slate-900 dark:text-white">
+                  No catalog items found for "{searchQuery}"
+                </div>
+                <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                  Add this scope of work directly as a custom client variation to this quote.
+                </p>
+                <Button
                   type="button"
                   onClick={() => {
                     setCustomName(searchQuery);
+                    if (selectedCategory !== "all") {
+                      setCustomCategory(selectedCategory);
+                    }
                     setIsCustomDialogOpen(true);
                     setIsSearchOpen(false);
                   }}
-                  className="block mx-auto mt-2 text-emerald-500 font-bold hover:underline cursor-pointer"
+                  className="mt-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs h-9 px-4 rounded-xl gap-1.5 cursor-pointer mx-auto"
                 >
-                  + Add "{searchQuery}" as Custom Variation
-                </button>
+                  <Plus className="h-4 w-4" /> Add "{searchQuery}" as Custom Variation
+                </Button>
               </div>
             )}
           </div>
@@ -1239,6 +1328,9 @@ export function V2StepVariations({
             size="sm"
             onClick={() => {
               setIsSearchOpen(false);
+              if (selectedCategory !== "all") {
+                setCustomCategory(selectedCategory);
+              }
               setIsCustomDialogOpen(true);
             }}
             className={`text-xs gap-1.5 font-bold h-11 px-3.5 rounded-xl cursor-pointer ${
@@ -2229,20 +2321,22 @@ export function V2StepVariations({
                   Category
                 </Label>
                 <select
+                  data-testid="custom-variation-category-select"
                   value={customCategory}
                   onChange={(e) => setCustomCategory(e.target.value)}
-                  className={`w-full text-xs h-11 rounded-xl px-3 font-semibold border ${
+                  className={`w-full text-xs sm:text-sm h-11 rounded-xl px-3 font-semibold border ${
                     isLight
                       ? "bg-slate-50 border-slate-300 text-slate-900"
                       : "bg-slate-900 border-slate-700 text-white"
                   }`}
                 >
-                  <option value="internal_general">General Variation</option>
-                  <option value="colour_upgrades">Electrical / Lighting</option>
-                  <option value="internal_kitchen">Kitchen &amp; Joinery</option>
-                  <option value="internal_bathroom">Bathroom &amp; Wet Areas</option>
-                  <option value="structural">Structural / Framing</option>
-                  <option value="external">External / Concrete</option>
+                  <option value="extensions">📐 Extensions</option>
+                  <option value="ceiling_height">🏛️ Ceiling Height</option>
+                  <option value="electrical">⚡ Electrical</option>
+                  <option value="kitchen">🍳 Kitchen</option>
+                  <option value="bathroom">🚿 Bathrooms</option>
+                  <option value="flooring">🧱 Flooring</option>
+                  <option value="external">🌿 External</option>
                 </select>
               </div>
             </div>

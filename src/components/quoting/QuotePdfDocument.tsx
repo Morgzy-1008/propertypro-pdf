@@ -38,6 +38,8 @@ import {
   PackageCheck,
   MapPin,
   Maximize2,
+  Zap,
+  Droplets,
 } from "lucide-react";
 import { PaymentQrCode } from "./PaymentQrCode";
 import { QrCode } from "@/components/flyer/QrCode";
@@ -57,16 +59,25 @@ function getCategoryIcon(label: string) {
     return <Mountain className="h-3.5 w-3.5 text-teal-700 flex-none" />;
   }
   if (l.includes("kitchen")) {
-    return <Sparkles className="h-3.5 w-3.5 text-amber-700 flex-none" />;
+    return <Sparkles className="h-3.5 w-3.5 text-orange-700 flex-none" />;
   }
   if (l.includes("bathroom") || l.includes("ensuite")) {
-    return <Waves className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+    return <Droplets className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
   }
   if (l.includes("floorplan") || l.includes("extension")) {
     return <Maximize2 className="h-3.5 w-3.5 text-violet-700 flex-none" />;
   }
-  if (l.includes("door") || l.includes("window") || l.includes("ceiling")) {
-    return <Home className="h-3.5 w-3.5 text-slate-700 flex-none" />;
+  if (l.includes("ceiling") || l.includes("structural")) {
+    return <Layers className="h-3.5 w-3.5 text-slate-700 flex-none" />;
+  }
+  if (l.includes("electrical") || l.includes("air conditioning")) {
+    return <Zap className="h-3.5 w-3.5 text-amber-700 flex-none" />;
+  }
+  if (l.includes("flooring")) {
+    return <Layers className="h-3.5 w-3.5 text-stone-700 flex-none" />;
+  }
+  if (l.includes("landscape") || l.includes("turnkey") || l.includes("driveway") || l.includes("external")) {
+    return <Home className="h-3.5 w-3.5 text-emerald-700 flex-none" />;
   }
   return <PackageCheck className="h-3.5 w-3.5 text-[#0099d8] flex-none" />;
 }
@@ -123,7 +134,7 @@ function getCategoryTheme(label: string) {
       icon: Maximize2,
     };
   }
-  if (l.includes("landscape") || l.includes("turnkey") || l.includes("driveway") || l.includes("paving")) {
+  if (l.includes("landscape") || l.includes("turnkey") || l.includes("driveway") || l.includes("paving") || l.includes("external")) {
     return {
       barBg: "bg-gradient-to-r from-emerald-50/90 via-emerald-50/50 to-white",
       borderColor: "border-emerald-500",
@@ -133,23 +144,63 @@ function getCategoryTheme(label: string) {
       icon: Home,
     };
   }
-  if (l.includes("kitchen") || l.includes("bathroom") || l.includes("upgrade") || l.includes("variation") || l.includes("spec")) {
+  if (l.includes("ceiling") || l.includes("structural")) {
+    return {
+      barBg: "bg-gradient-to-r from-slate-100/90 via-slate-50/50 to-white",
+      borderColor: "border-slate-500",
+      textColor: "text-slate-950",
+      iconColor: "text-slate-700",
+      pillBg: "bg-slate-200 text-slate-900 border-slate-300",
+      icon: Layers,
+    };
+  }
+  if (l.includes("electrical") || l.includes("air conditioning")) {
     return {
       barBg: "bg-gradient-to-r from-amber-50/90 via-amber-50/50 to-white",
       borderColor: "border-amber-500",
       textColor: "text-amber-950",
       iconColor: "text-amber-600",
       pillBg: "bg-amber-100 text-amber-900 border-amber-300",
+      icon: Zap,
+    };
+  }
+  if (l.includes("kitchen")) {
+    return {
+      barBg: "bg-gradient-to-r from-orange-50/90 via-orange-50/50 to-white",
+      borderColor: "border-orange-500",
+      textColor: "text-orange-950",
+      iconColor: "text-orange-600",
+      pillBg: "bg-orange-100 text-orange-900 border-orange-300",
       icon: Sparkles,
     };
   }
+  if (l.includes("bathroom") || l.includes("ensuite")) {
+    return {
+      barBg: "bg-gradient-to-r from-cyan-50/90 via-cyan-50/50 to-white",
+      borderColor: "border-cyan-500",
+      textColor: "text-cyan-950",
+      iconColor: "text-cyan-600",
+      pillBg: "bg-cyan-100 text-cyan-900 border-cyan-300",
+      icon: Droplets,
+    };
+  }
+  if (l.includes("flooring")) {
+    return {
+      barBg: "bg-gradient-to-r from-stone-100/90 via-stone-50/50 to-white",
+      borderColor: "border-stone-500",
+      textColor: "text-stone-950",
+      iconColor: "text-stone-700",
+      pillBg: "bg-stone-200 text-stone-900 border-stone-300",
+      icon: Layers,
+    };
+  }
   return {
-    barBg: "bg-gradient-to-r from-slate-50 via-slate-50/50 to-white",
-    borderColor: "border-[#0099d8]",
-    textColor: "text-slate-950",
-    iconColor: "text-[#0099d8]",
-    pillBg: "bg-slate-100 text-slate-900 border-slate-300",
-    icon: PackageCheck,
+    barBg: "bg-gradient-to-r from-amber-50/90 via-amber-50/50 to-white",
+    borderColor: "border-amber-500",
+    textColor: "text-amber-950",
+    iconColor: "text-amber-600",
+    pillBg: "bg-amber-100 text-amber-900 border-amber-300",
+    icon: Sparkles,
   };
 }
 import type { FullQuote, SecondDwellingSelection } from "@/lib/quoting/quoteTypes";
