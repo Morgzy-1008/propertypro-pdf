@@ -33,7 +33,7 @@ import { deduplicateWallSegments } from "./wallNetworkEngine";
 import { resolveLocalFloorplanUrl } from "@/components/flyer/floorplans";
 import { scoreFloorplanPage } from "@/lib/pdfPages";
 
-const CACHE_VERSION = "v15_multilevel_3d_universal";
+const CACHE_VERSION = "v17_exact_architectural_vectorizer";
 const MEMORY_CACHE = new Map<string, VectorizedFloorplanPatch>();
 const IDB_NAME = "hudson_studio3d_vectorizer_cache";
 const IDB_STORE = "vectorized_plans";
@@ -966,9 +966,9 @@ async function runCanvasFloorplanVectorizer(
           if (w >= minExtPx && w <= maxExtPx) {
             vExtSlices.push({ xM, zM });
           } else if (w >= minIntPx && w <= maxIntPx) {
-            const leftWhite = Math.max(getLum(runStart - 3, py), getLum(runStart - 6, py)) > 175;
-            const rightWhite = Math.max(getLum(px + 2, py), getLum(px + 5, py)) > 175;
-            if (leftWhite && rightWhite) {
+            const leftWhite = Math.max(getLum(runStart - 3, py), getLum(runStart - 6, py)) > 150;
+            const rightWhite = Math.max(getLum(px + 2, py), getLum(px + 5, py)) > 150;
+            if (leftWhite || rightWhite) {
               vIntSlices.push({ xM, zM });
             }
           }
@@ -995,9 +995,9 @@ async function runCanvasFloorplanVectorizer(
           if (h >= minExtPx && h <= maxExtPx) {
             hExtSlices.push({ xM, zM });
           } else if (h >= minIntPx && h <= maxIntPx) {
-            const topWhite = Math.max(getLum(px, runStart - 3), getLum(px, runStart - 6)) > 175;
-            const botWhite = Math.max(getLum(px, py + 2), getLum(px, py + 5)) > 175;
-            if (topWhite && botWhite) {
+            const topWhite = Math.max(getLum(px, runStart - 3), getLum(px, runStart - 6)) > 150;
+            const botWhite = Math.max(getLum(px, py + 2), getLum(px, py + 5)) > 150;
+            if (topWhite || botWhite) {
               hIntSlices.push({ xM, zM });
             }
           }
@@ -1498,10 +1498,10 @@ async function runCanvasFloorplanVectorizer(
     if (solidWallCount > leafTot * 0.15) return null;
     if (leafHits / leafTot < 0.78 || leafThin / leafTot < 0.72) return null;
 
-    if (!hasSolidWallNear(x, y, 12)) return null;
+    if (!hasSolidWallNear(x, y, 16)) return null;
     const cX = leafAxis === "v" ? x + dirSwing * rPxSwing : x;
     const cY = leafAxis === "v" ? y : y + dirSwing * rPxSwing;
-    if (!hasSolidWallNear(cX, cY, 16)) return null;
+    if (!hasSolidWallNear(cX, cY, 32)) return null;
 
     let gapDark = 0,
       gapTot = 0;
@@ -1520,7 +1520,8 @@ async function runCanvasFloorplanVectorizer(
       }
       if (sliceDark) gapDark++;
     }
-    if (gapDark / gapTot > 0.32) return null;
+    // Allow up to 55% dark in the doorway gap for text labels (e.g. Bed 1, Linen, 3.0x3.0)
+    if (gapDark / gapTot > 0.55) return null;
 
     let arcHits = 0,
       arcFlankWhite = 0,
@@ -1531,7 +1532,7 @@ async function runCanvasFloorplanVectorizer(
       const cosA = Math.cos(rad),
         sinA = Math.sin(rad);
       let hit = false;
-      for (let dr = -3; dr <= 3; dr++) {
+      for (let dr = -4; dr <= 4; dr++) {
         const ax = Math.round(
           x + (leafAxis === "v" ? dirSwing * (rPxSwing + dr) * cosA : dirLeaf * (rPxLeaf + dr) * sinA)
         );
@@ -1556,14 +1557,15 @@ async function runCanvasFloorplanVectorizer(
       const outY = Math.round(
         y + (leafAxis === "v" ? dirLeaf * (rPxLeaf + 9) * sinA : dirSwing * (rPxSwing + 9) * cosA)
       );
-      if (getLum(inX, inY) > 185 && getLum(outX, outY) > 185) arcFlankWhite++;
+      if (getLum(inX, inY) > 175 && getLum(outX, outY) > 175) arcFlankWhite++;
     }
     const arcRatio = arcHits / arcTot;
     const flankRatio = arcFlankWhite / arcTot;
-    if (arcRatio < 0.68 || flankRatio < 0.62) return null;
+    // Allow dashed or slightly faint arcs
+    if (arcRatio < 0.42) return null;
 
     const score = (leafHits / leafTot) * 0.4 + arcRatio * 0.4 + flankRatio * 0.2;
-    if (score < 0.91) return null;
+    if (score < 0.68) return null;
 
     const wallOrient: "horizontal" | "vertical" = leafAxis === "v" ? "horizontal" : "vertical";
     const hXM = +toMX(x).toFixed(2);
@@ -1801,7 +1803,18 @@ async function runCanvasFloorplanVectorizer(
             Math.hypot(op.position[0] - pos2D[0], op.position[1] - pos2D[1]) <
               Math.max(0.65, (next.start - cur.end) * 0.65)
         );
-        if (hasOpeningInGap || next.start - cur.end <= 0.15) {
+        const gapLen = next.start - cur.end;
+        if (!isExterior && !hasOpeningInGap && gapLen >= 0.68 && gapLen <= 1.20) {
+          rawOpenings.push({
+            id: `d_gap_${orientation[0]}_${tr.coord.toFixed(2)}_${gapMid.toFixed(2)}`,
+            type: "door",
+            position: pos2D,
+            wallOrientation: orientation,
+            width: +gapLen.toFixed(2),
+            isExterior: false,
+          });
+          cur.end = next.end;
+        } else if (hasOpeningInGap || next.start - cur.end <= 0.15) {
           cur.end = next.end;
         } else {
           merged.push(cur);

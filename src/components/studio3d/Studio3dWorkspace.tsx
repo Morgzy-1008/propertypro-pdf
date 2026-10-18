@@ -1554,55 +1554,6 @@ export function Studio3dWorkspace() {
                         <Play className="h-3.5 w-3.5 fill-slate-950" />
                         <span>Import Standard Design to 3D Studio</span>
                       </button>
-
-                      {/* 1-Click Quick-Launch Multi-Level & Calibrated Presets */}
-                      <div className="pt-1 flex flex-col gap-1.5">
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-wider ${
-                            isLight ? "text-slate-500" : "text-slate-400"
-                          }`}
-                        >
-                          Quick-Launch Multi-Level & Calibrated Models:
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleSelectDesign("mauve-35-custom-james")
-                            }
-                            className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-extrabold flex items-center gap-1.5 cursor-pointer transition-all ${
-                              isLight
-                                ? "bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900"
-                                : "bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/40 text-amber-300"
-                            }`}
-                          >
-                            <Sparkles className="h-3 w-3 text-amber-500" />
-                            Custom Mauve 35 for James (3 Levels • 410.75 m²)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectDesign("mauve-35")}
-                            className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer transition-all ${
-                              isLight
-                                ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-700"
-                                : "bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-300"
-                            }`}
-                          >
-                            Mauve 35 (Split Level)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectDesign("amber-21")}
-                            className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold cursor-pointer transition-all ${
-                              isLight
-                                ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-700"
-                                : "bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-300"
-                            }`}
-                          >
-                            Amber 21 (Single)
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   </div>
 
