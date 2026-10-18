@@ -130,6 +130,15 @@ export const CATEGORY_TABS: { id: VariationCategoryFilter; label: string; icon: 
   { id: "custom", label: "Custom / Search", icon: "➕" },
 ];
 
+export interface CeilingLevel {
+  key: "entire_ground" | "ground_floor" | "first_floor" | "lower_ground";
+  label: string;
+  totalM2: number;
+  livingM2: number;
+  ancillaryM2: number;
+  componentsDesc: string;
+}
+
 interface V2StepVariationsProps {
   quote: FullQuote;
   lineItems: QuoteSelectedLineItem[];
@@ -193,6 +202,8 @@ export function V2StepVariations({
     if ((preset.id === "pop_h1_ducted_ac" || preset.id === "hvac_ducted_aircon") && isH3) return false;
     // Driveway is managed via dedicated card in External filter
     if (preset.id === "pop_driveway_sqm") return false;
+    // Ceiling heights are managed dynamically by level via the Ceiling Height Level Cards
+    if (preset.id.startsWith("pop_ceiling_")) return false;
     return true;
   };
 
@@ -371,73 +382,167 @@ export function V2StepVariations({
     return getStandardAreaBreakdown(quote.design.designName, quote.design.housingType, totalM2);
   }, [quote.design.designName, quote.design.housingType, totalM2]);
 
-  // Individual House Areas / Levels for per-zone Ceiling Height Upgrades
-  const ceilingZones = useMemo(() => {
-    const mod = quote.design.isModifiedFloorplan ? (quote.design.modifiedAreas || quote.design.areas || stdAreas) : (quote.design.areas || stdAreas);
+  // House Levels for per-level Ceiling Height Upgrades
+  // Single Storey -> "Entire Ground Floor"
+  // Double Storey -> "Ground Floor" & "First Floor"
+  // Tri-Level Split (Cinnamon, Mauve, Split Level) -> "Lower Ground Floor", "Ground Floor" & "First Floor"
+  const ceilingLevels = useMemo<CeilingLevel[]>(() => {
+    const mod = quote.design.isModifiedFloorplan
+      ? (quote.design.modifiedAreas || quote.design.areas || stdAreas)
+      : (quote.design.areas || stdAreas);
+
     const housingType = quote.design.housingType || "Single Storey";
-    const isSplit = housingType === "Split Level" || Boolean(quote.design.designName && /mauve|split/i.test(quote.design.designName));
-    const hasLower = Boolean((mod as any)?.lowerLivingM2 && Number((mod as any).lowerLivingM2) > 0) || Boolean(stdAreas.lowerLivingM2 && stdAreas.lowerLivingM2 > 0);
-    const zonesList: { key: string; label: string; m2: number; isLiving: boolean }[] = [];
+    const isSplitLevel =
+      housingType === "Split Level" ||
+      Boolean(quote.design.designName && /cinnamon|mauve|cobalt|split/i.test(quote.design.designName)) ||
+      Boolean((mod as any)?.lowerLivingM2 && Number((mod as any).lowerLivingM2) > 0) ||
+      Boolean(stdAreas.lowerLivingM2 && stdAreas.lowerLivingM2 > 0);
 
-    if (isDouble || isSplit || hasLower) {
-      const lowerVal = Number((mod as any)?.lowerLivingM2 ?? stdAreas.lowerLivingM2 ?? 0);
-      if (lowerVal > 0) {
-        zonesList.push({ key: "lowerLiving", label: "Lower Ground Living", m2: lowerVal, isLiving: true });
-      }
-      const gfVal = Number(mod?.groundLivingM2 ?? stdAreas.groundLivingM2 ?? 0);
-      if (gfVal > 0) {
-        zonesList.push({ key: "groundLiving", label: "Ground Floor Living", m2: gfVal, isLiving: true });
-      }
-      const ffVal = Number(mod?.firstLivingM2 ?? stdAreas.firstLivingM2 ?? 0);
-      if (ffVal > 0) {
-        zonesList.push({
-          key: "firstLiving",
-          label: isSplit || hasLower ? "Upper Level Living" : "First Floor Living",
-          m2: ffVal,
-          isLiving: true,
-        });
-      }
-    } else {
-      const livVal = Number(mod?.livingM2 ?? mod?.groundLivingM2 ?? stdAreas.livingM2 ?? stdAreas.groundLivingM2 ?? 0);
-      if (livVal > 0) {
-        zonesList.push({ key: "living", label: "Ground Floor Living", m2: livVal, isLiving: true });
-      }
-    }
+    const lowerLiving = Number((mod as any)?.lowerLivingM2 ?? stdAreas.lowerLivingM2 ?? 0);
+    const groundLiving = Number(mod?.groundLivingM2 ?? (mod as any)?.livingM2 ?? stdAreas.groundLivingM2 ?? stdAreas.livingM2 ?? 0);
+    const firstLiving = Number(mod?.firstLivingM2 ?? stdAreas.firstLivingM2 ?? 0);
+    const garage = Number(mod?.garageM2 ?? stdAreas.garageM2 ?? 0);
+    const porch = Number(mod?.porchM2 ?? stdAreas.porchM2 ?? 0);
+    const alfresco = Number(mod?.alfrescoM2 ?? stdAreas.alfrescoM2 ?? 0);
+    const balcony = Number(
+      (mod as any)?.balconyM2 ??
+      quote.design.modifiedAreas?.balconyM2 ??
+      quote.design.areas?.balconyM2 ??
+      (stdAreas as any)?.balconyM2 ??
+      0
+    );
 
-    const garVal = Number(mod?.garageM2 ?? stdAreas.garageM2 ?? 0);
-    if (garVal > 0) {
-      zonesList.push({ key: "garage", label: "Garage", m2: garVal, isLiving: false });
-    }
-    const alfVal = Number(mod?.alfrescoM2 ?? stdAreas.alfrescoM2 ?? 0);
-    if (alfVal > 0) {
-      zonesList.push({ key: "alfresco", label: "Alfresco", m2: alfVal, isLiving: false });
-    }
-    const porVal = Number(mod?.porchM2 ?? stdAreas.porchM2 ?? 0);
-    if (porVal > 0) {
-      zonesList.push({ key: "porch", label: "Porch", m2: porVal, isLiving: false });
-    }
-    const balVal = Number((mod as any)?.balconyM2 ?? (stdAreas as any)?.balconyM2 ?? 0);
-    if (balVal > 0) {
-      zonesList.push({ key: "balcony", label: "Balcony", m2: balVal, isLiving: false });
-    }
-
+    // Any custom areas added in modified floorplans
     const customList = (mod as any)?.customAreas || (quote.design.modifiedAreas as any)?.customAreas || [];
+    let customLowerM2 = 0;
+    let customFirstM2 = 0;
+    let customGroundM2 = 0;
+
     if (Array.isArray(customList)) {
       for (const ca of customList) {
         const caM2 = Number(ca.m2) || 0;
-        if (caM2 > 0) {
-          zonesList.push({
-            key: `custom_${ca.id || ca.name}`,
-            label: ca.name || "Custom Area",
-            m2: caM2,
-            isLiving: false,
-          });
+        if (caM2 <= 0) continue;
+        const name = (ca.name || "").toLowerCase();
+        if (name.includes("lower") || name.includes("basement")) {
+          customLowerM2 += caM2;
+        } else if (name.includes("upper") || name.includes("first") || name.includes("balcony")) {
+          customFirstM2 += caM2;
+        } else {
+          customGroundM2 += caM2;
         }
       }
     }
 
-    return zonesList;
-  }, [quote.design, stdAreas, isDouble]);
+    // 1. TRI-LEVEL SPLIT (e.g. Cinnamon, Mauve, Split Level)
+    if (isSplitLevel) {
+      const levels: CeilingLevel[] = [];
+
+      // Level 1: Lower Ground Floor (Porch + Garage + Lower Ground Living)
+      const lowerTotM2 = Number((lowerLiving + garage + porch + customLowerM2).toFixed(2));
+      if (lowerTotM2 > 0) {
+        const comps: string[] = [];
+        if (lowerLiving > 0) comps.push("Lower Living");
+        if (garage > 0) comps.push("Garage");
+        if (porch > 0) comps.push("Porch");
+        if (customLowerM2 > 0) comps.push("Custom Area");
+        levels.push({
+          key: "lower_ground",
+          label: "Lower Ground Floor",
+          totalM2: lowerTotM2,
+          livingM2: lowerLiving,
+          ancillaryM2: Number((garage + porch + customLowerM2).toFixed(2)),
+          componentsDesc: comps.join(", ") || "Porch, Garage & Lower Living",
+        });
+      }
+
+      // Level 2: Ground Floor (Ground Floor Living + Alfresco)
+      const gfTotM2 = Number((groundLiving + alfresco + customGroundM2).toFixed(2));
+      if (gfTotM2 > 0) {
+        const comps: string[] = ["Ground Floor Living"];
+        if (alfresco > 0) comps.push("Alfresco");
+        if (customGroundM2 > 0) comps.push("Custom Area");
+        levels.push({
+          key: "ground_floor",
+          label: "Ground Floor",
+          totalM2: gfTotM2,
+          livingM2: groundLiving,
+          ancillaryM2: Number((alfresco + customGroundM2).toFixed(2)),
+          componentsDesc: comps.join(" & ") || "Ground Floor Living & Alfresco",
+        });
+      }
+
+      // Level 3: First Floor (First Floor Living + Balcony)
+      const ffTotM2 = Number((firstLiving + balcony + customFirstM2).toFixed(2));
+      if (ffTotM2 > 0) {
+        const comps: string[] = ["First Floor Living"];
+        if (balcony > 0) comps.push(`Balcony (${balcony.toFixed(2)} m²)`);
+        if (customFirstM2 > 0) comps.push("Custom Area");
+        levels.push({
+          key: "first_floor",
+          label: "First Floor",
+          totalM2: ffTotM2,
+          livingM2: firstLiving,
+          ancillaryM2: Number((balcony + customFirstM2).toFixed(2)),
+          componentsDesc: comps.join(" & ") || "First Floor Living & Balcony",
+        });
+      }
+
+      return levels;
+    }
+
+    // 2. DOUBLE STOREY (Two Levels: Ground Floor & First Floor)
+    if (isDouble) {
+      const gfTotM2 = Number((groundLiving + garage + porch + alfresco + customGroundM2).toFixed(2));
+      const ffTotM2 = Number((firstLiving + balcony + customFirstM2).toFixed(2));
+
+      const gfComps: string[] = ["Ground Living"];
+      if (garage > 0) gfComps.push("Garage");
+      if (porch > 0) gfComps.push("Porch");
+      if (alfresco > 0) gfComps.push("Alfresco");
+
+      const ffComps: string[] = ["First Floor Living"];
+      if (balcony > 0) ffComps.push(`Balcony (${balcony.toFixed(2)} m²)`);
+
+      return [
+        {
+          key: "ground_floor",
+          label: "Ground Floor",
+          totalM2: gfTotM2,
+          livingM2: groundLiving,
+          ancillaryM2: Number((garage + porch + alfresco + customGroundM2).toFixed(2)),
+          componentsDesc: gfComps.join(", ") || "Ground Living, Garage, Porch & Alfresco",
+        },
+        {
+          key: "first_floor",
+          label: "First Floor",
+          totalM2: ffTotM2,
+          livingM2: firstLiving,
+          ancillaryM2: Number((balcony + customFirstM2).toFixed(2)),
+          componentsDesc: ffComps.join(" & ") || "First Floor Living & Balcony",
+        },
+      ];
+    }
+
+    // 3. SINGLE STOREY (One Level: Entire Ground Floor)
+    const singleLiv = Number(mod?.livingM2 ?? mod?.groundLivingM2 ?? stdAreas.livingM2 ?? stdAreas.groundLivingM2 ?? 0);
+    const singleTotM2 = Number((singleLiv + garage + porch + alfresco + customGroundM2).toFixed(2)) || totalM2;
+
+    const comps: string[] = ["Living"];
+    if (garage > 0) comps.push("Garage");
+    if (porch > 0) comps.push("Porch");
+    if (alfresco > 0) comps.push("Alfresco");
+
+    return [
+      {
+        key: "entire_ground",
+        label: "Entire Ground Floor",
+        totalM2: singleTotM2,
+        livingM2: singleLiv,
+        ancillaryM2: Number((garage + porch + alfresco + customGroundM2).toFixed(2)),
+        componentsDesc: `${comps.join(", ")} (Entire Home)`,
+      },
+    ];
+  }, [quote.design, stdAreas, isDouble, totalM2]);
 
   // Ceiling height upgrade options per inclusion tier (rates in $/m²)
   // H1 (2,440mm baseline): 2,590mm ($51/m² living, $48/m² ancillary), 2,740mm ($76/m² living, $71/m² ancillary), 3,000mm ($104/m² living, $95/m² ancillary)
@@ -466,26 +571,43 @@ export function V2StepVariations({
     ];
   }, [tier, isH3]);
 
-  const handleSelectZoneCeilingHeight = (
-    zone: { key: string; label: string; m2: number; isLiving: boolean },
+  const handleSelectLevelCeilingHeight = (
+    level: CeilingLevel,
     opt: { heightMm: number; label: string; isStandard: boolean; livingRate: number; ancillaryRate: number }
   ) => {
-    const prefix = `ceil_zone_${zone.key}_`;
-    const filtered = lineItems.filter((it) => !it.id.startsWith(prefix));
+    // Clear any existing ceiling item for this level and legacy zone keys for this level
+    const keysToFilter = [`ceil_zone_${level.key}_`];
+    if (level.key === "entire_ground") {
+      keysToFilter.push("ceil_zone_living_", "ceil_zone_groundLiving_", "ceil_zone_garage_", "ceil_zone_porch_", "ceil_zone_alfresco_");
+    } else if (level.key === "ground_floor") {
+      keysToFilter.push("ceil_zone_groundLiving_", "ceil_zone_garage_", "ceil_zone_porch_", "ceil_zone_alfresco_");
+    } else if (level.key === "first_floor") {
+      keysToFilter.push("ceil_zone_firstLiving_", "ceil_zone_balcony_");
+    } else if (level.key === "lower_ground") {
+      keysToFilter.push("ceil_zone_lowerLiving_");
+    }
+
+    const filtered = lineItems.filter(
+      (it) => !keysToFilter.some((prefix) => it.id.startsWith(prefix))
+    );
+
     if (opt.isStandard) {
       onChange(filtered);
-      toast.info(`Reset ${zone.label} ceiling height to standard`);
+      toast.info(`Reset ${level.label} ceiling height to standard`);
       return;
     }
-    const rate = zone.isLiving ? opt.livingRate : opt.ancillaryRate;
-    const subtotal = Math.round(zone.m2 * rate);
+
+    const subtotal = Math.round(
+      level.livingM2 * opt.livingRate + level.ancillaryM2 * opt.ancillaryRate
+    );
     const stdHeightLabel = ceilingHeightOptions.find((o) => o.isStandard)?.heightMm || 2590;
+
     const newItem: QuoteSelectedLineItem = {
-      id: `${prefix}${opt.heightMm}`,
-      catalogueItemId: `${prefix}${opt.heightMm}`,
-      category: "structural",
-      name: `${opt.heightMm.toLocaleString()}mm Ceiling Height Upgrade — ${zone.label} (${zone.m2.toFixed(2)} m²)`,
-      description: `Upgrade ceiling height in ${zone.label} (${zone.m2.toFixed(2)} m²) from ${stdHeightLabel.toLocaleString()}mm standard to ${opt.heightMm.toLocaleString()}mm high ceilings.`,
+      id: `ceil_zone_${level.key}_${opt.heightMm}`,
+      catalogueItemId: `ceil_zone_${level.key}_${opt.heightMm}`,
+      category: "ceiling_height",
+      name: `${opt.heightMm.toLocaleString()}mm Ceiling Height Upgrade — ${level.label} (${level.totalM2.toFixed(2)} m²)`,
+      description: `Upgrade ceiling height in ${level.label} (${level.componentsDesc}, ${level.totalM2.toFixed(2)} m²) from ${stdHeightLabel.toLocaleString()}mm standard to ${opt.heightMm.toLocaleString()}mm high ceilings.`,
       unitType: "fixed",
       unitRate: subtotal,
       quantity: 1,
@@ -494,32 +616,31 @@ export function V2StepVariations({
       isClientSelectable: true,
       clientSelected: true,
     };
+
     onChange([...filtered, newItem]);
-    toast.success(`Added ${opt.heightMm}mm Ceiling to ${zone.label} (+${formatAud(subtotal)})`);
+    toast.success(`Added ${opt.heightMm.toLocaleString()}mm Ceiling to ${level.label} (+${formatAud(subtotal)})`);
   };
 
-  const handleApplyCeilingHeightAllZones = (
-    opt: { heightMm: number; label: string; isStandard: boolean; livingRate: number; ancillaryRate: number },
-    onlyLiving: boolean = false
+  const handleApplyCeilingHeightAllLevels = (
+    opt: { heightMm: number; label: string; isStandard: boolean; livingRate: number; ancillaryRate: number }
   ) => {
-    const targetZones = onlyLiving ? ceilingZones.filter((z) => z.isLiving) : ceilingZones;
-    const targetPrefixes = targetZones.map((z) => `ceil_zone_${z.key}_`);
-    const filtered = lineItems.filter((it) => !targetPrefixes.some((p) => it.id.startsWith(p)));
+    const filtered = lineItems.filter((it) => !it.id.startsWith("ceil_zone_"));
     if (opt.isStandard) {
       onChange(filtered);
-      toast.info("Reset all zone ceiling heights to standard");
+      toast.info("Reset all levels ceiling heights to standard");
       return;
     }
     const stdHeightLabel = ceilingHeightOptions.find((o) => o.isStandard)?.heightMm || 2590;
-    const newItems: QuoteSelectedLineItem[] = targetZones.map((zone) => {
-      const rate = zone.isLiving ? opt.livingRate : opt.ancillaryRate;
-      const subtotal = Math.round(zone.m2 * rate);
+    const newItems: QuoteSelectedLineItem[] = ceilingLevels.map((level) => {
+      const subtotal = Math.round(
+        level.livingM2 * opt.livingRate + level.ancillaryM2 * opt.ancillaryRate
+      );
       return {
-        id: `ceil_zone_${zone.key}_${opt.heightMm}`,
-        catalogueItemId: `ceil_zone_${zone.key}_${opt.heightMm}`,
-        category: "structural",
-        name: `${opt.heightMm.toLocaleString()}mm Ceiling Height Upgrade — ${zone.label} (${zone.m2.toFixed(2)} m²)`,
-        description: `Upgrade ceiling height in ${zone.label} (${zone.m2.toFixed(2)} m²) from ${stdHeightLabel.toLocaleString()}mm standard to ${opt.heightMm.toLocaleString()}mm high ceilings.`,
+        id: `ceil_zone_${level.key}_${opt.heightMm}`,
+        catalogueItemId: `ceil_zone_${level.key}_${opt.heightMm}`,
+        category: "ceiling_height",
+        name: `${opt.heightMm.toLocaleString()}mm Ceiling Height Upgrade — ${level.label} (${level.totalM2.toFixed(2)} m²)`,
+        description: `Upgrade ceiling height in ${level.label} (${level.componentsDesc}, ${level.totalM2.toFixed(2)} m²) from ${stdHeightLabel.toLocaleString()}mm standard to ${opt.heightMm.toLocaleString()}mm high ceilings.`,
         unitType: "fixed",
         unitRate: subtotal,
         quantity: 1,
@@ -531,9 +652,7 @@ export function V2StepVariations({
     });
     onChange([...filtered, ...newItems]);
     const totalAdded = newItems.reduce((sum, it) => sum + it.subtotal, 0);
-    toast.success(
-      `Applied ${opt.heightMm}mm Ceiling across ${onlyLiving ? "all living levels" : "all house areas"} (+${formatAud(totalAdded)})`
-    );
+    toast.success(`Applied ${opt.heightMm.toLocaleString()}mm Ceiling across entire home (+${formatAud(totalAdded)})`);
   };
 
   const livingM2 = useMemo(() => {
@@ -1530,8 +1649,14 @@ export function V2StepVariations({
           const isExternal = sec.id === "external";
           const externalPackageCount = isExternal ? (isLandscapingActive ? 1 : isDrivewayActive ? 1 : 0) : 0;
           const externalPackageCost = isExternal ? (isLandscapingActive ? currentLandscapingCost : isDrivewayActive ? currentDrivewayCost : 0) : 0;
-          const totalSectionCount = sectionActiveItems.length + externalPackageCount;
-          const totalSectionAmount = sectionTotal + externalPackageCost;
+
+          const isCeiling = sec.id === "ceiling_height";
+          const ceilingItems = isCeiling ? lineItems.filter((it) => it.isIncluded && it.id.startsWith("ceil_zone_")) : [];
+          const ceilingItemCount = ceilingItems.length;
+          const ceilingItemCost = ceilingItems.reduce((acc, it) => acc + (it.subtotal || 0), 0);
+
+          const totalSectionCount = sectionActiveItems.length + externalPackageCount + ceilingItemCount;
+          const totalSectionAmount = sectionTotal + externalPackageCost + ceilingItemCost;
 
           return (
             <div key={sec.id} className="space-y-3">
@@ -1558,10 +1683,10 @@ export function V2StepVariations({
                 )}
               </div>
 
-              {/* INDIVIDUAL LEVEL / AREA CEILING HEIGHT UPGRADES PANEL */}
-              {sec.id === "ceiling_height" && ceilingZones.length > 0 && (
+              {/* CEILING HEIGHT UPGRADES BY LEVEL PANEL */}
+              {sec.id === "ceiling_height" && ceilingLevels.length > 0 && (
                 <div
-                  data-testid="individual-zone-ceiling-height-panel"
+                  data-testid="level-ceiling-height-panel"
                   className={`p-4 sm:p-5 rounded-2xl border space-y-4 ${
                     isLight
                       ? "bg-slate-50/90 border-slate-200 text-slate-900"
@@ -1572,78 +1697,74 @@ export function V2StepVariations({
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm sm:text-base font-extrabold tracking-tight">
-                          Individual Level &amp; Area Ceiling Height Upgrades
+                          Ceiling Height Upgrades by Level
                         </span>
                         <Badge className="bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold uppercase">
-                          {quote.design.designName || "Floorplan"} ({ceilingZones.length} Areas)
+                          {quote.design.designName || "Floorplan"} ({ceilingLevels.length} {ceilingLevels.length === 1 ? "Level" : "Levels"})
                         </Badge>
                       </div>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Upgrade ceiling height individually for each floor level or area ({ceilingZones.map((z) => z.label).join(", ")}), or apply across all living levels / entire home.
+                        {ceilingLevels.length === 1
+                          ? "Upgrade ceiling height across the entire ground floor."
+                          : `Upgrade ceiling height individually for ${ceilingLevels.map((l) => l.label).join(" or ")}, or apply across entire home.`}
                       </p>
                     </div>
 
-                    {/* Quick Apply All Buttons */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {ceilingHeightOptions
-                        .filter((o) => !o.isStandard)
-                        .map((opt) => (
+                    {/* Quick Apply Entire Home Buttons */}
+                    {ceilingLevels.length > 1 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {ceilingHeightOptions
+                          .filter((o) => !o.isStandard)
+                          .map((opt) => (
+                            <Button
+                              key={`all_levels_${opt.heightMm}`}
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleApplyCeilingHeightAllLevels(opt)}
+                              className="h-8 px-2.5 text-xs font-bold rounded-xl border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 cursor-pointer"
+                            >
+                              Entire Home → {opt.heightMm.toLocaleString()}mm
+                            </Button>
+                          ))}
+                        {lineItems.some((it) => it.isIncluded && it.id.startsWith("ceil_zone_")) && (
                           <Button
-                            key={`all_living_${opt.heightMm}`}
                             type="button"
                             size="sm"
-                            variant="outline"
-                            onClick={() => handleApplyCeilingHeightAllZones(opt, true)}
-                            className="h-8 px-2.5 text-xs font-bold rounded-xl border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 cursor-pointer"
+                            variant="ghost"
+                            onClick={() => {
+                              const stdOpt = ceilingHeightOptions.find((o) => o.isStandard) || ceilingHeightOptions[0];
+                              handleApplyCeilingHeightAllLevels(stdOpt);
+                            }}
+                            className="h-8 px-2.5 text-xs font-bold rounded-xl text-rose-400 hover:bg-rose-500/10 cursor-pointer"
                           >
-                            All Living → {opt.heightMm.toLocaleString()}mm
+                            Reset All
                           </Button>
-                        ))}
-                      {ceilingHeightOptions
-                        .filter((o) => !o.isStandard)
-                        .map((opt) => (
-                          <Button
-                            key={`all_zones_${opt.heightMm}`}
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleApplyCeilingHeightAllZones(opt, false)}
-                            className="h-8 px-2.5 text-xs font-bold rounded-xl border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 cursor-pointer"
-                          >
-                            All Areas → {opt.heightMm.toLocaleString()}mm
-                          </Button>
-                        ))}
-                      {lineItems.some((it) => it.isIncluded && it.id.startsWith("ceil_zone_")) && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            const stdOpt = ceilingHeightOptions.find((o) => o.isStandard) || ceilingHeightOptions[0];
-                            handleApplyCeilingHeightAllZones(stdOpt, false);
-                          }}
-                          className="h-8 px-2.5 text-xs font-bold rounded-xl text-rose-400 hover:bg-rose-500/10 cursor-pointer"
-                        >
-                          Reset All
-                        </Button>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Individual Zone Cards Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {ceilingZones.map((zone) => {
-                      const activeItem = lineItems.find(
-                        (it) => it.isIncluded && it.id.startsWith(`ceil_zone_${zone.key}_`)
-                      );
+                  {/* Level Cards Grid */}
+                  <div className={`grid gap-3 ${ceilingLevels.length === 1 ? "grid-cols-1 md:max-w-xl" : ceilingLevels.length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-3"}`}>
+                    {ceilingLevels.map((level) => {
+                      const activeItem = lineItems.find((it) => {
+                        if (!it.isIncluded) return false;
+                        if (it.id.startsWith(`ceil_zone_${level.key}_`)) return true;
+                        if (level.key === "entire_ground" && (it.id.startsWith("ceil_zone_living_") || it.id.startsWith("ceil_zone_groundLiving_"))) return true;
+                        if (level.key === "ground_floor" && it.id.startsWith("ceil_zone_groundLiving_")) return true;
+                        if (level.key === "first_floor" && it.id.startsWith("ceil_zone_firstLiving_")) return true;
+                        if (level.key === "lower_ground" && it.id.startsWith("ceil_zone_lowerLiving_")) return true;
+                        return false;
+                      });
                       const activeHeightMm = activeItem
-                        ? parseInt(activeItem.id.replace(`ceil_zone_${zone.key}_`, ""), 10)
-                        : ceilingHeightOptions.find((o) => o.isStandard)?.heightMm || 2590;
+                        ? parseInt(activeItem.id.replace(/.*_(\d+)$/, "$1"), 10)
+                        : (ceilingHeightOptions.find((o) => o.isStandard)?.heightMm || 2590);
 
                       return (
                         <div
-                          key={zone.key}
-                          data-testid={`ceiling-zone-card-${zone.key}`}
+                          key={level.key}
+                          data-testid={`ceiling-level-card-${level.key}`}
                           className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between gap-2.5 ${
                             activeItem
                               ? isLight
@@ -1657,10 +1778,13 @@ export function V2StepVariations({
                           <div className="flex items-center justify-between gap-2">
                             <div>
                               <span className={`text-xs sm:text-sm font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
-                                {zone.label}
+                                {level.label}
                               </span>
-                              <span className="text-[11px] font-mono text-slate-400">
-                                Area: {zone.m2.toFixed(2)} m²
+                              <span className="text-[11px] font-mono text-slate-400 block mt-0.5">
+                                Area: {level.totalM2.toFixed(2)} m²
+                              </span>
+                              <span className="text-[10px] text-slate-500 line-clamp-1">
+                                {level.componentsDesc}
                               </span>
                             </div>
                             {activeItem ? (
@@ -1677,14 +1801,15 @@ export function V2StepVariations({
                           <div className="grid grid-cols-2 gap-1.5 pt-1">
                             {ceilingHeightOptions.map((opt) => {
                               const isSelected = activeHeightMm === opt.heightMm;
-                              const rate = zone.isLiving ? opt.livingRate : opt.ancillaryRate;
-                              const optCost = opt.isStandard ? 0 : Math.round(zone.m2 * rate);
+                              const optCost = opt.isStandard
+                                ? 0
+                                : Math.round(level.livingM2 * opt.livingRate + level.ancillaryM2 * opt.ancillaryRate);
                               return (
                                 <button
-                                  key={`${zone.key}_${opt.heightMm}`}
+                                  key={`${level.key}_${opt.heightMm}`}
                                   type="button"
-                                  data-testid={`ceiling-zone-${zone.key}-${opt.heightMm}`}
-                                  onClick={() => handleSelectZoneCeilingHeight(zone, opt)}
+                                  data-testid={`ceiling-level-${level.key}-${opt.heightMm}`}
+                                  onClick={() => handleSelectLevelCeilingHeight(level, opt)}
                                   className={`px-2.5 py-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between gap-1.5 ${
                                     isSelected
                                       ? isLight
