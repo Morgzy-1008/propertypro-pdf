@@ -1493,6 +1493,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         qtyLabel:
           (it.unitType as string) === "sqm" && it.quantity > 0
             ? `${it.quantity} m²`
+            : it.unitType === "allowance"
+            ? "Allowance"
             : it.unitRate === 0
             ? "$0.00 Variation"
             : it.quantity > 1

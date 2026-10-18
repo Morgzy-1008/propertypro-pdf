@@ -1,6 +1,6 @@
 import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
 
-export type UnitType = "fixed" | "per_lm" | "per_m2" | "custom_qty" | "sqm" | "per_bath";
+export type UnitType = "fixed" | "per_lm" | "per_m2" | "custom_qty" | "sqm" | "per_bath" | "allowance";
 
 export type HousingTypeFilter = "all" | "single" | "double" | "split" | "dual_living" | "granny_flat";
 

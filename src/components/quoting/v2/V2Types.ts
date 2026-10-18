@@ -154,9 +154,10 @@ export interface PopularVariationPreset {
   description: string;
   price: number;
   highlight?: string;
-  unitType?: "fixed" | "sqm" | "per_bath";
+  unitType?: "fixed" | "sqm" | "per_bath" | "allowance";
   unitRate?: number;
   doubleStoreyOnly?: boolean;
+  hideIfH2OrH3?: boolean;
   hideIfH3?: boolean;
 }
 
@@ -257,7 +258,7 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     doubleStoreyOnly: true,
   },
 
-  // 3. AIR CONDITIONING & ELECTRICAL (THEN ELECTRICAL)
+  // 3. AIR CONDITIONING & ELECTRICAL (ELECTRICAL)
   {
     id: "pop_h1_ducted_ac",
     name: "Ducted Inverter Air Conditioning System",
@@ -265,12 +266,41 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     category: "electrical",
     description: "Multi-zone reverse-cycle ducted air conditioning system with digital touchpad controller.",
     price: 9450,
-    highlight: "Essential QLD comfort",
+    highlight: "Essential QLD comfort (H1 only)",
+    hideIfH2OrH3: true,
+  },
+  {
+    id: "pop_3phase_power",
+    name: "3 Phase Power",
+    group: "electrical",
+    category: "electrical",
+    description: "Upgrade to 3-phase mains underground electrical power supply and switchboard for heavy electrical appliances and rapid EV charging capacity.",
+    price: 1070,
+    highlight: "Heavy electrical & EV",
     hideIfH3: true,
   },
   {
+    id: "pop_polyair_tablet",
+    name: "Polyair Touch Screen Tablet",
+    group: "electrical",
+    category: "electrical",
+    description: "Polyair AirTouch smart touchscreen wall tablet & smartphone app controller with individual zone climate sensors.",
+    price: 1207,
+    highlight: "Smart climate tablet",
+  },
+  {
+    id: "pop_allowance_electrical",
+    name: "Allowance for Electrical Selection",
+    group: "electrical",
+    category: "electrical",
+    description: "Provisional sum allowance for client electrical & lighting selection appointment (additional LED downlights, power points, pendant provisions, feature lighting).",
+    price: 0,
+    unitType: "allowance",
+    highlight: "$1,000 steps",
+  },
+  {
     id: "pop_ev_charger_32a",
-    name: "32A Electric Vehicle (EV) Dedicated Circuit",
+    name: "32A EV Charger",
     group: "electrical",
     category: "electrical",
     description: "Dedicated 32A single-phase power supply to garage with isolator switch, ready for EV wallbox charger installation.",
@@ -296,6 +326,7 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     description: "High-grade stainless steel undermount double bowl kitchen sink with designer gooseneck pull-out mixer tap.",
     price: 650,
     highlight: "Sleek look",
+    hideIfH3: true,
   },
   {
     id: "pop_butlers_pantry",
@@ -338,41 +369,27 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     highlight: "In lieu of H2 Niche",
   },
 
-  // 6. FLOORING & INTERNAL FINISHES (TAILORED TO DESIGN AREAS; HIDDEN IN H3)
+  // 6. FLOORING (ALLOWANCES WITH $1,000 INTERVALS)
   {
-    id: "pop_porcelain_sqm",
-    name: "600x600 Rectified Porcelain Floor Tiling",
+    id: "pop_allowance_hybrid",
+    name: "Allowance for Hybrid",
     group: "flooring",
     category: "flooring",
-    description: "Premium large-format porcelain vitrified tiles to entry, hallway, kitchen, meals, family, and wet areas.",
-    price: 85,
-    unitType: "sqm",
-    unitRate: 85,
-    highlight: "$85/m² rate",
-    hideIfH3: true,
+    description: "Provisional sum allowance for hybrid timber-look flooring. Subject to colour selection.",
+    price: 0,
+    unitType: "allowance",
+    highlight: "Subject to colour selection",
   },
   {
-    id: "pop_hybrid_flooring_sqm",
-    name: "Hybrid Timber-Look Waterproof Flooring",
+    id: "pop_allowance_tiles_600",
+    name: "Allowance for 600x600 Tiles",
     group: "flooring",
     category: "flooring",
-    description: "Commercial-grade 8.5mm hybrid acoustic timber plank flooring with acoustic underlay throughout living zones.",
-    price: 95,
-    unitType: "sqm",
-    unitRate: 95,
-    highlight: "$95/m² rate",
+    description: "Provisional sum allowance for 600x600mm porcelain floor tiling. Subject to colour selection.",
+    price: 0,
+    unitType: "allowance",
+    highlight: "H1 & H2 • Subject to colour selection",
     hideIfH3: true,
-  },
-  {
-    id: "pop_carpet_underlay_sqm",
-    name: "Plush Carpet & 10mm Underlay to Bedrooms",
-    group: "flooring",
-    category: "flooring",
-    description: "Upgraded premium solution-dyed plush pile carpet with 10mm high-density foam underlay.",
-    price: 45,
-    unitType: "sqm",
-    unitRate: 45,
-    highlight: "$45/m² rate",
   },
 
   // 7. EXTERNAL & DRIVEWAY

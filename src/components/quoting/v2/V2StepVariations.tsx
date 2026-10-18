@@ -90,7 +90,7 @@ export const VARIATION_SECTIONS: VariationSectionDef[] = [
     id: "electrical",
     label: "Electrical",
     icon: "⚡",
-    subtitle: "Multi-zone ducted air conditioning & 32A EV vehicle circuit",
+    subtitle: "3-Phase power, Polyair tablet, electrical selection allowance & 32A EV charger",
   },
   {
     id: "kitchen",
@@ -108,7 +108,7 @@ export const VARIATION_SECTIONS: VariationSectionDef[] = [
     id: "flooring",
     label: "Flooring",
     icon: "🧱",
-    subtitle: "600x600 porcelain tiling, hybrid timber planks & carpet underlay",
+    subtitle: "Provisional sum allowances for hybrid flooring & 600x600 porcelain tiles (subject to colour selection)",
   },
   {
     id: "external",
@@ -189,17 +189,26 @@ export function V2StepVariations({
   const totalM2 = Number(quote.design.designM2) || Number(quote.design.standardDesignM2) || 200;
   const isDouble = isDoubleStoreyDesign(quote.design.designName, quote.design.housingType, quote.design.customSpec?.storeys || (quote.design as any).storeys);
   const tier = normalizeInclusionTier(quote.design.specTier);
+  const isH1 = tier === "H1";
+  const isH2 = tier === "H2";
   const isH3 = tier === "H3" || quote.design.specTier?.toLowerCase().includes("h3") || quote.design.specTier?.toLowerCase().includes("luxury");
+  const isH2OrH3 = isH2 || isH3 || (!isH1);
   const tierRates = EXTENSION_RATES_BY_TIER[tier] || EXTENSION_RATES_BY_TIER.H2;
 
   // Filter presets tailored to the specific design and tier
   const isItemVisibleForDesign = (preset: PopularVariationPreset): boolean => {
     // Hide upper floor items if design is single storey
     if (preset.doubleStoreyOnly && !isDouble) return false;
-    // Hide 600x600 tiles, hybrid flooring, and ducted AC if H3 (already standard in H3!)
+    // Hide if standard in H2 or H3 (e.g. Ducted AC)
+    if (preset.hideIfH2OrH3 && (isH2 || isH3)) return false;
+    // Hide if standard in H3 (e.g. 3 Phase Power, 600x600 Tiles, Undermount Sink)
     if (preset.hideIfH3 && isH3) return false;
-    // Ducted AC is already included as standard in H3 inclusions
-    if ((preset.id === "pop_h1_ducted_ac" || preset.id === "hvac_ducted_aircon") && isH3) return false;
+    // Ducted AC is already included as standard in H2 and H3 inclusions
+    if ((preset.id === "pop_h1_ducted_ac" || preset.id === "hvac_ducted_aircon") && (isH2 || isH3)) return false;
+    // 3 Phase Power is already included as standard in H3
+    if ((preset.id === "pop_3phase_power" || preset.id === "elec_3phase_power") && isH3) return false;
+    // 600x600 Tiles is only for H1 and H2, standard in H3
+    if ((preset.id === "pop_allowance_tiles_600" || preset.id === "pop_porcelain_sqm") && isH3) return false;
     // Driveway is managed via dedicated card in External filter
     if (preset.id === "pop_driveway_sqm") return false;
     // Ceiling heights are managed dynamically by level via the Ceiling Height Level Cards
@@ -254,10 +263,12 @@ export function V2StepVariations({
       if (existing?.isIncluded) {
         const isSqm = p.unitType === "sqm";
         const isBath = p.unitType === "per_bath";
+        const isAllowance = p.unitType === "allowance";
         const qty = existing.quantity || 0;
-        if (isSqm || isBath ? qty > 0 : true) {
+        const amt = existing.subtotal ?? (isAllowance ? (existing.unitRate || 0) : isSqm || isBath ? qty * (p.unitRate || p.price) : p.price);
+        if (isAllowance ? amt > 0 : isSqm || isBath ? qty > 0 : true) {
           count++;
-          total += existing.subtotal ?? (isSqm || isBath ? qty * (p.unitRate || p.price) : p.price);
+          total += amt;
         }
       }
     }
@@ -692,22 +703,31 @@ export function V2StepVariations({
   };
 
 
-  // Auto-purge items that are already standard in H3 (e.g. Ducted AC, 600x600 porcelain tiles, hybrid flooring)
+  // Auto-purge items that are already standard in the selected inclusion tier:
+  // - Ducted AC is standard in H2 and H3
+  // - 3 Phase Power is standard in H3
+  // - 600x600 Tiles & Undermount sink are standard in H3
   useEffect(() => {
+    const invalidIds: string[] = [];
+    if (isH2 || isH3) {
+      invalidIds.push("pop_h1_ducted_ac", "hvac_ducted_aircon");
+    }
     if (isH3) {
-      const invalidH3Ids = ["pop_h1_ducted_ac", "hvac_ducted_aircon"];
+      invalidIds.push("pop_3phase_power", "elec_3phase_power", "pop_allowance_tiles_600", "pop_porcelain_sqm", "pop_undermount_sink");
+    }
+    if (invalidIds.length > 0) {
       const hasInvalidItem = lineItems.some(
-        (it) => invalidH3Ids.some((id) => it.id.startsWith(id)) && it.isIncluded
+        (it) => invalidIds.some((id) => it.id.startsWith(id) || it.catalogueItemId === id) && it.isIncluded
       );
       if (hasInvalidItem) {
         onChange(
           lineItems.filter(
-            (it) => !invalidH3Ids.some((id) => it.id.startsWith(id))
+            (it) => !invalidIds.some((id) => it.id.startsWith(id) || it.catalogueItemId === id)
           )
         );
       }
     }
-  }, [isH3, lineItems, onChange]);
+  }, [isH2, isH3, lineItems, onChange]);
 
   // Auto-detected modified plan line items (exclude mod_area_* since those are managed in the Area Schedule)
   const autoDetectedItems = useMemo(() => {
@@ -727,6 +747,87 @@ export function V2StepVariations({
   const variationsTotal = useMemo(() => {
     return activeIncludedItems.reduce((acc, it) => acc + (it.subtotal || 0), 0);
   }, [activeIncludedItems]);
+
+  // Change or set allowance amount for allowance-based popular variation
+  const handleAllowanceChange = (preset: PopularVariationPreset, amount: number) => {
+    const validAmount = Math.max(0, Math.round(amount));
+    const existingIndex = lineItems.findIndex(
+      (it) => it.id === preset.id || it.catalogueItemId === preset.id
+    );
+
+    if (existingIndex >= 0) {
+      const updated = [...lineItems];
+      if (validAmount > 0) {
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: 1,
+          unitRate: validAmount,
+          subtotal: validAmount,
+          isIncluded: true,
+          clientSelected: true,
+        };
+      } else {
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: 1,
+          unitRate: 0,
+          subtotal: 0,
+          isIncluded: false,
+          clientSelected: false,
+        };
+      }
+      onChange(updated);
+    } else if (validAmount > 0) {
+      const newItem: QuoteSelectedLineItem = {
+        id: preset.id,
+        catalogueItemId: preset.id,
+        category: preset.category,
+        name: preset.name,
+        description: preset.description,
+        unitType: "allowance",
+        unitRate: validAmount,
+        quantity: 1,
+        subtotal: validAmount,
+        isIncluded: true,
+        isClientSelectable: true,
+        clientSelected: true,
+      };
+      onChange([...lineItems, newItem]);
+    }
+  };
+
+  // Step allowance amount up or down by delta (e.g. +/- $1,000)
+  const handleAllowanceStep = (preset: PopularVariationPreset, delta: number) => {
+    const existing = lineItems.find(
+      (it) => it.id === preset.id || it.catalogueItemId === preset.id
+    );
+    const currentAmount = existing?.isIncluded ? (existing.subtotal ?? existing.unitRate ?? 0) : 0;
+    const nextAmount = Math.max(0, currentAmount + delta);
+    handleAllowanceChange(preset, nextAmount);
+    if (nextAmount > currentAmount) {
+      toast.success(`Increased ${preset.name} (+${formatAud(nextAmount)})`);
+    } else if (nextAmount === 0) {
+      toast.info(`Reset ${preset.name} to $0`);
+    } else {
+      toast.info(`Adjusted ${preset.name} (${formatAud(nextAmount)})`);
+    }
+  };
+
+  // Toggle allowance preset (click row / checkbox)
+  const handleToggleAllowance = (preset: PopularVariationPreset, targetAmount: number = 1000) => {
+    const existing = lineItems.find(
+      (it) => it.id === preset.id || it.catalogueItemId === preset.id
+    );
+    const isCurrentlyIncluded = Boolean(existing?.isIncluded && (existing.subtotal || 0) > 0);
+    if (isCurrentlyIncluded) {
+      handleAllowanceChange(preset, 0);
+      toast.info(`Removed ${preset.name}`);
+    } else {
+      const initial = targetAmount > 0 ? targetAmount : 1000;
+      handleAllowanceChange(preset, initial);
+      toast.success(`Added ${preset.name} (+${formatAud(initial)})`);
+    }
+  };
 
   // Toggle a popular fixed-price preset
   const handleTogglePopular = (rawPreset: PopularVariationPreset) => {
@@ -1025,8 +1126,16 @@ export function V2StepVariations({
 
     // 3. Matched Databuild catalogue items
     const matchedCatalogue = DEFAULT_CATALOGUE.filter((c) => {
-      // Ducted AC is already included as standard in H3
-      if (isH3 && (c.id === "hvac_ducted_aircon" || c.name.toLowerCase().includes("ilo h1 split system"))) {
+      // Ducted AC is already included as standard in H2 and H3
+      if ((isH2 || isH3) && (c.id === "hvac_ducted_aircon" || c.name.toLowerCase().includes("ilo h1 split system") || c.name.toLowerCase().includes("ducted inverter") || c.name.toLowerCase().includes("ducted air"))) {
+        return false;
+      }
+      // 3 Phase Power is already included as standard in H3
+      if (isH3 && (c.id === "pop_3phase_power" || c.id === "elec_3phase" || c.name.toLowerCase().includes("3 phase power") || c.name.toLowerCase().includes("3-phase power"))) {
+        return false;
+      }
+      // 600x600 Porcelain tiles are standard in H3
+      if (isH3 && (c.id === "pop_allowance_tiles_600" || c.name.toLowerCase().includes("600x600 tiles"))) {
         return false;
       }
       return (
@@ -1054,7 +1163,7 @@ export function V2StepVariations({
     }
 
     return combined.slice(0, 16);
-  }, [searchQuery, isDouble, isH3, tierRates]);
+  }, [searchQuery, isDouble, isH2, isH3, tierRates]);
 
   const getSearchDraftQty = (item: (typeof searchResults)[0]): number => {
     if (searchDraftQuantities[item.id] !== undefined) {
@@ -1070,6 +1179,7 @@ export function V2StepVariations({
     }
     if (item.unitType === "sqm") return 55;
     if (item.unitType === "per_bath") return 2;
+    if (item.unitType === "allowance") return 1000;
     return 1;
   };
 
@@ -1082,6 +1192,8 @@ export function V2StepVariations({
         handleSqmChange(p, String(finalQty));
       } else if (p.unitType === "per_bath") {
         handleBathChange(p, finalQty);
+      } else if (p.unitType === "allowance") {
+        handleAllowanceChange(p, finalQty > 1 ? finalQty : 1000);
       } else {
         const existingIndex = lineItems.findIndex(
           (it) => it.id === p.id || it.catalogueItemId === p.id
@@ -1635,14 +1747,26 @@ export function V2StepVariations({
             const existing = lineItems.find((it) => it.id === p.id || it.catalogueItemId === p.id);
             const isSqm = p.unitType === "sqm";
             const isBath = p.unitType === "per_bath";
-            return Boolean(existing?.isIncluded && (isSqm || isBath ? (existing.quantity || 0) > 0 : true));
+            const isAllowance = p.unitType === "allowance";
+            return Boolean(
+              existing?.isIncluded &&
+                (isSqm || isBath
+                  ? (existing.quantity || 0) > 0
+                  : isAllowance
+                  ? (existing.subtotal || existing.unitRate || 0) > 0
+                  : true)
+            );
           });
 
           const sectionTotal = sectionActiveItems.reduce((acc, p) => {
             const existing = lineItems.find((it) => it.id === p.id || it.catalogueItemId === p.id);
             const isSqm = p.unitType === "sqm";
             const isBath = p.unitType === "per_bath";
+            const isAllowance = p.unitType === "allowance";
             const qty = existing?.quantity || 0;
+            if (isAllowance) {
+              return acc + (existing?.subtotal ?? existing?.unitRate ?? 0);
+            }
             return acc + (existing?.subtotal ?? (isSqm || isBath ? qty * (p.unitRate || p.price) : p.price));
           }, 0);
 
@@ -1668,9 +1792,19 @@ export function V2StepVariations({
                     <h3 className={`text-sm sm:text-base font-extrabold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                       {sec.label}
                     </h3>
+                    {sec.id === "electrical" && (isH2 || isH3) && (
+                      <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px] font-bold py-0.5">
+                        ✓ Ducted AC Included in {isH3 ? "H3" : "H2"}
+                      </Badge>
+                    )}
                     {sec.id === "electrical" && isH3 && (
                       <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px] font-bold py-0.5">
-                        ✓ Ducted AC Included in H3
+                        ✓ 3-Phase Power Included in H3
+                      </Badge>
+                    )}
+                    {sec.id === "flooring" && isH3 && (
+                      <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px] font-bold py-0.5">
+                        ✓ 600x600 Porcelain Tiles Included in H3
                       </Badge>
                     )}
                   </div>
@@ -2018,7 +2152,7 @@ export function V2StepVariations({
                 </div>
               )}
 
-              {/* Grid of sleek compact items WITHOUT descriptions */}
+              {/* Grid of sleek compact items */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 {presets.map((preset) => {
                   const existing = lineItems.find(
@@ -2026,11 +2160,127 @@ export function V2StepVariations({
                   );
                   const isSqm = preset.unitType === "sqm";
                   const isBath = preset.unitType === "per_bath";
+                  const isAllowance = preset.unitType === "allowance";
                   const currentQty = existing?.quantity ?? 0;
-                  const isIncluded = Boolean(existing?.isIncluded && (isSqm || isBath ? currentQty > 0 : true));
-                  const subtotal = existing?.subtotal ?? (isSqm || isBath ? currentQty * (preset.unitRate || preset.price) : preset.price);
+                  const currentAmount = existing?.isIncluded ? (existing.subtotal ?? existing.unitRate ?? 0) : 0;
+                  const isIncluded = Boolean(
+                    existing?.isIncluded && (isSqm || isBath ? currentQty > 0 : isAllowance ? currentAmount > 0 : true)
+                  );
+                  const subtotal = isAllowance
+                    ? currentAmount
+                    : existing?.subtotal ?? (isSqm || isBath ? currentQty * (preset.unitRate || preset.price) : preset.price);
 
-                  // 1. RENDER PER-BATHROOM UPGRADE (e.g. Floor-to-Ceiling Tiles)
+                  // 1. RENDER EDITABLE ALLOWANCE ITEM (e.g. Electrical Allowance, Hybrid Allowance, 600x600 Tiles Allowance)
+                  if (isAllowance) {
+                    const stepAmount = 1000;
+                    return (
+                      <div
+                        key={preset.id}
+                        data-testid={`preset-card-${preset.id}`}
+                        className={`px-3.5 py-2.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          isIncluded
+                            ? isLight
+                              ? "bg-emerald-50/90 border-emerald-500 shadow-xs ring-1 ring-emerald-500/30"
+                              : "bg-emerald-950/25 border-emerald-500/60 shadow-sm ring-1 ring-emerald-500/30"
+                            : isLight
+                            ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs"
+                            : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                        }`}
+                      >
+                        <div
+                          onClick={() => handleToggleAllowance(preset, 1000)}
+                          className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                        >
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center flex-none transition-all mt-0.5 sm:mt-0 ${
+                              isIncluded
+                                ? "bg-emerald-500 text-slate-950"
+                                : isLight
+                                ? "border border-slate-300 text-transparent"
+                                : "border border-slate-700 text-transparent"
+                            }`}
+                          >
+                            <Check className="h-3 w-3 stroke-[3]" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-xs sm:text-sm font-bold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+                                {preset.name}
+                              </span>
+                              {preset.highlight && (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold flex-none">
+                                  {preset.highlight}
+                                </span>
+                              )}
+                            </div>
+                            {preset.description && (
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 italic mt-0.5 line-clamp-1">
+                                {preset.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Interval stepper (-$1,000 / +$1,000) & direct input */}
+                        <div className="flex items-center gap-2 flex-none self-end sm:self-center">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAllowanceStep(preset, -stepAmount);
+                              }}
+                              disabled={currentAmount <= 0}
+                              className="h-7 w-7 text-slate-400 hover:text-slate-100 disabled:opacity-30 cursor-pointer"
+                              title="Decrease by $1,000"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+
+                            <div className="relative flex items-center">
+                              <span className="absolute left-2 text-xs font-mono font-bold text-slate-400 pointer-events-none">$</span>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                value={currentAmount > 0 ? currentAmount.toLocaleString("en-AU") : "0"}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/[^0-9]/g, "");
+                                  handleAllowanceChange(preset, Number(raw) || 0);
+                                }}
+                                className={`w-20 sm:w-24 h-8 pl-5 pr-1.5 text-right font-mono font-bold text-xs rounded-lg ${
+                                  isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-700 text-white"
+                                }`}
+                              />
+                            </div>
+
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAllowanceStep(preset, stepAmount);
+                              }}
+                              className="h-7 w-7 text-slate-400 hover:text-slate-100 cursor-pointer"
+                              title="Increase by $1,000"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+
+                          <span className={`text-xs font-mono font-bold w-18 text-right ${isIncluded ? (isLight ? "text-emerald-700" : "text-emerald-400") : "text-slate-400"}`}>
+                            {currentAmount > 0 ? `+${formatAud(currentAmount)}` : "$0"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // 2. RENDER PER-BATHROOM UPGRADE (e.g. Floor-to-Ceiling Tiles)
                   if (isBath) {
                     return (
                       <div
@@ -2300,6 +2550,33 @@ export function V2StepVariations({
                         className="w-16 h-8 rounded-lg text-center font-mono font-bold text-xs"
                       />
                       <span className="text-[11px] text-slate-400 font-bold">m²</span>
+                    </div>
+                  )}
+
+                  {/* Amount editor if allowance */}
+                  {item.unitType === "allowance" && (
+                    <div className="flex items-center gap-1.5 flex-none">
+                      <div className="relative flex items-center">
+                        <span className="absolute left-2 text-xs font-mono font-bold text-slate-400 pointer-events-none">$</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={item.subtotal || item.unitRate ? (item.subtotal || item.unitRate).toLocaleString("en-AU") : "0"}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^0-9]/g, "");
+                            const val = Number(raw) || 0;
+                            const updated = lineItems.map((it) =>
+                              it.id === item.id
+                                ? { ...it, unitRate: val, subtotal: val, quantity: 1, isIncluded: val > 0, clientSelected: val > 0 }
+                                : it
+                            );
+                            onChange(updated);
+                          }}
+                          className="w-24 h-8 pl-5 pr-1.5 text-right font-mono font-bold text-xs rounded-lg"
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-semibold">allowance</span>
                     </div>
                   )}
 
