@@ -960,7 +960,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
     : 0;
 
   // Council & Statutory
-  const councilDaCost = siteConditions.councilDaRequired ? (siteConditions.councilDaCost ?? 8000) : 0;
+  const councilDaCost = siteConditions.councilDaRequired ? (siteConditions.councilDaCost ?? 11000) : 0;
   const dualLivingCost = siteConditions.dualLivingInfrastructureRequired ? (siteConditions.dualLivingInfrastructureCost ?? 23000) : 0;
   const sedimentCost = Number(siteConditions.sedimentAssetProtectionCost) || 0;
 
@@ -1441,7 +1441,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         description: it.description || "",
         qtyLabel:
           (it.unitType as string) === "sqm" && it.quantity > 0
-            ? `${it.quantity} m² @ ${formatAud(it.unitRate)}/m²`
+            ? `${it.quantity} m²`
             : it.unitRate === 0
             ? "$0.00 Variation"
             : it.quantity > 1

@@ -1593,16 +1593,26 @@ export function calculateQuotePricing(
     : 0;
 
   // Council & Statutory
-  const councilDaCost = site.councilDaRequired ? (Number(site.councilDaCost) || 11000) : 0;
+  const councilDaCost = site.councilDaRequired
+    ? (site.councilDaCost !== undefined && site.councilDaCost !== null && !isNaN(Number(site.councilDaCost))
+        ? Number(site.councilDaCost)
+        : 11000)
+    : 0;
   const councilSetbackRelaxationCost = site.councilSetbackRelaxationRequired
-    ? (Number(site.councilSetbackRelaxationCost) || 2000)
+    ? (site.councilSetbackRelaxationCost !== undefined && site.councilSetbackRelaxationCost !== null && !isNaN(Number(site.councilSetbackRelaxationCost))
+        ? Number(site.councilSetbackRelaxationCost)
+        : 2000)
     : 0;
   const trafficCost = (site.trafficControlRequired || (Number(site.trafficControlCost) > 0))
     ? (site.trafficControlCost !== undefined && site.trafficControlCost !== null && !isNaN(Number(site.trafficControlCost))
         ? Number(site.trafficControlCost)
         : 6500)
     : 0;
-  const dualLivingCost = site.dualLivingInfrastructureRequired ? (Number(site.dualLivingInfrastructureCost) || 23000) : 0;
+  const dualLivingCost = site.dualLivingInfrastructureRequired
+    ? (site.dualLivingInfrastructureCost !== undefined && site.dualLivingInfrastructureCost !== null && !isNaN(Number(site.dualLivingInfrastructureCost))
+        ? Number(site.dualLivingInfrastructureCost)
+        : 23000)
+    : 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
   // Geotechnical & Site Allowances

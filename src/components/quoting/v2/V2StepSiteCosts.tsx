@@ -2665,110 +2665,195 @@ export function V2StepSiteCosts({
                 Additional Council &amp; Statutory Applications (Optional)
               </Label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Council DA */}
                 <div
-                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
+                  data-testid="card-council-da"
+                  className={`p-4 sm:p-5 rounded-2xl border flex flex-col justify-between gap-3 transition-all ${
                     site.councilDaRequired
-                      ? isLight ? "bg-cyan-50/70 border-cyan-300" : "bg-cyan-950/20 border-cyan-500/40"
+                      ? isLight ? "bg-cyan-50/70 border-cyan-300 shadow-xs" : "bg-cyan-950/20 border-cyan-500/40"
                       : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm sm:text-base font-bold block">Council DA / Town Planning</span>
-                      {site.councilDaRequired && (
-                        <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
-                          +{formatAud(site.councilDaCost || 11000)}
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm sm:text-base font-bold block">Council DA / Town Planning</span>
+                        {site.councilDaRequired && (
+                          <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
+                            +{formatAud(site.councilDaCost ?? 11000)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-400 mt-0.5 block">Material Change of Use ($11,000)</span>
                     </div>
-                    <span className="text-xs text-slate-400 mt-0.5 block">Material Change of Use ($11,000)</span>
+                    <Switch
+                      checked={Boolean(site.councilDaRequired)}
+                      onCheckedChange={(checked) =>
+                        onChange({
+                          councilDaRequired: checked,
+                          councilDaCost: checked ? (site.councilDaCost || 11000) : 0,
+                        })
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={Boolean(site.councilDaRequired)}
-                    onCheckedChange={(checked) =>
-                      onChange({ councilDaRequired: checked, councilDaCost: checked ? 11000 : 0 })
-                    }
-                  />
+
+                  {site.councilDaRequired && (
+                    <div className="pt-2 border-t border-cyan-500/20 space-y-1.5">
+                      <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Application Cost ($)
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder="11000"
+                        value={site.councilDaCost > 0 ? site.councilDaCost : ""}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                          const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                          onChange({ councilDaCost: parseFloat(cleaned) || 0 });
+                        }}
+                        className="h-10 text-sm font-mono font-bold rounded-xl"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Setback Relaxation */}
                 <div
-                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
+                  data-testid="card-council-setback"
+                  className={`p-4 sm:p-5 rounded-2xl border flex flex-col justify-between gap-3 transition-all ${
                     site.councilSetbackRelaxationRequired
-                      ? isLight ? "bg-cyan-50/70 border-cyan-300" : "bg-cyan-950/20 border-cyan-500/40"
+                      ? isLight ? "bg-cyan-50/70 border-cyan-300 shadow-xs" : "bg-cyan-950/20 border-cyan-500/40"
                       : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm sm:text-base font-bold block">Setback Relaxation / Dispensation</span>
-                      {site.councilSetbackRelaxationRequired && (
-                        <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
-                          +{formatAud(site.councilSetbackRelaxationCost || 2000)}
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm sm:text-base font-bold block">Setback Relaxation / Dispensation</span>
+                        {site.councilSetbackRelaxationRequired && (
+                          <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
+                            +{formatAud(site.councilSetbackRelaxationCost ?? 2000)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-400 mt-0.5 block">Boundary variation lodgement ($2,000)</span>
                     </div>
-                    <span className="text-xs text-slate-400 mt-0.5 block">Boundary variation lodgement ($2,000)</span>
+                    <Switch
+                      checked={Boolean(site.councilSetbackRelaxationRequired)}
+                      onCheckedChange={(checked) =>
+                        onChange({
+                          councilSetbackRelaxationRequired: checked,
+                          councilSetbackRelaxationCost: checked ? (site.councilSetbackRelaxationCost || 2000) : 0,
+                        })
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={Boolean(site.councilSetbackRelaxationRequired)}
-                    onCheckedChange={(checked) =>
-                      onChange({
-                        councilSetbackRelaxationRequired: checked,
-                        councilSetbackRelaxationCost: checked ? 2000 : 0,
-                      })
-                    }
-                  />
+
+                  {site.councilSetbackRelaxationRequired && (
+                    <div className="pt-2 border-t border-cyan-500/20 space-y-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          Application Cost ($)
+                        </Label>
+                        <Input
+                          type="number"
+                          placeholder="2000"
+                          value={site.councilSetbackRelaxationCost > 0 ? site.councilSetbackRelaxationCost : ""}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                            onChange({ councilSetbackRelaxationCost: parseFloat(cleaned) || 0 });
+                          }}
+                          className="h-10 text-sm font-mono font-bold rounded-xl"
+                        />
+                      </div>
+                      {/* Interval buttons: -$1,000 / +$1,000 */}
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          type="button"
+                          data-testid="btn-setback-minus-1000"
+                          variant="outline"
+                          size="sm"
+                          disabled={!site.councilSetbackRelaxationCost || site.councilSetbackRelaxationCost <= 0}
+                          onClick={() => {
+                            const current = site.councilSetbackRelaxationCost || 2000;
+                            const nextVal = Math.max(0, current - 1000);
+                            onChange({ councilSetbackRelaxationCost: nextVal });
+                          }}
+                          className="h-7 text-xs font-bold font-mono px-2 rounded-lg border-slate-300 dark:border-slate-700 cursor-pointer"
+                        >
+                          <Minus className="h-3 w-3 mr-1" /> $1,000
+                        </Button>
+                        <Button
+                          type="button"
+                          data-testid="btn-setback-plus-1000"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const current = site.councilSetbackRelaxationCost || 2000;
+                            const nextVal = current + 1000;
+                            onChange({ councilSetbackRelaxationCost: nextVal });
+                          }}
+                          className="h-7 text-xs font-bold font-mono px-2 rounded-lg border-slate-300 dark:border-slate-700 cursor-pointer"
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> $1,000
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Dual Living Infrastructure Fee */}
                 <div
-                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
+                  data-testid="card-council-dual-living"
+                  className={`p-4 sm:p-5 rounded-2xl border flex flex-col justify-between gap-3 transition-all ${
                     site.dualLivingInfrastructureRequired
-                      ? isLight ? "bg-cyan-50/70 border-cyan-300" : "bg-cyan-950/20 border-cyan-500/40"
+                      ? isLight ? "bg-cyan-50/70 border-cyan-300 shadow-xs" : "bg-cyan-950/20 border-cyan-500/40"
                       : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm sm:text-base font-bold block">Dual Living Infrastructure Fee</span>
-                      {site.dualLivingInfrastructureRequired && (
-                        <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
-                          +{formatAud(site.dualLivingInfrastructureCost || 23000)}
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm sm:text-base font-bold block">Dual Living Infrastructure Fee</span>
+                        {site.dualLivingInfrastructureRequired && (
+                          <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
+                            +{formatAud(site.dualLivingInfrastructureCost ?? 23000)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-400 mt-0.5 block">Statutory headworks, second water meter &amp; infrastructure ($23,000)</span>
                     </div>
-                    <span className="text-xs text-slate-400 mt-0.5 block">Statutory headworks, second water meter &amp; infrastructure ($23,000)</span>
+                    <Switch
+                      checked={Boolean(site.dualLivingInfrastructureRequired)}
+                      onCheckedChange={(checked) =>
+                        onChange({
+                          dualLivingInfrastructureRequired: checked,
+                          dualLivingInfrastructureCost: checked ? (site.dualLivingInfrastructureCost || 23000) : 0,
+                        })
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={Boolean(site.dualLivingInfrastructureRequired)}
-                    onCheckedChange={(checked) =>
-                      onChange({
-                        dualLivingInfrastructureRequired: checked,
-                        dualLivingInfrastructureCost: checked ? 23000 : 0,
-                      })
-                    }
-                  />
-                </div>
 
-                {/* Sediment & Asset Protection */}
-                <div
-                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
-                    isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
-                  }`}
-                >
-                  <div>
-                    <span className="text-sm sm:text-base font-bold block">Sediment &amp; Asset Protection</span>
-                    <span className="text-xs text-slate-400 mt-0.5 block">Silt fences &amp; crossover ($1,950)</span>
-                  </div>
-                  <Switch
-                    checked={Boolean((site.sedimentAssetProtectionCost || 0) > 0)}
-                    onCheckedChange={(checked) =>
-                      onChange({ sedimentAssetProtectionCost: checked ? 1950 : 0 })
-                    }
-                  />
+                  {site.dualLivingInfrastructureRequired && (
+                    <div className="pt-2 border-t border-cyan-500/20 space-y-1.5">
+                      <Label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Infrastructure Fee ($)
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder="23000"
+                        value={site.dualLivingInfrastructureCost > 0 ? site.dualLivingInfrastructureCost : ""}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                          const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                          onChange({ dualLivingInfrastructureCost: parseFloat(cleaned) || 0 });
+                        }}
+                        className="h-10 text-sm font-mono font-bold rounded-xl"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

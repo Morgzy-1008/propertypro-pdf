@@ -76,7 +76,7 @@ export interface VariationSectionDef {
 export const VARIATION_SECTIONS: VariationSectionDef[] = [
   {
     id: "extensions",
-    label: "Floorplan & Footprint Extensions",
+    label: "Extensions",
     icon: "📐",
     subtitle: "Living, alfresco, garage & porch footprint extensions",
   },
@@ -88,7 +88,7 @@ export const VARIATION_SECTIONS: VariationSectionDef[] = [
   },
   {
     id: "electrical",
-    label: "Air Conditioning & Electrical",
+    label: "Electrical",
     icon: "⚡",
     subtitle: "Multi-zone ducted air conditioning & 32A EV vehicle circuit",
   },
@@ -112,9 +112,9 @@ export const VARIATION_SECTIONS: VariationSectionDef[] = [
   },
   {
     id: "external",
-    label: "External, Roof & Driveway",
+    label: "External",
     icon: "🌿",
-    subtitle: "Exposed aggregate driveway, garage epoxy flake & barrier screens",
+    subtitle: "Turnkey landscaping package, exposed aggregate driveway, garage epoxy flake & barrier screens",
   },
 ];
 
@@ -152,34 +152,6 @@ export function V2StepVariations({
   const [selectedCategory, setSelectedCategory] = useState<PopularVariationGroup | "all">("extensions");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Calculate live count and subtotal of selected items in each category
-  const getCategoryStats = (groupId: PopularVariationGroup) => {
-    const presets = POPULAR_VARIATIONS.filter((p) => p.group === groupId && isItemVisibleForDesign(p));
-    let count = 0;
-    let total = 0;
-    for (const p of presets) {
-      const existing = lineItems.find((it) => it.id === p.id || it.catalogueItemId === p.id);
-      if (existing?.isIncluded) {
-        const isSqm = p.unitType === "sqm";
-        const isBath = p.unitType === "per_bath";
-        const qty = existing.quantity || 0;
-        if (isSqm || isBath ? qty > 0 : true) {
-          count++;
-          total += existing.subtotal ?? (isSqm || isBath ? qty * (p.unitRate || p.price) : p.price);
-        }
-      }
-    }
-    if (groupId === "ceiling_height") {
-      for (const it of lineItems) {
-        if (it.isIncluded && it.id.startsWith("ceil_zone_")) {
-          count++;
-          total += it.subtotal || 0;
-        }
-      }
-    }
-    return { count, total };
-  };
-
   // Custom Variation Input & Modal State
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
@@ -204,16 +176,25 @@ export function V2StepVariations({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Collapsible state for Custom/Catalogue section
-  const [showCatalogueSearch, setShowCatalogueSearch] = useState(false);
-  const [showCustomForm, setShowCustomForm] = useState(false);
-
   // 1. Resolve design specifications & areas
   const totalM2 = Number(quote.design.designM2) || Number(quote.design.standardDesignM2) || 200;
   const isDouble = isDoubleStoreyDesign(quote.design.designName, quote.design.housingType, quote.design.customSpec?.storeys || (quote.design as any).storeys);
   const tier = normalizeInclusionTier(quote.design.specTier);
   const isH3 = tier === "H3" || quote.design.specTier?.toLowerCase().includes("h3") || quote.design.specTier?.toLowerCase().includes("luxury");
   const tierRates = EXTENSION_RATES_BY_TIER[tier] || EXTENSION_RATES_BY_TIER.H2;
+
+  // Filter presets tailored to the specific design and tier
+  const isItemVisibleForDesign = (preset: PopularVariationPreset): boolean => {
+    // Hide upper floor items if design is single storey
+    if (preset.doubleStoreyOnly && !isDouble) return false;
+    // Hide 600x600 tiles, hybrid flooring, and ducted AC if H3 (already standard in H3!)
+    if (preset.hideIfH3 && isH3) return false;
+    // Ducted AC is already included as standard in H3 inclusions
+    if ((preset.id === "pop_h1_ducted_ac" || preset.id === "hvac_ducted_aircon") && isH3) return false;
+    // Driveway is managed via dedicated card in External filter
+    if (preset.id === "pop_driveway_sqm") return false;
+    return true;
+  };
 
   // Dynamic extension rate calibration function ensuring all extension presets reflect H1/H2/H3
   const getCalibratedPreset = (p: PopularVariationPreset): PopularVariationPreset => {
@@ -251,6 +232,43 @@ export function V2StepVariations({
   const currentDrivewayM2 = quote.design.exposedDrivewayM2 ?? 55;
   const currentDrivewayCost = Math.round(currentDrivewayM2 * 230);
   const isDrivewayActive = Boolean(quote.design.exposedDrivewaySelected && !quote.design.landscapingSelected);
+
+  // Calculate live count and subtotal of selected items in each category
+  const getCategoryStats = (groupId: PopularVariationGroup) => {
+    const presets = POPULAR_VARIATIONS.filter((p) => p.group === groupId && isItemVisibleForDesign(p));
+    let count = 0;
+    let total = 0;
+    for (const p of presets) {
+      const existing = lineItems.find((it) => it.id === p.id || it.catalogueItemId === p.id);
+      if (existing?.isIncluded) {
+        const isSqm = p.unitType === "sqm";
+        const isBath = p.unitType === "per_bath";
+        const qty = existing.quantity || 0;
+        if (isSqm || isBath ? qty > 0 : true) {
+          count++;
+          total += existing.subtotal ?? (isSqm || isBath ? qty * (p.unitRate || p.price) : p.price);
+        }
+      }
+    }
+    if (groupId === "ceiling_height") {
+      for (const it of lineItems) {
+        if (it.isIncluded && it.id.startsWith("ceil_zone_")) {
+          count++;
+          total += it.subtotal || 0;
+        }
+      }
+    }
+    if (groupId === "external") {
+      if (isLandscapingActive) {
+        count++;
+        total += currentLandscapingCost;
+      } else if (isDrivewayActive) {
+        count++;
+        total += currentDrivewayCost;
+      }
+    }
+    return { count, total };
+  };
 
   const handleToggleLandscaping = () => {
     if (!onDesignChange) return;
@@ -554,16 +572,6 @@ export function V2StepVariations({
     return 0;
   };
 
-  // Filter presets tailored to the specific design and tier
-  const isItemVisibleForDesign = (preset: PopularVariationPreset): boolean => {
-    // Hide upper floor items if design is single storey
-    if (preset.doubleStoreyOnly && !isDouble) return false;
-    // Hide 600x600 tiles, hybrid flooring, and ducted AC if H3 (already standard in H3!)
-    if (preset.hideIfH3 && isH3) return false;
-    // Ducted AC is already included as standard in H3 inclusions
-    if ((preset.id === "pop_h1_ducted_ac" || preset.id === "hvac_ducted_aircon") && isH3) return false;
-    return true;
-  };
 
   // Auto-purge items that are already standard in H3 (e.g. Ducted AC, 600x600 porcelain tiles, hybrid flooring)
   useEffect(() => {
@@ -1327,205 +1335,6 @@ export function V2StepVariations({
         </div>
       )}
 
-      {/* SECTION: FEATURED POPULAR TURNKEY PACKAGES (LANDSCAPING & DRIVEWAY) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-700/30 pb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🌿</span>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={`text-sm sm:text-base font-extrabold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-                Featured Popular Turnkey Upgrades
-              </h3>
-              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px] font-bold py-0.5">
-                Top Client Selections
-              </Badge>
-            </div>
-          </div>
-          {(isLandscapingActive || isDrivewayActive) && (
-            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold">
-              {isLandscapingActive ? "Landscaping Package Active" : "55m² Driveway Active"}
-            </Badge>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Card 1: Turnkey Complete Landscaping Package */}
-          <div
-            className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
-              isLandscapingActive
-                ? isLight
-                  ? "bg-emerald-50/90 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30"
-                  : "bg-emerald-950/25 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/30"
-                : isLight
-                ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs"
-                : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
-            }`}
-          >
-            <div className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={`text-sm sm:text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
-                      Turnkey Landscaping Package
-                    </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase font-mono">
-                      Includes Driveway
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Complete turnkey package: turf, 1.8m boundary fencing with gate, letterbox, folding clothesline, garden beds &amp; exposed aggregate driveway.
-                  </p>
-                </div>
-              </div>
-
-              {/* Lot size selector and dynamic price */}
-              <div className="pt-3 border-t border-slate-700/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                    Lot / Land Size:
-                  </Label>
-                  <Select
-                    value={String(currentLandSize)}
-                    onValueChange={handleLandSizeChange}
-                  >
-                    <SelectTrigger className={`h-9 text-xs font-semibold w-40 rounded-xl ${
-                      isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
-                    }`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="300">Up to 300 m² Lot</SelectItem>
-                      <SelectItem value="450">Up to 450 m² Lot</SelectItem>
-                      <SelectItem value="600">Up to 600 m² Lot</SelectItem>
-                      <SelectItem value="700">Up to 700 m² Lot</SelectItem>
-                      <SelectItem value="800">Up to 800 m² Lot</SelectItem>
-                      <SelectItem value="900">Up to 900 m² Lot</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center gap-3 justify-between sm:justify-end">
-                  <span className={`text-base font-extrabold font-mono ${
-                    isLandscapingActive
-                      ? isLight ? "text-emerald-700" : "text-emerald-400"
-                      : "text-slate-400"
-                  }`}>
-                    {currentLandscapingCost < 0
-                      ? `-${formatAud(Math.abs(currentLandscapingCost))}`
-                      : currentLandscapingCost === 0
-                      ? "Included ($0)"
-                      : `+${formatAud(currentLandscapingCost)}`}
-                  </span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={isLandscapingActive ? "secondary" : "outline"}
-                    onClick={handleToggleLandscaping}
-                    className={`h-8 px-3 text-xs font-bold rounded-xl cursor-pointer ${
-                      isLandscapingActive
-                        ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-                        : ""
-                    }`}
-                  >
-                    {isLandscapingActive ? "✓ Included" : "+ Add"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: 55m² Exposed Aggregate Driveway */}
-          <div
-            className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
-              isLandscapingActive
-                ? isLight
-                  ? "bg-slate-50/60 border-slate-200 opacity-80"
-                  : "bg-slate-950/40 border-slate-800 opacity-80"
-                : isDrivewayActive
-                ? isLight
-                  ? "bg-emerald-50/90 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30"
-                  : "bg-emerald-950/25 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/30"
-                : isLight
-                ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs"
-                : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
-            }`}
-          >
-            <div className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={`text-sm sm:text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
-                      Exposed Aggregate Concrete Driveway
-                    </span>
-                    {isLandscapingActive ? (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase font-mono">
-                        ✓ Included in Landscaping
-                      </span>
-                    ) : (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold font-mono">
-                        $230/m² rate
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Reinforced decorative exposed aggregate concrete driveway and front porch pedestrian lead walk path.
-                  </p>
-                </div>
-              </div>
-
-              {/* Driveway m2 input and dynamic price */}
-              <div className="pt-3 border-t border-slate-700/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                    Driveway Area:
-                  </Label>
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      type="number"
-                      min="1"
-                      max="300"
-                      disabled={isLandscapingActive}
-                      value={currentDrivewayM2}
-                      onChange={(e) => handleDrivewayM2Change(e.target.value)}
-                      className={`w-20 h-9 text-center font-mono font-bold text-xs rounded-xl ${
-                        isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
-                      } ${isLandscapingActive ? "cursor-not-allowed opacity-60" : ""}`}
-                    />
-                    <span className="text-xs text-slate-400 font-bold">m²</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 justify-between sm:justify-end">
-                  <span className={`text-base font-extrabold font-mono ${
-                    isLandscapingActive
-                      ? "text-emerald-500"
-                      : isDrivewayActive
-                      ? isLight ? "text-emerald-700" : "text-emerald-400"
-                      : "text-slate-400"
-                  }`}>
-                    {isLandscapingActive ? "$0 (In Landscaping)" : `+${formatAud(currentDrivewayCost)}`}
-                  </span>
-                  {!isLandscapingActive && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={isDrivewayActive ? "secondary" : "outline"}
-                      onClick={handleToggleDriveway}
-                      className={`h-8 px-3 text-xs font-bold rounded-xl cursor-pointer ${
-                        isDrivewayActive
-                          ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-                          : ""
-                      }`}
-                    >
-                      {isDrivewayActive ? "✓ Included" : "+ Add"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* CATEGORY CARDS ACROSS THE PAGE WITH SELECTION COUNTS */}
       <div className="space-y-3">
@@ -1626,6 +1435,12 @@ export function V2StepVariations({
             return acc + (existing?.subtotal ?? (isSqm || isBath ? qty * (p.unitRate || p.price) : p.price));
           }, 0);
 
+          const isExternal = sec.id === "external";
+          const externalPackageCount = isExternal ? (isLandscapingActive ? 1 : isDrivewayActive ? 1 : 0) : 0;
+          const externalPackageCost = isExternal ? (isLandscapingActive ? currentLandscapingCost : isDrivewayActive ? currentDrivewayCost : 0) : 0;
+          const totalSectionCount = sectionActiveItems.length + externalPackageCount;
+          const totalSectionAmount = sectionTotal + externalPackageCost;
+
           return (
             <div key={sec.id} className="space-y-3">
               {/* Section Header */}
@@ -1644,9 +1459,9 @@ export function V2StepVariations({
                   </div>
                 </div>
 
-                {sectionActiveItems.length > 0 && (
+                {totalSectionCount > 0 && (
                   <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold">
-                    {sectionActiveItems.length} selected (+{formatAud(sectionTotal)})
+                    {totalSectionCount} selected (+{formatAud(totalSectionAmount)})
                   </Badge>
                 )}
               </div>
@@ -1801,6 +1616,187 @@ export function V2StepVariations({
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Landscaping & Driveway Turnkey Options (Inside External filter) */}
+              {sec.id === "external" && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-2">
+                  {/* Card 1: Turnkey Complete Landscaping Package */}
+                  <div
+                    className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
+                      isLandscapingActive
+                        ? isLight
+                          ? "bg-emerald-50/90 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30"
+                          : "bg-emerald-950/25 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/30"
+                        : isLight
+                        ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs"
+                        : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-sm sm:text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                              Turnkey Landscaping Package
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase font-mono">
+                              Includes Driveway
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Complete turnkey package: turf, 1.8m boundary fencing with gate, letterbox, folding clothesline, garden beds &amp; exposed aggregate driveway.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Lot size selector and dynamic price */}
+                      <div className="pt-3 border-t border-slate-700/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                            Lot / Land Size:
+                          </Label>
+                          <Select
+                            value={String(currentLandSize)}
+                            onValueChange={handleLandSizeChange}
+                          >
+                            <SelectTrigger className={`h-9 text-xs font-semibold w-40 rounded-xl ${
+                              isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                            }`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="300">Up to 300 m² Lot</SelectItem>
+                              <SelectItem value="450">Up to 450 m² Lot</SelectItem>
+                              <SelectItem value="600">Up to 600 m² Lot</SelectItem>
+                              <SelectItem value="700">Up to 700 m² Lot</SelectItem>
+                              <SelectItem value="800">Up to 800 m² Lot</SelectItem>
+                              <SelectItem value="900">Up to 900 m² Lot</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="flex items-center gap-3 justify-between sm:justify-end">
+                          <span className={`text-base font-extrabold font-mono ${
+                            isLandscapingActive
+                              ? isLight ? "text-emerald-700" : "text-emerald-400"
+                              : "text-slate-400"
+                          }`}>
+                            {currentLandscapingCost < 0
+                              ? `-${formatAud(Math.abs(currentLandscapingCost))}`
+                              : currentLandscapingCost === 0
+                              ? "Included ($0)"
+                              : `+${formatAud(currentLandscapingCost)}`}
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={isLandscapingActive ? "secondary" : "outline"}
+                            onClick={handleToggleLandscaping}
+                            className={`h-8 px-3 text-xs font-bold rounded-xl cursor-pointer ${
+                              isLandscapingActive
+                                ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+                                : ""
+                            }`}
+                          >
+                            {isLandscapingActive ? "✓ Included" : "+ Add"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: 55m² Exposed Aggregate Driveway */}
+                  <div
+                    className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
+                      isLandscapingActive
+                        ? isLight
+                          ? "bg-slate-50/60 border-slate-200 opacity-80"
+                          : "bg-slate-950/40 border-slate-800 opacity-80"
+                        : isDrivewayActive
+                        ? isLight
+                          ? "bg-emerald-50/90 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30"
+                          : "bg-emerald-950/25 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/30"
+                        : isLight
+                        ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs"
+                        : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-sm sm:text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                              Exposed Aggregate Concrete Driveway
+                            </span>
+                            {isLandscapingActive ? (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase font-mono">
+                                ✓ Included in Landscaping
+                              </span>
+                            ) : (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold font-mono">
+                                $230/m² rate
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Reinforced decorative exposed aggregate concrete driveway and front porch pedestrian lead walk path.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Driveway m2 input and dynamic price */}
+                      <div className="pt-3 border-t border-slate-700/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                            Driveway Area:
+                          </Label>
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              type="number"
+                              min="1"
+                              max="300"
+                              disabled={isLandscapingActive}
+                              value={currentDrivewayM2}
+                              onChange={(e) => handleDrivewayM2Change(e.target.value)}
+                              className={`w-20 h-9 text-center font-mono font-bold text-xs rounded-xl ${
+                                isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                              } ${isLandscapingActive ? "cursor-not-allowed opacity-60" : ""}`}
+                            />
+                            <span className="text-xs text-slate-400 font-bold">m²</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 justify-between sm:justify-end">
+                          <span className={`text-base font-extrabold font-mono ${
+                            isLandscapingActive
+                              ? "text-emerald-500"
+                              : isDrivewayActive
+                              ? isLight ? "text-emerald-700" : "text-emerald-400"
+                              : "text-slate-400"
+                          }`}>
+                            {isLandscapingActive ? "$0 (In Landscaping)" : `+${formatAud(currentDrivewayCost)}`}
+                          </span>
+                          {!isLandscapingActive && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={isDrivewayActive ? "secondary" : "outline"}
+                              onClick={handleToggleDriveway}
+                              className={`h-8 px-3 text-xs font-bold rounded-xl cursor-pointer ${
+                                isDrivewayActive
+                                  ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+                                  : ""
+                              }`}
+                            >
+                              {isDrivewayActive ? "✓ Included" : "+ Add"}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2029,164 +2025,7 @@ export function V2StepVariations({
         })}
       </div>
 
-      {/* SECTION: CATALOGUE SEARCH & CUSTOM VARIATIONS (COMPACT COLLAPSIBLE) */}
-      <div className="space-y-4 pt-2 border-t border-slate-700/30">
-          <div className="flex items-center justify-between">
-            <h3 className={`text-sm font-extrabold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-              🔍 Additional Items &amp; Custom Requests
-            </h3>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCatalogueSearch(!showCatalogueSearch)}
-                className="text-xs h-8 gap-1 text-slate-400 hover:text-white"
-              >
-                <Search className="h-3.5 w-3.5" />
-                {showCatalogueSearch ? "Hide Databuild Search" : "Search Databuild"}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCustomForm(!showCustomForm)}
-                className="text-xs h-8 gap-1 text-slate-400 hover:text-white"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {showCustomForm ? "Hide Custom Form" : "+ Add Custom Item"}
-              </Button>
-            </div>
-          </div>
 
-          {/* Collapsible Search */}
-          {showCatalogueSearch && (
-            <div
-              className={`p-4 rounded-xl border transition-all ${
-                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-900/60 border-slate-800/80"
-              }`}
-            >
-              <div className="relative">
-                <Input
-                  placeholder="Search catalogue items by keyword (e.g. cavity slider, downlight, timber)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`text-sm h-10 rounded-xl pl-3 pr-10 ${
-                    isLight
-                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
-                      : "bg-slate-950/80 border-slate-800 text-white"
-                  }`}
-                />
-              </div>
-
-              {searchResults.length > 0 && (
-                <div className="mt-3 divide-y divide-slate-700/40 border border-slate-700/40 rounded-xl overflow-hidden">
-                  {searchResults.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`px-3 py-2 flex items-center justify-between gap-3 text-xs ${
-                        isLight ? "bg-white hover:bg-slate-50" : "bg-slate-950 hover:bg-slate-900"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className="font-bold text-sm truncate">{item.name}</span>
-                        <Badge variant="outline" className="text-[10px] uppercase px-1.5 py-0 font-mono">
-                          {item.unitType}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-none">
-                        <span className="font-mono font-bold text-xs text-emerald-400">
-                          {formatAud(item.unitRate)}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAddCatalogueItem(item)}
-                          className="h-7 px-2.5 text-xs font-bold rounded-lg gap-1 cursor-pointer"
-                        >
-                          <Plus className="h-3 w-3" /> Add
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Collapsible Custom Variation Form */}
-          {showCustomForm && (
-            <div
-              className={`p-4 rounded-xl border transition-all ${
-                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-900/60 border-slate-800/80"
-              }`}
-            >
-              <form onSubmit={handleAddCustom} className="space-y-3">
-                <div className="flex flex-col sm:flex-row gap-3 items-end">
-                  <div className="flex-1 space-y-1 w-full">
-                    <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                      Item Title / Scope of Work *
-                    </Label>
-                    <Input
-                      placeholder="e.g. Supply and install 2x double GPO powerpoints to island bench"
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                      className={`text-sm h-10 rounded-xl ${
-                        isLight
-                          ? "bg-white border-slate-300 text-slate-900"
-                          : "bg-slate-950/80 border-slate-800 text-white"
-                      }`}
-                    />
-                  </div>
-
-                  <div className="w-full sm:w-44 space-y-1">
-                    <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                      Quoted Price ($) *
-                    </Label>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="e.g. 450, 0, -500"
-                      value={customPrice}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setCustomPrice(e.target.value)}
-                      className={`text-sm h-10 rounded-xl font-mono ${
-                        isLight
-                          ? "bg-white border-slate-300 text-slate-900"
-                          : "bg-slate-950/80 border-slate-800 text-white"
-                      }`}
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={!customName.trim() || customPrice.trim() === ""}
-                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs h-10 px-4 rounded-xl gap-1.5 flex-none cursor-pointer"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> Add Variation
-                  </Button>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className={`text-[11px] font-bold uppercase tracking-wider text-slate-400`}>
-                    Additional Description / Scope Notes (Optional)
-                  </Label>
-                  <Input
-                    placeholder="Optional details or specification notes for client estimate and PDF..."
-                    value={customDescription}
-                    onChange={(e) => setCustomDescription(e.target.value)}
-                    className={`text-xs h-9 rounded-xl ${
-                      isLight
-                        ? "bg-slate-50 border-slate-300 text-slate-900"
-                        : "bg-slate-950/60 border-slate-800 text-white"
-                    }`}
-                  />
-                </div>
-              </form>
-            </div>
-          )}
-        </div>
 
       {/* SECTION: SELECTED UPGRADES SUMMARY (COMPACT ROWS WITHOUT UNWANTED PLACEHOLDERS) */}
       {activeIncludedItems.length > 0 && (
