@@ -175,7 +175,10 @@ export function V2StepSiteCosts({
     };
     const el = map[stageNum]?.current;
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      const headerOffset = 180;
+      const rect = el.getBoundingClientRect();
+      const targetY = rect.top + window.scrollY - headerOffset;
+      window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
     }
   };
 
@@ -628,7 +631,7 @@ export function V2StepSiteCosts({
       {/* STEP 1: TYPE OF SITE WE'RE BUILDING ON (Greenfield, Brownfield, KDRB) */}
       <div
         ref={stage1Ref}
-        className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
+        className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
           isLight
             ? "bg-white border-slate-200 shadow-sm"
             : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
@@ -770,7 +773,7 @@ export function V2StepSiteCosts({
       {revealedStage >= 2 && (
         <div
           ref={stage2Ref}
-          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
@@ -885,7 +888,7 @@ export function V2StepSiteCosts({
       {revealedStage >= 3 && (
         <div
           ref={stage3Ref}
-          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
@@ -1219,7 +1222,7 @@ export function V2StepSiteCosts({
       {siteType === "kdrb" && revealedStage >= 4 && (
         <div
           ref={stage4Ref}
-          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-amber-50/70 border-amber-300 shadow-sm"
               : "bg-amber-950/20 border-amber-500/40 backdrop-blur-md"
@@ -1342,7 +1345,7 @@ export function V2StepSiteCosts({
       {revealedStage >= 5 && (
         <div
           ref={stage5Ref}
-          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
@@ -1514,7 +1517,7 @@ export function V2StepSiteCosts({
       {revealedStage >= 6 && (
         <div
           ref={stage6Ref}
-          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
@@ -2022,7 +2025,7 @@ export function V2StepSiteCosts({
       {revealedStage >= 7 && (
         <div
           ref={stage7Ref}
-          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"

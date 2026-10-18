@@ -929,7 +929,7 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
       await ensureStaffSupabaseAuth();
       const [lotRes, pkgRes] = await Promise.all([
         supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
-        supabase.from("packages").select("*").not("name", "like", "Tender Request%").order("created_at", { ascending: false }),
+        supabase.from("packages").select("*").not("name", "like", "Tender Request%").not("name", "like", "Builders Estimate%").order("created_at", { ascending: false }),
       ]);
 
       const lots = (lotRes.data ?? []) as any[];

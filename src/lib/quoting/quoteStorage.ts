@@ -16,6 +16,8 @@ import type {
   QuoteSelectedLineItem,
   SiteConditions,
 } from "./quoteTypes";
+import { supabase } from "@/integrations/supabase/client";
+import { broadcastCloudChange } from "@/lib/supabaseSync";
 
 const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v9";
 const STORAGE_KEY_ACTIVE_DRAFT = "hudson_active_draft_quote_v9";
@@ -275,12 +277,8 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
     acousticGlazingRequired: false,
     acousticGlazingCost: 0,
 
-    councilRegion: (getActiveStaffUser()?.division || getActiveStaffUser()?.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD")) === "NSW"
-      ? "NSW Local Council (Standard Statutory Fee)"
-      : "Council Fee Allowance (No Location Mentioned)",
-    councilFee: (getActiveStaffUser()?.division || getActiveStaffUser()?.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD")) === "NSW"
-      ? 2000
-      : 2200,
+    councilRegion: "Council Fee Allowance (Pending Location)",
+    councilFee: 2000,
     councilLodgementFee: 0,
     councilDaRequired: false,
     councilDaCost: 11000,
@@ -312,7 +310,6 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
   const allQuotes = loadAllQuotes();
   const estimateNo = generateQuoteNumber(clientName, allQuotes);
   const activeStaff = getActiveStaffUser();
-  const staffState = (activeStaff?.division || activeStaff?.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD")) === "NSW" ? "NSW" : "QLD";
 
   return {
     id: `quote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -333,7 +330,7 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
       suburb: "",
       estate: "",
       postcode: "",
-      state: staffState,
+      state: undefined, // State is detected dynamically from site address per requirement
       estimateNumber: estimateNo,
       estimateVersion: 1,
       depositType: "greenfield",
@@ -351,6 +348,53 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
     siteConditions: defaultSite,
     lineItems,
     pricing,
+  };
+}
+
+/**
+ * Automatically evaluates whether a quote should be archived:
+ * 1. Any estimate saved > 14 days ago is auto-archived.
+ * 2. Any unnamed client quote is auto-archived.
+ */
+export function evaluateQuoteArchiveStatus(quote: FullQuote): FullQuote {
+  if (!quote) return quote;
+  const quoteTime = new Date(quote.updatedAt || quote.createdAt || 0).getTime();
+  const ageDays = (Date.now() - quoteTime) / (1000 * 60 * 60 * 24);
+  const clientName = (quote.client?.clientName || "").trim();
+  const isUnnamed =
+    !clientName ||
+    clientName.toLowerCase() === "draft" ||
+    clientName.toLowerCase() === "client name" ||
+    clientName.toLowerCase() === "unnamed client" ||
+    clientName.length < 2;
+
+  // If quote was explicitly marked as un-archived via recovery, keep it active unless unnamed or >14 days without an update
+  if (quote.isArchived === false && quote.archivedReason === undefined && !isUnnamed && ageDays <= 14) {
+    return quote;
+  }
+
+  if (isUnnamed) {
+    return {
+      ...quote,
+      isArchived: true,
+      archivedReason: "unnamed_client",
+      archivedAt: quote.archivedAt || quote.updatedAt || new Date().toISOString(),
+    };
+  }
+
+  if (ageDays > 14) {
+    return {
+      ...quote,
+      isArchived: true,
+      archivedReason: "stale_14_days",
+      archivedAt: quote.archivedAt || quote.updatedAt || new Date().toISOString(),
+    };
+  }
+
+  return {
+    ...quote,
+    isArchived: quote.isArchived ?? false,
+    archivedReason: quote.archivedReason,
   };
 }
 
@@ -388,7 +432,7 @@ export function loadAllQuotes(): FullQuote[] {
         lineItems: normalizedLineItems,
       };
 
-      return rehydrateAndRecalculateQuote(quoteToRehydrate);
+      return rehydrateAndRecalculateQuote(evaluateQuoteArchiveStatus(quoteToRehydrate));
     });
   } catch {
     return [];
@@ -396,7 +440,7 @@ export function loadAllQuotes(): FullQuote[] {
 }
 
 /**
- * Loads all quotes with complete fidelity merging IndexedDB + localStorage + active draft.
+ * Loads all quotes with complete fidelity merging IndexedDB + localStorage + active draft + Supabase Cloud team quotes.
  */
 export async function loadAllQuotesAsync(): Promise<FullQuote[]> {
   const [idbQuotes, syncQuotes] = await Promise.all([
@@ -415,12 +459,47 @@ export async function loadAllQuotesAsync(): Promise<FullQuote[]> {
     if (q && q.id) map.set(q.id, q);
   }
 
+  // Fetch shared team quotes from Supabase so Alyssa, Morgan, Ben, etc. see quotes made in the last 7+ days
+  try {
+    const remotePromise = supabase
+      .from("packages")
+      .select("flyer_data, updated_at")
+      .like("name", "Builders Estimate:%")
+      .order("updated_at", { ascending: false })
+      .limit(100);
+
+    const timeoutPromise = new Promise<{ data: any[] | null }>((resolve) =>
+      setTimeout(() => resolve({ data: null }), 2500)
+    );
+
+    const { data: remoteRows } = (await Promise.race([remotePromise, timeoutPromise])) as any;
+
+    if (remoteRows && remoteRows.length > 0) {
+      for (const row of remoteRows) {
+        const rawQuote = (row.flyer_data as any)?.quote;
+        if (rawQuote && rawQuote.id) {
+          const localExisting = map.get(rawQuote.id);
+          const remoteTime = new Date(row.updated_at || rawQuote.updatedAt || 0).getTime();
+          const localTime = new Date(localExisting?.updatedAt || 0).getTime();
+          if (!localExisting || remoteTime >= localTime) {
+            map.set(rawQuote.id, rawQuote);
+            saveQuoteToIdb(rawQuote).catch(() => {});
+          }
+        }
+      }
+    }
+  } catch (cloudErr) {
+    console.warn("Supabase team quotes sync notice:", cloudErr);
+  }
+
   const draft = loadActiveDraftQuote();
   if (draft && draft.id && !map.has(draft.id)) {
     map.set(draft.id, draft);
   }
 
-  const results = Array.from(map.values()).map((q) => rehydrateAndRecalculateQuote(q));
+  const results = Array.from(map.values()).map((q) =>
+    rehydrateAndRecalculateQuote(evaluateQuoteArchiveStatus(q))
+  );
   results.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
   return results;
 }
@@ -428,7 +507,7 @@ export async function loadAllQuotesAsync(): Promise<FullQuote[]> {
 export function getQuoteById(id: string): FullQuote | null {
   const all = loadAllQuotes();
   const matched = all.find((q) => q.id === id || q.quoteNumber === id);
-  return matched ? rehydrateAndRecalculateQuote(matched) : null;
+  return matched ? rehydrateAndRecalculateQuote(evaluateQuoteArchiveStatus(matched)) : null;
 }
 
 function sanitizeQuoteForLocalStorage(quote: FullQuote): FullQuote {
@@ -440,6 +519,77 @@ function sanitizeQuoteForLocalStorage(quote: FullQuote): FullQuote {
       floorplanUrl: hasHeavyFloorplan ? "" : quote.design.floorplanUrl,
     },
   };
+}
+
+/**
+ * Saves and syncs quote to Supabase cloud database so all team members (Alyssa, Morgan, Ben)
+ * immediately see quotes across devices in real-time.
+ */
+export async function syncQuoteToCloud(quote: FullQuote): Promise<void> {
+  try {
+    const quoteNotesKey = `quote_${quote.id}`;
+    const safeQuote = sanitizeQuoteForLocalStorage(quote);
+    const payload = {
+      name: `Builders Estimate: ${quote.quoteNumber || "MH"} - ${quote.client?.clientName || "Client"}`,
+      housing_type: quote.design?.housingType || "Single Storey",
+      design: quote.design?.designName || "Design",
+      range_id: "designer",
+      facade_uplift: quote.design?.facadePrice || 0,
+      facade_name: quote.design?.facadeName || null,
+      house_price: quote.pricing?.baseHousePrice || 0,
+      total_price: quote.pricing?.grossEstimatedInvestment || 0,
+      notes: quoteNotesKey,
+      flyer_data: {
+        type: "builders_estimate",
+        quote: safeQuote,
+      } as any,
+      status: "draft" as const,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existing } = await supabase
+      .from("packages")
+      .select("id")
+      .eq("notes", quoteNotesKey)
+      .maybeSingle();
+
+    if (existing?.id) {
+      await supabase.from("packages").update(payload).eq("id", existing.id);
+    } else {
+      await supabase.from("packages").insert(payload);
+    }
+
+    await broadcastCloudChange({ action: "quote_saved" as any, quote: safeQuote } as any);
+  } catch (err) {
+    console.warn("Supabase quote cloud sync error:", err);
+  }
+}
+
+/**
+ * Recovers an archived quote and restores it to active quotes list with latest recalculated pricing.
+ */
+export async function recoverArchivedQuote(quoteId: string, customClientName?: string): Promise<FullQuote | null> {
+  const all = await loadAllQuotesAsync();
+  const matched = all.find((q) => q.id === quoteId || q.quoteNumber === quoteId);
+  if (!matched) return null;
+
+  const validName = customClientName?.trim() || (matched.client.clientName && matched.client.clientName.trim().length >= 2 ? matched.client.clientName.trim() : "Recovered Client");
+
+  const recovered: FullQuote = {
+    ...matched,
+    isArchived: false,
+    archivedReason: undefined,
+    archivedAt: undefined,
+    updatedAt: new Date().toISOString(),
+    client: {
+      ...matched.client,
+      clientName: validName,
+    },
+  };
+
+  const rehydrated = rehydrateAndRecalculateQuote(recovered);
+  await saveQuoteAsync(rehydrated);
+  return rehydrated;
 }
 
 /**
@@ -485,7 +635,7 @@ export function saveQuote(quote: FullQuote): void {
 }
 
 /**
- * Asynchronously saves quote to both IndexedDB and localStorage ensuring persistence.
+ * Asynchronously saves quote to IndexedDB, localStorage, and Supabase cloud store ensuring team persistence.
  */
 export async function saveQuoteAsync(quote: FullQuote): Promise<void> {
   const updated: FullQuote = {
@@ -494,6 +644,7 @@ export async function saveQuoteAsync(quote: FullQuote): Promise<void> {
   };
   await saveQuoteToIdb(updated);
   saveQuote(updated);
+  syncQuoteToCloud(updated).catch((err) => console.warn("Supabase quote cloud sync background notice:", err));
 }
 
 /**

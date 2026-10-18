@@ -94,7 +94,7 @@ export function V2StepClient({
   const streetInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<any>(null);
 
-  const activeState = (client.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
+  const activeState = client.state ? (client.state === "NSW" ? "NSW" : "QLD") : undefined;
 
   // Consultant security & permissions: Only Alyssa and Ben can change/reassign consultant.
   // When other consultants are logged in, lock details to active login and remove change options.
@@ -357,17 +357,20 @@ export function V2StepClient({
 
   const handleStreetInputChange = (val: string) => {
     const detectedState = detectStateFromAddress(`${val} ${client.suburb || ""}`, client.postcode, activeState);
-    if (detectedState !== client.state) {
+    if (detectedState && detectedState !== client.state) {
       setActiveDivision(detectedState);
     }
-    const patch: Partial<FullQuote["client"]> = { siteAddress: val, state: detectedState };
+    const patch: Partial<FullQuote["client"]> = { siteAddress: val };
+    if (detectedState) {
+      patch.state = detectedState;
+    }
     if (isAddressTba && val !== "Address TBA") {
       if (client.suburb === "Location TBA") patch.suburb = "";
       if (client.lotNumber === "TBA") patch.lotNumber = "";
     }
     onChange(patch);
 
-    if (onSiteChange) {
+    if (onSiteChange && detectedState) {
       const detected = detectCouncilFromLocation(
         client.suburb || "",
         `${val} ${client.estate || ""}`,
@@ -401,7 +404,7 @@ export function V2StepClient({
       try {
         const results = await searchAustralianAddresses(val, {
           limit: 8,
-          state: detectedState,
+          state: client.state ? detectedState : undefined,
         });
         setSuggestions(results);
         setIsSearchOpen(results.length > 0);
@@ -817,7 +820,7 @@ export function V2StepClient({
           /* Land / Site Location Card */
           <div
             ref={lotSectionRef}
-            className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+            className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
               isLight
                 ? "bg-white border-slate-200 shadow-sm"
                 : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
@@ -1089,12 +1092,14 @@ export function V2StepClient({
                   <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                     activeState === "NSW"
                       ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30"
-                      : "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                      : activeState === "QLD"
+                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                      : "bg-slate-500/15 text-slate-400 border border-slate-500/30"
                   }`}>
-                    {activeState === "NSW" ? "NSW Division" : "QLD Division"}
+                    {activeState === "NSW" ? "NSW Division" : activeState === "QLD" ? "QLD Division" : "Pending Address"}
                   </span>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                    <Sparkles className="h-2.5 w-2.5" /> Auto-Detected
+                    <Sparkles className="h-2.5 w-2.5" /> {activeState ? "Auto-Detected" : "Awaiting Address"}
                   </span>
                 </div>
               </div>
@@ -1102,10 +1107,10 @@ export function V2StepClient({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs pt-1">
                 <div>
                   <div className={`font-semibold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
-                    {site?.councilRegion || (activeState === "NSW" ? "NSW Local Council (Standard Statutory Fee)" : "Brisbane City Council")}
+                    {site?.councilRegion || (activeState === "NSW" ? "NSW Local Council (Standard Statutory Fee)" : activeState === "QLD" ? "Brisbane City Council" : "Council Fee Allowance (Pending Location)")}
                   </div>
                   <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                    Determined automatically by login &amp; address
+                    {activeState ? "Determined automatically by site address" : "Enter street address to determine state & council"}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:text-right">

@@ -267,6 +267,7 @@ export function QuoteSummarySidebar({
 
           {onOpenSavedEstimates && (
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={onOpenSavedEstimates}

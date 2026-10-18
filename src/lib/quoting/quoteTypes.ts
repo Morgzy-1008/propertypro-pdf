@@ -375,6 +375,9 @@ export interface FullQuote {
   clientNotes?: string;
   feasibility?: SiteFeasibilityDossier;
   totals?: any;
+  isArchived?: boolean;
+  archivedAt?: string;
+  archivedReason?: "stale_14_days" | "unnamed_client" | "manual";
 }
 
 export interface DetectedAreaDelta {

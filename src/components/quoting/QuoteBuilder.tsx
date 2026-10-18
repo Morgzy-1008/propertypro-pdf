@@ -51,6 +51,9 @@ import {
   calculateTailoredBushfireCost,
   calculateTailoredAcousticCost,
   calculateDuctedAcUpgrade,
+  getHousingTypePrices,
+  getHousingTypeForDesign,
+  detectStateFromAddress,
 } from "@/lib/quoting/quoteEngine";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { findHudsonModelByName } from "@/lib/floorplan/floorplanDetector";
@@ -160,19 +163,19 @@ export function QuoteBuilder() {
     }).catch(() => {});
   }, []);
 
-  // Auto-assign consultant from active staff session
+  // Auto-assign consultant from active staff session without forcing state division before address is entered
   useEffect(() => {
     const applyStaff = (staff: StaffProfile | null) => {
       if (staff) {
-        const staffDivision: "QLD" | "NSW" = (staff.division === "NSW" || staff.state === "NSW") ? "NSW" : "QLD";
         setQuote((prev) => {
           const isAllowedChange = canChangeQuoteConsultant(staff);
-          const hasAddress = prev.client.siteAddress && prev.client.siteAddress !== "Address TBA" && prev.client.siteAddress.trim().length > 3;
-          // If quote has no specific address yet, align state with consultant login
-          const targetState = hasAddress ? (prev.client.state || staffDivision) : staffDivision;
-          if (!hasAddress && getActiveDivision() !== staffDivision) {
-            setActiveDivision(staffDivision);
-          }
+          const hasAddress = Boolean(
+            prev.client.siteAddress &&
+            prev.client.siteAddress !== "Address TBA" &&
+            prev.client.siteAddress.trim().length > 3
+          );
+          // Only preserve existing state if address is present; do NOT force consultant's division before address
+          const targetState = hasAddress ? prev.client.state : prev.client.state;
 
           // If the logged in user cannot change consultant (i.e. anyone other than Alyssa and Ben),
           // strictly lock the consultant details to the logged in consultant.
@@ -487,9 +490,71 @@ export function QuoteBuilder() {
     setSavedQuotes(list);
   };
 
+  const syncStateDivisionPricing = (quoteSlice: FullQuote, targetState: "NSW" | "QLD"): FullQuote => {
+    const div = targetState;
+    const design = { ...quoteSlice.design };
+    const site = { ...quoteSlice.siteConditions };
+
+    if (design.designName) {
+      const housingType = getHousingTypeForDesign(design.designName, design.housingType);
+      design.housingType = housingType;
+      const models = getHousingTypePrices(div)[housingType] || [];
+      const matched = models.find((m) => m.name.toLowerCase() === (design.designName || "").toLowerCase());
+      if (matched) {
+        const tier = design.specTier || "H2 Design Inclusions";
+        const stdPrice = getTierPrice(matched, tier, housingType, div);
+        if (stdPrice > 0) {
+          design.standardBasePrice = stdPrice;
+          if (design.mode === "standard" || !design.mode) {
+            design.basePrice = stdPrice;
+            design.designM2 = matched.m2;
+          } else if (design.isModifiedFloorplan) {
+            const modCalc = calculateModifiedFloorplanPricing(design);
+            design.basePrice = modCalc.modifiedBasePrice;
+            design.modifiedDesignM2 = modCalc.modifiedTotalM2;
+          }
+        }
+      }
+    }
+
+    if (div === "NSW") {
+      if (
+        !site.councilRegion ||
+        site.councilRegion.includes("Brisbane") ||
+        site.councilRegion.includes("Moreton") ||
+        site.councilRegion.includes("Logan") ||
+        site.councilRegion.includes("Ipswich") ||
+        site.councilRegion.includes("Gold Coast") ||
+        site.councilRegion.includes("Sunshine Coast")
+      ) {
+        site.councilRegion = "NSW Local Council (Standard Statutory Fee)";
+        site.councilFee = 2000;
+      }
+    }
+
+    const updatedPricing = calculateQuotePricing(
+      design,
+      site,
+      quoteSlice.lineItems,
+      quoteSlice.client.depositAmount,
+      quoteSlice.secondDwellingLineItems
+    );
+
+    return {
+      ...quoteSlice,
+      client: {
+        ...quoteSlice.client,
+        state: div,
+      },
+      design,
+      siteConditions: site,
+      pricing: updatedPricing,
+    };
+  };
+
   const updateQuote = (patch: Partial<FullQuote>) => {
     setQuote((prev) => {
-      const merged: FullQuote = {
+      let merged: FullQuote = {
         ...prev,
         ...patch,
         client: patch.client ? { ...prev.client, ...patch.client } : prev.client,
@@ -518,23 +583,37 @@ export function QuoteBuilder() {
         }
       }
 
-      const updatedPricing = calculateQuotePricing(
-        merged.design,
-        merged.siteConditions,
-        merged.lineItems,
-        merged.client.depositAmount,
-        merged.secondDwellingLineItems,
-      );
-      const result = { ...merged, pricing: updatedPricing };
-      // Keep background draft synced
-      saveQuote(result);
-      return result;
+      // Dynamic state detection and pricing update from address
+      const addrText = `${patch.client?.siteAddress ?? merged.client.siteAddress ?? ""} ${patch.client?.suburb ?? merged.client.suburb ?? ""}`;
+      const detectedState: "NSW" | "QLD" | undefined =
+        patch.client?.state ||
+        (addrText.trim().length > 3 ? detectStateFromAddress(addrText, patch.client?.postcode ?? merged.client.postcode) : undefined);
+
+      if (detectedState) {
+        merged.client.state = detectedState;
+        if (getActiveDivision() !== detectedState) {
+          setActiveDivision(detectedState);
+        }
+        merged = syncStateDivisionPricing(merged, detectedState);
+      } else {
+        const updatedPricing = calculateQuotePricing(
+          merged.design,
+          merged.siteConditions,
+          merged.lineItems,
+          merged.client.depositAmount,
+          merged.secondDwellingLineItems,
+        );
+        merged.pricing = updatedPricing;
+      }
+
+      saveQuote(merged);
+      return merged;
     });
   };
 
   const handleClientChange = (patch: Partial<FullQuote["client"]>) => {
     setQuote((prev) => {
-      const updatedClient = { ...prev.client, ...patch };
+      let updatedClient = { ...prev.client, ...patch };
       let nextQuoteNumber = prev.quoteNumber;
 
       if (patch.estimateNumber) {
@@ -545,20 +624,36 @@ export function QuoteBuilder() {
         updatedClient.estimateNumber = generated;
       }
 
-      const updatedPricing = calculateQuotePricing(
-        prev.design,
-        prev.siteConditions,
-        prev.lineItems,
-        updatedClient.depositAmount,
-      );
-      const result = {
+      let workingQuote: FullQuote = {
         ...prev,
         quoteNumber: nextQuoteNumber,
         client: updatedClient,
-        pricing: updatedPricing,
       };
-      saveQuote(result);
-      return result;
+
+      const addrText = `${patch.siteAddress ?? updatedClient.siteAddress ?? ""} ${patch.suburb ?? updatedClient.suburb ?? ""}`;
+      const detectedState: "NSW" | "QLD" | undefined =
+        patch.state ||
+        (addrText.trim().length > 3 ? detectStateFromAddress(addrText, patch.postcode ?? updatedClient.postcode) : undefined);
+
+      if (detectedState) {
+        workingQuote.client.state = detectedState;
+        if (getActiveDivision() !== detectedState) {
+          setActiveDivision(detectedState);
+        }
+        workingQuote = syncStateDivisionPricing(workingQuote, detectedState);
+      } else {
+        const updatedPricing = calculateQuotePricing(
+          workingQuote.design,
+          workingQuote.siteConditions,
+          workingQuote.lineItems,
+          updatedClient.depositAmount,
+          workingQuote.secondDwellingLineItems
+        );
+        workingQuote.pricing = updatedPricing;
+      }
+
+      saveQuote(workingQuote);
+      return workingQuote;
     });
   };
 
@@ -899,18 +994,20 @@ export function QuoteBuilder() {
 
   return (
     <div className="space-y-6 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 pb-20">
-      {/* Top Header Bar with Live Estimate ID, Status & Primary Actions */}
-      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 border-b ${isLight ? "border-slate-200" : "border-slate-800"} pb-5`}>
+      {/* Top Header Bar with Live Estimate ID, Status & Primary Actions (Sticky underneath main navigation header) */}
+      <div className={`sticky top-16 z-30 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b ${
+        isLight ? "border-slate-200/90 bg-white/95" : "border-slate-800/90 bg-slate-950/95"
+      } backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 2xl:-mx-12 2xl:px-12 shadow-xs transition-all`}>
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
               Hudson Quoting System
             </span>
             <span className={isLight ? "text-slate-400" : "text-slate-400"}>·</span>
             <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>Estimate #{quote.quoteNumber}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-1">
-            <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <h1 className={`text-xl sm:text-2xl font-extrabold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
               {quote.client.clientName
                 ? `${quote.client.clientName} — ${getEffectiveDesignName(quote.design)}`
                 : "Technical Builders Estimate & Quoting"}
@@ -940,11 +1037,12 @@ export function QuoteBuilder() {
 
           {/* Saved Estimates Open Button */}
           <Button
+            type="button"
             variant="outline"
             size="sm"
-            onClick={async () => {
-              await refreshSavedQuotes();
+            onClick={() => {
               setIsEstimatesDialogOpen(true);
+              refreshSavedQuotes();
             }}
             className={`text-xs gap-1.5 font-bold ${
               isLight
@@ -1038,9 +1136,9 @@ export function QuoteBuilder() {
         onSaveQuote={handleSaveQuote}
         onDownloadPdf={handleDownloadPdf}
         onOpenShare={() => setIsShareOpen(true)}
-        onOpenSavedEstimates={async () => {
-          await refreshSavedQuotes();
+        onOpenSavedEstimates={() => {
           setIsEstimatesDialogOpen(true);
+          refreshSavedQuotes();
         }}
         onOpenAdminCatalogue={() => setIsAdminOpen(true)}
         onNewQuote={handleNewQuote}

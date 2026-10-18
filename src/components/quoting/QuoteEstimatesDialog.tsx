@@ -24,6 +24,10 @@ import {
   Users,
   UserCheck,
   X,
+  Archive,
+  Clock,
+  AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
@@ -42,7 +46,12 @@ import {
   rehydrateAndRecalculateQuote,
   formatEstimateFileName,
 } from "@/lib/quoting/quoteEngine";
-import { createNewBlankQuote, recoverAllHistoricalQuotes, loadAllQuotesAsync } from "@/lib/quoting/quoteStorage";
+import {
+  createNewBlankQuote,
+  recoverAllHistoricalQuotes,
+  loadAllQuotesAsync,
+  recoverArchivedQuote,
+} from "@/lib/quoting/quoteStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
@@ -214,6 +223,15 @@ export function QuoteEstimatesDialog({
     }
   };
 
+  const activeQuotes = savedQuotes.filter((q) => !q.isArchived);
+  const archivedQuotes = savedQuotes.filter((q) => !!q.isArchived);
+
+  const [showArchivedModal, setShowArchivedModal] = useState(false);
+  const [archivedSearchQuery, setArchivedSearchQuery] = useState("");
+  const [promptNameQuoteId, setPromptNameQuoteId] = useState<string | null>(null);
+  const [nameInput, setNameInput] = useState("");
+  const [recoveringId, setRecoveringId] = useState<string | null>(null);
+
   const isMyQuote = (q: FullQuote) => {
     if (!activeStaff) return true;
     const cEmail = (q.client?.consultantEmail || "").toLowerCase().trim();
@@ -227,11 +245,11 @@ export function QuoteEstimatesDialog({
     );
   };
 
-  const myQuotesCount = savedQuotes.filter(isMyQuote).length;
-  const allQuotesCount = savedQuotes.length;
+  const myQuotesCount = activeQuotes.filter(isMyQuote).length;
+  const allQuotesCount = activeQuotes.length;
 
   const scopedQuotes =
-    scopeFilter === "mine" && activeStaff ? savedQuotes.filter(isMyQuote) : savedQuotes;
+    scopeFilter === "mine" && activeStaff ? activeQuotes.filter(isMyQuote) : activeQuotes;
 
   const filteredQuotes = scopedQuotes.filter((q) => {
     const query = searchQuery.toLowerCase().trim();
@@ -251,6 +269,70 @@ export function QuoteEstimatesDialog({
       consultant.includes(query)
     );
   });
+
+  const filteredArchivedQuotes = archivedQuotes.filter((q) => {
+    const query = archivedSearchQuery.toLowerCase().trim();
+    if (!query) return true;
+    const name = (q.client?.clientName || "").toLowerCase();
+    const est = (q.quoteNumber || q.client?.estimateNumber || "").toLowerCase();
+    const addr = (q.client?.siteAddress || "").toLowerCase();
+    const suburb = (q.client?.suburb || "").toLowerCase();
+    const design = (q.design?.designName || "").toLowerCase();
+    const consultant = (q.client?.consultantName || "").toLowerCase();
+    return (
+      name.includes(query) ||
+      est.includes(query) ||
+      addr.includes(query) ||
+      suburb.includes(query) ||
+      design.includes(query) ||
+      consultant.includes(query)
+    );
+  });
+
+  const handleRecoverQuote = async (q: FullQuote) => {
+    const rawName = (q.client?.clientName || "").trim();
+    const isUnnamed =
+      !rawName ||
+      rawName.toLowerCase() === "draft" ||
+      rawName.toLowerCase() === "client name" ||
+      rawName.toLowerCase() === "unnamed client" ||
+      rawName.length < 2;
+
+    if (isUnnamed) {
+      setPromptNameQuoteId(q.id);
+      setNameInput("");
+      return;
+    }
+
+    await executeRecovery(q.id, rawName);
+  };
+
+  const executeRecovery = async (quoteId: string, clientName: string) => {
+    setRecoveringId(quoteId);
+    const toastId = toast.loading(`Recovering & updating pricing for estimate...`);
+    try {
+      const recovered = await recoverArchivedQuote(quoteId, clientName);
+      if (!recovered) {
+        toast.error("Could not find estimate to recover", { id: toastId });
+        return;
+      }
+      onImportQuote(recovered);
+      onLoadQuote(recovered);
+      setPromptNameQuoteId(null);
+      setNameInput("");
+      setShowArchivedModal(false);
+      onOpenChange(false);
+      toast.success(
+        `Restored estimate #${recovered.quoteNumber || "MH"} for ${recovered.client.clientName || "Client"} with refreshed 2026 pricing!`,
+        { id: toastId }
+      );
+    } catch (e) {
+      console.error("Recovery failed:", e);
+      toast.error("Could not recover estimate", { id: toastId });
+    } finally {
+      setRecoveringId(null);
+    }
+  };
 
   const isAllFilteredSelected =
     filteredQuotes.length > 0 && filteredQuotes.every((q) => selectedQuoteIds.has(q.id));
@@ -420,37 +502,11 @@ export function QuoteEstimatesDialog({
     }
   };
 
-  const [recovering, setRecovering] = useState(false);
 
-  const handleDeepRecover = async () => {
-    setRecovering(true);
-    const toastId = toast.loading("Scanning IndexedDB and browser storage for unsaved estimates...");
-    try {
-      const recovered = await recoverAllHistoricalQuotes();
-      if (recovered.length === 0) {
-        toast.info("No unsaved estimate drafts found in browser storage.", { id: toastId });
-      } else {
-        for (const r of recovered) {
-          onImportQuote(r);
-        }
-        const freshest = recovered[0];
-        if (freshest) {
-          onLoadQuote(freshest);
-        }
-        toast.success(
-          `Recovered ${recovered.length} estimate(s)! Restored #${freshest?.quoteNumber || "MH"} for ${freshest?.client.clientName || "Client"}.`,
-          { id: toastId }
-        );
-      }
-    } catch (e) {
-      toast.error("Recovery scan failed", { id: toastId });
-    } finally {
-      setRecovering(false);
-    }
-  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`max-w-3xl max-h-[85vh] flex flex-col backdrop-blur-2xl shadow-2xl p-6 ${
         isLight
           ? "border-slate-200 bg-white text-slate-900"
@@ -462,24 +518,23 @@ export function QuoteEstimatesDialog({
               isLight ? "text-slate-900" : "text-white"
             }`}>
               <FolderOpen className={`h-5 w-5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
-              Saved Builders Estimates ({savedQuotes.length})
+              Saved Builders Estimates ({activeQuotes.length})
             </DialogTitle>
 
             <div className="flex flex-wrap items-center gap-2">
-              {/* Auto Recover Button */}
+              {/* Search Archived Estimates Button */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleDeepRecover}
-                disabled={recovering}
+                onClick={() => setShowArchivedModal(true)}
                 className={`text-xs font-bold gap-1.5 shadow-xs ${
                   isLight
-                    ? "border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-900"
-                    : "border-emerald-500/50 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200"
+                    ? "border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900"
+                    : "border-amber-500/50 bg-amber-950/40 hover:bg-amber-900/60 text-amber-200"
                 }`}
               >
-                <Sparkles className={`h-3.5 w-3.5 ${isLight ? "text-emerald-700" : "text-emerald-400"}`} />
-                {recovering ? "Scanning…" : "Scan & Auto-Recover"}
+                <Archive className={`h-3.5 w-3.5 ${isLight ? "text-amber-700" : "text-amber-400"}`} />
+                Search Archived Estimates ({archivedQuotes.length})
               </Button>
 
               {/* Import PDF Button */}
@@ -999,5 +1054,247 @@ export function QuoteEstimatesDialog({
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Search Archived Estimates Modal */}
+    <Dialog open={showArchivedModal} onOpenChange={setShowArchivedModal}>
+      <DialogContent
+        className={`max-w-3xl max-h-[85vh] flex flex-col backdrop-blur-2xl shadow-2xl p-6 ${
+          isLight
+            ? "border-slate-200 bg-white text-slate-900"
+            : "border-slate-800 bg-slate-950/98 text-slate-100"
+        }`}
+      >
+        <DialogHeader className={`flex-none pb-3 border-b ${isLight ? "border-slate-200" : "border-slate-800/80"}`}>
+          <div className="flex items-center justify-between">
+            <DialogTitle className={`text-base font-extrabold tracking-wide flex items-center gap-2 ${
+              isLight ? "text-slate-900" : "text-white"
+            }`}>
+              <Archive className={`h-5 w-5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
+              Search Archived Estimates ({archivedQuotes.length})
+            </DialogTitle>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${
+              isLight ? "bg-amber-50 text-amber-800 border-amber-200" : "bg-amber-950/50 text-amber-300 border-amber-800/50"
+            }`}>
+              Auto-Archived (&gt;14 days or unnamed)
+            </span>
+          </div>
+          <p className={`text-xs mt-1 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+            Estimates saved more than 14 days ago or drafts without a client name are automatically archived here.
+            Search by client name to recover any estimate — all recovered estimates are instantly recalculated with the latest 2026 pricing.
+          </p>
+
+          <div className="relative mt-3">
+            <Search className={`h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 ${isLight ? "text-slate-400" : "text-slate-500"}`} />
+            <Input
+              value={archivedSearchQuery}
+              onChange={(e) => setArchivedSearchQuery(e.target.value)}
+              placeholder="Search archived estimates by client name, estimate #, address, or house design…"
+              className={`h-9 pl-9 text-xs ${
+                isLight
+                  ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                  : "border-slate-800 bg-slate-900/90 text-slate-200 placeholder:text-slate-500"
+              }`}
+            />
+          </div>
+        </DialogHeader>
+
+        {/* List of Archived Quotes */}
+        <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1">
+          {filteredArchivedQuotes.length === 0 ? (
+            <div className={`text-center py-12 px-4 border border-dashed rounded-xl space-y-2 ${
+              isLight ? "border-slate-300 bg-slate-50" : "border-slate-800 bg-slate-900/30"
+            }`}>
+              <Archive className={`h-8 w-8 mx-auto ${isLight ? "text-slate-400" : "text-slate-600"}`} />
+              <div className={`text-sm font-bold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
+                {archivedSearchQuery ? "No matching archived estimates" : "No archived estimates"}
+              </div>
+              <p className={`text-xs max-w-sm mx-auto ${isLight ? "text-slate-600" : "text-slate-500"}`}>
+                {archivedSearchQuery
+                  ? "Try searching with a different client name or keyword."
+                  : "Estimates older than 14 days or without names will automatically appear here."}
+              </p>
+            </div>
+          ) : (
+            filteredArchivedQuotes.map((q) => {
+              const isOlder14Days = q.archivedReason === "stale_14_days";
+              const isPromptingName = promptNameQuoteId === q.id;
+
+              const dateFormatted = q.updatedAt
+                ? new Date(q.updatedAt).toLocaleDateString("en-AU", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "Unknown date";
+
+              const designTitle = q.design?.designName || "Custom Floorplan";
+              const totalAmount = q.pricing?.grossEstimatedInvestment || q.pricing?.baseHousePrice || 0;
+
+              return (
+                <div
+                  key={q.id}
+                  className={`p-3.5 rounded-xl border transition-all ${
+                    isLight
+                      ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                      : "border-slate-800 bg-slate-900/50 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`font-extrabold text-sm flex items-center gap-1.5 ${
+                          isLight ? "text-slate-900" : "text-slate-100"
+                        }`}>
+                          <User className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
+                          {q.client?.clientName || "Unnamed Client Draft"}
+                        </span>
+
+                        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                          isLight
+                            ? "bg-slate-100 text-slate-700 border-slate-300"
+                            : "bg-slate-800 text-slate-300 border-slate-700"
+                        }`}>
+                          #{q.quoteNumber || q.client?.estimateNumber || "MH"}
+                        </span>
+
+                        {/* Reason Badge */}
+                        {isOlder14Days ? (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 border ${
+                            isLight
+                              ? "text-amber-800 bg-amber-50 border-amber-300"
+                              : "text-amber-300 bg-amber-950/60 border-amber-800/60"
+                          }`}>
+                            <Clock className="h-3 w-3" />
+                            Older than 14 Days
+                          </span>
+                        ) : (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 border ${
+                            isLight
+                              ? "text-rose-800 bg-rose-50 border-rose-300"
+                              : "text-rose-300 bg-rose-950/60 border-rose-800/60"
+                          }`}>
+                            <AlertTriangle className="h-3 w-3" />
+                            Unnamed Client Draft
+                          </span>
+                        )}
+
+                        {q.client?.consultantName && (
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full inline-flex items-center gap-1 border ${
+                            isLight
+                              ? "text-slate-600 bg-slate-100 border-slate-200"
+                              : "text-slate-400 bg-slate-800/60 border-slate-700"
+                          }`}>
+                            👤 {q.client.consultantName}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className={`flex items-center gap-2 text-xs flex-wrap ${
+                        isLight ? "text-slate-600" : "text-slate-400"
+                      }`}>
+                        <span className="font-medium">{designTitle}</span>
+                        {q.client?.suburb && <span>· {q.client.suburb}</span>}
+                        {q.client?.siteAddress && <span>· {q.client.siteAddress}</span>}
+                        <span className="text-[11px] text-slate-400">· Saved {dateFormatted}</span>
+                      </div>
+
+                      {/* Inline Name Prompt if restoring unnamed quote */}
+                      {isPromptingName && (
+                        <div className={`mt-2 p-2.5 rounded-lg border space-y-2 ${
+                          isLight ? "bg-amber-50/80 border-amber-300" : "bg-amber-950/30 border-amber-800/50"
+                        }`}>
+                          <span className={`text-xs font-bold block ${isLight ? "text-amber-900" : "text-amber-200"}`}>
+                            Assign a Client Name to Restore this Estimate:
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={nameInput}
+                              onChange={(e) => setNameInput(e.target.value)}
+                              placeholder="e.g. Michael & Sarah Johnson"
+                              className={`h-8 text-xs ${
+                                isLight ? "bg-white border-amber-300" : "bg-slate-900 border-amber-700 text-white"
+                              }`}
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && nameInput.trim().length >= 2) {
+                                  executeRecovery(q.id, nameInput.trim());
+                                }
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              disabled={nameInput.trim().length < 2 || recoveringId === q.id}
+                              onClick={() => executeRecovery(q.id, nameInput.trim())}
+                              className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3"
+                            >
+                              {recoveringId === q.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm & Restore"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setPromptNameQuoteId(null)}
+                              className="h-8 text-xs px-2"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Pricing & Recover Actions */}
+                    {!isPromptingName && (
+                      <div className="flex items-center gap-3 self-end sm:self-center flex-none">
+                        <div className="text-right pr-2">
+                          <span className={`text-[10px] block uppercase font-medium ${isLight ? "text-slate-500" : "text-slate-500"}`}>
+                            Current 2026 Price
+                          </span>
+                          <span className={`text-sm font-extrabold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                            {formatAud(totalAmount)}
+                          </span>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          disabled={recoveringId === q.id}
+                          onClick={() => handleRecoverQuote(q)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold gap-1.5 shadow-xs"
+                        >
+                          {recoveringId === q.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
+                          Recover Estimate
+                        </Button>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (confirm(`Permanently delete archived estimate #${q.quoteNumber || "MH"}?`)) {
+                              await onDeleteQuote(q.id);
+                              toast.success("Archived estimate deleted");
+                            }
+                          }}
+                          title="Delete Permanently"
+                          className={`p-2 rounded-lg transition-colors ${
+                            isLight
+                              ? "text-slate-400 hover:text-rose-600 hover:bg-slate-100"
+                              : "text-slate-500 hover:text-rose-400 hover:bg-slate-800"
+                          }`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }

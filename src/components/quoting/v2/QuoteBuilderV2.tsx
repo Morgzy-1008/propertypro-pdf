@@ -144,7 +144,11 @@ export function QuoteBuilderV2({
             Quoting Tool V2
           </Badge>
           <span className="text-sm text-slate-400 font-medium">
-            Rapid Progressive Quoting Engine • {(quote.client?.state || getActiveDivision()) === "NSW" ? "Hudson Homes NSW" : "Hudson Homes QLD"}
+            Rapid Progressive Quoting Engine • {
+              quote.client?.state
+                ? (quote.client.state === "NSW" ? "Hudson Homes NSW" : "Hudson Homes QLD")
+                : "Hudson Homes • Enter Site Address to Set State Division & Pricing"
+            }
           </span>
         </div>
       </div>
@@ -266,7 +270,7 @@ export function QuoteBuilderV2({
             )}
           </div>
 
-          <div className="lg:col-span-4 xl:col-span-4 2xl:col-span-3 lg:sticky lg:top-6 space-y-4">
+          <div className="lg:col-span-4 xl:col-span-4 2xl:col-span-3 lg:sticky lg:top-36 space-y-4">
             <QuoteSummarySidebar
               quote={quote}
               onSave={onSaveQuote}

@@ -27,7 +27,7 @@ function QuoteBuilderPage() {
   const isLight = mode === "normal";
 
   return (
-    <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} font-sans selection:bg-emerald-500/30 relative overflow-hidden flex flex-col`}>
+    <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} font-sans selection:bg-emerald-500/30 relative overflow-x-clip flex flex-col`}>
       {/* Ambient Gradient Lights */}
       <div className="ambient-glow-gold h-96 w-96 -top-20 -right-20 pointer-events-none" />
       <div className="ambient-glow-cyan h-96 w-96 -bottom-20 -left-20 pointer-events-none" />
@@ -96,7 +96,7 @@ function QuoteBuilderPage() {
       </header>
 
       {/* Main Quoting Workspace */}
-      <main className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-8 flex-1 relative z-10 scroll-pt-24">
+      <main className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 pt-2 pb-8 flex-1 relative z-10 scroll-pt-36">
         <QuoteBuilder />
       </main>
     </div>

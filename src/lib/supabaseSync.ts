@@ -557,7 +557,7 @@ export async function fetchRemoteLotsAndPackages(): Promise<{ lots: Lot[]; packa
     await ensureStaffSupabaseAuth();
     const [lotRes, pkgRes] = await Promise.all([
       supabase.from("land_lots").select("*").order("created_at", { ascending: false }).limit(2000),
-      supabase.from("packages").select("*").not("name", "like", "Tender Request%").order("created_at", { ascending: false }).limit(2000),
+      supabase.from("packages").select("*").not("name", "like", "Tender Request%").not("name", "like", "Builders Estimate%").order("created_at", { ascending: false }).limit(2000),
     ]);
 
     let rawLots = (lotRes.data || []) as Record<string, unknown>[];
