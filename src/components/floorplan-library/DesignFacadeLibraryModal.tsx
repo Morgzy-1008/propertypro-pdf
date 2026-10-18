@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Search,
@@ -100,21 +101,22 @@ export function DesignFacadeLibraryModal({
 
   // Load all eligible facades for this design using established filters
   const allFacades: DesignFacadeOption[] = useMemo(() => {
-    if (!designName) return [];
+    const effectiveHousingType = housingType || "Single Storey";
+    const effectiveDesign = designName || "";
     const isDouble =
-      housingType === "Double Storey" ||
-      housingType === "double" ||
-      Boolean(designName && /cinnamon|mauve/i.test(designName));
+      effectiveHousingType === "Double Storey" ||
+      effectiveHousingType === "double" ||
+      Boolean(effectiveDesign && /cinnamon|mauve/i.test(effectiveDesign));
 
-    const suitable = getFacadesForDesignAndHousingType(designName, housingType, division);
+    const suitable = getFacadesForDesignAndHousingType(effectiveDesign, effectiveHousingType, division);
 
     return suitable.map((f, idx) => {
-      const resolved = findFacadeForDesign(f.name, isDouble, housingType, designName);
+      const resolved = findFacadeForDesign(f.name, isDouble, effectiveHousingType, effectiveDesign);
       return {
         id: resolved?.id || f.id || `${f.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${idx}`,
         name: f.name,
         uplift: f.uplift,
-        range: f.range || resolved?.range || housingType,
+        range: f.range || resolved?.range || effectiveHousingType,
         note: f.note,
         url: resolved?.url || f.url || "/facades/classic-double-garage.jpg",
       };
@@ -139,14 +141,14 @@ export function DesignFacadeLibraryModal({
     primeFacadeThumbnails(allFacades.map((f) => f.url));
   }, [isOpen, allFacades]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="facade-library-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-8 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 md:p-8 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200"
       style={{ overscrollBehavior: "contain" }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -181,13 +183,22 @@ export function DesignFacadeLibraryModal({
               </span>
             </div>
             <h2 id="facade-library-title" className="text-xl sm:text-2xl font-black tracking-tight">
-              Facade Library for{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500">
-                {designName}
-              </span>
+              Facade Library{" "}
+              {designName ? (
+                <>
+                  for{" "}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500">
+                    {designName}
+                  </span>
+                </>
+              ) : (
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500">
+                  ({housingType})
+                </span>
+              )}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Showing {allFacades.length} architectural facades engineered and verified for this design.
+              Showing {allFacades.length} architectural facades engineered and verified for {designName || housingType}.
             </p>
           </div>
 
@@ -250,14 +261,14 @@ export function DesignFacadeLibraryModal({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredFacades.map((facade) => {
+              {filteredFacades.map((facade, idx) => {
                 const isSelected =
                   currentFacadeName.toLowerCase() === facade.name.toLowerCase() ||
                   currentFacadeName.toLowerCase().startsWith(facade.name.toLowerCase());
 
                 return (
                   <div
-                    key={facade.id || facade.name}
+                    key={`${facade.id || facade.name}-${idx}`}
                     onClick={() => {
                       onSelectFacade(facade);
                       onClose();
@@ -346,6 +357,7 @@ export function DesignFacadeLibraryModal({
           </span>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

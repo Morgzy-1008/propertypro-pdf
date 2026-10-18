@@ -94,6 +94,8 @@ import type {
 } from "@/lib/quoting/quoteTypes";
 import { ModifiedPlanReviewModal } from "@/components/quoting/ModifiedPlanReviewModal";
 import { BaseDesignConfirmationModal } from "@/components/quoting/BaseDesignConfirmationModal";
+import { DesignFacadeLibraryModal, type DesignFacadeOption } from "@/components/floorplan-library/DesignFacadeLibraryModal";
+import { QuoteFacadeEnlargeModal } from "@/components/quoting/QuoteFacadeRenderPreview";
 
 interface V2StepFloorPlanProps {
   design: QuoteDesignSelection;
@@ -237,6 +239,8 @@ export function V2StepFloorPlan({
   // Dropdown search query
   const [searchQuery, setSearchQuery] = useState(design.designName || "");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isFacadeLibraryOpen, setIsFacadeLibraryOpen] = useState(false);
+  const [isEnlargeModalOpen, setIsEnlargeModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Modified floor plan search & dropdown states
@@ -922,6 +926,17 @@ export function V2StepFloorPlan({
       isCustomFacade: false,
     });
     toast.success(`Selected ${facadeName} Façade (${uplift > 0 ? `+${formatAud(uplift)}` : "Included standard"})`);
+  };
+
+  const handleSelectFacadeFromLibrary = (facade: DesignFacadeOption) => {
+    onChange({
+      facadeName: facade.name,
+      facadePrice: facade.uplift,
+      facadeImageUrl: facade.url,
+      isCustomFacade: false,
+    });
+    setIsFacadeLibraryOpen(false);
+    toast.success(`Selected ${facade.name} Façade (${facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"})`);
   };
 
   // Custom Elevation Image Upload
@@ -4287,9 +4302,21 @@ export function V2StepFloorPlan({
               {facadeMode === "catalogue" ? (
                 <>
                   <div className="space-y-2">
-                    <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                      Choose Façade ({suitableFacades.length} certified options)
-                    </Label>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                        Choose Façade from Shortlist ({suitableFacades.length} certified options)
+                      </Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setIsFacadeLibraryOpen(true)}
+                        className="h-8 px-3 text-xs font-bold gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-xs cursor-pointer"
+                      >
+                        <Layers className="h-3.5 w-3.5" />
+                        <span>View Facade Library</span>
+                      </Button>
+                    </div>
+
                     <Select
                       value={design.facadeName || (suitableFacades[0]?.name ?? "Classic")}
                       onValueChange={handleSelectFacade}
@@ -4319,7 +4346,7 @@ export function V2StepFloorPlan({
                     </Select>
                   </div>
 
-                  {/* Selected Façade Summary Badge Card */}
+                  {/* Selected Façade Summary Badge Card with Enlarge Option */}
                   <div
                     className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
                       isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
@@ -4337,7 +4364,23 @@ export function V2StepFloorPlan({
                       </span>
                     </div>
 
-                    <div className="text-right flex-none">
+                    <div className="flex items-center gap-2 flex-none">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsEnlargeModalOpen(true)}
+                        className={`h-8 px-3 text-xs font-bold gap-1.5 ${
+                          isLight
+                            ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
+                            : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
+                        }`}
+                        title="Enlarge facade render"
+                      >
+                        <Maximize2 className="h-3.5 w-3.5 text-cyan-400" />
+                        <span>Enlarge</span>
+                      </Button>
+
                       <Badge
                         variant="outline"
                         className={`font-mono font-bold text-sm py-1.5 px-3 rounded-lg ${
@@ -4457,16 +4500,34 @@ export function V2StepFloorPlan({
                 }`}
               >
                 {/* Generous headroom and padding, no gradient overlay blocking roofline */}
-                <div className="relative h-64 sm:h-80 w-full bg-slate-900/95 overflow-hidden flex items-center justify-center p-4 sm:p-6 border-b border-slate-800/80">
+                <div
+                  onClick={() => setIsEnlargeModalOpen(true)}
+                  className="relative h-64 sm:h-80 w-full bg-slate-900/95 overflow-hidden flex items-center justify-center p-4 sm:p-6 border-b border-slate-800/80 cursor-zoom-in group"
+                  title="Click to enlarge facade render"
+                >
                   <img
                     src={facadePreviewUrl}
                     alt={design.facadeName || "Façade Preview"}
-                    className="w-full h-full object-contain object-center drop-shadow-md"
+                    className="w-full h-full object-contain object-center drop-shadow-md group-hover:scale-105 transition-transform duration-300"
                     crossOrigin="anonymous"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "/facades/classic-facade-single-stry.jpg";
                     }}
                   />
+
+                  {/* Little Enlarge option on the facade */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEnlargeModalOpen(true);
+                    }}
+                    className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/85 hover:bg-slate-900 text-slate-200 hover:text-white text-xs font-bold border border-slate-700/80 hover:border-cyan-400/60 shadow-lg backdrop-blur-md transition-all cursor-pointer group/btn z-10"
+                    title="Enlarge facade render"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5 text-cyan-400 group-hover/btn:scale-110 transition-transform" />
+                    <span>Enlarge Render</span>
+                  </button>
                 </div>
 
                 {/* Dedicated info bar below image (eliminates roofline obscuring overlay) */}
@@ -4482,17 +4543,35 @@ export function V2StepFloorPlan({
                     </h4>
                   </div>
 
-                  <Badge
-                    className={`text-xs sm:text-sm font-mono font-bold py-1 px-3 ${
-                      design.isCustomFacade
-                        ? "bg-amber-500 text-slate-950"
-                        : (design.facadePrice || 0) > 0
-                        ? "bg-cyan-500 text-slate-950"
-                        : "bg-emerald-500 text-slate-950"
-                    }`}
-                  >
-                    {(design.facadePrice || 0) > 0 ? `+${formatAud(design.facadePrice || 0)}` : "Included Standard"}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsEnlargeModalOpen(true)}
+                      className={`h-8 px-2.5 text-xs font-semibold gap-1.5 ${
+                        isLight
+                          ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
+                          : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
+                      }`}
+                      title="Enlarge facade render"
+                    >
+                      <Maximize2 className="h-3.5 w-3.5 text-cyan-400" />
+                      <span>Enlarge</span>
+                    </Button>
+
+                    <Badge
+                      className={`text-xs sm:text-sm font-mono font-bold py-1 px-3 ${
+                        design.isCustomFacade
+                          ? "bg-amber-500 text-slate-950"
+                          : (design.facadePrice || 0) > 0
+                          ? "bg-cyan-500 text-slate-950"
+                          : "bg-emerald-500 text-slate-950"
+                      }`}
+                    >
+                      {(design.facadePrice || 0) > 0 ? `+${formatAud(design.facadePrice || 0)}` : "Included Standard"}
+                    </Badge>
+                  </div>
                 </div>
 
                 <div className="p-4 sm:p-5 flex items-center justify-between text-sm text-slate-400">
@@ -4558,6 +4637,29 @@ export function V2StepFloorPlan({
           onClose={() => setIsReviewModalOpen(false)}
         />
       )}
+
+      {/* Design Facade Library Modal */}
+      <DesignFacadeLibraryModal
+        isOpen={isFacadeLibraryOpen}
+        onClose={() => setIsFacadeLibraryOpen(false)}
+        designName={design.designName || ""}
+        housingType={design.housingType || houseType}
+        division={division}
+        currentFacadeName={design.facadeName || "Classic"}
+        onSelectFacade={handleSelectFacadeFromLibrary}
+        isLight={isLight}
+      />
+
+      {/* Enlarged Facade Lightbox Modal */}
+      <QuoteFacadeEnlargeModal
+        isOpen={isEnlargeModalOpen}
+        onClose={() => setIsEnlargeModalOpen(false)}
+        src={facadePreviewUrl}
+        facadeName={design.facadeName || "Classic"}
+        housingType={design.housingType || houseType}
+        designName={design.designName}
+        facadePrice={design.facadePrice}
+      />
     </div>
   );
 }

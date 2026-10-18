@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Building2,
   PlusCircle,
+  Maximize2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,7 +77,11 @@ import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/faca
 import { isSingleGarageDesign, findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { FacadeLibrary } from "@/components/flyer/FacadeLibraryDialog";
 import { fileToImageDataUrl } from "@/components/flyer/fileToImage";
-import { QuoteFacadeRenderPreview } from "./QuoteFacadeRenderPreview";
+import { QuoteFacadeRenderPreview, QuoteFacadeEnlargeModal } from "./QuoteFacadeRenderPreview";
+import {
+  DesignFacadeLibraryModal,
+  type DesignFacadeOption,
+} from "@/components/floorplan-library/DesignFacadeLibraryModal";
 import type {
   InclusionTier,
   QuoteDesignSelection,
@@ -432,6 +437,8 @@ export function QuoteDesignStep({
   const [pendingAnalysis, setPendingAnalysis] = useState<PlanModificationAnalysis | null>(null);
   const [isDraggingDropzone, setIsDraggingDropzone] = useState(false);
   const [division, setDivision] = useState<Division>(() => getActiveDivision());
+  const [isFacadeLibraryOpen, setIsFacadeLibraryOpen] = useState(false);
+  const [isEnlargeModalOpen, setIsEnlargeModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modifiedFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -536,6 +543,30 @@ export function QuoteDesignStep({
   const activeFloorplanUrl = design.floorplanUrl || standardFloorplanUrl;
 
   const suitableFacades = getFacadesForDesignAndHousingType(design.designName, effectiveHousingType, division);
+
+  const selectedFacadeRenderUrl = React.useMemo(() => {
+    if (design.isCustomFacade && design.facadeImageUrl) {
+      return design.facadeImageUrl;
+    }
+    const matched = findFacadeForDesign(
+      design.facadeName || "Classic",
+      isDouble,
+      isDoubleFrontSplit ? "Double Storey" : effectiveHousingType,
+      design.designName
+    );
+    return matched?.url || design.facadeImageUrl || "/facades/classic-double-garage.jpg";
+  }, [design.isCustomFacade, design.facadeImageUrl, design.facadeName, isDouble, isDoubleFrontSplit, effectiveHousingType, design.designName]);
+
+  const handleSelectFacadeFromLibrary = (facade: DesignFacadeOption) => {
+    onChange({
+      isCustomFacade: false,
+      facadeName: facade.name,
+      facadePrice: facade.uplift,
+      facadeImageUrl: facade.url,
+    });
+    setIsFacadeLibraryOpen(false);
+    toast.success(`Selected ${facade.name} facade (${facade.uplift === 0 ? "Standard Included $0" : `+${formatAud(facade.uplift)}`})`);
+  };
 
   // 2nd Dwelling or Granny Flat Helpers
   const secondDwelling: SecondDwellingSelection = design.secondDwelling || {
@@ -2469,75 +2500,145 @@ export function QuoteDesignStep({
                 );
               })()}
 
-              <div className="space-y-2">
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label className={`text-[11px] font-medium ${isLight ? "text-slate-600" : "text-slate-400"}`}>
-                      Select Facade from Price List ({suitableFacades.length} available)
-                    </Label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className={`text-[11px] font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Select Facade from Shortlist ({suitableFacades.length} available)
+                  </Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsFacadeLibraryOpen(true)}
+                    className="h-8 px-3 text-xs font-bold gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-xs cursor-pointer"
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                    <span>View Facade Library</span>
+                  </Button>
+                </div>
+
+                <Select
+                  value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName || suitableFacades[0]?.name}
+                  onValueChange={handleFacadeSelect}
+                >
+                  <SelectTrigger className="w-full border-slate-800 bg-slate-900 text-xs text-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
+                    {suitableFacades.map((f, idx) => (
+                      <SelectItem key={f.id || `${f.name}-${idx}`} value={f.name}>
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <span>{f.name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {f.note ? `${f.note} • ` : ""}
+                            {f.uplift === 0 ? "(Standard Included $0)" : `(+${formatAud(f.uplift)})`}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="CUSTOM_FACADE" className="text-cyan-400 font-bold border-t border-slate-800 mt-1">
+                      + Custom Architectural Facade (Specify Details &amp; Price)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Selected Facade Visual Summary with Enlarge Option */}
+                {selectedFacadeRenderUrl && (
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
+                    isLight ? "bg-slate-100/90 border-slate-200" : "bg-slate-900/80 border-slate-800"
+                  }`}>
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div
+                        onClick={() => setIsEnlargeModalOpen(true)}
+                        className="relative h-12 w-20 rounded-lg overflow-hidden shrink-0 border border-slate-700/60 bg-black cursor-pointer group"
+                        title="Click to enlarge facade render"
+                      >
+                        <img
+                          src={selectedFacadeRenderUrl}
+                          alt={design.facadeName || "Facade render"}
+                          className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-200"
+                        />
+                        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Maximize2 className="h-4 w-4 text-white drop-shadow" />
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold truncate text-slate-100">
+                            {design.facadeName || "Classic"}
+                          </span>
+                          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                            design.facadePrice === 0
+                              ? "bg-emerald-950/80 text-emerald-300 border border-emerald-800/50"
+                              : "bg-amber-950/80 text-amber-300 border border-amber-800/50"
+                          }`}>
+                            {design.facadePrice === 0 ? "Standard ($0)" : `+${formatAud(design.facadePrice)}`}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 block truncate">
+                          {isDoubleFrontSplit ? "Double Storey" : design.housingType} Elevation
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsEnlargeModalOpen(true)}
+                        className={`h-7 px-2.5 text-xs font-semibold gap-1.5 ${
+                          isLight
+                            ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
+                            : "bg-slate-800/90 hover:bg-slate-800 border-slate-700 text-slate-200"
+                        }`}
+                        title="Enlarge facade render"
+                      >
+                        <Maximize2 className="h-3 w-3 text-cyan-400" />
+                        <span>Enlarge</span>
+                      </Button>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <FacadeLibrary
-                      value={design.facadeName || ""}
-                      onSelect={(item) => {
-                        const match = suitableFacades.find((f) => f.id === item.id || f.name.toLowerCase() === item.name.toLowerCase());
-                        const uplift = match ? match.uplift : (facadePriceForDesign(item.name, isDouble ? "double" : "single", design.designName) ?? 0);
-                        onChange({
-                          isCustomFacade: false,
-                          facadeName: item.name,
-                          facadePrice: uplift,
-                          facadeImageUrl: item.url,
-                        });
-                      }}
-                      storey={isDouble ? "double" : "single"}
-                      designName={design.designName}
-                      garage={isSingleGarageDesign(design.designName, design.housingType) ? 1 : 2}
-                      designFacades={isDuplex ? suitableFacades.filter((f) => f.url).map((f) => ({
-                        id: f.id || f.name,
-                        name: f.name,
-                        range: f.range || f.note || design.housingType,
-                        tags: [f.name.toLowerCase(), "duplex"],
-                        url: f.url!,
-                        originalUrl: f.url,
-                      })) : undefined}
-                    />
-                    <label
-                      className={`cursor-pointer flex items-center justify-center gap-1.5 px-3 py-1.5 h-9 w-full rounded-lg border text-xs font-semibold whitespace-nowrap shadow-xs transition-all ${
-                        isLight
-                          ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 hover:border-cyan-500/60 shadow-slate-200/50"
-                          : "bg-slate-900/90 hover:bg-slate-850 border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-white"
-                      }`}
-                    >
-                      <Upload className={`h-3.5 w-3.5 shrink-0 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
-                      <span>Upload Render (PDF / Image)</span>
-                      <input
-                        id="standard-facade-upload-input"
-                        type="file"
-                        accept="image/*,application/pdf,.pdf"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const toastId = toast.loading("Processing facade render (PDF/Image)...");
-                          try {
-                            const dataUrl = await fileToImageDataUrl(file);
-                            if (dataUrl) {
-                              onChange({
-                                isCustomFacade: true,
-                                facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
-                                facadeImageUrl: dataUrl,
-                              });
-                              toast.success("Custom facade render attached!", { id: toastId });
-                            } else {
-                              toast.error("Failed to parse facade file.", { id: toastId });
-                            }
-                          } catch (err: any) {
-                            toast.error("Failed to process facade file: " + (err?.message || "Unknown error"), { id: toastId });
+                )}
+
+                {/* Upload Custom Render Option */}
+                <div className="pt-1">
+                  <label
+                    className={`cursor-pointer flex items-center justify-center gap-1.5 px-3 py-1.5 h-8 rounded-lg border text-xs font-semibold whitespace-nowrap shadow-xs transition-all w-full ${
+                      isLight
+                        ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 hover:border-cyan-500/60 shadow-slate-200/50"
+                        : "bg-slate-900/90 hover:bg-slate-850 border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-white"
+                    }`}
+                  >
+                    <Upload className={`h-3.5 w-3.5 shrink-0 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
+                    <span>Upload Render (PDF / Image)</span>
+                    <input
+                      id="standard-facade-upload-input"
+                      type="file"
+                      accept="image/*,application/pdf,.pdf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const toastId = toast.loading("Processing facade render (PDF/Image)...");
+                        try {
+                          const dataUrl = await fileToImageDataUrl(file);
+                          if (dataUrl) {
+                            onChange({
+                              isCustomFacade: true,
+                              facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
+                              facadeImageUrl: dataUrl,
+                            });
+                            toast.success("Custom facade render attached!", { id: toastId });
+                          } else {
+                            toast.error("Failed to parse facade file.", { id: toastId });
                           }
-                        }}
-                      />
-                    </label>
-                  </div>
+                        } catch (err: any) {
+                          toast.error("Failed to process facade file: " + (err?.message || "Unknown error"), { id: toastId });
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
 
                 {design.facadeImageUrl && design.isCustomFacade && (
@@ -3036,73 +3137,145 @@ export function QuoteDesignStep({
                 </span>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <Label className="text-[11px] text-slate-400 font-medium">
-                    Select Facade from Price List ({suitableFacades.length} available)
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className={`text-[11px] font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Select Facade from Shortlist ({suitableFacades.length} available)
                   </Label>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <FacadeLibrary
-                      value={design.facadeName || ""}
-                      onSelect={(item) => {
-                        const match = suitableFacades.find((f) => f.id === item.id || f.name.toLowerCase() === item.name.toLowerCase());
-                        const uplift = match ? match.uplift : (facadePriceForDesign(item.name, isDouble ? "double" : "single", design.designName) ?? 0);
-                        onChange({
-                          isCustomFacade: false,
-                          facadeName: item.name,
-                          facadePrice: uplift,
-                          facadeImageUrl: item.url,
-                        });
-                      }}
-                      storey={isDouble ? "double" : "single"}
-                      designName={design.designName}
-                      garage={
-                        customSpec.garageM2 > 0 && customSpec.garageM2 <= 26
-                          ? 1
-                          : customSpec.garageM2 > 26
-                          ? 2
-                          : null
-                      }
-                    />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsFacadeLibraryOpen(true)}
+                    className="h-8 px-3 text-xs font-bold gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-xs cursor-pointer"
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                    <span>View Facade Library</span>
+                  </Button>
+                </div>
 
-                    {/* Upload Custom Facade Render (Photo or PDF) */}
-                    <label
-                      className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 h-9 rounded-lg border text-xs font-semibold whitespace-nowrap shadow-xs transition-all ${
-                        isLight
-                          ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 hover:border-cyan-500/60 shadow-slate-200/50"
-                          : "bg-slate-900/90 hover:bg-slate-850 border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-white"
-                      }`}
-                    >
-                      <Upload className={`h-3.5 w-3.5 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
-                      <span>Upload Render (PDF / Image)</span>
-                      <input
-                        id="custom-facade-upload-input"
-                        type="file"
-                        accept="image/*,application/pdf,.pdf"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const toastId = toast.loading("Processing facade render (PDF/Image)...");
-                          try {
-                            const dataUrl = await fileToImageDataUrl(file);
-                            if (dataUrl) {
-                              onChange({
-                                isCustomFacade: true,
-                                facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
-                                facadeImageUrl: dataUrl,
-                              });
-                              toast.success("Custom facade render attached!", { id: toastId });
-                            } else {
-                              toast.error("Failed to parse facade file.", { id: toastId });
-                            }
-                          } catch (err: any) {
-                            toast.error("Failed to process facade file: " + (err?.message || "Unknown error"), { id: toastId });
-                          }
-                        }}
-                      />
-                    </label>
+                <Select
+                  value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName || suitableFacades[0]?.name}
+                  onValueChange={handleFacadeSelect}
+                >
+                  <SelectTrigger className="w-full border-slate-800 bg-slate-900 text-xs text-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
+                    {suitableFacades.map((f, idx) => (
+                      <SelectItem key={f.id || `${f.name}-${idx}`} value={f.name}>
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <span>{f.name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {f.note ? `${f.note} • ` : ""}
+                            {f.uplift === 0 ? "(Standard Included $0)" : `(+${formatAud(f.uplift)})`}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="CUSTOM_FACADE" className="text-cyan-400 font-bold border-t border-slate-800 mt-1">
+                      + Custom Architectural Facade (Specify Details &amp; Price)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Selected Facade Visual Summary with Enlarge Option */}
+                {selectedFacadeRenderUrl && (
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 ${
+                    isLight ? "bg-slate-100/90 border-slate-200" : "bg-slate-900/80 border-slate-800"
+                  }`}>
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div
+                        onClick={() => setIsEnlargeModalOpen(true)}
+                        className="relative h-12 w-20 rounded-lg overflow-hidden shrink-0 border border-slate-700/60 bg-black cursor-pointer group"
+                        title="Click to enlarge facade render"
+                      >
+                        <img
+                          src={selectedFacadeRenderUrl}
+                          alt={design.facadeName || "Facade render"}
+                          className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-200"
+                        />
+                        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Maximize2 className="h-4 w-4 text-white drop-shadow" />
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-bold truncate text-slate-100">
+                            {design.facadeName || "Classic"}
+                          </span>
+                          <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                            design.facadePrice === 0
+                              ? "bg-emerald-950/80 text-emerald-300 border border-emerald-800/50"
+                              : "bg-amber-950/80 text-amber-300 border border-amber-800/50"
+                          }`}>
+                            {design.facadePrice === 0 ? "Standard ($0)" : `+${formatAud(design.facadePrice)}`}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 block truncate">
+                          {isDouble ? "Double Storey" : "Single Storey"} Elevation
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsEnlargeModalOpen(true)}
+                        className={`h-7 px-2.5 text-xs font-semibold gap-1.5 ${
+                          isLight
+                            ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700"
+                            : "bg-slate-800/90 hover:bg-slate-800 border-slate-700 text-slate-200"
+                        }`}
+                        title="Enlarge facade render"
+                      >
+                        <Maximize2 className="h-3 w-3 text-cyan-400" />
+                        <span>Enlarge</span>
+                      </Button>
+                    </div>
                   </div>
+                )}
+
+                {/* Upload Custom Render Option */}
+                <div className="pt-1">
+                  <label
+                    className={`cursor-pointer flex items-center justify-center gap-1.5 px-3 py-1.5 h-8 rounded-lg border text-xs font-semibold whitespace-nowrap shadow-xs transition-all w-full ${
+                      isLight
+                        ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 hover:border-cyan-500/60 shadow-slate-200/50"
+                        : "bg-slate-900/90 hover:bg-slate-850 border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-white"
+                    }`}
+                  >
+                    <Upload className={`h-3.5 w-3.5 shrink-0 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
+                    <span>Upload Render (PDF / Image)</span>
+                    <input
+                      id="custom-facade-upload-input"
+                      type="file"
+                      accept="image/*,application/pdf,.pdf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const toastId = toast.loading("Processing facade render (PDF/Image)...");
+                        try {
+                          const dataUrl = await fileToImageDataUrl(file);
+                          if (dataUrl) {
+                            onChange({
+                              isCustomFacade: true,
+                              facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
+                              facadeImageUrl: dataUrl,
+                            });
+                            toast.success("Custom facade render attached!", { id: toastId });
+                          } else {
+                            toast.error("Failed to parse facade file.", { id: toastId });
+                          }
+                        } catch (err: any) {
+                          toast.error("Failed to process facade file: " + (err?.message || "Unknown error"), { id: toastId });
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
 
                 {/* Attached Photo/PDF Preview Badge */}
@@ -3455,6 +3628,29 @@ export function QuoteDesignStep({
         analysis={pendingAnalysis}
         onApply={handleApplyModifiedPlan}
         isLight={isLight}
+      />
+
+      {/* Design Facade Library Modal */}
+      <DesignFacadeLibraryModal
+        isOpen={isFacadeLibraryOpen}
+        onClose={() => setIsFacadeLibraryOpen(false)}
+        designName={design.designName || ""}
+        housingType={isDoubleFrontSplit ? "Double Storey" : effectiveHousingType}
+        division={division}
+        currentFacadeName={design.facadeName || "Classic"}
+        onSelectFacade={handleSelectFacadeFromLibrary}
+        isLight={isLight}
+      />
+
+      {/* Enlarged Facade Lightbox Modal */}
+      <QuoteFacadeEnlargeModal
+        isOpen={isEnlargeModalOpen}
+        onClose={() => setIsEnlargeModalOpen(false)}
+        src={selectedFacadeRenderUrl}
+        facadeName={design.facadeName || "Classic"}
+        housingType={isDoubleFrontSplit ? "Double Storey" : effectiveHousingType}
+        designName={design.designName}
+        facadePrice={design.facadePrice}
       />
     </div>
   );
