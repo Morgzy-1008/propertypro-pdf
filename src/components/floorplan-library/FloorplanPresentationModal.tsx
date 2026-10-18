@@ -11,6 +11,7 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import type { FloorplanLibraryItem } from "@/lib/floorplan-library/floorplanLibraryEngine";
@@ -26,22 +27,32 @@ import {
   primeFacadeThumbnails,
   preloadHighResFacades,
 } from "@/lib/floorplan-library/facadeThumbnailCache";
+import type { FloorplanRecord } from "@/components/flyer/floorplans.data";
 
 interface FloorplanPresentationModalProps {
   item: FloorplanLibraryItem | null;
   onClose: () => void;
   isLight: boolean;
+  isClientMode?: boolean;
+  division?: "QLD" | "NSW";
+  hidePricing?: boolean;
+  onEnquire?: (variant: FloorplanRecord, facadeName?: string) => void;
 }
 
 export function FloorplanPresentationModal({
   item,
   onClose,
   isLight,
+  isClientMode = false,
+  division,
+  hidePricing = false,
+  onEnquire,
 }: FloorplanPresentationModalProps) {
   const navigate = useNavigate();
   const staffUser = getActiveStaffUser();
   const divisionContext =
-    (staffUser?.division || staffUser?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
+    division ||
+    ((staffUser?.division || staffUser?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD");
 
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(
     item?.defaultVariantIndex || 0
@@ -459,23 +470,25 @@ export function FloorplanPresentationModal({
         >
           {/* Multi-Tier Inclusions Pricing Grid */}
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                Pricelist:
-              </span>
-              <div className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-mono font-bold">
-                FHB: ${(activeVariant.prices.ss + (showFacade ? activeFacade.uplift : 0)).toLocaleString()}
+            {!hidePricing && (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
+                  Pricelist:
+                </span>
+                <div className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-mono font-bold">
+                  FHB: ${(activeVariant.prices.ss + (showFacade ? activeFacade.uplift : 0)).toLocaleString()}
+                </div>
+                <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
+                  H1: ${(activeVariant.prices.h1 + (showFacade ? activeFacade.uplift : 0)).toLocaleString()}
+                </div>
+                <div className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-mono font-black shadow-xs">
+                  H2: ${(activeVariant.prices.h2 + (showFacade ? activeFacade.uplift : 0)).toLocaleString()}
+                </div>
+                <div className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-mono font-bold">
+                  H3: ${(activeVariant.prices.h3 + (showFacade ? activeFacade.uplift : 0)).toLocaleString()}
+                </div>
               </div>
-              <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
-                H1: ${(activeVariant.prices.h1 + (showFacade ? activeFacade.uplift : 0)).toLocaleString()}
-              </div>
-              <div className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-mono font-black shadow-xs">
-                H2: ${(activeVariant.prices.h2 + (showFacade ? activeFacade.uplift : 0)).toLocaleString()}
-              </div>
-              <div className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-mono font-bold">
-                H3: ${(activeVariant.prices.h3 + (showFacade ? activeFacade.uplift : 0)).toLocaleString()}
-              </div>
-            </div>
+            )}
             <div className="text-xs text-slate-400 hidden lg:inline">
               Width: <strong className={isLight ? "text-slate-900" : "text-white"}>{activeVariant.widthM}m</strong> • Depth:{" "}
               <strong className={isLight ? "text-slate-900" : "text-white"}>{activeVariant.lengthM}m</strong> • Size:{" "}
@@ -483,16 +496,27 @@ export function FloorplanPresentationModal({
             </div>
           </div>
 
-          {/* Quick Actions: Only Quote This Plan */}
+          {/* Quick Actions: Quote (Staff) vs Enquire (Client) */}
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={handleLaunchQuoting}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 text-xs sm:text-sm font-black shadow-lg transition-all cursor-pointer flex items-center gap-2 active:scale-95"
-            >
-              <Calculator className="h-4 w-4" />
-              <span>Quote This Plan</span>
-            </button>
+            {isClientMode ? (
+              <button
+                type="button"
+                onClick={() => onEnquire?.(activeVariant, showFacade ? activeFacade.name : undefined)}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-sky-500 to-cyan-500 hover:from-indigo-400 hover:to-cyan-400 text-slate-950 text-xs sm:text-sm font-black shadow-lg shadow-indigo-500/25 transition-all cursor-pointer flex items-center gap-2 active:scale-95"
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span>Enquire About This Plan</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLaunchQuoting}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 text-xs sm:text-sm font-black shadow-lg transition-all cursor-pointer flex items-center gap-2 active:scale-95"
+              >
+                <Calculator className="h-4 w-4" />
+                <span>Quote This Plan</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

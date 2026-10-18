@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CropperRouteImport } from './routes/cropper'
+import { Route as FloorplansRouteImport } from './routes/floorplans'
 import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as PayRouteImport } from './routes/pay'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -54,6 +55,11 @@ const AuthRoute = AuthRouteImport.update({
 const CropperRoute = CropperRouteImport.update({
   id: '/cropper',
   path: '/cropper',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FloorplansRoute = FloorplansRouteImport.update({
+  id: '/floorplans',
+  path: '/floorplans',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KioskRoute = KioskRouteImport.update({
@@ -181,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/cropper': typeof CropperRoute
+  '/floorplans': typeof FloorplansRoute
   '/kiosk': typeof KioskRoute
   '/pay': typeof PayRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/cropper': typeof CropperRoute
+  '/floorplans': typeof FloorplansRoute
   '/kiosk': typeof KioskRoute
   '/pay': typeof PayRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -239,6 +247,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/cropper': typeof CropperRoute
+  '/floorplans': typeof FloorplansRoute
   '/kiosk': typeof KioskRoute
   '/pay': typeof PayRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -269,6 +278,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/cropper'
+    | '/floorplans'
     | '/kiosk'
     | '/pay'
     | '/reset-password'
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/cropper'
+    | '/floorplans'
     | '/kiosk'
     | '/pay'
     | '/reset-password'
@@ -326,6 +337,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/cropper'
+    | '/floorplans'
     | '/kiosk'
     | '/pay'
     | '/reset-password'
@@ -356,6 +368,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CropperRoute: typeof CropperRoute
+  FloorplansRoute: typeof FloorplansRoute
   KioskRoute: typeof KioskRoute
   PayRoute: typeof PayRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -396,6 +409,13 @@ declare module '@tanstack/react-router' {
       path: '/cropper'
       fullPath: '/cropper'
       preLoaderRoute: typeof CropperRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/floorplans': {
+      id: '/floorplans'
+      path: '/floorplans'
+      fullPath: '/floorplans'
+      preLoaderRoute: typeof FloorplansRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kiosk': {
@@ -602,6 +622,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CropperRoute: CropperRoute,
+  FloorplansRoute: FloorplansRoute,
   KioskRoute: KioskRoute,
   PayRoute: PayRoute,
   ResetPasswordRoute: ResetPasswordRoute,

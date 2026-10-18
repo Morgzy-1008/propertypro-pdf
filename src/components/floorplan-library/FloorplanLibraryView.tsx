@@ -9,6 +9,7 @@ import {
   Layers,
   Search,
   Filter,
+  Share2,
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -27,6 +28,7 @@ import {
 import { FloorplanFilterBar } from "./FloorplanFilterBar";
 import { FloorplanCard } from "./FloorplanCard";
 import { FloorplanPresentationModal } from "./FloorplanPresentationModal";
+import { ExportCustomerLinkModal } from "./ExportCustomerLinkModal";
 
 export function FloorplanLibraryView() {
   const { mode } = useTheme();
@@ -117,6 +119,7 @@ export function FloorplanLibraryView() {
 
   // 3. Modal presentation state
   const [selectedZoomItem, setSelectedZoomItem] = useState<FloorplanLibraryItem | null>(null);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // 5. Filtered items
   const filteredPlans = useMemo(
@@ -207,8 +210,19 @@ export function FloorplanLibraryView() {
             </div>
           </div>
 
-          {/* Right: Theme Toggle & Staff Profile */}
-          <div className="flex items-center gap-2">
+          {/* Right: Export Customer Link, Theme Toggle & Staff Profile */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              data-testid="export-customer-link-btn"
+              onClick={() => setIsExportModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+              title="Generate a private, secure link for clients to browse floorplans"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Export Customer Link</span>
+              <span className="sm:hidden">Export Link</span>
+            </button>
             <ThemeToggle />
             <StaffHeaderProfile isLight={isLight} />
           </div>
@@ -232,22 +246,38 @@ export function FloorplanLibraryView() {
             </h1>
           </div>
 
-          {/* Telemetry pill */}
-          <div
-            className={`p-2.5 px-3.5 rounded-2xl border flex items-center gap-3 shrink-0 shadow-sm ${
-              isLight ? "bg-white border-slate-200" : "bg-slate-900/80 border-slate-800"
-            }`}
-          >
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-mono font-black text-xs">
-              {filteredPlans.length}
-            </div>
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider leading-none mb-0.5">
-                Matching Designs
-              </span>
-              <span className="text-xs font-extrabold leading-none">
-                Standard Catalogue
-              </span>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              type="button"
+              data-testid="export-customer-link-banner-btn"
+              onClick={() => setIsExportModalOpen(true)}
+              className={`p-2.5 px-3.5 rounded-2xl border flex items-center gap-2 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 ${
+                isLight
+                  ? "bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-800"
+                  : "bg-emerald-950/30 hover:bg-emerald-950/50 border-emerald-800/60 text-emerald-300"
+              }`}
+            >
+              <Share2 className="h-4 w-4 text-emerald-400" />
+              <span>Export Customer Link</span>
+            </button>
+
+            {/* Telemetry pill */}
+            <div
+              className={`p-2.5 px-3.5 rounded-2xl border flex items-center gap-3 shrink-0 shadow-sm ${
+                isLight ? "bg-white border-slate-200" : "bg-slate-900/80 border-slate-800"
+              }`}
+            >
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-mono font-black text-xs">
+                {filteredPlans.length}
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider leading-none mb-0.5">
+                  Matching Designs
+                </span>
+                <span className="text-xs font-extrabold leading-none">
+                  Standard Catalogue
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -321,6 +351,14 @@ export function FloorplanLibraryView() {
           isLight={isLight}
         />
       )}
+
+      {/* Export Customer Link Modal */}
+      <ExportCustomerLinkModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        activeDesignName={filters.searchQuery?.trim() || undefined}
+        isLight={isLight}
+      />
     </div>
   );
 }

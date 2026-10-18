@@ -17,6 +17,7 @@ import {
   Sparkles,
   Eye,
   Scaling,
+  MessageSquare,
 } from "lucide-react";
 import type {
   FloorplanLibraryItem,
@@ -30,6 +31,7 @@ import {
 } from "./DesignFacadeLibraryModal";
 import { getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
 import type { Division } from "@/lib/divisionContext";
+import type { FloorplanRecord } from "@/components/flyer/floorplans.data";
 
 interface FloorplanCardProps {
   item: FloorplanLibraryItem;
@@ -37,6 +39,9 @@ interface FloorplanCardProps {
   division?: Division;
   onOpenZoom: (item: FloorplanLibraryItem) => void;
   isLight: boolean;
+  isClientMode?: boolean;
+  hidePricing?: boolean;
+  onEnquire?: (variant: FloorplanRecord, facadeName?: string) => void;
 }
 
 export function FloorplanCard({
@@ -45,6 +50,9 @@ export function FloorplanCard({
   division = "QLD",
   onOpenZoom,
   isLight,
+  isClientMode = false,
+  hidePricing = false,
+  onEnquire,
 }: FloorplanCardProps) {
   const navigate = useNavigate();
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(item.defaultVariantIndex || 0);
@@ -123,7 +131,9 @@ export function FloorplanCard({
 
   const handleCopyLink = () => {
     try {
-      const url = `${window.location.origin}/floorplan-library?design=${encodeURIComponent(activeVariant.label)}`;
+      const url = isClientMode
+        ? `${window.location.origin}/floorplans?design=${encodeURIComponent(activeVariant.label)}`
+        : `${window.location.origin}/floorplan-library?design=${encodeURIComponent(activeVariant.label)}`;
       navigator.clipboard.writeText(url);
       setCopied(true);
       toast.success(`Copied shareable link for ${activeVariant.label}!`);
@@ -174,22 +184,36 @@ export function FloorplanCard({
               </h2>
             </div>
 
-            {/* Price Callout with Direct Quote Button */}
+            {/* Price Callout with Direct Action Button */}
             <div className="flex flex-col sm:items-end">
               <div className="flex items-center gap-2">
-                <span className="font-black font-mono text-emerald-400 tracking-tight text-xl">
-                  {formattedPrice}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleLaunchQuoting}
-                  className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1 active:scale-95"
-                  title={`Create quote for ${activeVariant.label}`}
-                >
-                  <Calculator className="h-3 w-3" />
-                  <span>Quote</span>
-                  <ArrowRight className="h-2.5 w-2.5" />
-                </button>
+                {!hidePricing && (
+                  <span className="font-black font-mono text-emerald-400 tracking-tight text-xl">
+                    {formattedPrice}
+                  </span>
+                )}
+                {isClientMode ? (
+                  <button
+                    type="button"
+                    onClick={() => onEnquire?.(activeVariant, selectedFacade?.name || (showFacade ? "Classic Facade" : undefined))}
+                    className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-400 hover:to-cyan-400 text-slate-950 text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                    title={`Enquire on ${activeVariant.label}`}
+                  >
+                    <MessageSquare className="h-3 w-3" />
+                    <span>Enquire</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleLaunchQuoting}
+                    className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                    title={`Create quote for ${activeVariant.label}`}
+                  >
+                    <Calculator className="h-3 w-3" />
+                    <span>Quote</span>
+                    <ArrowRight className="h-2.5 w-2.5" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleCopyLink}
@@ -206,7 +230,7 @@ export function FloorplanCard({
                 </button>
               </div>
               <span className="text-[10px] font-bold text-slate-400 mt-1">
-                Standard Catalogue Price
+                {hidePricing ? "Floorplan & Facade Selection" : "Standard Catalogue Price"}
               </span>
             </div>
           </div>
