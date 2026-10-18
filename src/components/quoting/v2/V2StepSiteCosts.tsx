@@ -145,14 +145,14 @@ export function V2StepSiteCosts({
   });
 
   const setRevealedStage = (updater: number | ((prev: number) => number)) => {
-    setRevealedStageState((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      if (next !== site.siteCostsRevealedStage) {
-        onChange({ siteCostsRevealedStage: next });
-      }
-      return next;
-    });
+    setRevealedStageState((prev) => (typeof updater === "function" ? updater(prev) : updater));
   };
+
+  useEffect(() => {
+    if (revealedStage !== site.siteCostsRevealedStage) {
+      onChange({ siteCostsRevealedStage: revealedStage });
+    }
+  }, [revealedStage, site.siteCostsRevealedStage]);
 
   // Section element refs for smooth auto-scrolling to next appeared step
   const stage1Ref = useRef<HTMLDivElement>(null);
@@ -309,7 +309,6 @@ export function V2StepSiteCosts({
   const handleSelectSiteType = (type: SiteTypeOption) => {
     setSiteType(type);
     setRevealedStage((prev) => Math.max(prev, 2));
-    setTimeout(() => scrollToStage(2), 150);
 
     const depositAmount = type === "greenfield" ? 1650 : 3300;
     const rate = type === "kdrb" ? 50 : type === "brownfield" ? 30 : 25;
@@ -349,7 +348,7 @@ export function V2StepSiteCosts({
   };
 
   // Slope Fall Handler
-  const handleFallChange = (rawMeters: number | string, autoAdvance = false) => {
+  const handleFallChange = (rawMeters: number | string) => {
     const val = typeof rawMeters === "string" ? parseFloat(rawMeters) || 0 : rawMeters;
     const fallMeters = Math.max(0, val);
     const fallTotalCost = calculateTopographyFallCost(fallMeters, gfaM2, isSplit);
@@ -358,23 +357,17 @@ export function V2StepSiteCosts({
       fallMeters,
       fallTotalCost,
     });
-    if (autoAdvance) {
-      setTimeout(() => scrollToStage(3), 150);
-    }
   };
 
-  // Soil Class Handler
+  // Soil Class Handler - updates soil classification without prematurely advancing or jumping past concrete/flexible plumbing/piering
   const handleSoilClassChange = (soilClass: SoilClass) => {
     const rate = getSoilRatePerM2(soilClass);
     const soilTotalCost = Math.round(rate * gfaM2);
-    const next = siteType === "kdrb" ? 4 : 5;
-    setRevealedStage((prev) => Math.max(prev, next));
     onChange({
       soilClass,
       soilCostSqm: rate,
       soilTotalCost,
     });
-    setTimeout(() => scrollToStage(next), 150);
   };
 
   const [isManualPiering, setIsManualPiering] = useState(false);
@@ -382,14 +375,18 @@ export function V2StepSiteCosts({
   const prevRateRef = useRef<number>(pieringSqmRate);
 
   // Piering Lump Sum Handler (user can directly edit the lump sum amount without seeing $/sqm)
-  const handlePieringLumpSumChange = (valStr: string) => {
+  const handlePieringLumpSumChange = (valStr: string | number, unlockNext = false) => {
     setIsManualPiering(true);
-    const cost = parseFloat(valStr) || 0;
+    const cost = typeof valStr === "number" ? valStr : parseFloat(valStr) || 0;
     onChange({
       screwPieringRequired: cost > 0,
       screwPieringCost: cost,
       pieringCost: cost,
     });
+    if (unlockNext) {
+      const next = siteType === "kdrb" ? 4 : 5;
+      setRevealedStage((prev) => Math.max(prev, next));
+    }
   };
 
   // Ensure initial fall, soil, and piering costs are calibrated if fresh or if design footprint GFA changes
@@ -631,6 +628,7 @@ export function V2StepSiteCosts({
       {/* STEP 1: TYPE OF SITE WE'RE BUILDING ON (Greenfield, Brownfield, KDRB) */}
       <div
         ref={stage1Ref}
+        data-testid="stage-1-site-type"
         className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
           isLight
             ? "bg-white border-slate-200 shadow-sm"
@@ -758,7 +756,6 @@ export function V2StepSiteCosts({
               size="sm"
               onClick={() => {
                 setRevealedStage((prev) => Math.max(prev, 2));
-                setTimeout(() => scrollToStage(2), 120);
               }}
               className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
             >
@@ -773,6 +770,7 @@ export function V2StepSiteCosts({
       {revealedStage >= 2 && (
         <div
           ref={stage2Ref}
+          data-testid="stage-2-slope-fall"
           className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
@@ -823,7 +821,6 @@ export function V2StepSiteCosts({
                     if (e.key === "Enter") {
                       e.preventDefault();
                       setRevealedStage((prev) => Math.max(prev, 3));
-                      setTimeout(() => scrollToStage(3), 120);
                     }
                   }}
                   onChange={(e) => handleFallChange(e.target.value)}
@@ -849,7 +846,7 @@ export function V2StepSiteCosts({
                   <button
                     key={m}
                     type="button"
-                    onClick={() => handleFallChange(m, true)}
+                    onClick={() => handleFallChange(m)}
                     className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer ${
                       site.fallMeters === m
                         ? "bg-emerald-500 text-slate-950 border-emerald-400 font-extrabold shadow-sm"
@@ -872,7 +869,6 @@ export function V2StepSiteCosts({
                 size="sm"
                 onClick={() => {
                   setRevealedStage((prev) => Math.max(prev, 3));
-                  setTimeout(() => scrollToStage(3), 120);
                 }}
                 className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
@@ -888,6 +884,7 @@ export function V2StepSiteCosts({
       {revealedStage >= 3 && (
         <div
           ref={stage3Ref}
+          data-testid="stage-3-soil-foundations"
           className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
@@ -1001,6 +998,7 @@ export function V2StepSiteCosts({
                   </span>
                 </div>
                 <Switch
+                  data-testid="concrete-32mpa-switch"
                   checked={Boolean(site.concrete32MpaRequired)}
                   onCheckedChange={(checked) =>
                     onChange({
@@ -1034,6 +1032,7 @@ export function V2StepSiteCosts({
                   </span>
                 </div>
                 <Switch
+                  data-testid="flexible-connections-switch"
                   checked={Boolean(site.flexibleConnectionsRequired)}
                   onCheckedChange={(checked) =>
                     onChange({
@@ -1181,6 +1180,16 @@ export function V2StepSiteCosts({
                         step="100"
                         value={currentPieringCost}
                         onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const next = siteType === "kdrb" ? 4 : 5;
+                            setRevealedStage((prev) => Math.max(prev, next));
+                          }
+                        }}
+                        onBlur={() => {
+                          const next = siteType === "kdrb" ? 4 : 5;
+                          setRevealedStage((prev) => Math.max(prev, next));
+                        }}
                         onChange={(e) => handlePieringLumpSumChange(e.target.value)}
                         className="h-12 text-base font-mono font-bold pl-8 pr-3 bg-white dark:bg-slate-950 border-emerald-500/50 rounded-xl"
                       />
@@ -1188,7 +1197,44 @@ export function V2StepSiteCosts({
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-400 pt-1.5 flex items-center gap-2">
+                {/* Quick Piering Selector Pills */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  {[
+                    { label: "Auto Calc", amount: Math.round(gfaM2 * pieringSqmRate), desc: "Standard" },
+                    { label: "None ($0)", amount: 0, desc: "Slab on Ground" },
+                    { label: "$5,000", amount: 5000, desc: "Allowance" },
+                    { label: "$10,000", amount: 10000, desc: "Heavy Piering" },
+                  ].map((preset) => {
+                    const isSelected = currentPieringCost === preset.amount;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        data-testid={`piering-preset-${preset.amount}`}
+                        onClick={() => handlePieringLumpSumChange(preset.amount, true)}
+                        className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? isLight
+                              ? "bg-emerald-50 border-emerald-500 text-slate-900 shadow-sm ring-1 ring-emerald-500"
+                              : "bg-emerald-500/20 border-emerald-400 text-white shadow-sm ring-1 ring-emerald-400"
+                            : isLight
+                            ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                            : "bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs font-extrabold">{preset.label}</span>
+                          {isSelected && <Check className="h-3 w-3 text-emerald-500 stroke-[3]" />}
+                        </div>
+                        <span className="text-[11px] font-mono font-bold text-emerald-500 mt-1">
+                          {preset.amount > 0 ? formatAud(preset.amount) : "$0"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="text-xs text-slate-400 pt-2 flex items-center gap-2">
                   <HelpCircle className="h-4 w-4 text-emerald-500 flex-none" />
                   <span>
                     Calibrated for {quote.design.designName || "home"} ground floor area ({gfaM2} m² footprint). User-editable lump sum.
@@ -1198,19 +1244,19 @@ export function V2StepSiteCosts({
             </div>
           </div>
 
-          {revealedStage === 3 && (
+          {revealedStage <= 3 && (
             <div className="flex justify-end pt-4 mt-5 border-t border-slate-700/20">
               <Button
                 type="button"
                 size="sm"
+                data-testid="proceed-from-foundations-btn"
                 onClick={() => {
                   const next = siteType === "kdrb" ? 4 : 5;
                   setRevealedStage((prev) => Math.max(prev, next));
-                  setTimeout(() => scrollToStage(next), 120);
                 }}
-                className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
+                className="text-sm h-11 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold gap-2 cursor-pointer shadow-md"
               >
-                <span>{siteType === "kdrb" ? "Proceed to Demolition & Asbestos" : "Proceed to Site Allowances"}</span>
+                <span>{siteType === "kdrb" ? "Confirm Foundations & Proceed to 4. Demolition & Asbestos" : "Confirm Foundations & Proceed to 4. Site Allowances"}</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -1222,6 +1268,7 @@ export function V2StepSiteCosts({
       {siteType === "kdrb" && revealedStage >= 4 && (
         <div
           ref={stage4Ref}
+          data-testid="stage-4-demolition"
           className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-amber-50/70 border-amber-300 shadow-sm"
@@ -1284,7 +1331,6 @@ export function V2StepSiteCosts({
                       demolitionAsbestosCost: opt.amount,
                     });
                     setRevealedStage((prev) => Math.max(prev, 5));
-                    setTimeout(() => scrollToStage(5), 150);
                   }}
                   className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-4 ${
                     isSelected
@@ -1329,7 +1375,6 @@ export function V2StepSiteCosts({
                 size="sm"
                 onClick={() => {
                   setRevealedStage((prev) => Math.max(prev, 5));
-                  setTimeout(() => scrollToStage(5), 120);
                 }}
                 className="text-sm h-11 px-5 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 gap-2 font-bold cursor-pointer"
               >
@@ -1345,6 +1390,7 @@ export function V2StepSiteCosts({
       {revealedStage >= 5 && (
         <div
           ref={stage5Ref}
+          data-testid="stage-5-site-allowances"
           className={`scroll-mt-44 p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
@@ -1501,7 +1547,6 @@ export function V2StepSiteCosts({
                 size="sm"
                 onClick={() => {
                   setRevealedStage((prev) => Math.max(prev, 6));
-                  setTimeout(() => scrollToStage(6), 120);
                 }}
                 className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
@@ -2009,7 +2054,6 @@ export function V2StepSiteCosts({
                 size="sm"
                 onClick={() => {
                   setRevealedStage((prev) => Math.max(prev, 7));
-                  setTimeout(() => scrollToStage(7), 120);
                 }}
                 className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
@@ -2243,6 +2287,7 @@ export function V2StepSiteCosts({
         const nextInfo = getNextStageInfo(revealedStage);
         return (
           <div
+            data-testid="locked-teaser-card"
             className={`p-6 sm:p-7 rounded-2xl sm:rounded-3xl border border-dashed transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
               isLight
                 ? "bg-slate-50/70 border-slate-300 text-slate-500"
@@ -2309,7 +2354,6 @@ export function V2StepSiteCosts({
               onClick={() => {
                 const next = getNextStageNum(revealedStage);
                 setRevealedStage((prev) => Math.max(prev, next));
-                setTimeout(() => scrollToStage(next), 120);
               }}
               className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 h-14 rounded-xl gap-2 cursor-pointer shadow-md"
             >
