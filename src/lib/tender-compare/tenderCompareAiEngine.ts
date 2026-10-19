@@ -198,29 +198,24 @@ export function runDeterministicTenderAnalysis(
   division: "NSW" | "QLD" = "NSW"
 ): TenderComparisonSession {
   const builders: BuilderExtractedData[] = builderInputs.map((input, index) => {
-    const isHudson =
-      /hudson/i.test(input.builderName) ||
-      (index === 0 && !input.builderName.toLowerCase().includes("metricon") && !input.builderName.toLowerCase().includes("clarendon"));
+    const isHudson = /hudson/i.test(input.builderName);
 
     const combinedText = `${input.builderName} ${input.modelName || ""} ${input.manualNotes || ""} ${
       input.tenderFile?.rawText || ""
     } ${input.inclusionsFile?.rawText || ""}`.toLowerCase();
 
-    // 1. Extract Price
+    // 1. Extract Price (prefer user-entered price, then regex extracted price, otherwise 0)
     let statedTotalPrice = input.statedPrice || 0;
     if (!statedTotalPrice) {
       const priceMatches = [...combinedText.matchAll(/\$(?:[4-9]\d{2}|\d{1,2},\d{3}),\d{3}|\$(?:[4-9]\d{5})/g)];
       if (priceMatches.length > 0) {
         const parsedPrices = priceMatches
           .map((m) => parseInt(m[0].replace(/[^0-9]/g, ""), 10))
-          .filter((p) => p >= 200000 && p <= 1500000);
+          .filter((p) => p >= 150000 && p <= 2500000);
         if (parsedPrices.length > 0) {
           statedTotalPrice = parsedPrices[0];
         }
       }
-    }
-    if (!statedTotalPrice) {
-      statedTotalPrice = isHudson ? 507200 : 485000 + index * 12000;
     }
 
     // 2. Extract Area

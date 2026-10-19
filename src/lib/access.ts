@@ -229,6 +229,19 @@ export function canAccessLandScout(staffUser?: {
 }
 
 /**
+ * Tender Compare Portal access.
+ * Restricted strictly to Morgan Hales for fine-tuning before team release.
+ */
+export function canAccessTenderCompare(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  return isMorganHales(staffUser);
+}
+
+/**
  * Checks if a staff user is Alyssa Hales (Sales Assistant / NHC).
  */
 export function isAlyssaHales(staffUser?: {

@@ -43,11 +43,23 @@ import {
 import {
   loadActiveTenderCompareSession,
   saveTenderCompareSession,
-  createInitialSampleSession,
+  createInitialEmptySession,
+  clearActiveTenderCompareSession,
   getHudsonBenchmarkBuilder,
 } from "@/lib/tender-compare/tenderCompareStorage";
 import { analyzeBuilderTendersWithAi } from "@/lib/tender-compare/tenderCompareAiEngine";
 import { exportTenderComparisonPdf } from "@/lib/tender-compare/tenderComparePdfExporter";
+
+const POPULAR_BUILDERS = [
+  "Hudson Homes",
+  "Metricon",
+  "Clarendon",
+  "Rawson Homes",
+  "Eden Brae",
+  "Coral Homes",
+  "Wisdom Homes",
+  "Mojo Homes",
+];
 
 export function TenderComparePortal() {
   const { mode } = useTheme();
@@ -55,37 +67,39 @@ export function TenderComparePortal() {
 
   const [division, setDivisionState] = useState<"NSW" | "QLD">(() => getActiveDivision());
   const [activeTab, setActiveTab] = useState<"overview" | "inclusions" | "fine_print" | "reputation" | "full_table">("overview");
-  const [viewMode, setViewMode] = useState<"input" | "results">("results");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState<string>("");
+  const [isDraggingBatch, setIsDraggingBatch] = useState(false);
 
-  // Session State
+  // Session State (starts empty or with real user-imported results, no hallucinated mock data)
   const [session, setSession] = useState<TenderComparisonSession>(() => loadActiveTenderCompareSession(division));
-  const [clientName, setClientName] = useState(session.clientName || "David & Sarah Miller");
-  const [siteAddress, setSiteAddress] = useState(session.siteAddress || "Lot 204, Spring Farm Estate, Camden NSW 2570");
+  const hasResults = Boolean(session.builders && session.builders.length > 0);
+  
+  // Big Pop-up is open immediately if no results are present, or can be toggled open
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(() => !hasResults);
 
-  // Inputs for building quotes
+  const [clientName, setClientName] = useState(session.clientName || "");
+  const [siteAddress, setSiteAddress] = useState(session.siteAddress || "");
+
+  // Inputs for building quotes (clean starting point, 2 builders ready for upload)
   const [builderInputs, setBuilderInputs] = useState<BuilderQuoteInput[]>([
     {
       id: "input-hudson",
       builderName: "Hudson Homes",
-      modelName: "Turquoise 25",
-      statedPrice: 477900,
-      manualNotes: "H2 Designer Collection inclusions with 50-Year Structural Guarantee & 100% Fixed Site Costs.",
+      modelName: "",
+      statedPrice: undefined,
+      manualNotes: "",
+      tenderFile: null,
+      inclusionsFile: null,
     },
     {
       id: "input-comp-1",
-      builderName: "Metricon Homes",
-      modelName: "Merricks 26",
-      statedPrice: 459900,
-      manualNotes: "Standard brochure price. Ducted A/C excluded, flooring excluded, 2440mm ceilings.",
-    },
-    {
-      id: "input-comp-2",
-      builderName: "Clarendon Homes",
-      modelName: "Boston 25",
-      statedPrice: 468900,
-      manualNotes: "Promotional pack includes basic single-zone A/C. 2440mm ceilings, M-class site costs.",
+      builderName: "",
+      modelName: "",
+      statedPrice: undefined,
+      manualNotes: "",
+      tenderFile: null,
+      inclusionsFile: null,
     },
   ]);
 
@@ -96,10 +110,11 @@ export function TenderComparePortal() {
     return () => unsub();
   }, []);
 
-  const winningBuilder =
-    session.builders.find((b) => b.id === session.winningBuilderId) ||
-    session.builders.find((b) => b.isBestValue) ||
-    session.builders[0];
+  const winningBuilder = hasResults
+    ? session.builders.find((b) => b.id === session.winningBuilderId) ||
+      session.builders.find((b) => b.isBestValue) ||
+      session.builders[0]
+    : null;
 
   const handleFileUpload = async (
     index: number,
@@ -131,6 +146,72 @@ export function TenderComparePortal() {
     }
   };
 
+  const handleRemoveFile = (index: number, type: "tender" | "inclusions") => {
+    const updated = [...builderInputs];
+    if (type === "tender") {
+      updated[index].tenderFile = null;
+    } else {
+      updated[index].inclusionsFile = null;
+    }
+    setBuilderInputs(updated);
+  };
+
+  const handleBatchFiles = async (files: File[]) => {
+    toast.info(`Processing ${files.length} PDF documents...`);
+    const updated = [...builderInputs];
+
+    for (const file of files) {
+      try {
+        const doc = await pdfDocumentToPagesAndText(file, 8);
+        const fileNameLower = file.name.toLowerCase();
+        const isInclusions = /inclusion|spec|brochure|range|standard/i.test(fileNameLower);
+        const docType: "tender" | "inclusions" = isInclusions ? "inclusions" : "tender";
+
+        let matchedIndex = updated.findIndex(
+          (b) => b.builderName && b.builderName.trim().length > 0 && fileNameLower.includes(b.builderName.toLowerCase().trim())
+        );
+
+        if (matchedIndex === -1) {
+          matchedIndex = updated.findIndex((b) => (docType === "tender" ? !b.tenderFile : !b.inclusionsFile));
+        }
+
+        if (matchedIndex === -1 && updated.length < 5) {
+          let detectedName = "Competitor Builder";
+          if (fileNameLower.includes("hudson")) detectedName = "Hudson Homes";
+          else if (fileNameLower.includes("metricon")) detectedName = "Metricon Homes";
+          else if (fileNameLower.includes("clarendon")) detectedName = "Clarendon Homes";
+          else if (fileNameLower.includes("rawson")) detectedName = "Rawson Homes";
+          else if (fileNameLower.includes("eden")) detectedName = "Eden Brae Homes";
+          else if (fileNameLower.includes("coral")) detectedName = "Coral Homes";
+          else if (fileNameLower.includes("wisdom")) detectedName = "Wisdom Homes";
+          else detectedName = file.name.replace(/\.pdf$/i, "").replace(/[-_]/g, " ").slice(0, 24);
+
+          updated.push({
+            id: `input-comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            builderName: detectedName,
+            modelName: "",
+            statedPrice: undefined,
+            manualNotes: "",
+            tenderFile: docType === "tender" ? { name: file.name, size: file.size, rawText: doc.rawText } : null,
+            inclusionsFile: docType === "inclusions" ? { name: file.name, size: file.size, rawText: doc.rawText } : null,
+          });
+        } else if (matchedIndex >= 0) {
+          if (docType === "tender") {
+            updated[matchedIndex].tenderFile = { name: file.name, size: file.size, rawText: doc.rawText };
+          } else {
+            updated[matchedIndex].inclusionsFile = { name: file.name, size: file.size, rawText: doc.rawText };
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error(`Could not read ${file.name}`);
+      }
+    }
+
+    setBuilderInputs(updated);
+    toast.success(`Imported and organized ${files.length} document(s).`);
+  };
+
   const handleAddBuilder = () => {
     if (builderInputs.length >= 5) {
       toast.error("Maximum 5 builders can be compared simultaneously.");
@@ -141,10 +222,12 @@ export function TenderComparePortal() {
       ...builderInputs,
       {
         id: `input-comp-${Date.now()}`,
-        builderName: `Competitor ${newIdx}`,
+        builderName: "",
         modelName: "",
         statedPrice: undefined,
         manualNotes: "",
+        tenderFile: null,
+        inclusionsFile: null,
       },
     ]);
   };
@@ -158,7 +241,46 @@ export function TenderComparePortal() {
     setBuilderInputs(updated);
   };
 
+  const handleClearAll = () => {
+    clearActiveTenderCompareSession();
+    const empty = createInitialEmptySession(division);
+    setSession(empty);
+    setClientName("");
+    setSiteAddress("");
+    setBuilderInputs([
+      {
+        id: "input-hudson",
+        builderName: "Hudson Homes",
+        modelName: "",
+        statedPrice: undefined,
+        manualNotes: "",
+        tenderFile: null,
+        inclusionsFile: null,
+      },
+      {
+        id: "input-comp-1",
+        builderName: "",
+        modelName: "",
+        statedPrice: undefined,
+        manualNotes: "",
+        tenderFile: null,
+        inclusionsFile: null,
+      },
+    ]);
+    setIsImportModalOpen(true);
+    toast.success("Tender comparison reset. Ready for fresh imports.");
+  };
+
   const handleRunComparison = async () => {
+    const validBuilders = builderInputs.filter(
+      (b) => b.builderName.trim().length > 0 || b.tenderFile || b.inclusionsFile || b.statedPrice
+    );
+
+    if (validBuilders.length < 2) {
+      toast.error("Please provide at least 2 builders to compare.");
+      return;
+    }
+
     setIsAnalyzing(true);
     setAnalysisStep("Reading uploaded builder tenders & specification files…");
 
@@ -173,15 +295,15 @@ export function TenderComparePortal() {
       setAnalysisStep("Calculating normalized completion costs & determining Best Value Builder…");
 
       const newSession = await analyzeBuilderTendersWithAi(
-        builderInputs,
-        clientName,
-        siteAddress,
+        validBuilders,
+        clientName || "Client Comparison",
+        siteAddress || "Proposed Home Site",
         division
       );
 
       setSession(newSession);
       saveTenderCompareSession(newSession);
-      setViewMode("results");
+      setIsImportModalOpen(false);
       toast.success("AI Forensic Comparison Completed!", {
         description: `Best Value Winner declared: ${newSession.builders.find((b) => b.isBestValue)?.builderName || "Hudson Homes"}`,
       });
@@ -194,17 +316,8 @@ export function TenderComparePortal() {
     }
   };
 
-  const handleLoadSample = () => {
-    const sample = createInitialSampleSession(division);
-    setSession(sample);
-    setClientName(sample.clientName);
-    setSiteAddress(sample.siteAddress);
-    saveTenderCompareSession(sample);
-    setViewMode("results");
-    toast.success("Loaded Sample 3-Builder Comparison (Hudson vs. Metricon vs. Clarendon)");
-  };
-
   const handleExportPdf = () => {
+    if (!hasResults) return;
     toast.info("Generating boardroom-ready Executive Comparison PDF...");
     exportTenderComparisonPdf(session);
     toast.success("Tender Comparison PDF downloaded successfully!");
@@ -293,272 +406,85 @@ export function TenderComparePortal() {
 
           {/* Action CTAs */}
           <div className="flex items-center gap-2.5 flex-wrap">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleLoadSample}
-              className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-10 px-3.5"
-            >
-              <RotateCcw className="h-3.5 w-3.5 text-amber-500" />
-              Load Sample Demo
-            </Button>
+            {hasResults && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClearAll}
+                className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-10 px-3.5 text-slate-400 hover:text-rose-400"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear
+              </Button>
+            )}
 
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setViewMode(viewMode === "input" ? "results" : "input")}
-              className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-10 px-3.5"
+              onClick={() => setIsImportModalOpen(true)}
+              className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-10 px-4 border-amber-500/40 text-amber-400 hover:bg-amber-500/10 shadow-sm"
             >
-              <Upload className="h-3.5 w-3.5 text-cyan-400" />
-              {viewMode === "input" ? "View Analysis Results" : "Edit / Add Builder Files"}
+              <Upload className="h-4 w-4 text-amber-400" />
+              <span>{hasResults ? "Import / Edit Tenders" : "Import All Builders Estimates & Tenders"}</span>
             </Button>
 
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleExportPdf}
-              className="rounded-xl text-xs font-bold gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black cursor-pointer shadow-lg shadow-emerald-500/20 h-10 px-4"
-            >
-              <Download className="h-4 w-4" />
-              Export Full PDF Report
-            </Button>
+            {hasResults && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleExportPdf}
+                className="rounded-xl text-xs font-bold gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black cursor-pointer shadow-lg shadow-emerald-500/20 h-10 px-4"
+              >
+                <Download className="h-4 w-4" />
+                Export Full PDF Report
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* VIEW MODE: INPUT / UPLOAD STUDIO */}
-      {viewMode === "input" && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg sm:text-xl font-black">Import Builder Tenders &amp; Inclusions</h2>
-              <p className="text-xs text-slate-400">
-                Upload estimates, tenders, contracts, or inclusions brochures. AI extracts and audits every trade.
-              </p>
+      {/* ============================================================ */}
+      {/* EMPTY STATE: DISPLAYED WHEN NO COMPARISON HAS BEEN RUN YET   */}
+      {/* ============================================================ */}
+      {!hasResults && (
+        <div
+          className={`p-10 sm:p-16 rounded-3xl border text-center max-w-3xl mx-auto flex flex-col items-center justify-center space-y-6 shadow-xl backdrop-blur-xl ${
+            isLight ? "bg-white/80 border-slate-200 text-slate-900" : "bg-slate-950/70 border-slate-800 text-white"
+          }`}
+        >
+          <div className="relative">
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-500/20 via-brand-gold/15 to-transparent border border-amber-500/30 flex items-center justify-center shadow-xl shadow-amber-500/10 backdrop-blur-xl">
+              <Scale className="h-12 w-12 text-amber-400 stroke-[2.2]" />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddBuilder}
-              className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Another Builder
-            </Button>
           </div>
 
-          {/* Builder Upload Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {builderInputs.map((input, idx) => (
-              <div
-                key={input.id}
-                className={`p-5 rounded-3xl border flex flex-col justify-between gap-4 transition-all ${
-                  input.builderName.toLowerCase().includes("hudson")
-                    ? isLight
-                      ? "bg-emerald-50/70 border-emerald-300 shadow-md"
-                      : "bg-emerald-950/20 border-emerald-500/40 shadow-lg shadow-emerald-500/5"
-                    : isLight
-                    ? "bg-white border-slate-200"
-                    : "bg-slate-900/60 border-slate-800"
-                }`}
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-slate-500/20 flex items-center justify-center text-xs font-mono font-bold">
-                        {idx + 1}
-                      </span>
-                      <Input
-                        value={input.builderName}
-                        onChange={(e) => {
-                          const updated = [...builderInputs];
-                          updated[idx].builderName = e.target.value;
-                          setBuilderInputs(updated);
-                        }}
-                        className="h-8 font-black text-sm rounded-lg"
-                        placeholder="Builder Name (e.g. Metricon)"
-                      />
-                    </div>
-                    {idx >= 2 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveBuilder(idx)}
-                        className="text-slate-400 hover:text-rose-400 p-1 cursor-pointer"
-                        title="Remove builder"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-[10px] text-slate-400 font-semibold uppercase">Design / Model</Label>
-                      <Input
-                        value={input.modelName || ""}
-                        onChange={(e) => {
-                          const updated = [...builderInputs];
-                          updated[idx].modelName = e.target.value;
-                          setBuilderInputs(updated);
-                        }}
-                        className="h-8 text-xs rounded-lg mt-1"
-                        placeholder="e.g. Turquoise 25"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] text-slate-400 font-semibold uppercase">Stated Price ($)</Label>
-                      <Input
-                        type="number"
-                        value={input.statedPrice || ""}
-                        onChange={(e) => {
-                          const updated = [...builderInputs];
-                          updated[idx].statedPrice = parseFloat(e.target.value) || 0;
-                          setBuilderInputs(updated);
-                        }}
-                        className="h-8 text-xs font-mono rounded-lg mt-1"
-                        placeholder="e.g. 477900"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Document Upload Dropzones */}
-                  <div className="space-y-2 pt-1">
-                    {/* Tender / Contract Document */}
-                    <div
-                      className={`p-3 rounded-2xl border border-dashed text-center transition-all ${
-                        input.tenderFile
-                          ? isLight
-                            ? "bg-emerald-50 border-emerald-400"
-                            : "bg-emerald-950/40 border-emerald-500"
-                          : isLight
-                          ? "bg-slate-50 border-slate-300 hover:border-slate-400"
-                          : "bg-slate-950/60 border-slate-700 hover:border-slate-600"
-                      }`}
-                    >
-                      <input
-                        type="file"
-                        id={`tender-upload-${idx}`}
-                        className="hidden"
-                        accept="application/pdf,image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) void handleFileUpload(idx, "tender", file);
-                        }}
-                      />
-                      <label htmlFor={`tender-upload-${idx}`} className="cursor-pointer block space-y-1">
-                        <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
-                          {input.tenderFile ? (
-                            <>
-                              <FileCheck2 className="h-4 w-4 text-emerald-500" />
-                              <span className="truncate max-w-[180px]">{input.tenderFile.name}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="h-4 w-4 text-amber-500" />
-                              <span>Upload Tender / Quote PDF</span>
-                            </>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-slate-400">
-                          {input.tenderFile ? "Click to replace tender document" : "Drop tender, quote, or contract"}
-                        </p>
-                      </label>
-                    </div>
-
-                    {/* Inclusions Booklet / Range */}
-                    <div
-                      className={`p-3 rounded-2xl border border-dashed text-center transition-all ${
-                        input.inclusionsFile
-                          ? isLight
-                            ? "bg-cyan-50 border-cyan-400"
-                            : "bg-cyan-950/40 border-cyan-500"
-                          : isLight
-                          ? "bg-slate-50 border-slate-300 hover:border-slate-400"
-                          : "bg-slate-950/60 border-slate-700 hover:border-slate-600"
-                      }`}
-                    >
-                      <input
-                        type="file"
-                        id={`inc-upload-${idx}`}
-                        className="hidden"
-                        accept="application/pdf,image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) void handleFileUpload(idx, "inclusions", file);
-                        }}
-                      />
-                      <label htmlFor={`inc-upload-${idx}`} className="cursor-pointer block space-y-1">
-                        <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
-                          {input.inclusionsFile ? (
-                            <>
-                              <FileCheck2 className="h-4 w-4 text-cyan-400" />
-                              <span className="truncate max-w-[180px]">{input.inclusionsFile.name}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Layers className="h-4 w-4 text-cyan-400" />
-                              <span>Upload Inclusions Range PDF</span>
-                            </>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-slate-400">
-                          {input.inclusionsFile ? "Click to replace inclusions file" : "Brochure specifications booklet"}
-                        </p>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Manual Notes / Clauses */}
-                  <div>
-                    <Label className="text-[10px] text-slate-400 font-semibold uppercase">
-                      Specific Clauses / Notes
-                    </Label>
-                    <textarea
-                      value={input.manualNotes || ""}
-                      onChange={(e) => {
-                        const updated = [...builderInputs];
-                        updated[idx].manualNotes = e.target.value;
-                        setBuilderInputs(updated);
-                      }}
-                      rows={2}
-                      className={`w-full text-xs p-2 rounded-xl border mt-1 resize-none ${
-                        isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800"
-                      }`}
-                      placeholder="e.g. 180-day price lock, $25k provisional site costs, timber floors not included"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="space-y-2 max-w-lg">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+              Ready for Builder Tender Breakdown
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Import quotes, tenders, contracts, and inclusions ranges from each builder to cross-reference pricing, omissions, clauses, and true value.
+            </p>
           </div>
 
-          {/* Run Analysis Button */}
-          <div className="p-6 rounded-3xl border bg-gradient-to-r from-amber-500/10 via-brand-gold/10 to-emerald-500/10 border-amber-500/30 text-center space-y-4">
-            <div className="max-w-xl mx-auto">
-              <h3 className="text-lg font-black">Ready for AI Forensic Contract Breakdown?</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Our model will read all attached files, audit 30+ trades, normalize hidden omission costs, inspect fine print traps, and declare the genuine best value builder.
-              </p>
-            </div>
-
-            <Button
-              type="button"
-              disabled={isAnalyzing}
-              onClick={handleRunComparison}
-              className="h-12 px-8 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-amber-500/25 cursor-pointer gap-2"
-            >
-              <Sparkles className={`h-4 w-4 ${isAnalyzing ? "animate-spin" : ""}`} />
-              {isAnalyzing ? (analysisStep || "Running AI Forensic Comparison…") : "Run Full Forensic Tender Comparison"}
-            </Button>
-          </div>
+          <Button
+            type="button"
+            size="lg"
+            onClick={() => setIsImportModalOpen(true)}
+            className="h-13 px-8 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-amber-500/25 cursor-pointer gap-2.5 active:scale-95 transition-all"
+          >
+            <Upload className="h-5 w-5" />
+            <span>Import All Builders Estimates &amp; Tenders</span>
+          </Button>
         </div>
       )}
 
-      {/* VIEW MODE: RESULTS DASHBOARD */}
-      {viewMode === "results" && (
+      {/* ============================================================ */}
+      {/* RESULTS DASHBOARD: ONLY RENDERED WHEN REAL RESULTS EXIST    */}
+      {/* ============================================================ */}
+      {hasResults && (
         <div className="space-y-6 animate-in fade-in duration-300">
           {/* Winner Spotlight Banner */}
           <div
@@ -1182,6 +1108,433 @@ export function TenderComparePortal() {
               </div>
             </TabsContent>
           </Tabs>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* BIG POP-UP MODAL: IMPORT ALL BUILDERS ESTIMATES & TENDERS   */}
+      {/* ============================================================ */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
+          <div
+            className={`relative w-full max-w-5xl my-auto rounded-3xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] ${
+              isLight ? "bg-white border-slate-200 text-slate-900 shadow-slate-900/20" : "bg-slate-950 border-amber-500/30 text-white shadow-black/80"
+            }`}
+          >
+            {/* Modal Header */}
+            <div className={`p-6 border-b flex items-start justify-between gap-4 ${isLight ? "border-slate-200 bg-slate-50/50" : "border-slate-800 bg-slate-900/40"}`}>
+              <div className="flex items-center gap-3.5">
+                <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/25 shrink-0">
+                  <Scale className="h-6 w-6 stroke-[2.5]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+                      Import All Builders Estimates &amp; Tenders
+                    </h2>
+                    <Badge className="bg-amber-500/15 text-amber-500 border border-amber-500/30 text-[10px] font-bold uppercase tracking-wider">
+                      AI AUDITOR
+                    </Badge>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                    Upload quotes, tenders, contracts, and inclusions schedules from each builder. We'll cross-examine line items, hidden omissions, site cost clauses, and fine print to declare the true best value builder.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(false)}
+                className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                  isLight ? "text-slate-400 hover:text-slate-900 hover:bg-slate-200" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                }`}
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Client, Site & State Bar */}
+            <div className={`px-6 py-3 border-b flex flex-wrap items-center gap-4 text-xs ${isLight ? "bg-slate-100/70 border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-400">Client Name:</span>
+                <Input
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  placeholder="e.g. David &amp; Sarah Miller"
+                  className="h-8 text-xs font-bold w-48 rounded-lg"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-400">Site Address:</span>
+                <Input
+                  value={siteAddress}
+                  onChange={(e) => setSiteAddress(e.target.value)}
+                  placeholder="e.g. Lot 204, Spring Farm Estate"
+                  className="h-8 text-xs w-64 rounded-lg"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-500/10 border border-slate-500/20 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveDivision("NSW");
+                    setDivisionState("NSW");
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    division === "NSW" ? "bg-cyan-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  NSW
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveDivision("QLD");
+                    setDivisionState("QLD");
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    division === "QLD" ? "bg-cyan-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  QLD
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Batch Multi-File Dropzone */}
+            <div className="px-6 pt-4">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingBatch(true);
+                }}
+                onDragLeave={() => setIsDraggingBatch(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingBatch(false);
+                  const files = Array.from(e.dataTransfer.files).filter(
+                    (f) => f.type === "application/pdf" || f.name.endsWith(".pdf")
+                  );
+                  if (files.length > 0) void handleBatchFiles(files);
+                }}
+                className={`p-4 rounded-2xl border-2 border-dashed transition-all text-center flex flex-col items-center justify-center gap-1.5 ${
+                  isDraggingBatch
+                    ? "border-amber-400 bg-amber-500/10 scale-[1.01]"
+                    : isLight
+                    ? "border-slate-300 bg-slate-50/70 hover:border-amber-400/60"
+                    : "border-slate-800 bg-slate-900/40 hover:border-amber-500/40"
+                }`}
+              >
+                <div className="flex items-center gap-2 text-xs font-bold">
+                  <Upload className="h-4 w-4 text-amber-400" />
+                  <span>Quick Multi-File Drop: Drop multiple PDF tenders or inclusions files here</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  We will automatically read and organize documents into builder slots below.
+                </p>
+              </div>
+            </div>
+
+            {/* Builder Upload Slots (Scrollable Container) */}
+            <div className="overflow-y-auto px-6 py-4 space-y-4 max-h-[50vh]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Builders to Compare ({builderInputs.length} of 5)
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddBuilder}
+                  disabled={builderInputs.length >= 5}
+                  className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-8"
+                >
+                  <Plus className="h-3.5 w-3.5 text-amber-400" />
+                  Add Another Builder
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {builderInputs.map((input, idx) => {
+                  const isHudsonSlot = input.builderName.toLowerCase().includes("hudson");
+                  return (
+                    <div
+                      key={input.id}
+                      className={`p-5 rounded-3xl border flex flex-col justify-between gap-4 transition-all ${
+                        isHudsonSlot
+                          ? isLight
+                            ? "bg-emerald-50/70 border-emerald-300 shadow-md"
+                            : "bg-emerald-950/20 border-emerald-500/40 shadow-lg shadow-emerald-500/5"
+                          : isLight
+                          ? "bg-slate-50/80 border-slate-200"
+                          : "bg-slate-900/70 border-slate-800"
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-1">
+                            <span className="w-6 h-6 rounded-full bg-slate-500/20 flex items-center justify-center text-xs font-mono font-bold shrink-0">
+                              {idx + 1}
+                            </span>
+                            <Input
+                              value={input.builderName}
+                              onChange={(e) => {
+                                const updated = [...builderInputs];
+                                updated[idx].builderName = e.target.value;
+                                setBuilderInputs(updated);
+                              }}
+                              className="h-8 font-black text-sm rounded-lg"
+                              placeholder={idx === 0 ? "Builder Name (e.g. Hudson Homes)" : "Builder Name (e.g. Metricon)"}
+                            />
+                          </div>
+                          {idx >= 2 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveBuilder(idx)}
+                              className="text-slate-400 hover:text-rose-400 p-1 cursor-pointer shrink-0"
+                              title="Remove builder"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Quick Builder Suggestions Chips */}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {POPULAR_BUILDERS.slice(0, 5).map((pb) => (
+                            <button
+                              key={pb}
+                              type="button"
+                              onClick={() => {
+                                const updated = [...builderInputs];
+                                updated[idx].builderName = pb;
+                                setBuilderInputs(updated);
+                              }}
+                              className={`text-[10px] px-2 py-0.5 rounded-md border font-semibold transition-all cursor-pointer ${
+                                input.builderName === pb
+                                  ? "bg-amber-500 text-slate-950 border-amber-500 font-bold"
+                                  : isLight
+                                  ? "bg-white hover:bg-slate-100 text-slate-600 border-slate-200"
+                                  : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                              }`}
+                            >
+                              {pb}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[10px] text-slate-400 font-semibold uppercase">Design / Model</Label>
+                            <Input
+                              value={input.modelName || ""}
+                              onChange={(e) => {
+                                const updated = [...builderInputs];
+                                updated[idx].modelName = e.target.value;
+                                setBuilderInputs(updated);
+                              }}
+                              className="h-8 text-xs rounded-lg mt-1"
+                              placeholder="e.g. Turquoise 25"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-slate-400 font-semibold uppercase">Stated Price ($)</Label>
+                            <Input
+                              type="number"
+                              value={input.statedPrice || ""}
+                              onChange={(e) => {
+                                const updated = [...builderInputs];
+                                updated[idx].statedPrice = parseFloat(e.target.value) || 0;
+                                setBuilderInputs(updated);
+                              }}
+                              className="h-8 text-xs font-mono rounded-lg mt-1"
+                              placeholder="e.g. 477900"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Upload Dropzones */}
+                        <div className="space-y-2 pt-1">
+                          {/* Tender File */}
+                          <div
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const file = e.dataTransfer.files?.[0];
+                              if (file) void handleFileUpload(idx, "tender", file);
+                            }}
+                            className={`p-3 rounded-2xl border border-dashed text-center transition-all ${
+                              input.tenderFile
+                                ? isLight
+                                  ? "bg-emerald-50 border-emerald-400"
+                                  : "bg-emerald-950/40 border-emerald-500"
+                                : isLight
+                                ? "bg-slate-50 border-slate-300 hover:border-slate-400"
+                                : "bg-slate-950/60 border-slate-700 hover:border-slate-600"
+                            }`}
+                          >
+                            <input
+                              type="file"
+                              id={`modal-tender-upload-${idx}`}
+                              className="hidden"
+                              accept="application/pdf,image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void handleFileUpload(idx, "tender", file);
+                              }}
+                            />
+                            {input.tenderFile ? (
+                              <div className="flex items-center justify-between gap-2 px-1">
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 truncate">
+                                  <FileCheck2 className="h-4 w-4 shrink-0" />
+                                  <span className="truncate">{input.tenderFile.name}</span>
+                                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                    ({Math.round((input.tenderFile.size || 0) / 1024)} KB)
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFile(idx, "tender")}
+                                  className="text-slate-400 hover:text-rose-400 p-1 cursor-pointer shrink-0"
+                                  title="Remove document"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <label htmlFor={`modal-tender-upload-${idx}`} className="cursor-pointer block space-y-1">
+                                <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
+                                  <Upload className="h-4 w-4 text-amber-500" />
+                                  <span>Upload Tender / Quote PDF</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                  Drop tender, quote, or contract schedule
+                                </p>
+                              </label>
+                            )}
+                          </div>
+
+                          {/* Inclusions File */}
+                          <div
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const file = e.dataTransfer.files?.[0];
+                              if (file) void handleFileUpload(idx, "inclusions", file);
+                            }}
+                            className={`p-3 rounded-2xl border border-dashed text-center transition-all ${
+                              input.inclusionsFile
+                                ? isLight
+                                  ? "bg-cyan-50 border-cyan-400"
+                                  : "bg-cyan-950/40 border-cyan-500"
+                                : isLight
+                                ? "bg-slate-50 border-slate-300 hover:border-slate-400"
+                                : "bg-slate-950/60 border-slate-700 hover:border-slate-600"
+                            }`}
+                          >
+                            <input
+                              type="file"
+                              id={`modal-inc-upload-${idx}`}
+                              className="hidden"
+                              accept="application/pdf,image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void handleFileUpload(idx, "inclusions", file);
+                              }}
+                            />
+                            {input.inclusionsFile ? (
+                              <div className="flex items-center justify-between gap-2 px-1">
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 truncate">
+                                  <FileCheck2 className="h-4 w-4 shrink-0" />
+                                  <span className="truncate">{input.inclusionsFile.name}</span>
+                                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                    ({Math.round((input.inclusionsFile.size || 0) / 1024)} KB)
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFile(idx, "inclusions")}
+                                  className="text-slate-400 hover:text-rose-400 p-1 cursor-pointer shrink-0"
+                                  title="Remove booklet"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <label htmlFor={`modal-inc-upload-${idx}`} className="cursor-pointer block space-y-1">
+                                <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
+                                  <Layers className="h-4 w-4 text-cyan-400" />
+                                  <span>Upload Inclusions Range PDF</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                  Optional brochure or specification booklet
+                                </p>
+                              </label>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Notes */}
+                        <div>
+                          <Label className="text-[10px] text-slate-400 font-semibold uppercase">
+                            Specific Clauses / Notes
+                          </Label>
+                          <textarea
+                            value={input.manualNotes || ""}
+                            onChange={(e) => {
+                              const updated = [...builderInputs];
+                              updated[idx].manualNotes = e.target.value;
+                              setBuilderInputs(updated);
+                            }}
+                            rows={2}
+                            className={`w-full text-xs p-2 rounded-xl border mt-1 resize-none ${
+                              isLight ? "bg-white border-slate-200" : "bg-slate-950 border-slate-800"
+                            }`}
+                            placeholder="e.g. 180-day price lock, $25k provisional site costs, timber floors not included"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer & Run CTA */}
+            <div className={`p-6 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${isLight ? "border-slate-200 bg-slate-50/50" : "border-slate-800 bg-slate-900/40"}`}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleClearAll}
+                className="text-xs text-slate-400 hover:text-rose-400 cursor-pointer"
+              >
+                Reset Form
+              </Button>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsImportModalOpen(false)}
+                  className="rounded-xl text-xs font-bold cursor-pointer h-11 px-4"
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="button"
+                  disabled={isAnalyzing}
+                  onClick={handleRunComparison}
+                  className="flex-1 sm:flex-none h-11 px-8 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-amber-500/25 cursor-pointer gap-2 active:scale-95 transition-all"
+                >
+                  <Sparkles className={`h-4 w-4 ${isAnalyzing ? "animate-spin" : ""}`} />
+                  {isAnalyzing ? (analysisStep || "Running AI Forensic Comparison…") : "Run Full Forensic Tender Comparison"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

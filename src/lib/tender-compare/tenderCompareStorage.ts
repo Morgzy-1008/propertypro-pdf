@@ -576,6 +576,27 @@ export function createInitialSampleSession(division: "NSW" | "QLD" = "NSW"): Ten
   };
 }
 
+export function createInitialEmptySession(division: "NSW" | "QLD" = "NSW"): TenderComparisonSession {
+  return {
+    id: "session-" + Date.now(),
+    createdAt: new Date().toISOString(),
+    clientName: "",
+    siteAddress: "",
+    division,
+    builders: [],
+    winningBuilderId: "",
+    executiveSummary: "",
+    keyDifferencesSummary: [],
+  };
+}
+
+export function clearActiveTenderCompareSession(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(STORAGE_KEY_ACTIVE);
+  } catch {}
+}
+
 export function loadTenderCompareSessions(): TenderComparisonSession[] {
   if (typeof window === "undefined") return [];
   try {
@@ -605,13 +626,28 @@ export function saveTenderCompareSession(session: TenderComparisonSession): void
 }
 
 export function loadActiveTenderCompareSession(division: "NSW" | "QLD" = "NSW"): TenderComparisonSession {
-  if (typeof window === "undefined") return createInitialSampleSession(division);
+  if (typeof window === "undefined") return createInitialEmptySession(division);
   try {
     const raw = localStorage.getItem(STORAGE_KEY_ACTIVE);
     if (raw) {
       const parsed = JSON.parse(raw) as TenderComparisonSession;
-      if (parsed && parsed.builders?.length > 0) return parsed;
+      // Purge any legacy hallucinated sample mock data
+      const isHallucinatedSample =
+        parsed.clientName === "David & Sarah Miller" ||
+        parsed.id?.startsWith("sample-") ||
+        parsed.builders?.some(
+          (b) => b.modelName === "Merricks 26" && b.builderName?.includes("Metricon")
+        );
+
+      if (isHallucinatedSample) {
+        localStorage.removeItem(STORAGE_KEY_ACTIVE);
+        return createInitialEmptySession(division);
+      }
+
+      if (parsed && Array.isArray(parsed.builders) && parsed.builders.length > 0) {
+        return parsed;
+      }
     }
   } catch {}
-  return createInitialSampleSession(division);
+  return createInitialEmptySession(division);
 }

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { TenderComparePortal } from "@/components/tender-compare/TenderComparePortal";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { Home, Layers, Database, FileText, Scale } from "lucide-react";
@@ -6,8 +6,16 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { getActiveStaffUser } from "@/lib/authSession";
+import { isMorganHales } from "@/lib/access";
 
 export const Route = createFileRoute("/_authenticated/tender-compare")({
+  beforeLoad: async () => {
+    const staffUser = getActiveStaffUser();
+    if (!isMorganHales(staffUser)) {
+      throw redirect({ to: "/hub", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Tender Compare | Hudson Homes Digital Builder OS" },
