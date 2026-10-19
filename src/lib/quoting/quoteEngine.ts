@@ -156,13 +156,14 @@ export function getTierPrice(
   const norm = String(tier || "H2").toUpperCase();
   const isH3 = norm.includes("H3") || norm.includes("LUXURY");
   const isH1 = norm.includes("H1") || norm.includes("SMART LIVING");
-  const isHBS = norm.includes("HBS") || norm.includes("HOME BUILDER");
-  const isSS = norm.includes("SS") || norm.includes("SMART SERIES") || norm.includes("SMART STYLE") || norm.includes("FHB") || norm.includes("START SMART") || norm.includes("FIRST HOME");
+  const isHBS = norm.includes("HBS") || norm.includes("HOME BUILDER") || norm === "BASE";
+  const isSS = norm === "SS" || norm.includes("SMART SERIES") || norm.includes("SMART STYLE") || norm.includes("SS SPEC") || (norm.includes("START SMART") && !norm.includes("FHB"));
+  const isFHB = norm.includes("FHB") || norm.includes("FIRST HOME");
   const isIP = norm.includes("IP") || norm.includes("INVEST");
   const effectiveDiv = (division || (model as any).division || getActiveDivision() || "").toUpperCase();
 
-  // The investment package pricing should be the exact same price as the first home buyer range for those particular designs
-  if (isSS || isIP) {
+  // If FHB or IP (Turnkey First Home Buyer or Investor Package)
+  if (isFHB || isIP) {
     const fhb = findFhbPrice(model.name, effectiveDiv, housingType);
     if (fhb !== null) return fhb;
     if (model.fhb) return model.fhb;
@@ -170,15 +171,26 @@ export function getTierPrice(
     return model.h2 || model.h1 || 0;
   }
 
-  if (housingType === "Dual Living") {
-    if (isHBS) return (model as any).hbs || model.h1 || 0;
-    if (isH1) return model.h1 || (model as any).hbs || 0;
-    if (isH3) return (model as any).h3 || model.h2 || 0;
-    return model.h2 || model.h1 || 0;
+  // Official HBS Spec (Home Builders Series)
+  if (isHBS) {
+    return (model as any).hbs || model.h1 || 0;
   }
-  if (isHBS) return (model as any).hbs || model.h1 || 0;
-  if (isH1) return model.h1 || (model as any).hbs || 0;
-  if (isH3) return (model as any).h3 || model.h2 || 0;
+
+  // Official SS Spec (Smart Start / Smart Series brochure column)
+  if (isSS) {
+    if (model.ss) return model.ss;
+    return (model as any).hbs || model.h1 || 0;
+  }
+
+  if (isH1) {
+    return model.h1 || (model as any).hbs || 0;
+  }
+
+  if (isH3) {
+    return (model as any).h3 || model.h2 || 0;
+  }
+
+  // Default is H2 (Design Collection)
   return model.h2 || model.h1 || 0;
 }
 
@@ -2517,26 +2529,36 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
   const quote: FullQuote = JSON.parse(JSON.stringify(rawQuote));
   if (!quote.design) return quote;
 
-  // Normalize tier to strict H1 Smart, H2 Designer, H3 Luxury, FHB Start Smart, or IP Investor Pack
+  // Normalize tier to strict H1 Smart, H2 Designer, H3 Luxury, FHB Start Smart, IP Investor Pack, HBS, or SS
   let tier = quote.design.specTier || "H2 Design Inclusions";
   const tierUpper = String(tier).toUpperCase();
   if (tierUpper.includes("H3")) {
     tier = "H3 Luxury Inclusions";
-  } else if (tierUpper.includes("FHB") || tierUpper.includes("START SMART") || tierUpper.includes("FIRST HOME")) {
+  } else if (tierUpper.includes("FHB") || tierUpper.includes("FIRST HOME")) {
     tier = "FHB Start Smart";
   } else if (tierUpper === "IP" || tierUpper.includes("INVEST")) {
     tier = "IP Investor Pack";
+  } else if (tierUpper.includes("HBS") || tierUpper.includes("HOME BUILDER") || tierUpper === "BASE") {
+    tier = "Home Builders Series";
+  } else if (tierUpper.includes("SMART SERIES") || tierUpper === "SS" || tierUpper.includes("SMART STYLE") || tierUpper.includes("SS SPEC") || tierUpper.includes("START SMART")) {
+    tier = "Smart Series";
   } else if (tierUpper.includes("H1")) {
     tier = "H1 Smart Inclusions";
   } else if (tierUpper.includes("H2") || tierUpper.includes("DESIGN")) {
     tier = "H2 Design Inclusions";
-  } else if (tierUpper.includes("HBS") || tierUpper.includes("HOME BUILDER") || tierUpper.includes("SMART SERIES") || tierUpper.includes("SS")) {
-    tier = "H1 Smart Inclusions";
   } else {
     tier = "H2 Design Inclusions";
   }
   quote.design.specTier = tier;
-  if (tierUpper.includes("H3") || tierUpper.includes("H1") || tierUpper.includes("IP") || tierUpper.includes("FHB") || quote.design.hasExplicitlySelectedTier) {
+  if (
+    tierUpper.includes("H3") ||
+    tierUpper.includes("H1") ||
+    tierUpper.includes("IP") ||
+    tierUpper.includes("FHB") ||
+    tierUpper.includes("HBS") ||
+    tierUpper.includes("SS") ||
+    quote.design.hasExplicitlySelectedTier
+  ) {
     quote.design.hasExplicitlySelectedTier = true;
   }
 

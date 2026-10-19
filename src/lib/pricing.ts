@@ -152,12 +152,17 @@ export function housePriceFor(
   division?: Division,
   options?: { bedrooms?: number | string; garage?: string },
 ): number | null {
-  const div = division || getActiveDivision();
+  const row = findDesign(name, division);
+  if (range === "ss" && row && row.ss) {
+    const lists = getPriceLists(division);
+    const isDualLiving = lists["dual-oc"].some((r) => r.name.trim().toLowerCase() === name.trim().toLowerCase());
+    const discount = isDualLiving ? 0 : PROMO_DISCOUNT;
+    return Math.max(0, row.ss - discount);
+  }
   if (range === "ss") {
     const fhb = findFhbPrice(name, div, undefined, options);
     if (fhb !== null) return fhb;
   }
-  const row = findDesign(name, division);
   if (!row) return null;
   const lists = getPriceLists(division);
   const isDualLiving = lists["dual-oc"].some((r) => r.name.trim().toLowerCase() === name.trim().toLowerCase());

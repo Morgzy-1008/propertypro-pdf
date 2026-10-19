@@ -330,7 +330,7 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
       suburb: "",
       estate: "",
       postcode: "",
-      state: undefined, // State is detected dynamically from site address per requirement
+      state: (typeof window !== "undefined" ? getActiveDivision() : "QLD") as "QLD" | "NSW",
       estimateNumber: estimateNo,
       estimateVersion: 1,
       depositType: "greenfield",

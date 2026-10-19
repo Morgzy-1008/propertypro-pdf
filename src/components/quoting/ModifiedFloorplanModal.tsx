@@ -256,6 +256,7 @@ interface ModifiedFloorplanModalProps {
   isDoubleStorey: boolean;
   designName?: string;
   initialImageUrl?: string;
+  initialFile?: File | null;
   onSave: (croppedDataUrl: string) => void;
   onExtractedAreas?: (areas: ExtractedAreaSchedule) => void;
 }
@@ -270,6 +271,7 @@ export function ModifiedFloorplanModal({
   isDoubleStorey,
   designName,
   initialImageUrl,
+  initialFile,
   onSave,
   onExtractedAreas,
 }: ModifiedFloorplanModalProps) {
@@ -321,7 +323,9 @@ export function ModifiedFloorplanModal({
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && initialImageUrl && !docLoaded && pdfPages.length === 0) {
+    if (isOpen && initialFile && !docLoaded && pdfPages.length === 0) {
+      handleFileUpload(initialFile);
+    } else if (isOpen && initialImageUrl && !docLoaded && pdfPages.length === 0) {
       setPdfPages([initialImageUrl]);
       setSelectedPageIndex(0);
       setDocLoaded(true);
@@ -331,7 +335,7 @@ export function ModifiedFloorplanModal({
         setStage("crop_single");
       }
     }
-  }, [isOpen, initialImageUrl, docLoaded, pdfPages.length, isDoubleStorey]);
+  }, [isOpen, initialFile, initialImageUrl, docLoaded, pdfPages.length, isDoubleStorey]);
 
   // Current rendered dimensions
   const currentRenderW = baseDisplaySize.w > 0 ? Math.round(baseDisplaySize.w * zoom) : imageSize.w;

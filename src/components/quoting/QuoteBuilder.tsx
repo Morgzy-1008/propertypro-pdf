@@ -31,10 +31,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { findConsultantByEmail } from "@/components/flyer/consultants";
 import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 import { canChangeQuoteConsultant } from "@/lib/access";
-import { getActiveDivision, setActiveDivision } from "@/lib/divisionContext";
+import { getActiveDivision, setActiveDivision, onDivisionChanged } from "@/lib/divisionContext";
 import { downloadA4Pdf } from "@/lib/downloadPdf";
 import {
   calculateQuotePricing,
@@ -228,6 +227,23 @@ export function QuoteBuilder() {
     }
     const unsub = onStaffUserChanged((s) => applyStaff(s));
     return () => unsub();
+  }, []);
+
+  // Synchronize active state division (QLD / NSW) live with the current quote
+  useEffect(() => {
+    return onDivisionChanged((newDiv) => {
+      setQuote((prev) => {
+        if (prev.client.state === newDiv) return prev;
+        const updated = {
+          ...prev,
+          client: {
+            ...prev.client,
+            state: newDiv,
+          },
+        };
+        return rehydrateAndRecalculateQuote(updated);
+      });
+    });
   }, []);
 
   // Automatically sync client to CRM under consultant's login whenever client details are added or updated

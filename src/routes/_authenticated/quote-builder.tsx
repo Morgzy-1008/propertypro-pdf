@@ -90,7 +90,7 @@ function QuoteBuilderPage() {
             </Link>
 
             {/* NHC Active Profile */}
-            <StaffHeaderProfile isLight={isLight} hideDivisionSwitcher={true} />
+            <StaffHeaderProfile isLight={isLight} hideDivisionSwitcher={false} />
           </div>
         </div>
       </header>

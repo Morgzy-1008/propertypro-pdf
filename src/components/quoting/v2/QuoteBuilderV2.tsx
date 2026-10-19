@@ -34,7 +34,7 @@ import { V2StepReview } from "./V2StepReview";
 import { QuoteSummarySidebar } from "../QuoteSummarySidebar";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 import { getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
-import { getActiveDivision } from "@/lib/divisionContext";
+import { getActiveDivision, setActiveDivision } from "@/lib/divisionContext";
 
 interface QuoteBuilderV2Props {
   quote: FullQuote;
@@ -238,6 +238,10 @@ export function QuoteBuilderV2({
                 division={(quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD"}
                 clientState={quote.client?.state}
                 onChange={handleDesignChange}
+                onClientStateChange={(newState) => {
+                  handleClientChange({ state: newState });
+                  setActiveDivision(newState);
+                }}
                 onAddInclusionLineItems={handleAddInclusionLineItems}
                 onNext={handleGoNext}
                 onPrev={handleGoPrev}

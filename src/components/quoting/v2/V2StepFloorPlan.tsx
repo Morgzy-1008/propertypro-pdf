@@ -4,6 +4,7 @@ import {
   Sparkles,
   Search,
   Upload,
+  Crop,
   Layers,
   ArrowRight,
   ArrowLeft,
@@ -60,7 +61,7 @@ import {
   cleanDesignNameForFhb,
   QLD_FHB_IP_DESIGNS,
 } from "@/lib/pricing/pricelists";
-import { getActiveDivision, onDivisionChanged, type Division } from "@/lib/divisionContext";
+import { getActiveDivision, setActiveDivision, onDivisionChanged, type Division } from "@/lib/divisionContext";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import {
   getHousingTypeForDesign,
@@ -81,18 +82,17 @@ import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data";
 import {
   identifyBaseDesignCandidate,
-  analyzeModifiedFloorplanFile,
 } from "@/lib/quoting/floorplanModificationDetector";
 import type {
   QuoteDesignSelection,
   QuoteSelectedLineItem,
   InclusionTier,
   BaseDesignCandidate,
-  PlanModificationAnalysis,
   FloorplanAreaBreakdown,
   CustomFloorAreaItem,
 } from "@/lib/quoting/quoteTypes";
-import { ModifiedPlanReviewModal } from "@/components/quoting/ModifiedPlanReviewModal";
+import { ModifiedFloorplanModal, type ExtractedAreaSchedule } from "@/components/quoting/ModifiedFloorplanModal";
+import { DivisionSwitcher } from "@/components/auth/DivisionSwitcher";
 import { BaseDesignConfirmationModal } from "@/components/quoting/BaseDesignConfirmationModal";
 import { DesignFacadeLibraryModal, type DesignFacadeOption } from "@/components/floorplan-library/DesignFacadeLibraryModal";
 import { QuoteFacadeEnlargeModal } from "@/components/quoting/QuoteFacadeRenderPreview";
@@ -102,6 +102,7 @@ interface V2StepFloorPlanProps {
   division?: Division;
   clientState?: "QLD" | "NSW";
   onChange: (patch: Partial<QuoteDesignSelection>) => void;
+  onClientStateChange?: (state: "QLD" | "NSW") => void;
   onAddInclusionLineItems?: (items: QuoteSelectedLineItem[]) => void;
   onNext: () => void;
   onPrev: () => void;
@@ -196,6 +197,7 @@ export function V2StepFloorPlan({
   division: propDivision,
   clientState,
   onChange,
+  onClientStateChange,
   onAddInclusionLineItems,
   onNext,
   onPrev,
@@ -316,13 +318,9 @@ export function V2StepFloorPlan({
 
   const [pendingCandidate, setPendingCandidate] = useState<BaseDesignCandidate | null>(null);
   const [isBaseConfirmOpen, setIsBaseConfirmOpen] = useState(false);
-  const [pendingAnalysis, setPendingAnalysis] = useState<PlanModificationAnalysis | null>(null);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [uploadedModifiedFile, setUploadedModifiedFile] = useState<File | null>(null);
-  const [isAnalyzingDeepPlan, setIsAnalyzingDeepPlan] = useState(false);
-  const [catalogueSearchQuery, setCatalogueSearchQuery] = useState("");
-  const [selectedCatalogueCategory, setSelectedCatalogueCategory] = useState<string>("all");
-  const [appliedCatalogueItems, setAppliedCatalogueItems] = useState<QuoteSelectedLineItem[]>([]);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
 
   // Custom floor areas local state
   const [isAddingCustomArea, setIsAddingCustomArea] = useState(false);
@@ -1067,10 +1065,6 @@ export function V2StepFloorPlan({
     setModifiedSearchQuery(row.name);
     setIsModifiedDropdownOpen(false);
     toast.success(`Selected base design: ${row.name} (${row.m2} m²)`);
-
-    if (uploadedModifiedFile) {
-      void runDeepPlanModificationScan(uploadedModifiedFile, row.name, type, { openModal: false });
-    }
   };
 
   const handleConfirmDetectedBase = (detected: DetectedFloorplan) => {
@@ -1122,15 +1116,6 @@ export function V2StepFloorPlan({
 
     setModifiedSubStep("areas");
     toast.success(`Confirmed base design: ${detected.matchedDesignName}`);
-
-    if (
-      pendingAnalysis &&
-      pendingAnalysis.baseDesignName.toLowerCase() === row.name.toLowerCase()
-    ) {
-      handleApplyModifiedPlan(pendingAnalysis, { keepModalOpen: false, silent: true });
-    } else if (uploadedModifiedFile && !isAnalyzingDeepPlan) {
-      void runDeepPlanModificationScan(uploadedModifiedFile, row.name, type, { openModal: false });
-    }
   };
 
   // Modified Area change handler
@@ -1393,510 +1378,118 @@ export function V2StepFloorPlan({
     handleModifiedAreaChange(field, stdVal.toString());
   };
 
-  // File Upload scan for architectural modified plans (extract schedule or prompt for manual sizes)
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // File upload: opens crop tool cleanly, extracts dimension schedule if present, and updates schedule
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadedModifiedFile(file);
-
-    try {
-      setIsScanning(true);
-      setScanStatus("Parsing architectural drawing & scanning dimension table…");
-
-      let rawText = "";
-      let previewUrl = "";
-
-      if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
-        try {
-          const parsed = await pdfDocumentToPagesAndText(file, 1);
-          rawText = parsed.rawText || "";
-          previewUrl = parsed.primaryFloorplanDataUrl || parsed.pages[0] || "";
-        } catch (pdfErr) {
-          console.warn("PDF parse error:", pdfErr);
-        }
-      } else {
-        // Image file (JPG / PNG)
-        previewUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (ev) => resolve((ev.target?.result as string) || "");
-          reader.readAsDataURL(file);
-        });
-      }
-
-      if (previewUrl) {
-        setModifiedPlanPreviewUrl(previewUrl);
-      }
-
-      // Check for dimension table in extracted text
-      const parsedSchedule = rawText ? parseAreaScheduleFromText(rawText) : null;
-      const baselineAreas = design.areas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
-
-      const hasParsedDimensions = Boolean(
-        parsedSchedule &&
-        (parsedSchedule.totalM2 || parsedSchedule.livingM2 || parsedSchedule.groundLivingM2 || parsedSchedule.lowerLivingM2 || parsedSchedule.balconyM2)
-      );
-
-      // Check if the extracted dimensions are changed from baseline
-      const isChangedFromBaseline = Boolean(hasParsedDimensions && (
-        (parsedSchedule?.totalM2 && Math.abs(parsedSchedule.totalM2 - (baselineAreas.totalM2 || 0)) > 0.1) ||
-        (parsedSchedule?.livingM2 && Math.abs(parsedSchedule.livingM2 - (baselineAreas.livingM2 || 0)) > 0.1) ||
-        (parsedSchedule?.lowerLivingM2 && Math.abs(parsedSchedule.lowerLivingM2 - (baselineAreas.lowerLivingM2 || 0)) > 0.1) ||
-        (parsedSchedule?.groundLivingM2 && Math.abs(parsedSchedule.groundLivingM2 - (baselineAreas.groundLivingM2 || 0)) > 0.1) ||
-        (parsedSchedule?.firstLivingM2 && Math.abs(parsedSchedule.firstLivingM2 - (baselineAreas.firstLivingM2 || 0)) > 0.1) ||
-        (parsedSchedule?.garageM2 && Math.abs(parsedSchedule.garageM2 - (baselineAreas.garageM2 || 0)) > 0.1) ||
-        (parsedSchedule?.alfrescoM2 && Math.abs(parsedSchedule.alfrescoM2 - (baselineAreas.alfrescoM2 || 0)) > 0.1) ||
-        (parsedSchedule?.porchM2 && Math.abs(parsedSchedule.porchM2 - (baselineAreas.porchM2 || 0)) > 0.1) ||
-        (parsedSchedule?.balconyM2 !== undefined && Math.abs(parsedSchedule.balconyM2 - (baselineAreas.balconyM2 || 0)) > 0.1) ||
-        (parsedSchedule?.unassignedItems && parsedSchedule.unassignedItems.length > 0)
-      ));
-
-      if (hasParsedDimensions && isChangedFromBaseline && parsedSchedule) {
-        const isDouble = design.housingType === "Double Storey" ||
-          design.housingType === "Split Level" ||
-          isDoubleStoreyDesign(design.designName, design.housingType || houseType);
-
-        const newLowerLiving = parsedSchedule.lowerLivingM2 ?? baselineAreas.lowerLivingM2 ?? 0;
-        const newGroundLiving = parsedSchedule.groundLivingM2 ?? (isDouble && parsedSchedule.livingM2 ? parsedSchedule.livingM2 : (baselineAreas.groundLivingM2 ?? 0));
-        const newFirstLiving = parsedSchedule.firstLivingM2 ?? baselineAreas.firstLivingM2 ?? 0;
-        const newLiving = !isDouble ? (parsedSchedule.livingM2 || baselineAreas.livingM2 || 0) : 0;
-        const newGarage = parsedSchedule.garageM2 ?? baselineAreas.garageM2 ?? 0;
-        const newAlfresco = parsedSchedule.alfrescoM2 ?? baselineAreas.alfrescoM2 ?? 0;
-        const newPorch = parsedSchedule.porchM2 ?? baselineAreas.porchM2 ?? 0;
-        const newBalcony = parsedSchedule.balconyM2 !== undefined ? parsedSchedule.balconyM2 : (baselineAreas.balconyM2 ?? 0);
-
-        // Extract custom areas from unassigned items
-        const existingCustom = (design.areas?.customAreas || design.modifiedAreas?.customAreas || []) as CustomFloorAreaItem[];
-        const extractedCustom: CustomFloorAreaItem[] = (parsedSchedule.unassignedItems || [])
-          .filter((item) => item.sqm > 0 && !existingCustom.some((ec) => ec.name.toLowerCase() === item.label.toLowerCase()))
-          .map((item, idx) => ({
-            id: `extracted_${Date.now()}_${idx}`,
-            name: item.label,
-            m2: item.sqm,
-            ratePerM2: 850,
-          }));
-        const combinedCustom = [...existingCustom, ...extractedCustom];
-        const customSum = combinedCustom.reduce((sum, ca) => sum + (Number(ca.m2) || 0), 0);
-
-        const livingSum = isDouble
-          ? newLowerLiving + newGroundLiving + newFirstLiving + newBalcony
-          : newLiving + newBalcony;
-
-        const newTotal = parsedSchedule.totalM2 || Math.round((livingSum + newGarage + newAlfresco + newPorch + customSum) * 100) / 100;
-
-        const updatedAreas: FloorplanAreaBreakdown = {
-          ...(isDouble
-            ? {
-                lowerLivingM2: newLowerLiving,
-                groundLivingM2: newGroundLiving,
-                firstLivingM2: newFirstLiving,
-                balconyM2: newBalcony,
-              }
-            : {
-                livingM2: newLiving,
-                balconyM2: newBalcony,
-              }),
-          garageM2: newGarage,
-          alfrescoM2: newAlfresco,
-          porchM2: newPorch,
-          customAreas: combinedCustom,
-          totalM2: newTotal,
-        };
-
-        if (newBalcony > 0) {
-          setIsBalconyActive(true);
-        }
-
-        const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
-        const calc = calculateModifiedFloorplanPricing({
-          ...design,
-          isModifiedFloorplan: true,
-          standardAreas: baselineAreas,
-          modifiedAreas: updatedAreas,
-          areas: updatedAreas,
-          designM2: newTotal,
-          modifiedDesignM2: newTotal,
-          standardDesignM2: baselineAreas.totalM2,
-          standardBasePrice: currentBasePrice,
-        });
-
-        onChange({
-          isModifiedFloorplan: true,
-          standardAreas: baselineAreas,
-          modifiedAreas: updatedAreas,
-          areas: updatedAreas,
-          designM2: newTotal,
-          modifiedDesignM2: newTotal,
-          standardDesignM2: baselineAreas.totalM2,
-          standardBasePrice: currentBasePrice,
-          basePrice: calc.modifiedBasePrice,
-          modifiedPlanFileName: file.name,
-          modifiedPlanImageUrl: previewUrl,
-        });
-
-        setIsDimensionTableUnchanged(false);
-        const parts: string[] = [];
-        if (isDouble) {
-          if (newLowerLiving > 0) parts.push(`Lower: ${newLowerLiving} m²`);
-          if (newGroundLiving > 0) parts.push(`Ground: ${newGroundLiving} m²`);
-          if (newFirstLiving > 0) parts.push(`First: ${newFirstLiving} m²`);
-        } else {
-          if (newLiving > 0) parts.push(`Living: ${newLiving} m²`);
-        }
-        if (newGarage > 0) parts.push(`Garage: ${newGarage} m²`);
-        if (newAlfresco > 0) parts.push(`Alfresco: ${newAlfresco} m²`);
-        if (newPorch > 0) parts.push(`Porch: ${newPorch} m²`);
-        if (newBalcony > 0) parts.push(`Balcony: ${newBalcony} m²`);
-        extractedCustom.forEach((ca) => parts.push(`${ca.name}: ${ca.m2} m²`));
-
-        setScanMessage({
-          type: "success",
-          text: `Dimension table detected! ${parts.join(" • ")} (Total: ${newTotal} m²)`,
-        });
-        toast.success(`Extracted modified areas: Total ${newTotal} m²`);
-      } else {
-        // Dimension table was unchanged or not detected
-        setIsDimensionTableUnchanged(true);
-        onChange({
-          isModifiedFloorplan: true,
-          modifiedPlanFileName: file.name,
-          modifiedPlanImageUrl: previewUrl,
-        });
-        setScanMessage({
-          type: "warning",
-          text: "Schedule of areas was unchanged or not detected on drawing. Please enter the new modified sizes below:",
-        });
-        toast.info("Dimension table not changed or detected on plan. Please enter the modified sizes below.");
-      }
-
-      // Detect base design candidate from drawing text / filename
-      const detected = detectFloorplanFromText(rawText, file.name);
-      if (detected && detected.matchedDesignName) {
-        setDetectedCandidate(detected);
-        void runDeepPlanModificationScan(
-          file,
-          detected.matchedDesignName,
-          detected.housingType || design.housingType || houseType,
-          { openModal: false }
-        );
-      } else if (design.designName) {
-        setDetectedCandidate(null);
-        void runDeepPlanModificationScan(
-          file,
-          design.designName,
-          design.housingType || houseType,
-          { openModal: false }
-        );
-      } else {
-        setDetectedCandidate(null);
-      }
-      setModifiedSubStep("confirm_base");
-
-      setIsScanning(false);
-      setScanStatus("");
-    } catch (err: any) {
-      setIsScanning(false);
-      setScanStatus("");
-      setIsDimensionTableUnchanged(true);
-      setDetectedCandidate(null);
-      setModifiedSubStep("confirm_base");
-      setScanMessage({
-        type: "warning",
-        text: "Could not scan dimension table automatically. Please confirm or select base design below:",
-      });
-      toast.info("Please select base design to continue.");
+    setCropFile(file);
+    setIsCropperOpen(true);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
-  // Run full architectural + visual + fixture/benchtop/vanity modification scan against the base Hudson design
-  const runDeepPlanModificationScan = async (
-    file: File,
-    baseDesignName: string,
-    baseHousingType: string,
-    options?: { openModal?: boolean }
-  ) => {
-    if (!file || !baseDesignName) return;
-    try {
-      setIsAnalyzingDeepPlan(true);
-      const analysis = await analyzeModifiedFloorplanFile(
-        file,
-        baseDesignName,
-        baseHousingType || houseType,
-        design.specTier || "H2 Design Collection"
-      );
-      setPendingAnalysis(analysis);
-      handleApplyModifiedPlan(analysis, {
-        keepModalOpen: Boolean(options?.openModal),
-        silent: true,
-      });
-      if (options?.openModal) {
-        setIsReviewModalOpen(true);
-      }
-    } catch (err) {
-      console.warn("Deep plan modification scan warning:", err);
-    } finally {
-      setIsAnalyzingDeepPlan(false);
-    }
-  };
+  const handleApplyExtractedAreas = (extracted: ExtractedAreaSchedule) => {
+    if (!extracted) return;
+    const hasDimensions = Boolean(
+      extracted.totalM2 ||
+      extracted.livingM2 ||
+      extracted.groundLivingM2 ||
+      extracted.lowerLivingM2 ||
+      extracted.firstLivingM2 ||
+      extracted.garageM2 ||
+      extracted.alfrescoM2 ||
+      extracted.porchM2 ||
+      extracted.balconyM2
+    );
+    if (!hasDimensions) return;
 
-  const handleApplyModifiedPlan = (
-    approved: PlanModificationAnalysis,
-    options?: { keepModalOpen?: boolean; silent?: boolean }
-  ) => {
-    setPendingAnalysis(approved);
-    const stdM2 = approved.standardTotalM2;
-    const stdAreas = getStandardAreaBreakdown(approved.baseDesignName, approved.housingType, stdM2);
+    const isDouble = isDoubleOrSplit;
+    const baseline = standardBaselineAreas;
 
-    const updatedModifiedAreas: FloorplanAreaBreakdown = {
-      ...stdAreas,
-      ...(design.modifiedAreas || {}),
-      totalM2: approved.modifiedTotalM2 || stdM2,
+    const newLower = extracted.lowerLivingM2 ?? baseline.lowerLivingM2 ?? 0;
+    const newGround = extracted.groundLivingM2 ?? (isDouble && extracted.livingM2 ? extracted.livingM2 : (baseline.groundLivingM2 ?? 0));
+    const newFirst = extracted.firstLivingM2 ?? baseline.firstLivingM2 ?? 0;
+    const newLiving = !isDouble ? (extracted.livingM2 || baseline.livingM2 || 0) : 0;
+    const newGarage = extracted.garageM2 ?? baseline.garageM2 ?? 0;
+    const newAlfresco = extracted.alfrescoM2 ?? baseline.alfrescoM2 ?? 0;
+    const newPorch = extracted.porchM2 ?? baseline.porchM2 ?? 0;
+    const newBalcony = extracted.balconyM2 !== undefined ? extracted.balconyM2 : (baseline.balconyM2 ?? 0);
+
+    const existingCustom = (design.areas?.customAreas || design.modifiedAreas?.customAreas || []) as CustomFloorAreaItem[];
+    const extractedCustom: CustomFloorAreaItem[] = (extracted.unassignedItems || [])
+      .filter((item) => item.sqm > 0 && !existingCustom.some((ec) => ec.name.toLowerCase() === item.label.toLowerCase()))
+      .map((item, idx) => ({
+        id: `extracted_${Date.now()}_${idx}`,
+        name: item.label,
+        m2: item.sqm,
+        ratePerM2: 850,
+      }));
+    const combinedCustom = [...existingCustom, ...extractedCustom];
+    const customSum = combinedCustom.reduce((sum, ca) => sum + (Number(ca.m2) || 0), 0);
+
+    const livingSum = isDouble
+      ? newLower + newGround + newFirst + newBalcony
+      : newLiving + newBalcony;
+
+    const newTotal = extracted.totalM2 || Math.round((livingSum + newGarage + newAlfresco + newPorch + customSum) * 100) / 100;
+
+    const updatedAreas: FloorplanAreaBreakdown = {
+      ...(isDouble
+        ? {
+            lowerLivingM2: newLower,
+            groundLivingM2: newGround,
+            firstLivingM2: newFirst,
+            balconyM2: newBalcony,
+          }
+        : {
+            livingM2: newLiving,
+            balconyM2: newBalcony,
+          }),
+      garageM2: newGarage,
+      alfrescoM2: newAlfresco,
+      porchM2: newPorch,
+      customAreas: combinedCustom,
+      totalM2: newTotal,
     };
 
-    for (const delta of approved.areaDeltas) {
-      if (delta.accepted) {
-        (updatedModifiedAreas as any)[delta.zoneKey] = delta.modifiedM2;
-      } else {
-        (updatedModifiedAreas as any)[delta.zoneKey] = delta.standardM2;
-      }
+    if (newBalcony > 0) {
+      setIsBalconyActive(true);
     }
 
-    const effectiveHousingType = approved.housingType || houseType;
-    const isDouble =
-      effectiveHousingType === "Double Storey" ||
-      effectiveHousingType === "Split Level" ||
-      isDoubleStoreyDesign(approved.baseDesignName, effectiveHousingType);
-
-    const customSum = (updatedModifiedAreas.customAreas || []).reduce(
-      (sum, ca) => sum + (Number(ca.m2) || 0),
-      0
-    );
-    const computedTotal =
-      Math.round(
-        ((isDouble
-          ? (updatedModifiedAreas.lowerLivingM2 || 0) +
-            (updatedModifiedAreas.groundLivingM2 || 0) +
-            (updatedModifiedAreas.firstLivingM2 || 0) +
-            (updatedModifiedAreas.balconyM2 || 0)
-          : (updatedModifiedAreas.livingM2 || 0) + (updatedModifiedAreas.balconyM2 || 0)) +
-          (updatedModifiedAreas.garageM2 || 0) +
-          (updatedModifiedAreas.alfrescoM2 || 0) +
-          (updatedModifiedAreas.porchM2 || 0) +
-          customSum) *
-          100
-      ) / 100;
-
-    updatedModifiedAreas.totalM2 = computedTotal > 0 ? computedTotal : (approved.modifiedTotalM2 || stdM2);
-
-    const modelName = approved.baseDesignName;
-    const matchedModel = allModels.find(
-      (m) => m.row.name.toLowerCase() === modelName.toLowerCase()
-    );
-    const stdPrice = matchedModel
-      ? getTierPrice(matchedModel.row, design.specTier, effectiveHousingType)
-      : design.standardBasePrice || design.basePrice || 0;
-
+    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
     const calc = calculateModifiedFloorplanPricing({
       ...design,
-      mode: "modified",
       isModifiedFloorplan: true,
-      designName: modelName,
-      housingType: effectiveHousingType as any,
-      standardDesignM2: stdM2,
-      standardBasePrice: stdPrice,
-      standardAreas: stdAreas,
-      modifiedAreas: updatedModifiedAreas,
-      areas: updatedModifiedAreas,
-      designM2: updatedModifiedAreas.totalM2,
-      modifiedDesignM2: updatedModifiedAreas.totalM2,
+      standardAreas: baseline,
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
+      designM2: newTotal,
+      modifiedDesignM2: newTotal,
+      standardDesignM2: baseline.totalM2,
+      standardBasePrice: currentBasePrice,
     });
 
-    const updatedDesign: Partial<QuoteDesignSelection> = {
-      mode: "modified",
-      housingType: effectiveHousingType as any,
-      designName: modelName,
-      designM2: updatedModifiedAreas.totalM2,
-      standardDesignM2: stdM2,
-      standardBasePrice: stdPrice,
+    onChange({
       isModifiedFloorplan: true,
-      standardAreas: stdAreas,
-      modifiedAreas: updatedModifiedAreas,
-      areas: updatedModifiedAreas,
-      modifiedDesignM2: updatedModifiedAreas.totalM2,
+      standardAreas: baseline,
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
+      designM2: newTotal,
+      modifiedDesignM2: newTotal,
+      standardDesignM2: baseline.totalM2,
+      standardBasePrice: currentBasePrice,
       basePrice: calc.modifiedBasePrice,
-      ...(approved.floorplanDataUrl ? { floorplanUrl: approved.floorplanDataUrl } : {}),
-    };
+    });
 
-    onChange(updatedDesign);
-
-    if (onAddInclusionLineItems && !options?.silent) {
-      const acceptedUpgrades = (approved.inclusionUpgrades || []).filter((u) => u.accepted);
-      const acceptedOpenings = (approved.openingReplacements || []).filter((o) => o.accepted);
-      const acceptedRooms = (approved.internalRoomChanges || []).filter((r) => r.accepted);
-
-      const lineItemsToAdd: QuoteSelectedLineItem[] = [
-        ...acceptedUpgrades.map((u) => ({
-          id: `mod_${u.id}`,
-          catalogueItemId: u.id,
-          category: u.category,
-          name: u.name,
-          description: u.description,
-          unitType: "fixed" as const,
-          unitRate: u.unitPrice,
-          quantity: u.quantity,
-          subtotal: u.subtotal,
-          isIncluded: true,
-          isClientSelectable: true,
-          clientSelected: true,
-          notes: `Detected from modified floorplan (${approved.fileName || "Plan"}): ${u.detected}`,
-        })),
-        ...acceptedOpenings.map((o) => ({
-          id: `mod_op_${o.id}`,
-          catalogueItemId: o.id,
-          category: "doors_windows" as const,
-          name: `${o.newItemName} (80% Credit Applied)`,
-          description: o.description,
-          unitType: "fixed" as const,
-          unitRate: o.netCost,
-          quantity: 1,
-          subtotal: o.netCost,
-          isIncluded: true,
-          isClientSelectable: true,
-          clientSelected: true,
-          notes: `Replaces ${o.replacedItemName} ($${o.replacedItemBaselineCost.toFixed(2)}) with 80% trade credit (-$${Math.abs(o.creditAmount).toFixed(2)}) applied against $${o.newItemCost.toFixed(2)}.`,
-        })),
-        ...acceptedRooms.map((r) => {
-          const isZero = r.isZeroCost || r.subtotal === 0;
-          const mappedCategory = isZero
-            ? "structural"
-            : r.category === "wet_area"
-            ? "internal_bathroom"
-            : r.category === "doors_hardware"
-            ? "doors_windows"
-            : r.category === "joinery"
-            ? "internal_kitchen"
-            : "structural";
-
-          const displayName = isZero
-            ? r.roomName
-            : r.deltaM2 > 0
-            ? `${r.roomName} (+${r.deltaM2} m²)`
-            : r.roomName;
-
-          return {
-            id: `mod_room_${r.id}`,
-            catalogueItemId: r.id,
-            category: mappedCategory as any,
-            name: displayName,
-            description: r.description,
-            unitType: "fixed" as const,
-            unitRate: isZero ? 0 : r.subtotal,
-            quantity: 1,
-            subtotal: isZero ? 0 : r.subtotal,
-            isIncluded: true,
-            isClientSelectable: true,
-            clientSelected: true,
-            notes: isZero
-              ? "Internal non-structural dry layout variation ($0.00)"
-              : r.description,
-          };
-        }),
-        ...appliedCatalogueItems,
-      ];
-
-      onAddInclusionLineItems(lineItemsToAdd);
-    }
-
-    if (!options?.keepModalOpen) {
-      setIsReviewModalOpen(false);
-    }
-    if (!options?.silent) {
-      toast.success("Applied modified floor plan parameters!");
-    }
+    setScanMessage({
+      type: "success",
+      text: `Dimension table detected! Updated modified schedule of areas (Total: ${newTotal} m²).`,
+    });
+    toast.success(`Dimension table detected! Updated areas: Total ${newTotal} m²`);
   };
 
-  // Quick-add any item from the backend pricing catalogue (benchtops, vanities, sinks, showers, internal elements, doors/windows, structural)
-  const handleQuickAddCatalogueItem = (catalogueItemId: string) => {
-    const catItem = DEFAULT_CATALOGUE.find((c) => c.id === catalogueItemId);
-    if (!catItem) return;
-
-    const lineItem: QuoteSelectedLineItem = {
-      id: `mod_cat_${catItem.id}`,
-      catalogueItemId: catItem.id,
-      category: catItem.category,
-      name: catItem.name,
-      description: catItem.description,
-      unitType: catItem.unitType,
-      unitRate: catItem.unitRate,
-      quantity: 1,
-      subtotal: catItem.unitRate,
-      isIncluded: true,
-      isClientSelectable: true,
-      clientSelected: true,
-      notes: "Added in Step 2 Modified Floor Plan from Backend Pricing Catalogue",
-    };
-
-    const nextCatalogueItems = [
-      ...appliedCatalogueItems.filter((i) => i.id !== lineItem.id),
-      lineItem,
-    ];
-    setAppliedCatalogueItems(nextCatalogueItems);
-
-    if (pendingAnalysis) {
-      // Also add to pendingAnalysis.inclusionUpgrades if not already there so it shows unified
-      const alreadyInPending = (pendingAnalysis.inclusionUpgrades || []).some((u) => u.id === catItem.id);
-      if (!alreadyInPending) {
-        const nextAnalysis: PlanModificationAnalysis = {
-          ...pendingAnalysis,
-          inclusionUpgrades: [
-            ...(pendingAnalysis.inclusionUpgrades || []),
-            {
-              id: catItem.id,
-              category: catItem.category,
-              name: catItem.name,
-              description: catItem.description,
-              baseline: "Standard Inclusion",
-              detected: "Selected from Backend Pricing Catalogue",
-              unitPrice: catItem.unitRate,
-              quantity: 1,
-              subtotal: catItem.unitRate,
-              confidence: 1,
-              accepted: true,
-            },
-          ],
-        };
-        handleApplyModifiedPlan(nextAnalysis, { keepModalOpen: false, silent: true });
-        toast.success(`Added ${catItem.name} (+${formatAud(catItem.unitRate)}) to Modified Plan`);
-        return;
-      }
-    }
-
-    if (onAddInclusionLineItems) {
-      onAddInclusionLineItems(nextCatalogueItems);
-    }
-    toast.success(`Added ${catItem.name} (+${formatAud(catItem.unitRate)}) to Modified Plan`);
-  };
-
-  const handleRemoveCatalogueItem = (itemId: string) => {
-    const nextCatalogueItems = appliedCatalogueItems.filter(
-      (i) => i.id !== itemId && i.catalogueItemId !== itemId
-    );
-    setAppliedCatalogueItems(nextCatalogueItems);
-
-    if (pendingAnalysis) {
-      const nextAnalysis: PlanModificationAnalysis = {
-        ...pendingAnalysis,
-        inclusionUpgrades: (pendingAnalysis.inclusionUpgrades || []).map((u) =>
-          u.id === itemId || `mod_${u.id}` === itemId ? { ...u, accepted: false } : u
-        ),
-      };
-      handleApplyModifiedPlan(nextAnalysis, { keepModalOpen: false, silent: true });
-      return;
-    }
-
-    if (onAddInclusionLineItems) {
-      onAddInclusionLineItems(nextCatalogueItems);
-    }
-  };
 
   const isFloorPlanStepComplete = useMemo(() => {
     if (designMode === "standard") {
@@ -2033,9 +1626,17 @@ export function V2StepFloorPlan({
       >
         {/* House Type selector */}
         <div className="space-y-3 mb-6">
-          <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
-            1. Select House Type
-          </Label>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+              1. Select House Type
+            </Label>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                State / Pricelist:
+              </span>
+              <DivisionSwitcher isLight={isLight} size="sm" />
+            </div>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {(["Single Storey", "Double Storey", "Dual Living", "Split Level", "Granny Flat"] as HousingTypeTab[]).map(
               (type) => (
@@ -2264,13 +1865,27 @@ export function V2StepFloorPlan({
                         Upload Modified Architectural Plan
                       </h3>
                       <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                        Upload your architectural drawing (PDF, JPG, or PNG) to detect the Hudson base design and scan the schedule of areas.
+                        Upload your architectural plan (PDF, PNG, JPG) to crop around the floor plan. If an architectural dimension table is present, it will automatically populate your areas schedule.
                       </p>
                     </div>
 
                     {/* Drag-and-drop / Click Area */}
                     <div
-                      onClick={() => !isScanning && fileInputRef.current?.click()}
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) {
+                          setUploadedModifiedFile(file);
+                          setCropFile(file);
+                          setIsCropperOpen(true);
+                        }
+                      }}
                       className={`p-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center gap-3 ${
                         isLight
                           ? "border-amber-300 hover:border-amber-500 bg-white/80 hover:bg-amber-50/50"
@@ -2280,7 +1895,7 @@ export function V2StepFloorPlan({
                       <FileText className="h-10 w-10 text-amber-500" />
                       <div className="space-y-1">
                         <span className={`text-sm sm:text-base font-extrabold block ${isLight ? "text-slate-900" : "text-white"}`}>
-                          {isScanning ? (scanStatus || "Scanning Plan…") : "Click or drag drawing file here"}
+                          Click or drag modified drawing file here
                         </span>
                         <span className="text-xs text-slate-400 block font-mono">
                           Supports PDF architectural sheets, PNG, JPG renders
@@ -2289,11 +1904,10 @@ export function V2StepFloorPlan({
 
                       <Button
                         type="button"
-                        disabled={isScanning}
                         className="mt-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm h-11 px-6 rounded-xl shadow-md cursor-pointer gap-2"
                       >
-                        <Upload className="h-4 w-4 stroke-[2.5]" />
-                        {isScanning ? (scanStatus || "Scanning…") : "Browse Architectural Plan"}
+                        <Crop className="h-4 w-4 stroke-[2.5]" />
+                        Browse &amp; Crop Floorplan
                       </Button>
                     </div>
 
@@ -2612,7 +2226,20 @@ export function V2StepFloorPlan({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setCropFile(uploadedModifiedFile);
+                          setIsCropperOpen(true);
+                        }}
+                        className="text-xs h-9 px-3 font-bold rounded-xl cursor-pointer gap-1.5 border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+                      >
+                        <Crop className="w-3.5 h-3.5" />
+                        Crop Floorplan
+                      </Button>
                       <Button
                         type="button"
                         variant="outline"
@@ -2632,6 +2259,49 @@ export function V2StepFloorPlan({
                         Replace Drawing
                       </Button>
                     </div>
+                  </div>
+                )}
+
+                {/* Cropped Plan Preview Snippet */}
+                {(modifiedPlanPreviewUrl || design.floorplanUrl) && (
+                  <div
+                    className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
+                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex-none flex items-center justify-center">
+                        <img
+                          src={modifiedPlanPreviewUrl || design.floorplanUrl}
+                          alt="Cropped floorplan"
+                          className="w-full h-full object-contain bg-white"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-500">
+                            Cropped Floor Plan Attached
+                          </span>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        </div>
+                        <span className={`text-xs font-bold truncate block ${isLight ? "text-slate-800" : "text-white"}`}>
+                          {design.modifiedPlanFileName || "Cropped Architectural Plan"}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCropFile(uploadedModifiedFile);
+                        setIsCropperOpen(true);
+                      }}
+                      className="text-xs h-8 px-2.5 font-bold rounded-xl gap-1 cursor-pointer"
+                    >
+                      <Crop className="w-3 h-3 text-amber-500" />
+                      Re-crop
+                    </Button>
                   </div>
                 )}
 
@@ -3180,436 +2850,6 @@ export function V2StepFloorPlan({
                       </div>
                     </div>
                   )}
-
-                  {/* Detected Plan Modifications & Backend Pricing Catalogue (Benchtops, Vanities, Sinks, Showers, Internal Rooms & Openings) */}
-                  <div
-                    data-testid="modified-plan-catalogue-scanner-panel"
-                    className={`p-5 sm:p-6 rounded-2xl border space-y-5 ${
-                      isLight
-                        ? "bg-slate-50/90 border-slate-200 text-slate-900"
-                        : "bg-slate-950/70 border-slate-800 text-white"
-                    }`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Sparkles className="w-4 h-4 text-amber-500" />
-                          <h4 className="text-sm sm:text-base font-extrabold tracking-tight">
-                            Detected Plan Modifications &amp; Backend Catalogue Pricing
-                          </h4>
-                          <Badge className="bg-amber-500/15 text-amber-500 border border-amber-500/30 text-[10px] font-bold uppercase">
-                            {isAnalyzingDeepPlan
-                              ? "Scanning against Standard CAD…"
-                              : pendingAnalysis
-                              ? "CAD Comparison Active"
-                              : "Backend Pricing Catalogue"}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Automatically detects &amp; prices benchtops, vanities, sinks, showers, internal rooms, structural extensions, and window/door replacements (with 80% trade credit) against the standard {design.designName || "Hudson"} plan.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {uploadedModifiedFile && design.designName && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={isAnalyzingDeepPlan}
-                            onClick={() =>
-                              void runDeepPlanModificationScan(
-                                uploadedModifiedFile,
-                                design.designName,
-                                design.housingType || houseType,
-                                { openModal: true }
-                              )
-                            }
-                            className="h-9 px-3 text-xs font-bold rounded-xl gap-1.5 cursor-pointer"
-                          >
-                            <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzingDeepPlan ? "animate-spin" : ""}`} />
-                            {isAnalyzingDeepPlan ? "Scanning Plan…" : "Deep Re-Scan Plan"}
-                          </Button>
-                        )}
-                        {pendingAnalysis && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => setIsReviewModalOpen(true)}
-                            className="h-9 px-3.5 text-xs font-bold rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 gap-1.5 cursor-pointer"
-                          >
-                            <Maximize2 className="w-3.5 h-3.5" />
-                            Review Full CAD Diff &amp; Overlay
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Detected Items from PlanModificationAnalysis */}
-                    {pendingAnalysis &&
-                      ((pendingAnalysis.areaDeltas?.length || 0) > 0 ||
-                        (pendingAnalysis.inclusionUpgrades?.length || 0) > 0 ||
-                        (pendingAnalysis.internalRoomChanges?.length || 0) > 0 ||
-                        (pendingAnalysis.openingReplacements?.length || 0) > 0) && (
-                        <div className="space-y-3" data-testid="detected-modifications-list">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-emerald-500">
-                              Detected Changes on Uploaded Modified Plan (
-                              {(pendingAnalysis.areaDeltas?.length || 0) +
-                                (pendingAnalysis.inclusionUpgrades?.length || 0) +
-                                (pendingAnalysis.internalRoomChanges?.length || 0) +
-                                (pendingAnalysis.openingReplacements?.length || 0)}
-                              )
-                            </span>
-                            <span className="text-xs font-mono text-slate-400">
-                              Detected Extensions &amp; Variations Subtotal:{" "}
-                              <strong className="text-emerald-500">
-                                +
-                                {formatAud(
-                                  (pendingAnalysis.areaDeltas || [])
-                                    .filter((d) => d.accepted)
-                                    .reduce((s, d) => s + (d.subtotal || 0), 0) +
-                                    (pendingAnalysis.inclusionUpgrades || [])
-                                      .filter((u) => u.accepted)
-                                      .reduce((s, u) => s + (u.subtotal || 0), 0) +
-                                    (pendingAnalysis.internalRoomChanges || [])
-                                      .filter((r) => r.accepted && !r.isZeroCost)
-                                      .reduce((s, r) => s + (r.subtotal || 0), 0) +
-                                    (pendingAnalysis.openingReplacements || [])
-                                      .filter((o) => o.accepted)
-                                      .reduce((s, o) => s + (o.netCost || 0), 0)
-                                )}
-                              </strong>
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {(pendingAnalysis.areaDeltas || []).map((d, idx) => (
-                              <div
-                                key={`area-${d.zoneKey}-${idx}`}
-                                onClick={() => {
-                                  const next: PlanModificationAnalysis = {
-                                    ...pendingAnalysis,
-                                    areaDeltas: pendingAnalysis.areaDeltas.map((item, i) =>
-                                      i === idx ? { ...item, accepted: !item.accepted } : item
-                                    ),
-                                  };
-                                  handleApplyModifiedPlan(next, { keepModalOpen: false, silent: true });
-                                }}
-                                className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
-                                  d.accepted
-                                    ? isLight
-                                      ? "bg-emerald-50/70 border-emerald-300"
-                                      : "bg-emerald-950/25 border-emerald-500/40"
-                                    : isLight
-                                    ? "bg-white border-slate-200 opacity-60"
-                                    : "bg-slate-900/40 border-slate-800 opacity-60"
-                                }`}
-                              >
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <CheckCircle2
-                                      className={`w-4 h-4 flex-none ${
-                                        d.accepted ? "text-emerald-500" : "text-slate-400"
-                                      }`}
-                                    />
-                                    <span className="text-xs sm:text-sm font-bold">
-                                      {d.zoneLabel} ({d.deltaM2 > 0 ? `+${d.deltaM2}` : d.deltaM2} m²)
-                                    </span>
-                                    <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                                      STRUCTURAL AREA
-                                    </Badge>
-                                  </div>
-                                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                                    {d.reason || `Standard ${d.standardM2} m² → Modified ${d.modifiedM2} m² (@ ${formatAud(d.unitRate)}/m²)`}
-                                  </p>
-                                </div>
-                                <div className="text-right flex-none font-mono text-xs font-extrabold text-emerald-500">
-                                  {d.subtotal >= 0 ? `+${formatAud(d.subtotal)}` : formatAud(d.subtotal)}
-                                </div>
-                              </div>
-                            ))}
-
-                            {(pendingAnalysis.inclusionUpgrades || []).map((u, idx) => (
-                              <div
-                                key={`upg-${u.id}-${idx}`}
-                                onClick={() => {
-                                  const next: PlanModificationAnalysis = {
-                                    ...pendingAnalysis,
-                                    inclusionUpgrades: pendingAnalysis.inclusionUpgrades.map((item, i) =>
-                                      i === idx ? { ...item, accepted: !item.accepted } : item
-                                    ),
-                                  };
-                                  handleApplyModifiedPlan(next, { keepModalOpen: false, silent: true });
-                                }}
-                                className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
-                                  u.accepted
-                                    ? isLight
-                                      ? "bg-emerald-50/70 border-emerald-300"
-                                      : "bg-emerald-950/25 border-emerald-500/40"
-                                    : isLight
-                                    ? "bg-white border-slate-200 opacity-60"
-                                    : "bg-slate-900/40 border-slate-800 opacity-60"
-                                }`}
-                              >
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <CheckCircle2
-                                      className={`w-4 h-4 flex-none ${
-                                        u.accepted ? "text-emerald-500" : "text-slate-400"
-                                      }`}
-                                    />
-                                    <span className="text-xs sm:text-sm font-bold">{u.name}</span>
-                                    <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                                      {u.category.replace("internal_", "")}
-                                    </Badge>
-                                  </div>
-                                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                                    {u.detected || u.description}
-                                  </p>
-                                </div>
-                                <div className="text-right flex-none">
-                                  <span className="text-xs sm:text-sm font-mono font-extrabold text-emerald-500">
-                                    +{formatAud(u.subtotal)}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-
-                            {(pendingAnalysis.internalRoomChanges || []).map((r, idx) => (
-                              <div
-                                key={`room-${r.id}-${idx}`}
-                                onClick={() => {
-                                  const next: PlanModificationAnalysis = {
-                                    ...pendingAnalysis,
-                                    internalRoomChanges: (pendingAnalysis.internalRoomChanges || []).map((item, i) =>
-                                      i === idx ? { ...item, accepted: !item.accepted } : item
-                                    ),
-                                  };
-                                  handleApplyModifiedPlan(next, { keepModalOpen: false, silent: true });
-                                }}
-                                className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
-                                  r.accepted
-                                    ? isLight
-                                      ? "bg-cyan-50/70 border-cyan-300"
-                                      : "bg-cyan-950/25 border-cyan-500/40"
-                                    : isLight
-                                    ? "bg-white border-slate-200 opacity-60"
-                                    : "bg-slate-900/40 border-slate-800 opacity-60"
-                                }`}
-                              >
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <CheckCircle2
-                                      className={`w-4 h-4 flex-none ${
-                                        r.accepted ? "text-cyan-500" : "text-slate-400"
-                                      }`}
-                                    />
-                                      <span className="text-xs sm:text-sm font-bold">{r.roomName}</span>
-                                      <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                                        {r.category}
-                                      </Badge>
-                                    </div>
-                                    <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{r.description}</p>
-                                  </div>
-                                  <div className="text-right flex-none">
-                                    <span className="text-xs sm:text-sm font-mono font-extrabold text-cyan-500">
-                                      {r.isZeroCost || r.subtotal === 0 ? "$0 (Included)" : `+${formatAud(r.subtotal)}`}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-
-                              {(pendingAnalysis.openingReplacements || []).map((o, idx) => (
-                                <div
-                                  key={`open-${o.id}-${idx}`}
-                                  onClick={() => {
-                                    const next: PlanModificationAnalysis = {
-                                      ...pendingAnalysis,
-                                      openingReplacements: (pendingAnalysis.openingReplacements || []).map((item, i) =>
-                                        i === idx ? { ...item, accepted: !item.accepted } : item
-                                      ),
-                                    };
-                                    handleApplyModifiedPlan(next, { keepModalOpen: false, silent: true });
-                                  }}
-                                  className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
-                                    o.accepted
-                                      ? isLight
-                                        ? "bg-amber-50/70 border-amber-300"
-                                        : "bg-amber-950/25 border-amber-500/40"
-                                      : isLight
-                                      ? "bg-white border-slate-200 opacity-60"
-                                      : "bg-slate-900/40 border-slate-800 opacity-60"
-                                  }`}
-                                >
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <CheckCircle2
-                                        className={`w-4 h-4 flex-none ${
-                                          o.accepted ? "text-amber-500" : "text-slate-400"
-                                        }`}
-                                      />
-                                      <span className="text-xs sm:text-sm font-bold">{o.newItemName}</span>
-                                      <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                                        80% Credit
-                                      </Badge>
-                                    </div>
-                                    <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{o.description}</p>
-                                  </div>
-                                  <div className="text-right flex-none">
-                                    <span className="text-xs sm:text-sm font-mono font-extrabold text-amber-500">
-                                      +{formatAud(o.netCost)}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                      {/* Backend Pricing Catalogue Quick-Add Browser (Benchtops, Vanities, Sinks, Showers, Internal Elements, Doors & Structural) */}
-                      <div className="space-y-3 pt-2">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                            + Add Variation from Backend Pricing Catalogue (Benchtops, Vanities, Sinks, Showers, Rooms &amp; Doors)
-                          </span>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {[
-                              { id: "all", label: "Featured" },
-                              { id: "internal_kitchen", label: "Kitchen & Benchtops" },
-                              { id: "internal_bathroom", label: "Vanities & Wet Areas" },
-                              { id: "internal_laundry", label: "Laundry & Joinery" },
-                              { id: "doors_windows", label: "Doors & Windows" },
-                              { id: "structural", label: "Structural & Rooms" },
-                            ].map((cat) => (
-                              <button
-                                key={cat.id}
-                                type="button"
-                                onClick={() => setSelectedCatalogueCategory(cat.id)}
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                                  selectedCatalogueCategory === cat.id
-                                    ? "bg-emerald-600 text-white"
-                                    : isLight
-                                    ? "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
-                                    : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
-                                }`}
-                              >
-                                {cat.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="relative">
-                          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
-                          <Input
-                            data-testid="step2-catalogue-search"
-                            placeholder="Search backend pricing catalogue (e.g. 40mm stone, waterfall, 1500 double vanity, undermount sink, butler's pantry, stacker door)..."
-                            value={catalogueSearchQuery}
-                            onChange={(e) => setCatalogueSearchQuery(e.target.value)}
-                            className={`pl-10 h-10 text-xs sm:text-sm rounded-xl ${
-                              isLight ? "bg-white border-slate-300" : "bg-slate-900 border-slate-800"
-                            }`}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
-                          {DEFAULT_CATALOGUE.filter((item) => {
-                            if (item.unitType !== "fixed") return false;
-                            if (selectedCatalogueCategory !== "all" && item.category !== selectedCatalogueCategory) {
-                              return false;
-                            }
-                            if (catalogueSearchQuery.trim()) {
-                              const q = catalogueSearchQuery.toLowerCase().trim();
-                              return (
-                                item.name.toLowerCase().includes(q) ||
-                                item.description.toLowerCase().includes(q) ||
-                                item.id.toLowerCase().includes(q)
-                              );
-                            }
-                            // Default featured modified plan items (benchtops, vanities, sinks, showers, rooms, doors)
-                            return [
-                              "kit_stone_40mm_upgrade",
-                              "kit_waterfall_stone_end_20mm",
-                              "kit_waterfall_stone_end_40mm",
-                              "kit_extend_island_bench",
-                              "kit_clark_polar_undermount_sink",
-                              "kit_butlers_pantry_package",
-                              "kit_butlers_pantry_sink_mixer",
-                              "bath_double_vanity_1500",
-                              "bath_double_vanity_1800",
-                              "bath_extended_single_vanity_1200",
-                              "bath_vanity_stone_40mm",
-                              "bath_shower_enlarge_1200x900",
-                              "bath_shower_enlarge_1500x900",
-                              "bath_freestanding_bath_upgrade",
-                              "bath_additional_powder_room",
-                              "laun_joinery_benchtop_sink",
-                              "bed_study_desk_joinery",
-                              "int_media_cinema_conversion",
-                              "dw_barn_sliding_door",
-                              "dw_stacker_door_2436",
-                            ].includes(item.id) || selectedCatalogueCategory !== "all";
-                          })
-                            .slice(0, 18)
-                            .map((catItem) => {
-                              const isAdded =
-                                appliedCatalogueItems.some((a) => a.catalogueItemId === catItem.id) ||
-                                (pendingAnalysis?.inclusionUpgrades || []).some(
-                                  (u) => u.id === catItem.id && u.accepted
-                                );
-
-                              return (
-                                <div
-                                  key={catItem.id}
-                                  data-testid={`catalogue-card-${catItem.id}`}
-                                  className={`p-3 rounded-xl border flex flex-col justify-between gap-2 transition-all ${
-                                    isAdded
-                                      ? isLight
-                                        ? "bg-emerald-50 border-emerald-300"
-                                        : "bg-emerald-950/30 border-emerald-500/40"
-                                      : isLight
-                                      ? "bg-white border-slate-200 hover:border-slate-300"
-                                      : "bg-slate-900/70 border-slate-800 hover:border-slate-700"
-                                  }`}
-                                >
-                                  <div>
-                                    <div className="flex items-start justify-between gap-2">
-                                      <span className="text-xs font-bold leading-snug">{catItem.name}</span>
-                                      <span className="text-xs font-mono font-extrabold text-emerald-500 flex-none">
-                                        +{formatAud(catItem.unitRate)}
-                                      </span>
-                                    </div>
-                                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                                    {catItem.description}
-                                  </p>
-                                </div>
-                                <div className="flex items-center justify-end pt-1">
-                                  {isAdded ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveCatalogueItem(catItem.id)}
-                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/20 text-emerald-500 hover:bg-rose-500/20 hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1"
-                                    >
-                                      <Check className="w-3 h-3" /> Added (Click to Remove)
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      data-testid={`add-cat-${catItem.id}`}
-                                      onClick={() => handleQuickAddCatalogueItem(catItem.id)}
-                                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer flex items-center gap-1"
-                                    >
-                                      <Plus className="w-3 h-3" /> Add to Modified Plan
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  </div>
 
                   {/* Direct Base Price Summary Bar */}
                   <div
@@ -4621,22 +3861,39 @@ export function V2StepFloorPlan({
           candidate={pendingCandidate}
           onConfirm={() => {
             setIsBaseConfirmOpen(false);
-            if (pendingAnalysis) {
-              setIsReviewModalOpen(true);
-            }
           }}
           onClose={() => setIsBaseConfirmOpen(false)}
         />
       )}
 
-      {pendingAnalysis && (
-        <ModifiedPlanReviewModal
-          isOpen={isReviewModalOpen}
-          analysis={pendingAnalysis}
-          onApply={handleApplyModifiedPlan}
-          onClose={() => setIsReviewModalOpen(false)}
-        />
-      )}
+      {/* Modified Floorplan Cropper Modal */}
+      <ModifiedFloorplanModal
+        isOpen={isCropperOpen}
+        onClose={() => setIsCropperOpen(false)}
+        isDoubleStorey={isDoubleOrSplit}
+        designName={design.designName || "Modified Floorplan"}
+        initialImageUrl={modifiedPlanPreviewUrl || design.floorplanUrl || design.modifiedPlanImageUrl}
+        initialFile={cropFile}
+        onSave={(croppedDataUrl) => {
+          setModifiedPlanPreviewUrl(croppedDataUrl);
+          onChange({
+            floorplanUrl: croppedDataUrl,
+            modifiedPlanImageUrl: croppedDataUrl,
+            modifiedPlanFileName: cropFile?.name || uploadedModifiedFile?.name || design.modifiedPlanFileName || "Modified Plan",
+            isModifiedFloorplan: true,
+          });
+          setIsCropperOpen(false);
+          if (design.designName) {
+            setModifiedSubStep("areas");
+          } else {
+            setModifiedSubStep("confirm_base");
+          }
+          toast.success("Floor plan cropped and attached successfully!");
+        }}
+        onExtractedAreas={(extracted) => {
+          handleApplyExtractedAreas(extracted);
+        }}
+      />
 
       {/* Design Facade Library Modal */}
       <DesignFacadeLibraryModal
