@@ -24,6 +24,9 @@ import {
   Maximize2,
   Filter,
   Check,
+  ExternalLink,
+  Key,
+  Globe,
 } from "lucide-react";
 import {
   type LandParcel,
@@ -43,6 +46,7 @@ import {
   searchLiveWebForLand,
   hasSystemSavedApiKey,
   clearGeminiApiKey,
+  buildPortalLinksForSuburb,
 } from "@/lib/land-scout/landScoutWebSearch";
 import {
   LandParcelCard,
@@ -54,6 +58,7 @@ import { PriceListImportModal } from "./PriceListImportModal";
 import { LandValuationDrawer } from "./LandValuationDrawer";
 import { AgentOutreachModal } from "./AgentOutreachModal";
 import { AddCustomLotModal } from "./AddCustomLotModal";
+import { GeminiApiKeyModal } from "./GeminiApiKeyModal";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/theme";
@@ -84,28 +89,56 @@ const SUBURB_ALIASES: Record<string, string> = {
   brookhaven: "bahrs scrub",
   "highland walloon": "walloon",
   "austral estate": "austral",
+  leppington: "leppington",
+  schofields: "schofields",
+  riverstone: "riverstone",
+  menangle: "menangle park",
+  "menangle park": "menangle park",
+  "gledswood hills": "gledswood hills",
+  gledswood: "gledswood hills",
+  "catherine field": "catherine field",
+  lochinvar: "lochinvar",
+  chisholm: "chisholm",
+  huntlee: "branxton",
+  branxton: "branxton",
+  pallara: "pallara",
+  "park ridge": "park ridge",
+  "logan reserve": "logan reserve",
+  jimboomba: "jimboomba",
+  springfield: "springfield",
+  "spring mountain": "spring mountain",
+  "redbank plains": "redbank plains",
+  burpengary: "burpengary",
+  caboolture: "caboolture",
+  pimpama: "pimpama",
+  coomera: "upper coomera",
+  "upper coomera": "upper coomera",
 };
 
 const POPULAR_CORRIDORS_NSW = [
   { name: "Box Hill", estate: "The Gables / Carmel" },
   { name: "Austral", estate: "Austral Estate" },
+  { name: "Leppington", estate: "Leppington Living / Willowdale" },
   { name: "Marsden Park", estate: "Elara / Newpark" },
-  { name: "Calderwood", estate: "Calderwood Valley" },
-  { name: "Warnervale", estate: "HomeWorld Town Centre" },
   { name: "Oran Park", estate: "Oran Park Town" },
+  { name: "Schofields", estate: "Akuna Vista" },
+  { name: "Menangle Park", estate: "Menangle Park" },
+  { name: "Calderwood", estate: "Calderwood Valley" },
+  { name: "Warnervale", estate: "Wyong / Watagan" },
   { name: "Wilton", estate: "Wilton Greens" },
-  { name: "Cooranbong", estate: "Watagan Park" },
 ];
 
 const POPULAR_CORRIDORS_QLD = [
   { name: "Flagstone", estate: "Flagstone City" },
-  { name: "Ripley", estate: "Providence" },
+  { name: "Ripley", estate: "Providence / Monterea" },
+  { name: "Pallara", estate: "Stockland Pallara" },
+  { name: "Park Ridge", estate: "Carver's Reach" },
   { name: "South Maclean", estate: "Lilywood Landings" },
   { name: "Morayfield", estate: "Kinma Valley" },
-  { name: "Bahrs Scrub", estate: "Brookhaven" },
-  { name: "Walloon", estate: "Highland Walloon" },
-  { name: "Greenbank", estate: "Everleigh" },
-  { name: "Yarrabilba", estate: "The Parks" },
+  { name: "Greenbank", estate: "Everleigh / Covella" },
+  { name: "Yarrabilba", estate: "Lendlease Yarrabilba" },
+  { name: "Spring Mountain", estate: "Springfield Rise" },
+  { name: "Jimboomba", estate: "Riverton" },
 ];
 
 export function LandScoutDashboard() {
@@ -126,6 +159,7 @@ export function LandScoutDashboard() {
   // Interactive Modals & Drawers State
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAddLotModalOpen, setIsAddLotModalOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [selectedValuationParcel, setSelectedValuationParcel] = useState<LandParcel | null>(null);
   const [selectedContactParcel, setSelectedContactParcel] = useState<LandParcel | null>(null);
 
@@ -133,6 +167,14 @@ export function LandScoutDashboard() {
   const [isWebSearching, setIsWebSearching] = useState(false);
   const [searchStatusMsg, setSearchStatusMsg] = useState("");
   const [lastSearchSummary, setLastSearchSummary] = useState("");
+  const [lastSearchedQuery, setLastSearchedQuery] = useState("");
+  const [isFallbackResult, setIsFallbackResult] = useState(false);
+  const [activeSearchParcelIds, setActiveSearchParcelIds] = useState<Set<string>>(new Set());
+  const [activePortalLinks, setActivePortalLinks] = useState<{
+    reaUrl: string;
+    domainUrl: string;
+    openlotUrl: string;
+  } | null>(null);
 
   // Filter & Search State
   const [filterState, setFilterState] = useState<LandScoutFilterState>({
@@ -203,38 +245,139 @@ export function LandScoutDashboard() {
     }
   }, []);
 
+  const getParcelIdentityKey = (p: LandParcel) =>
+    `${p.lotNumber}-${p.streetAddress}-${p.suburb}`.toLowerCase().trim();
+
+  const scrollToResults = () => {
+    setTimeout(() => {
+      const el = document.getElementById("land-scout-results");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 120);
+  };
+
   // Search execution
   const handleExecuteSearch = async (overrideQuery?: string) => {
     const rawQuery = (overrideQuery ?? filterState.searchQuery).trim();
     if (!rawQuery) {
       // If empty query, show all parcels
+      setActiveSearchParcelIds(new Set());
+      setIsFallbackResult(false);
       setFilterState((prev) => ({ ...prev, searchQuery: "", suburbOrEstate: "" }));
-      setActiveStep(2);
+      setActiveStep(3);
+      scrollToResults();
       return;
     }
 
     setIsWebSearching(true);
-    setSearchStatusMsg(`Scanning active vacant blocks in "${rawQuery}"...`);
+    setSearchStatusMsg(
+      `Scanning REA, Domain, OpenLot & developer portals for vacant blocks in "${rawQuery}"...`
+    );
 
     try {
       const result = await searchLiveWebForLand(rawQuery, filterState.state);
       setLastSearchSummary(result.sourceSummary || "");
-      const updated = getLandParcels();
-      const deduped = Array.from(new Map(updated.map((p) => [p.id, p])).values());
-      setParcels(deduped);
+      setLastSearchedQuery(rawQuery);
+
+      const stored = getLandParcels();
+      const byKey = new Map<string, LandParcel>();
+      for (const sp of stored) {
+        byKey.set(getParcelIdentityKey(sp), sp);
+      }
+      for (const rp of result.parcels) {
+        byKey.set(getParcelIdentityKey(rp), rp);
+      }
+      const mergedParcels = Array.from(byKey.values());
+      setParcels(mergedParcels);
 
       if (result.parcels.length > 0) {
-        const canonicalSuburb = result.targetSuburb || result.parcels[0].suburb;
+        const canonicalSuburb = (result.targetSuburb || result.parcels[0].suburb || rawQuery)
+          .replace(/\b(nsw|qld|queensland|new south wales|\d{4})\b/gi, "")
+          .trim() || result.parcels[0].suburb;
         const resultState = result.targetState || result.parcels[0].state;
+        const fallbackFlag = !!result.isFallback;
 
-        setFilterState((prev) => ({
-          ...prev,
-          searchQuery: canonicalSuburb,
-          suburbOrEstate: "",
-          state: prev.state !== "ALL" && prev.state !== resultState ? "ALL" : prev.state,
-        }));
+        const idSet = new Set<string>();
+        for (const p of result.parcels) {
+          idSet.add(p.id);
+          idSet.add(getParcelIdentityKey(p));
+        }
+        setActiveSearchParcelIds(idSet);
+        setIsFallbackResult(fallbackFlag);
+        setActivePortalLinks(
+          result.portalLinks ||
+            result.parcels[0]?.portalLinks ||
+            buildPortalLinksForSuburb(canonicalSuburb, resultState, result.parcels[0]?.postcode)
+        );
 
-        toast.success(`Loaded ${result.parcels.length} available blocks in ${canonicalSuburb} (${resultState})!`);
+        setFilterState((prev) => {
+          const nextState =
+            prev.state !== "ALL" && prev.state !== resultState ? "ALL" : prev.state;
+
+          // Check whether existing Step 2 sub-filters would hide all newly returned blocks
+          const matchesSubFilters = result.parcels.some((p) => {
+            if (prev.registrationFilter === "registered" && !p.isRegistered) return false;
+            if (prev.registrationFilter === "unregistered" && p.isRegistered) return false;
+            const fall = p.feasibility?.fallEstimateM ?? 0.6;
+            const slope =
+              p.feasibility?.slopeCategory ||
+              (fall > 1.8 ? "steep" : fall > 0.9 ? "moderate" : "flat");
+            if (prev.slopeCategory === "flat" && slope !== "flat" && fall > 1.0) return false;
+            if (
+              prev.slopeCategory === "moderate" &&
+              (slope !== "moderate" || fall <= 1.0 || fall > 2.0)
+            )
+              return false;
+            if (prev.slopeCategory === "steep" && slope !== "steep" && fall <= 2.0) return false;
+            if (prev.priceTier === "under_400k" && p.price >= 400000) return false;
+            if (prev.priceTier === "400k_600k" && (p.price < 400000 || p.price > 600000))
+              return false;
+            if (prev.priceTier === "600k_800k" && (p.price < 600000 || p.price > 800000))
+              return false;
+            if (prev.priceTier === "800k_plus" && p.price <= 800000) return false;
+            if (prev.minPrice && p.price < prev.minPrice) return false;
+            if (prev.maxPrice && p.price > prev.maxPrice) return false;
+            if (prev.minLandSize && p.landSizeM2 < prev.minLandSize) return false;
+            if (prev.maxLandSize && p.landSizeM2 > prev.maxLandSize) return false;
+            if (prev.minFrontage && p.frontageM < prev.minFrontage) return false;
+            return true;
+          });
+
+          if (!matchesSubFilters) {
+            return {
+              ...prev,
+              searchQuery: canonicalSuburb,
+              suburbOrEstate: "",
+              state: nextState,
+              registrationFilter: "all",
+              slopeCategory: "all",
+              priceTier: "all",
+              minPrice: undefined,
+              maxPrice: undefined,
+              minFrontage: undefined,
+              minLandSize: undefined,
+              maxLandSize: undefined,
+            };
+          }
+
+          return {
+            ...prev,
+            searchQuery: canonicalSuburb,
+            suburbOrEstate: "",
+            state: nextState,
+          };
+        });
+
+        if (fallbackFlag) {
+          toast.info(
+            `No direct blocks indexed for "${rawQuery}" — showing ${result.parcels.length} nearby growth corridor blocks & direct portal links.`
+          );
+        } else {
+          toast.success(
+            `Loaded ${result.parcels.length} available blocks in ${canonicalSuburb} (${resultState})!`
+          );
+        }
       } else {
         // Fallback to searching database lots matching the query
         const dbLots = searchDatabaseLotsAsParcels(rawQuery);
@@ -242,16 +385,42 @@ export function LandScoutDashboard() {
           bulkAddOrUpdateParcels(dbLots);
           const nowUpdated = getLandParcels();
           setParcels(nowUpdated);
+          const idSet = new Set<string>();
+          for (const p of dbLots) {
+            idSet.add(p.id);
+            idSet.add(getParcelIdentityKey(p));
+          }
+          setActiveSearchParcelIds(idSet);
+          setIsFallbackResult(false);
+          setActivePortalLinks(
+            dbLots[0]?.portalLinks ||
+              buildPortalLinksForSuburb(
+                rawQuery,
+                filterState.state === "NSW" ? "NSW" : "QLD"
+              )
+          );
           setFilterState((prev) => ({ ...prev, searchQuery: rawQuery, suburbOrEstate: "" }));
-          toast.success(`Loaded ${dbLots.length} available blocks for "${rawQuery}" from Hudson's network!`);
+          toast.success(
+            `Loaded ${dbLots.length} available blocks for "${rawQuery}" from Hudson's network!`
+          );
         } else {
-          setFilterState((prev) => ({ ...prev, searchQuery: rawQuery, suburbOrEstate: "" }));
+          setActiveSearchParcelIds(new Set());
+          setIsFallbackResult(true);
+          setActivePortalLinks(
+            buildPortalLinksForSuburb(
+              rawQuery,
+              filterState.state === "NSW" ? "NSW" : "QLD"
+            )
+          );
+          setFilterState((prev) => ({ ...prev, searchQuery: "", suburbOrEstate: "" }));
           toast.info(`Showing available growth corridor blocks near "${rawQuery}".`, {
             description: result.sourceSummary || "Explore nearby corridors or adjust filters.",
           });
         }
       }
-      setActiveStep(2);
+      setActiveStep(3);
+      setIsFilterQuestionsExpanded(false);
+      scrollToResults();
     } catch (err: any) {
       console.warn("Search fallback:", err);
       const fallbackLots = searchDatabaseLotsAsParcels(rawQuery);
@@ -259,11 +428,22 @@ export function LandScoutDashboard() {
         bulkAddOrUpdateParcels(fallbackLots);
         const updated = getLandParcels();
         setParcels(updated);
-        toast.success(`Loaded ${fallbackLots.length} available blocks for "${rawQuery}" from Hudson's database!`);
+        const idSet = new Set<string>();
+        for (const p of fallbackLots) {
+          idSet.add(p.id);
+          idSet.add(getParcelIdentityKey(p));
+        }
+        setActiveSearchParcelIds(idSet);
+        toast.success(
+          `Loaded ${fallbackLots.length} available blocks for "${rawQuery}" from Hudson's database!`
+        );
       } else {
+        setActiveSearchParcelIds(new Set());
         toast.info(`Showing available blocks across Hudson's network.`);
       }
-      setActiveStep(2);
+      setActiveStep(3);
+      setIsFilterQuestionsExpanded(false);
+      scrollToResults();
     } finally {
       setIsWebSearching(false);
       setSearchStatusMsg("");
@@ -280,6 +460,8 @@ export function LandScoutDashboard() {
   const handleLoadAllDatabaseLots = () => {
     const synced = syncAllDatabaseLots();
     setParcels(synced);
+    setActiveSearchParcelIds(new Set());
+    setIsFallbackResult(false);
     setFilterState((prev) => ({
       ...prev,
       searchQuery: "",
@@ -294,17 +476,22 @@ export function LandScoutDashboard() {
     }));
     toast.success(`Loaded all ${synced.length} vacant blocks across Hudson's network!`);
     setActiveStep(3);
+    scrollToResults();
   };
 
   // Clear all parcels
   const handleClearAll = () => {
     clearAllLandParcels();
     setParcels([]);
+    setActiveSearchParcelIds(new Set());
+    setIsFallbackResult(false);
     toast.info("Cleared land listings.");
   };
 
   // Reset Filters
   const handleResetFilters = () => {
+    setActiveSearchParcelIds(new Set());
+    setIsFallbackResult(false);
     setFilterState({
       searchQuery: "",
       state: "ALL",
@@ -323,8 +510,28 @@ export function LandScoutDashboard() {
 
   // Filter & Sort Logic
   const filteredParcels = useMemo(() => {
-    return parcels
+    const hasActiveSearchSet = activeSearchParcelIds.size > 0;
+
+    // If a search just returned specific parcels (e.g., for a searched suburb or corridor fallback),
+    // scope the primary pool to those returned parcels if any exist in `parcels` so the count
+    // in Step 3 matches the search result count instead of showing 0 or unrelated lots.
+    const activePool = hasActiveSearchSet
+      ? parcels.filter(
+          (p) =>
+            activeSearchParcelIds.has(p.id) ||
+            activeSearchParcelIds.has(getParcelIdentityKey(p))
+        )
+      : [];
+
+    const sourceParcels = activePool.length > 0 ? activePool : parcels;
+
+    return sourceParcels
       .filter((p) => {
+        const isFromActiveSearch =
+          hasActiveSearchSet &&
+          (activeSearchParcelIds.has(p.id) ||
+            activeSearchParcelIds.has(getParcelIdentityKey(p)));
+
         // State Filter
         if (filterState.state !== "ALL" && p.state !== filterState.state) {
           return false;
@@ -351,11 +558,16 @@ export function LandScoutDashboard() {
 
         // Slope / Topography Filter
         const fall = p.feasibility?.fallEstimateM ?? 0.6;
-        const slope = p.feasibility?.slopeCategory || (fall > 1.8 ? "steep" : fall > 0.9 ? "moderate" : "flat");
+        const slope =
+          p.feasibility?.slopeCategory ||
+          (fall > 1.8 ? "steep" : fall > 0.9 ? "moderate" : "flat");
         if (filterState.slopeCategory === "flat" && slope !== "flat" && fall > 1.0) {
           return false;
         }
-        if (filterState.slopeCategory === "moderate" && (slope !== "moderate" || fall <= 1.0 || fall > 2.0)) {
+        if (
+          filterState.slopeCategory === "moderate" &&
+          (slope !== "moderate" || fall <= 1.0 || fall > 2.0)
+        ) {
           return false;
         }
         if (filterState.slopeCategory === "steep" && slope !== "steep" && fall <= 2.0) {
@@ -364,8 +576,10 @@ export function LandScoutDashboard() {
 
         // Price Tier Filter
         if (filterState.priceTier === "under_400k" && p.price >= 400000) return false;
-        if (filterState.priceTier === "400k_600k" && (p.price < 400000 || p.price > 600000)) return false;
-        if (filterState.priceTier === "600k_800k" && (p.price < 600000 || p.price > 800000)) return false;
+        if (filterState.priceTier === "400k_600k" && (p.price < 400000 || p.price > 600000))
+          return false;
+        if (filterState.priceTier === "600k_800k" && (p.price < 600000 || p.price > 800000))
+          return false;
         if (filterState.priceTier === "800k_plus" && p.price <= 800000) return false;
 
         // Custom Numeric Price Filters
@@ -379,17 +593,35 @@ export function LandScoutDashboard() {
         // Frontage Filter
         if (filterState.minFrontage && p.frontageM < filterState.minFrontage) return false;
 
-        // Search Query Text Filter (filter within loaded parcels)
+        // If this parcel was explicitly returned by the active search, it automatically passes the text query check!
+        if (isFromActiveSearch) {
+          return true;
+        }
+
+        // Search Query Text Filter (for live typing / manual filtering within loaded parcels)
         if (filterState.searchQuery) {
-          const q = filterState.searchQuery.toLowerCase().trim();
-          const normQ = SUBURB_ALIASES[q] || q;
+          const rawQ = filterState.searchQuery.toLowerCase().trim();
+          const cleanedQ = rawQ
+            .replace(/\b(nsw|qld|queensland|new south wales|vic|sa|wa|australia|vacant|land|lots?|blocks?|\d{4})\b/gi, " ")
+            .replace(/[,.;:!?/\\()-]+/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+          const q = cleanedQ || rawQ;
+          const normQ = SUBURB_ALIASES[q] || SUBURB_ALIASES[rawQ] || q;
 
           // If query is just a state name, don't filter out lots that already match state
-          if (q === "qld" || q === "queensland" || q === "nsw" || q === "new south wales" || q === "all") {
+          if (
+            rawQ === "qld" ||
+            rawQ === "queensland" ||
+            rawQ === "nsw" ||
+            rawQ === "new south wales" ||
+            rawQ === "all"
+          ) {
             return true;
           }
 
-          const haystack = `${p.lotNumber} ${p.streetAddress} ${p.suburb} ${p.estate} ${p.postcode} ${p.state} ${p.council} ${p.agentName} ${p.agentAgency} ${p.sourcePortal}`.toLowerCase();
+          const haystack =
+            `${p.lotNumber} ${p.streetAddress} ${p.suburb} ${p.estate} ${p.postcode} ${p.state} ${p.council} ${p.agentName} ${p.agentAgency} ${p.sourcePortal}`.toLowerCase();
 
           const directMatch =
             haystack.includes(q) ||
@@ -401,7 +633,12 @@ export function LandScoutDashboard() {
 
           if (!directMatch) {
             const tokens = q.split(/\s+/).filter((t) => t.length > 2);
-            if (tokens.length === 0 || !tokens.every((t) => haystack.includes(t) || haystack.includes(SUBURB_ALIASES[t] || t))) {
+            if (
+              tokens.length === 0 ||
+              !tokens.every(
+                (t) => haystack.includes(t) || haystack.includes(SUBURB_ALIASES[t] || t)
+              )
+            ) {
               return false;
             }
           }
@@ -424,7 +661,7 @@ export function LandScoutDashboard() {
             return b.isRegistered ? 1 : -1;
         }
       });
-  }, [parcels, filterState]);
+  }, [parcels, filterState, activeSearchParcelIds]);
 
   // Active filter count for badge
   const activeFiltersCount = useMemo(() => {
@@ -507,6 +744,18 @@ export function LandScoutDashboard() {
             {/* Quick Utility Tools */}
             <button
               type="button"
+              onClick={() => setIsApiKeyModalOpen(true)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100" : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
+              }`}
+              title="Configure Live AI Web Scanner API Key"
+            >
+              <Key className="h-3.5 w-3.5 text-amber-500" />
+              <span className="hidden lg:inline">Scanner Key</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsImportModalOpen(true)}
               className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                 isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100" : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
@@ -586,7 +835,10 @@ export function LandScoutDashboard() {
             {/* Step 2 Pill */}
             <button
               type="button"
-              onClick={() => setActiveStep(2)}
+              onClick={() => {
+                setActiveStep(2);
+                setIsFilterQuestionsExpanded(true);
+              }}
               className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
                 activeStep === 2
                   ? "bg-amber-500 text-slate-950 border-amber-500 shadow-md shadow-amber-500/20"
@@ -611,7 +863,10 @@ export function LandScoutDashboard() {
             {/* Step 3 Pill */}
             <button
               type="button"
-              onClick={() => setActiveStep(3)}
+              onClick={() => {
+                setActiveStep(3);
+                scrollToResults();
+              }}
               className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
                 activeStep === 3
                   ? "bg-amber-500 text-slate-950 border-amber-500 shadow-md shadow-amber-500/20"
@@ -644,7 +899,7 @@ export function LandScoutDashboard() {
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs font-bold uppercase tracking-wider">
                 <Sparkles className="h-3.5 w-3.5" />
-                <span>Vacant Land Scout & Feasibility</span>
+                <span>Multi-Portal Land Scout (REA · Domain · OpenLot · Estates)</span>
               </div>
               <h2 className={`text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight ${
                 isLight ? "text-slate-900" : "text-white"
@@ -654,7 +909,7 @@ export function LandScoutDashboard() {
               <p className={`text-sm sm:text-base max-w-2xl mx-auto ${
                 isLight ? "text-slate-600" : "text-slate-400"
               }`}>
-                Search any suburb, estate, or choose a high-growth corridor across Queensland and New South Wales to find available building blocks.
+                Scan realestate.com.au, domain.com.au, openlot.com.au, and developer releases across NSW & QLD to review available building blocks.
               </p>
             </div>
 
@@ -708,15 +963,18 @@ export function LandScoutDashboard() {
                 <input
                   type="text"
                   value={filterState.searchQuery}
-                  onChange={(e) =>
-                    setFilterState((p) => ({ ...p, searchQuery: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setActiveSearchParcelIds(new Set());
+                    setIsFallbackResult(false);
+                    setFilterState((p) => ({ ...p, searchQuery: val }));
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       handleExecuteSearch();
                     }
                   }}
-                  placeholder="Enter suburb, estate, or council (e.g. 'Box Hill', 'Austral', 'Flagstone', 'Ripley', 'Warnervale')..."
+                  placeholder="Enter suburb, estate, or council (e.g. 'Box Hill', 'Leppington', 'Flagstone', 'Pallara', 'Ripley')..."
                   className={`w-full h-14 pl-12 sm:pl-14 pr-32 rounded-2xl border text-sm sm:text-base font-medium shadow-lg transition-all focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 ${
                     isLight
                       ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-amber-500"
@@ -726,7 +984,11 @@ export function LandScoutDashboard() {
                 {filterState.searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setFilterState((p) => ({ ...p, searchQuery: "" }))}
+                    onClick={() => {
+                      setActiveSearchParcelIds(new Set());
+                      setIsFallbackResult(false);
+                      setFilterState((p) => ({ ...p, searchQuery: "" }));
+                    }}
                     className="absolute right-28 text-slate-400 hover:text-slate-200 p-1"
                   >
                     ✕
@@ -1107,7 +1369,11 @@ export function LandScoutDashboard() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setActiveStep(3)}
+                    onClick={() => {
+                      setActiveStep(3);
+                      setIsFilterQuestionsExpanded(false);
+                      scrollToResults();
+                    }}
                     className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-md cursor-pointer transition-all"
                   >
                     <span>View Matched Blocks ({filteredParcels.length} Available)</span>
@@ -1120,7 +1386,109 @@ export function LandScoutDashboard() {
         </section>
 
         {/* STEP 3: RESULTS SUMMARY BAR & VIEW SWITCHER */}
-        <section className="space-y-4">
+        <section id="land-scout-results" className="space-y-4 scroll-mt-20">
+          {/* Multi-Portal Live Web Scanner & Direct Portal Verification Bar */}
+          {(() => {
+            const currentSuburb =
+              filterState.searchQuery ||
+              lastSearchedQuery ||
+              filteredParcels[0]?.suburb ||
+              (filterState.state === "NSW" ? "Box Hill" : "Flagstone");
+            const currentState: "QLD" | "NSW" =
+              filterState.state === "NSW"
+                ? "NSW"
+                : filterState.state === "QLD"
+                  ? "QLD"
+                  : filteredParcels[0]?.state || "NSW";
+            const links =
+              activePortalLinks ||
+              buildPortalLinksForSuburb(
+                currentSuburb,
+                currentState,
+                filteredParcels[0]?.postcode
+              );
+
+            return (
+              <div
+                className={`rounded-2xl border p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shadow-md ${
+                  isLight
+                    ? "bg-white border-slate-200"
+                    : "bg-slate-900/90 border-slate-800"
+                }`}
+              >
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[11px] font-bold uppercase tracking-wider">
+                      <Globe className="h-3 w-3" />
+                      <span>Multi-Portal Scanner</span>
+                    </span>
+                    <span
+                      className={`text-xs sm:text-sm font-bold ${
+                        isLight ? "text-slate-900" : "text-white"
+                      }`}
+                    >
+                      {isFallbackResult && lastSearchedQuery
+                        ? `Nearby Growth Corridors for "${lastSearchedQuery}"`
+                        : `Active Vacant Land Feed — ${currentSuburb} (${currentState})`}
+                    </span>
+                  </div>
+                  <p className={`text-xs ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    {lastSearchSummary ||
+                      `Aggregated from OpenLot, REA, Domain, Stockland, Lendlease, Peet, Frasers & NSW/QLD Developer Portals. Use the buttons on the right to cross-check live listings directly on each portal.`}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+                    Open Live Portal:
+                  </span>
+                  <a
+                    href={links.reaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                      isLight
+                        ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-600 hover:text-white"
+                        : "bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500 hover:text-white"
+                    }`}
+                    title={`Open ${currentSuburb} vacant land search on realestate.com.au`}
+                  >
+                    <span>REA (realestate.com.au)</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                  <a
+                    href={links.domainUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                      isLight
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white"
+                        : "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500 hover:text-slate-950"
+                    }`}
+                    title={`Open ${currentSuburb} vacant land search on domain.com.au`}
+                  >
+                    <span>Domain.com.au</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                  <a
+                    href={links.openlotUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                      isLight
+                        ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white"
+                        : "bg-blue-500/15 border-blue-500/40 text-blue-300 hover:bg-blue-500 hover:text-white"
+                    }`}
+                    title={`Open ${currentSuburb} land estates on openlot.com.au`}
+                  >
+                    <span>OpenLot.com.au</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Active Filter Chips */}
           {activeFiltersCount > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
@@ -1139,7 +1507,17 @@ export function LandScoutDashboard() {
               {filterState.searchQuery && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-semibold">
                   <span>"{filterState.searchQuery}"</span>
-                  <button type="button" onClick={() => setFilterState((p) => ({ ...p, searchQuery: "" }))} className="hover:text-white">✕</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSearchParcelIds(new Set());
+                      setIsFallbackResult(false);
+                      setFilterState((p) => ({ ...p, searchQuery: "" }));
+                    }}
+                    className="hover:text-white"
+                  >
+                    ✕
+                  </button>
                 </span>
               )}
 
@@ -1197,7 +1575,9 @@ export function LandScoutDashboard() {
               </span>
               {filterState.searchQuery && (
                 <span className="text-slate-400">
-                  in <span className="text-amber-500 font-bold">"{filterState.searchQuery}"</span>
+                  {isFallbackResult
+                    ? `near "${lastSearchedQuery || filterState.searchQuery}"`
+                    : <>in <span className="text-amber-500 font-bold">"{filterState.searchQuery}"</span></>}
                 </span>
               )}
             </div>
@@ -1464,6 +1844,11 @@ export function LandScoutDashboard() {
           isOpen={isAddLotModalOpen}
           onClose={() => setIsAddLotModalOpen(false)}
           onLotAdded={handleCustomLotAdded}
+        />
+
+        <GeminiApiKeyModal
+          isOpen={isApiKeyModalOpen}
+          onClose={() => setIsApiKeyModalOpen(false)}
         />
 
         <LandValuationDrawer

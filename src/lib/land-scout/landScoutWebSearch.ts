@@ -40,6 +40,20 @@ export function clearGeminiApiKey(): void {
   localStorage.removeItem("gemini_api_key");
 }
 
+export function buildPortalLinksForSuburb(suburb: string, state: "QLD" | "NSW", postcode?: string) {
+  const cleanSuburb = (suburb || (state === "NSW" ? "Box Hill" : "Flagstone"))
+    .replace(/\b(nsw|qld|queensland|new south wales|\d{4})\b/gi, "")
+    .trim() || (state === "NSW" ? "Box Hill" : "Flagstone");
+  const slug = cleanSuburb.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const stLower = state === "NSW" ? "nsw" : "qld";
+  const pc = (postcode || (state === "NSW" ? "2765" : "4280")).trim();
+  return {
+    reaUrl: `https://www.realestate.com.au/buy/property-land-in-${slug},+${stLower}+${pc}/list-1?activeSort=list-date`,
+    domainUrl: `https://www.domain.com.au/sale/${slug}-${stLower}-${pc}/vacant-land/?ssubs=0&sort=dateupdated-desc`,
+    openlotUrl: `https://www.openlot.com.au/land-for-sale/${stLower}?q=${encodeURIComponent(cleanSuburb)}`,
+  };
+}
+
 /**
  * Validates a Gemini API key by making a lightweight test call to Google's API.
  */
@@ -50,12 +64,12 @@ export async function validateGeminiApiKey(key?: string): Promise<{ valid: boole
   }
 
   if (!trimmed) {
-    // Check server proxy directly
+    // Check server proxy directly (skipLiveWeb so validation responds immediately)
     try {
       const res = await fetch("/api/land-scout-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: "Austral NSW", state: "NSW" }),
+        body: JSON.stringify({ query: "Austral NSW", state: "NSW", skipLiveWeb: true }),
       });
       if (res.ok) {
         return { valid: true };
@@ -75,6 +89,9 @@ export async function validateGeminiApiKey(key?: string): Promise<{ valid: boole
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: "Ping" }] }],
+          generationConfig: {
+            thinkingConfig: { thinkingBudget: 0 },
+          },
         }),
       }
     );
@@ -153,11 +170,14 @@ export function convertLotToParcel(lot: Lot): LandParcel {
 
   const matchingDesigns = findMatchingHudsonDesigns(frontage, depth, price, true);
   const suggestedDesign = matchingDesigns[0]?.designName || "Amber 26";
+  const suburb = lot.suburb || (state === "NSW" ? "Box Hill" : "Flagstone");
+  const postcode = state === "NSW" ? "2765" : "4280";
+  const portalLinks = buildPortalLinksForSuburb(suburb, state, postcode);
   const valuation = calculateLandValuationMetrics({
     price,
     landSizeM2: size,
     frontageM: frontage,
-    suburb: lot.suburb || "Queensland",
+    suburb,
     state,
     isRegistered,
   });
@@ -165,11 +185,11 @@ export function convertLotToParcel(lot: Lot): LandParcel {
   return {
     id: `db-${lot.id}`,
     lotNumber: lot.lot_number || "Lot",
-    streetAddress: lot.address || `${lot.estate || lot.suburb}`,
-    suburb: lot.suburb || "Queensland",
-    estate: lot.estate || lot.suburb || "",
+    streetAddress: lot.address || `${lot.estate || suburb}`,
+    suburb,
+    estate: lot.estate || suburb || "",
     state,
-    postcode: state === "NSW" ? "2000" : "4000",
+    postcode,
     council: state === "NSW" ? "Local Government Area" : "Logan City Council",
     landSizeM2: size,
     frontageM: frontage,
@@ -182,7 +202,8 @@ export function convertLotToParcel(lot: Lot): LandParcel {
     availabilityStatus: lot.status === "available" ? "verified_available" : lot.status === "on_hold" ? "under_offer" : "sold",
     lastVerifiedAt: lot.updated_at || new Date().toISOString(),
     sourcePortal: lot.developer ? "Developer Portal" : "Hudson Database",
-    listingUrl: "",
+    listingUrl: portalLinks.openlotUrl,
+    portalLinks,
     agentName: lot.developer_contact_name || "Estate Sales Office",
     agentAgency: lot.developer || lot.estate || "Hudson Homes Partner",
     agentPhone: lot.developer_contact_phone || "1300 246 700",
@@ -239,7 +260,7 @@ export function importDeveloperPriceList(rawText: string, filename = "PriceList.
   }));
 
   const parcels = newLots.map((lot) => convertLotToParcel(lot));
-  const saved = bulkAddOrUpdateParcels(parcels);
+  bulkAddOrUpdateParcels(parcels);
   return { parcels, count: parcels.length };
 }
 
@@ -251,6 +272,28 @@ export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
     const price = Number(raw.price) || 350000;
     const state = (raw.state === "NSW" ? "NSW" : "QLD") as "QLD" | "NSW";
     const isRegistered = raw.isRegistered ?? true;
+    const suburb = (raw.suburb || (state === "NSW" ? "Box Hill" : "Flagstone")).trim();
+    const postcode = raw.postcode || (state === "NSW" ? "2765" : "4280");
+    const lotNumber = String(raw.lotNumber || `Lot ${idx + 1}`).replace(/^Lot\s*/i, "");
+    const streetAddress = raw.streetAddress || `${suburb}`;
+    const portalLinks = raw.portalLinks || buildPortalLinksForSuburb(suburb, state, postcode);
+    const sourcePortal = (raw.sourcePortal as any) || "OpenLot";
+
+    let listingUrl = (raw.listingUrl || "").trim();
+    if (
+      !listingUrl ||
+      listingUrl === "https://www.realestate.com.au" ||
+      listingUrl === "https://www.domain.com.au" ||
+      listingUrl === "https://www.openlot.com.au"
+    ) {
+      if (String(sourcePortal).toLowerCase().includes("realestate") || String(sourcePortal).toLowerCase() === "rea") {
+        listingUrl = portalLinks.reaUrl;
+      } else if (String(sourcePortal).toLowerCase().includes("domain")) {
+        listingUrl = portalLinks.domainUrl;
+      } else {
+        listingUrl = portalLinks.openlotUrl;
+      }
+    }
 
     const matchingDesigns = findMatchingHudsonDesigns(frontage, depth, price, true);
     const suggestedDesign = matchingDesigns[0]?.designName || "Amber 26";
@@ -258,19 +301,24 @@ export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
       price,
       landSizeM2: size,
       frontageM: frontage,
-      suburb: raw.suburb || "Queensland",
+      suburb,
       state,
       isRegistered,
     });
 
+    const deterministicKey = `${lotNumber}-${streetAddress}-${suburb}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
     return {
-      id: `web-${Date.now()}-${idx}`,
-      lotNumber: String(raw.lotNumber || `Lot ${idx + 1}`).replace(/^Lot\s*/i, ""),
-      streetAddress: raw.streetAddress || `${raw.suburb || "Queensland"}`,
-      suburb: raw.suburb || "Queensland",
-      estate: raw.estate || raw.suburb || "",
+      id: `web-${deterministicKey || `${Date.now()}-${idx}`}`,
+      lotNumber,
+      streetAddress,
+      suburb,
+      estate: raw.estate || suburb || "",
       state,
-      postcode: raw.postcode || (state === "NSW" ? "2000" : "4000"),
+      postcode,
       council: raw.council || (state === "NSW" ? "Local Council" : "Logan City Council"),
       landSizeM2: size,
       frontageM: frontage,
@@ -283,8 +331,9 @@ export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
       availabilityStatus: "verified_available" as AvailabilityStatus,
       lastVerifiedAt: raw.uploadDate || raw.lastVerifiedAt || new Date().toISOString(),
       uploadDate: raw.uploadDate || raw.lastVerifiedAt || new Date().toISOString(),
-      sourcePortal: (raw.sourcePortal as any) || "OpenLot",
-      listingUrl: raw.listingUrl || "",
+      sourcePortal,
+      listingUrl,
+      portalLinks,
       agentName: raw.agentName || "Listing Agent",
       agentAgency: raw.agentAgency || "Estate Land Sales",
       agentPhone: raw.agentPhone || "1300 246 700",
@@ -309,6 +358,19 @@ export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
   });
 }
 
+function syncParcelIdsWithStorage(hydrated: LandParcel[], stored: LandParcel[]): LandParcel[] {
+  const byKey = new Map<string, string>();
+  for (const sp of stored) {
+    const k = `${sp.lotNumber}-${sp.streetAddress}-${sp.suburb}`.toLowerCase();
+    byKey.set(k, sp.id);
+  }
+  return hydrated.map((hp) => {
+    const k = `${hp.lotNumber}-${hp.streetAddress}-${hp.suburb}`.toLowerCase();
+    const canonicalId = byKey.get(k);
+    return canonicalId ? { ...hp, id: canonicalId } : hp;
+  });
+}
+
 /**
  * Searches the live web using Google Grounding via Gemini for real active vacant land listings.
  * First queries the server proxy (/api/land-scout-search) which uses the system-saved Gemini key.
@@ -322,6 +384,12 @@ export async function searchLiveWebForLand(
   sourceSummary: string;
   targetSuburb?: string;
   targetState?: "QLD" | "NSW";
+  isFallback?: boolean;
+  portalLinks?: {
+    reaUrl: string;
+    domainUrl: string;
+    openlotUrl: string;
+  };
 }> {
   const customKey =
     typeof window !== "undefined"
@@ -329,10 +397,10 @@ export async function searchLiveWebForLand(
       : "";
 
   // 1. Primary path: Use the server-side proxy route.
-  // This utilizes the active system-configured Gemini key in the background with zero user setup.
+  // Allow up to 48s so live Gemini Google Search Grounding (which takes ~16-25s) never aborts prematurely.
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const timeoutId = setTimeout(() => controller.abort(), 48000);
 
     const proxyRes = await fetch("/api/land-scout-search", {
       method: "POST",
@@ -351,23 +419,29 @@ export async function searchLiveWebForLand(
       if (data.success && Array.isArray(data.parcels)) {
         if (data.parcels.length > 0) {
           const hydratedParcels = hydrateRawLandParcels(data.parcels);
-          bulkAddOrUpdateParcels(hydratedParcels);
+          const storedAll = bulkAddOrUpdateParcels(hydratedParcels);
+          const syncedParcels = syncParcelIdsWithStorage(hydratedParcels, storedAll);
           return {
-            parcels: hydratedParcels,
-            sourceSummary: data.summary || `Found ${hydratedParcels.length} active lots online.`,
+            parcels: syncedParcels,
+            sourceSummary: data.summary || `Found ${syncedParcels.length} active lots online.`,
             targetSuburb: data.targetSuburb,
             targetState: data.targetState,
+            isFallback: !!data.isFallback,
+            portalLinks: data.portalLinks || syncedParcels[0]?.portalLinks,
           };
         } else {
           // If proxy returned 0 lots, check database lots matching the query or division
           const dbLots = searchDatabaseLotsAsParcels(query);
           if (dbLots.length > 0) {
-            bulkAddOrUpdateParcels(dbLots);
+            const storedAll = bulkAddOrUpdateParcels(dbLots);
+            const syncedLots = syncParcelIdsWithStorage(dbLots, storedAll);
             return {
-              parcels: dbLots,
-              sourceSummary: `Found ${dbLots.length} available blocks for "${query}" from Hudson's registered network.`,
+              parcels: syncedLots,
+              sourceSummary: `Found ${syncedLots.length} available blocks for "${query}" from Hudson's registered network.`,
               targetSuburb: data.targetSuburb || query,
-              targetState: data.targetState || preferredState === "ALL" ? undefined : preferredState,
+              targetState: data.targetState || (preferredState === "ALL" ? undefined : preferredState),
+              isFallback: false,
+              portalLinks: data.portalLinks || syncedLots[0]?.portalLinks,
             };
           }
           return {
@@ -375,6 +449,8 @@ export async function searchLiveWebForLand(
             sourceSummary: data.summary || `No active vacant land releases currently found online for "${query}".`,
             targetSuburb: data.targetSuburb,
             targetState: data.targetState,
+            isFallback: false,
+            portalLinks: data.portalLinks,
           };
         }
       }
@@ -391,10 +467,10 @@ export async function searchLiveWebForLand(
 
   if (apiKey) {
     const prompt = `You are a real estate land intelligence analyst for Hudson Homes (an Australian home builder in QLD and NSW).
-Task: Search the web (specifically checking openlot.com.au, domain.com.au, realestate.com.au, peet.com.au, stockland.com.au, and lendlease.com.au) for active, genuinely available vacant land lots for sale matching: "${query}".
+Task: Search the web across ALL major Australian land portals — specifically realestate.com.au (REA), domain.com.au (Domain), openlot.com.au (OpenLot), stockland.com.au, lendlease.com.au, peet.com.au, frasersproperty.com.au, mirvac.com, and avid.com.au — for active, genuinely available vacant land lots for sale matching: "${query}".
 Target State / Area: ${preferredState === "ALL" ? "Queensland or New South Wales" : preferredState}.
 
-Find genuine active vacant land lots and return them strictly in JSON format.
+Find up to 10 genuine active vacant land lots and return them strictly in JSON format.
 Each parcel must have:
 - "lotNumber": string (e.g. "104" or "Lot 104")
 - "streetAddress": string
@@ -432,7 +508,7 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
     for (const model of models) {
       try {
         const clientController = new AbortController();
-        const clientTimeout = setTimeout(() => clientController.abort(), 50000);
+        const clientTimeout = setTimeout(() => clientController.abort(), 45000);
 
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
@@ -443,6 +519,10 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               tools: [{ googleSearch: {} }],
+              generationConfig: {
+                thinkingConfig: { thinkingBudget: 0 },
+                temperature: 0.1,
+              },
             }),
           }
         );
@@ -457,7 +537,8 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
         }
 
         const json = await res.json();
-        const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const parts = json?.candidates?.[0]?.content?.parts || [];
+        const rawText = parts.map((p: any) => p?.text || "").join("\n");
 
         if (rawText) {
           const cleanJson = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -469,10 +550,15 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
             const rawList = Array.isArray(parsed.parcels) ? parsed.parcels : [];
             if (rawList.length > 0) {
               const hydratedParcels = hydrateRawLandParcels(rawList);
-              bulkAddOrUpdateParcels(hydratedParcels);
+              const storedAll = bulkAddOrUpdateParcels(hydratedParcels);
+              const syncedParcels = syncParcelIdsWithStorage(hydratedParcels, storedAll);
               return {
-                parcels: hydratedParcels,
-                sourceSummary: parsed.summary || `Found ${hydratedParcels.length} active lots online.`,
+                parcels: syncedParcels,
+                sourceSummary: parsed.summary || `Found ${syncedParcels.length} active lots online.`,
+                targetSuburb: syncedParcels[0]?.suburb,
+                targetState: syncedParcels[0]?.state,
+                isFallback: false,
+                portalLinks: syncedParcels[0]?.portalLinks,
               };
             }
           }
@@ -486,15 +572,19 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
   // 3. Transparent fallback to Hudson's active database lots
   const fallbackLots = searchDatabaseLotsAsParcels(query);
   if (fallbackLots.length > 0) {
-    bulkAddOrUpdateParcels(fallbackLots);
+    const storedAll = bulkAddOrUpdateParcels(fallbackLots);
+    const syncedLots = syncParcelIdsWithStorage(fallbackLots, storedAll);
     return {
-      parcels: fallbackLots,
-      sourceSummary: `Found ${fallbackLots.length} matching lots for "${query}" from Hudson's active database.`,
+      parcels: syncedLots,
+      sourceSummary: `Found ${syncedLots.length} matching lots for "${query}" from Hudson's active database.`,
+      isFallback: false,
+      portalLinks: syncedLots[0]?.portalLinks,
     };
   }
 
   return {
     parcels: [],
     sourceSummary: `No active lots found matching "${query}".`,
+    isFallback: false,
   };
 }

@@ -32,13 +32,10 @@ export function isTestParcel(id: string, parcel?: Partial<LandParcel>): boolean 
     }
     const street = (parcel.streetAddress || "").toLowerCase();
     if (
-      street.includes(" on dp") ||
-      street.includes(" on sp") ||
-      street.includes("pioneer way") ||
-      street.includes("heritage boulevard") ||
-      street.includes("parkside circuit") ||
-      street.includes("grandview terrace") ||
-      street.includes("horizon drive")
+      street === "pioneer way" ||
+      street === "heritage boulevard" ||
+      street === "parkside circuit" ||
+      street === "grandview terrace"
     ) {
       return true;
     }

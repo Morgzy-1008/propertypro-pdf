@@ -46,10 +46,10 @@ export function getSourceBadgeStyle(source?: string, isLight = false): string {
   if (s.includes("domain")) {
     return isLight ? "bg-emerald-50 border-emerald-200 text-emerald-700 font-bold" : "bg-emerald-500/15 border-emerald-500/40 text-emerald-300";
   }
-  if (s.includes("peet")) {
+  if (s.includes("peet") || s.includes("lendlease") || s.includes("frasers")) {
     return isLight ? "bg-amber-50 border-amber-200 text-amber-800 font-bold" : "bg-amber-500/15 border-amber-500/40 text-amber-300";
   }
-  if (s.includes("stockland")) {
+  if (s.includes("stockland") || s.includes("mirvac") || s.includes("avid") || s.includes("sekisui")) {
     return isLight ? "bg-purple-50 border-purple-200 text-purple-700 font-bold" : "bg-purple-500/15 border-purple-500/40 text-purple-300";
   }
   if (s.includes("cadastre") || s.includes("spatial")) {
@@ -280,28 +280,89 @@ export function LandParcelCard({
           </div>
         </div>
 
-        {/* Source Portal & Direct Listing Link */}
-        <div className={`flex items-center justify-between gap-2 pt-2 border-t ${isLight ? "border-slate-200" : "border-slate-800/80"}`}>
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <span>Portal:</span>
-            <span className={`font-semibold ${isLight ? "text-slate-700" : "text-slate-200"}`}>{parcel.sourcePortal || "RealEstate"}</span>
-          </div>
+        {/* Source Portal & Multi-Portal Verification Links (REA, Domain, OpenLot) */}
+        {(() => {
+          const cleanSuburb = (parcel.suburb || (parcel.state === "NSW" ? "Box Hill" : "Flagstone"))
+            .replace(/\b(nsw|qld|queensland|new south wales|\d{4})\b/gi, "")
+            .trim();
+          const slug = cleanSuburb.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+          const stLower = parcel.state === "NSW" ? "nsw" : "qld";
+          const pc = (parcel.postcode || (parcel.state === "NSW" ? "2765" : "4280")).trim();
+          const reaUrl = parcel.portalLinks?.reaUrl || `https://www.realestate.com.au/buy/property-land-in-${slug},+${stLower}+${pc}/list-1?activeSort=list-date`;
+          const domainUrl = parcel.portalLinks?.domainUrl || `https://www.domain.com.au/sale/${slug}-${stLower}-${pc}/vacant-land/?ssubs=0&sort=dateupdated-desc`;
+          const openlotUrl = parcel.portalLinks?.openlotUrl || `https://www.openlot.com.au/land-for-sale/${stLower}?q=${encodeURIComponent(cleanSuburb)}`;
+          const primaryUrl = parcel.listingUrl || openlotUrl;
 
-          {parcel.listingUrl ? (
-            <a
-              href={parcel.listingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/40 text-sky-400 hover:bg-sky-500 hover:text-slate-950 text-xs font-semibold transition-all group/link"
-              title="Open listing on external portal website"
-            >
-              <span>View Website Listing</span>
-              <ExternalLink className="h-3 w-3 transition-transform group-hover/link:translate-x-0.5" />
-            </a>
-          ) : (
-            <span className="text-[11px] text-slate-500 italic">Direct Release</span>
-          )}
-        </div>
+          return (
+            <div className={`flex flex-col gap-2 pt-2 border-t ${isLight ? "border-slate-200" : "border-slate-800/80"}`}>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <span>Source:</span>
+                  <span className={`font-semibold ${isLight ? "text-slate-700" : "text-slate-200"}`}>{parcel.sourcePortal || "RealEstate"}</span>
+                </div>
+
+                <a
+                  href={primaryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/40 text-sky-400 hover:bg-sky-500 hover:text-slate-950 text-[11px] font-semibold transition-all group/link"
+                  title="Open primary listing or suburb release on portal website"
+                >
+                  <span>View Listing</span>
+                  <ExternalLink className="h-3 w-3 transition-transform group-hover/link:translate-x-0.5" />
+                </a>
+              </div>
+
+              <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Verify Portals:</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <a
+                    href={reaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-bold transition-all ${
+                      isLight
+                        ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-600 hover:text-white"
+                        : "bg-rose-500/10 border-rose-500/30 text-rose-300 hover:bg-rose-500 hover:text-white"
+                    }`}
+                    title={`Check ${cleanSuburb} vacant land on realestate.com.au (REA)`}
+                  >
+                    <span>REA</span>
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                  <a
+                    href={domainUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-bold transition-all ${
+                      isLight
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white"
+                        : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500 hover:text-slate-950"
+                    }`}
+                    title={`Check ${cleanSuburb} vacant land on domain.com.au`}
+                  >
+                    <span>Domain</span>
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                  <a
+                    href={openlotUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-bold transition-all ${
+                      isLight
+                        ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white"
+                        : "bg-blue-500/10 border-blue-500/30 text-blue-300 hover:bg-blue-500 hover:text-white"
+                    }`}
+                    title={`Check ${cleanSuburb} master-planned estates on openlot.com.au`}
+                  >
+                    <span>OpenLot</span>
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Action Buttons Toolbar */}
         <div className={`pt-2.5 border-t grid grid-cols-3 gap-2 ${isLight ? "border-slate-200" : "border-slate-800/80"}`}>

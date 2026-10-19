@@ -111,6 +111,11 @@ export interface LandParcel {
     | "NSW_SpatialServices"
     | string;
   listingUrl: string;
+  portalLinks?: {
+    reaUrl: string;
+    domainUrl: string;
+    openlotUrl: string;
+  };
   agentName: string;
   agentAgency: string;
   agentPhone: string;
