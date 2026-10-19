@@ -2589,7 +2589,13 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
 
   // 2. Clean legacy customSpec overrides so dynamic decay functions cleanly
   if (quote.design.customSpec) {
-    const isDouble = quote.design.customSpec.storeys === "double";
+    if (
+      quote.design.housingType === "Double Storey" &&
+      quote.design.customSpec.storeys !== "double"
+    ) {
+      quote.design.customSpec.storeys = "double";
+    }
+    const isDouble = quote.design.customSpec.storeys === "double" || quote.design.housingType === "Double Storey";
     const legacyValues = [1660, 1580, 1720, 1500, 1800, 2050, 1620, 2360, 2380, 2650];
     if (legacyValues.includes(quote.design.customSpec.groundRateM2)) {
       quote.design.customSpec.groundRateM2 = 0;
@@ -2720,6 +2726,7 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
   }
 
   if (!quote.design.customSpec) {
+    const isDouble = quote.design.housingType === "Double Storey" || quote.design.housingType === "Split Level";
     quote.design.customSpec = {
       groundLivingM2: 0,
       firstLivingM2: 0,
@@ -2727,11 +2734,11 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
       alfrescoM2: 0,
       porchM2: 0,
       balconyM2: 0,
-      storeys: "single",
+      storeys: isDouble ? "double" : "single",
       groundRateM2: 0,
       upperRateM2: 0,
       ancillaryRateM2: 0,
-      scaffoldingAllowance: 0,
+      scaffoldingAllowance: isDouble ? 8500 : 0,
     };
   }
 

@@ -480,6 +480,11 @@ export function QuoteDesignStep({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modifiedFileInputRef = useRef<HTMLInputElement>(null);
 
+  const isDoubleHousing =
+    design.housingType === "Double Storey" ||
+    design.housingType === "Split Level" ||
+    design.customSpec?.storeys === "double";
+
   const rawCustomSpec = design.customSpec || {
     groundLivingM2: 0,
     firstLivingM2: 0,
@@ -487,11 +492,11 @@ export function QuoteDesignStep({
     alfrescoM2: 0,
     porchM2: 0,
     balconyM2: 0,
-    storeys: "single" as const,
+    storeys: isDoubleHousing ? ("double" as const) : ("single" as const),
     groundRateM2: 0,
     upperRateM2: 0,
     ancillaryRateM2: 0,
-    scaffoldingAllowance: 8500,
+    scaffoldingAllowance: isDoubleHousing ? 8500 : 0,
   };
 
   const legacyPlaceholderRates = [1660, 1580, 1720, 1500, 1800, 2050, 1620, 2360, 2380, 2650];
@@ -1080,7 +1085,31 @@ export function QuoteDesignStep({
   };
 
   const handleCustomSpecChange = (field: keyof typeof customSpec, val: any) => {
-    const updated = { ...customSpec, [field]: val };
+    const isDouble =
+      field === "storeys"
+        ? val === "double"
+        : customSpec.storeys === "double" || isDoubleHousing;
+
+    const updated = {
+      ...customSpec,
+      storeys: isDouble ? ("double" as const) : ("single" as const),
+      scaffoldingAllowance: isDouble ? 8500 : 0,
+      [field]: val,
+    };
+
+    if (field === "storeys") {
+      updated.storeys = val;
+      updated.scaffoldingAllowance = val === "double" ? 8500 : 0;
+      if (val === "double") {
+        if (!updated.firstLivingM2 || updated.firstLivingM2 === 0) {
+          updated.firstLivingM2 = 100;
+        }
+        if (!updated.balconyM2) {
+          updated.balconyM2 = 10;
+        }
+      }
+    }
+
     const calculatedBase = calculateCustomFloorplanPrice(updated, design.specTier);
     const totalM2 = calculateCustomTotalM2(updated);
     onChange({
@@ -1439,7 +1468,27 @@ export function QuoteDesignStep({
                       handleToggleModifiedFloorplan(false);
                     }
                   } else {
-                    onChange({ mode: "custom_floorplan", isModifiedFloorplan: false });
+                    const isDouble =
+                      design.housingType === "Double Storey" ||
+                      design.housingType === "Split Level" ||
+                      customSpec.storeys === "double";
+                    const nextSpec = {
+                      ...customSpec,
+                      storeys: isDouble ? ("double" as const) : ("single" as const),
+                      scaffoldingAllowance: isDouble ? 8500 : 0,
+                      firstLivingM2: isDouble ? (customSpec.firstLivingM2 && customSpec.firstLivingM2 > 0 ? customSpec.firstLivingM2 : 100) : 0,
+                      balconyM2: isDouble ? (customSpec.balconyM2 !== undefined ? customSpec.balconyM2 : 10) : 0,
+                    };
+                    const totalM2 = calculateCustomTotalM2(nextSpec);
+                    const basePrice = calculateCustomFloorplanPrice(nextSpec, design.specTier);
+                    onChange({
+                      mode: "custom_floorplan",
+                      isModifiedFloorplan: false,
+                      customSpec: nextSpec,
+                      housingType: isDouble ? "Double Storey" : "Single Storey",
+                      designM2: totalM2 > 0 ? totalM2 : design.designM2,
+                      basePrice: basePrice > 0 ? basePrice : design.basePrice,
+                    });
                   }
                 }}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -2982,7 +3031,7 @@ export function QuoteDesignStep({
                 />
               </div>
 
-              {customSpec.storeys === "double" && (
+              {(customSpec.storeys === "double" || isDoubleHousing) && (
                 <div className="space-y-1.5">
                   <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>First Floor Living Area (m²)</Label>
                   <Input
@@ -3038,7 +3087,7 @@ export function QuoteDesignStep({
                 />
               </div>
 
-              {customSpec.storeys === "double" && (
+              {(customSpec.storeys === "double" || isDoubleHousing) && (
                 <div className="space-y-1.5">
                   <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>Balcony Area (m²)</Label>
                   <Input
@@ -3082,7 +3131,7 @@ export function QuoteDesignStep({
                     <span className="text-[9px] text-slate-300 block font-mono font-medium">{customSpec.groundLivingM2 || 0} m²</span>
                   </div>
 
-                  {customSpec.storeys === "double" && (
+                  {(customSpec.storeys === "double" || isDoubleHousing) && (
                     <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
                       <span className="text-[10px] text-slate-300 block font-medium">First Floor Living</span>
                       <span className="text-xs font-bold text-slate-100 font-mono">{formatAud(rates.firstLivingRate)}/m²</span>
@@ -3113,7 +3162,7 @@ export function QuoteDesignStep({
                     <span className="text-[9px] text-slate-300 block font-mono font-medium">{customSpec.porchM2 || 0} m²</span>
                   </div>
 
-                  {customSpec.storeys === "double" && (
+                  {(customSpec.storeys === "double" || isDoubleHousing) && (
                     <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
                       <span className="text-[10px] text-slate-300 block font-medium">Balcony</span>
                       <span className="text-xs font-bold text-slate-100 font-mono">{formatAud(rates.balconyRate)}/m²</span>
@@ -3121,7 +3170,7 @@ export function QuoteDesignStep({
                     </div>
                   )}
 
-                  {customSpec.storeys === "double" && (
+                  {(customSpec.storeys === "double" || isDoubleHousing) && (
                     <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
                       <span className="text-[10px] text-slate-300 block font-medium">Scaffolding</span>
                       <span className="text-xs font-bold text-emerald-400 font-mono">{formatAud(rates.scaffoldingAllowance)}</span>

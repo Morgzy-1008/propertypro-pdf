@@ -70,6 +70,7 @@ import {
   calculateModifiedFloorplanPricing,
   calculateCustomFloorplanPrice,
   calculateCustomTotalM2,
+  getCustomAreaRates,
   isDoubleStoreyDesign,
 } from "@/lib/quoting/quoteEngine";
 import {
@@ -849,7 +850,41 @@ export function V2StepFloorPlan({
   // Switch House Type
   const handleSelectHouseType = (type: HousingTypeTab) => {
     setHouseType(type);
-    onChange({ housingType: type });
+    const isDouble = type === "Double Storey" || type === "Split Level";
+    let customUpdates: Partial<typeof design> = {};
+    if (designMode === "custom" || design.mode === "custom_floorplan" || design.customSpec) {
+      const baseSpec = design.customSpec || {
+        groundLivingM2: 140,
+        firstLivingM2: isDouble ? 100 : 0,
+        garageM2: 36,
+        alfrescoM2: 15,
+        porchM2: 4,
+        balconyM2: isDouble ? 10 : 0,
+        storeys: isDouble ? ("double" as const) : ("single" as const),
+        groundRateM2: 0,
+        upperRateM2: 0,
+        ancillaryRateM2: 0,
+        scaffoldingAllowance: isDouble ? 8500 : 0,
+      };
+      const updatedSpec = {
+        ...baseSpec,
+        storeys: isDouble ? ("double" as const) : ("single" as const),
+        scaffoldingAllowance: isDouble ? 8500 : 0,
+        firstLivingM2: isDouble ? (baseSpec.firstLivingM2 && baseSpec.firstLivingM2 > 0 ? baseSpec.firstLivingM2 : 100) : 0,
+        balconyM2: isDouble ? (baseSpec.balconyM2 !== undefined ? baseSpec.balconyM2 : 10) : 0,
+      };
+      const totalM2 = calculateCustomTotalM2(updatedSpec);
+      const basePrice = calculateCustomFloorplanPrice(updatedSpec, design.specTier);
+      customUpdates = {
+        customSpec: updatedSpec,
+        designM2: totalM2 > 0 ? totalM2 : design.designM2,
+        basePrice: basePrice > 0 ? basePrice : design.basePrice,
+      };
+    }
+    onChange({
+      housingType: type,
+      ...customUpdates,
+    });
     // If current design doesn't belong to this house type, prompt user to pick from dropdown
     if (currentModel && currentModel.type !== type) {
       setSearchQuery("");
@@ -1600,7 +1635,39 @@ export function V2StepFloorPlan({
           type="button"
           onClick={() => {
             setDesignMode("custom");
-            onChange({ mode: "custom_floorplan", isModifiedFloorplan: false });
+            const isDouble = houseType === "Double Storey" || houseType === "Split Level" || design.housingType === "Double Storey" || design.customSpec?.storeys === "double";
+            const initialCustomSpec = design.customSpec || {
+              groundLivingM2: 140,
+              firstLivingM2: isDouble ? 100 : 0,
+              garageM2: 36,
+              alfrescoM2: 15,
+              porchM2: 4,
+              balconyM2: isDouble ? 10 : 0,
+              storeys: isDouble ? ("double" as const) : ("single" as const),
+              groundRateM2: 0,
+              upperRateM2: 0,
+              ancillaryRateM2: 0,
+              scaffoldingAllowance: isDouble ? 8500 : 0,
+            };
+            const updatedSpec = {
+              ...initialCustomSpec,
+              storeys: isDouble ? ("double" as const) : ("single" as const),
+              scaffoldingAllowance: isDouble ? 8500 : 0,
+              firstLivingM2: isDouble ? (initialCustomSpec.firstLivingM2 && initialCustomSpec.firstLivingM2 > 0 ? initialCustomSpec.firstLivingM2 : 100) : 0,
+              balconyM2: isDouble ? (initialCustomSpec.balconyM2 !== undefined ? initialCustomSpec.balconyM2 : 10) : 0,
+            };
+            const totalM2 = calculateCustomTotalM2(updatedSpec);
+            const basePrice = calculateCustomFloorplanPrice(updatedSpec, design.specTier);
+            onChange({
+              mode: "custom_floorplan",
+              isModifiedFloorplan: false,
+              customSpec: updatedSpec,
+              housingType: isDouble ? "Double Storey" : "Single Storey",
+              designM2: totalM2 > 0 ? totalM2 : design.designM2,
+              basePrice: basePrice > 0 ? basePrice : design.basePrice,
+              designName: design.designName || "Custom Architectural Residence",
+              modelName: design.modelName || "Custom Architectural Residence",
+            });
           }}
           className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer ${
             designMode === "custom"
@@ -2914,116 +2981,344 @@ export function V2StepFloorPlan({
         )}
 
         {/* CUSTOM FLOOR PLAN OPTIONS */}
-        {designMode === "custom" && (
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Custom Design Name
-              </Label>
-              <Input
-                placeholder="e.g. Custom Architectural Residence"
-                value={design.designName || ""}
-                onChange={(e) => {
-                  const name = e.target.value;
-                  onChange({
-                    mode: "custom_floorplan",
-                    designName: name,
-                    modelName: name,
-                  });
-                }}
-                className={`text-base h-12 rounded-xl ${
-                  isLight ? "bg-slate-50 border-slate-300" : "bg-slate-950/80 border-slate-800"
-                }`}
-              />
+        {designMode === "custom" && (() => {
+          const isDoubleCustom =
+            design.customSpec?.storeys === "double" ||
+            houseType === "Double Storey" ||
+            design.housingType === "Double Storey";
+
+          const customSpecObj: CustomFloorplanSpec = {
+            groundLivingM2: design.customSpec?.groundLivingM2 ?? 140,
+            firstLivingM2: design.customSpec?.firstLivingM2 ?? (isDoubleCustom ? 100 : 0),
+            garageM2: design.customSpec?.garageM2 ?? 36,
+            alfrescoM2: design.customSpec?.alfrescoM2 ?? 15,
+            porchM2: design.customSpec?.porchM2 ?? 4,
+            balconyM2: design.customSpec?.balconyM2 ?? (isDoubleCustom ? 10 : 0),
+            storeys: isDoubleCustom ? ("double" as const) : ("single" as const),
+            groundRateM2: design.customSpec?.groundRateM2 ?? 0,
+            upperRateM2: design.customSpec?.upperRateM2 ?? 0,
+            ancillaryRateM2: design.customSpec?.ancillaryRateM2 ?? 0,
+            scaffoldingAllowance: isDoubleCustom ? 8500 : 0,
+          };
+
+          const handleCustomSpecChange = (field: keyof CustomFloorplanSpec, val: any) => {
+            const isDouble =
+              field === "storeys"
+                ? val === "double"
+                : isDoubleCustom;
+
+            const baseSpec: CustomFloorplanSpec = {
+              ...customSpecObj,
+              storeys: isDouble ? "double" : "single",
+              scaffoldingAllowance: isDouble ? 8500 : 0,
+            };
+
+            const updatedSpec: CustomFloorplanSpec = {
+              ...baseSpec,
+              [field]: val,
+            };
+
+            if (field === "storeys") {
+              updatedSpec.storeys = val;
+              updatedSpec.scaffoldingAllowance = val === "double" ? 8500 : 0;
+              if (val === "double") {
+                if (!updatedSpec.firstLivingM2 || updatedSpec.firstLivingM2 === 0) {
+                  updatedSpec.firstLivingM2 = 100;
+                }
+                if (updatedSpec.balconyM2 === undefined || updatedSpec.balconyM2 === 0) {
+                  updatedSpec.balconyM2 = 10;
+                }
+              }
+            }
+
+            const totalM2 = calculateCustomTotalM2(updatedSpec);
+            const basePrice = calculateCustomFloorplanPrice(updatedSpec, design.specTier);
+
+            onChange({
+              customSpec: updatedSpec,
+              designM2: totalM2,
+              basePrice,
+              ...(field === "storeys" ? { housingType: val === "double" ? "Double Storey" : "Single Storey" } : {}),
+            });
+
+            if (field === "storeys") {
+              setHouseType(val === "double" ? "Double Storey" : "Single Storey");
+            }
+          };
+
+          const totalM2 = calculateCustomTotalM2(customSpecObj);
+          const rates = getCustomAreaRates(customSpecObj, design.specTier);
+
+          return (
+            <div className="space-y-5 pt-2">
+              {/* Custom Design Name & Storey Configuration Switcher */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Custom Design Name
+                  </Label>
+                  <Input
+                    placeholder="e.g. Custom Architectural Residence"
+                    value={design.designName || ""}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      onChange({
+                        mode: "custom_floorplan",
+                        designName: name,
+                        modelName: name,
+                      });
+                    }}
+                    className={`text-base h-12 rounded-xl ${
+                      isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-950/80 border-slate-800 text-white"
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Storey Configuration
+                  </Label>
+                  <div className={`grid grid-cols-2 p-1 rounded-xl border h-12 items-center ${
+                    isLight ? "bg-slate-100 border-slate-300" : "bg-slate-950 border-slate-800"
+                  }`}>
+                    <button
+                      type="button"
+                      onClick={() => handleCustomSpecChange("storeys", "single")}
+                      className={`h-9 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        !isDoubleCustom
+                          ? (isLight ? "bg-white text-slate-950 shadow-xs border border-slate-200" : "bg-emerald-500 text-slate-950 shadow-sm")
+                          : (isLight ? "text-slate-600 hover:text-slate-950" : "text-slate-400 hover:text-white")
+                      }`}
+                    >
+                      Single Storey
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCustomSpecChange("storeys", "double")}
+                      className={`h-9 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        isDoubleCustom
+                          ? (isLight ? "bg-white text-slate-950 shadow-xs border border-slate-200" : "bg-emerald-500 text-slate-950 shadow-sm")
+                          : (isLight ? "text-slate-600 hover:text-slate-950" : "text-slate-400 hover:text-white")
+                      }`}
+                    >
+                      Two Storey / Double
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Architectural Area Dimensions Grid */}
+              <div className={`p-4 sm:p-5 rounded-2xl border space-y-4 ${
+                isLight ? "bg-slate-50/70 border-slate-200" : "bg-slate-950/40 border-slate-800/80"
+              }`}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Building2 className={`h-4 w-4 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
+                    <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                      Architectural Area Dimensions ({isDoubleCustom ? "Double Storey Configuration" : "Single Storey Configuration"})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`font-mono text-xs font-bold ${
+                      isLight ? "bg-white text-slate-800 border-slate-300" : "bg-slate-900 text-slate-200 border-slate-700"
+                    }`}>
+                      Total: {totalM2.toFixed(1)} m² ({(totalM2 * 0.107639).toFixed(1)} sq)
+                    </Badge>
+                    {isDoubleCustom && (
+                      <Badge variant="outline" className="text-[10px] font-bold text-cyan-500 border-cyan-500/40 bg-cyan-950/20">
+                        Scaffolding: +$8,500 Included
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Area Inputs */}
+                {isDoubleCustom ? (
+                  <div className="space-y-4">
+                    {/* Habitable Living & Balcony Areas */}
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                        Habitable Living &amp; Balcony Areas
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-400 flex items-center justify-between">
+                            <span>Ground Living (m²)</span>
+                            <span className="text-[10px] text-emerald-500 font-semibold">Ground Floor</span>
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={customSpecObj.groundLivingM2 || ""}
+                            placeholder="140"
+                            onChange={(e) => handleCustomSpecChange("groundLivingM2", parseFloat(e.target.value) || 0)}
+                            className="h-12 text-base font-mono font-bold rounded-xl"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-400 flex items-center justify-between">
+                            <span>Upper Floor Living (m²)</span>
+                            <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Upper Level</span>
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={customSpecObj.firstLivingM2 || ""}
+                            placeholder="110"
+                            onChange={(e) => handleCustomSpecChange("firstLivingM2", parseFloat(e.target.value) || 0)}
+                            className="h-12 text-base font-mono font-bold rounded-xl border-cyan-500/40 focus:border-cyan-400"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-400 flex items-center justify-between">
+                            <span>Balcony (m²)</span>
+                            <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Upper Level</span>
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={customSpecObj.balconyM2 || ""}
+                            placeholder="10"
+                            onChange={(e) => handleCustomSpecChange("balconyM2", parseFloat(e.target.value) || 0)}
+                            className="h-12 text-base font-mono font-bold rounded-xl border-amber-500/40 focus:border-amber-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ancillary & Outdoor Areas */}
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                        Garage &amp; Outdoor Covered Areas
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-400">Garage (m²)</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={customSpecObj.garageM2 || ""}
+                            placeholder="36"
+                            onChange={(e) => handleCustomSpecChange("garageM2", parseFloat(e.target.value) || 0)}
+                            className="h-12 text-base font-mono font-bold rounded-xl"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-400">Alfresco (m²)</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={customSpecObj.alfrescoM2 || ""}
+                            placeholder="15"
+                            onChange={(e) => handleCustomSpecChange("alfrescoM2", parseFloat(e.target.value) || 0)}
+                            className="h-12 text-base font-mono font-bold rounded-xl"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-slate-400">Porch (m²)</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={customSpecObj.porchM2 || ""}
+                            placeholder="4"
+                            onChange={(e) => handleCustomSpecChange("porchM2", parseFloat(e.target.value) || 0)}
+                            className="h-12 text-base font-mono font-bold rounded-xl"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-400">Ground Living (m²)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={customSpecObj.groundLivingM2 || ""}
+                        placeholder="140"
+                        onChange={(e) => handleCustomSpecChange("groundLivingM2", parseFloat(e.target.value) || 0)}
+                        className="h-12 text-base font-mono font-bold rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-400">Garage (m²)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={customSpecObj.garageM2 || ""}
+                        placeholder="36"
+                        onChange={(e) => handleCustomSpecChange("garageM2", parseFloat(e.target.value) || 0)}
+                        className="h-12 text-base font-mono font-bold rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-400">Alfresco (m²)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={customSpecObj.alfrescoM2 || ""}
+                        placeholder="15"
+                        onChange={(e) => handleCustomSpecChange("alfrescoM2", parseFloat(e.target.value) || 0)}
+                        className="h-12 text-base font-mono font-bold rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-slate-400">Porch (m²)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={customSpecObj.porchM2 || ""}
+                        placeholder="4"
+                        onChange={(e) => handleCustomSpecChange("porchM2", parseFloat(e.target.value) || 0)}
+                        className="h-12 text-base font-mono font-bold rounded-xl"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Dynamic Rates & Subtotals Summary Strip */}
+                <div className={`mt-3 p-3 rounded-xl border text-xs ${
+                  isLight ? "bg-white border-slate-200 text-slate-700" : "bg-slate-900/80 border-slate-800 text-slate-300"
+                }`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-slate-400">Calculated Areas:</span>
+                      <span className="font-mono">Ground: <strong>{customSpecObj.groundLivingM2 || 0}m²</strong> ({formatAud(rates.groundLivingRate)}/m²)</span>
+                      {isDoubleCustom && (
+                        <>
+                          <span className="text-slate-500">•</span>
+                          <span className="font-mono text-cyan-400">Upper: <strong>{customSpecObj.firstLivingM2 || 0}m²</strong> ({formatAud(rates.firstLivingRate)}/m²)</span>
+                          <span className="text-slate-500">•</span>
+                          <span className="font-mono text-amber-400">Balcony: <strong>{customSpecObj.balconyM2 || 0}m²</strong> ({formatAud(rates.balconyRate)}/m²)</span>
+                        </>
+                      )}
+                      <span className="text-slate-500">•</span>
+                      <span className="font-mono">Garage: <strong>{customSpecObj.garageM2 || 0}m²</strong></span>
+                      <span className="text-slate-500">•</span>
+                      <span className="font-mono">Alfresco: <strong>{customSpecObj.alfrescoM2 || 0}m²</strong></span>
+                      <span className="text-slate-500">•</span>
+                      <span className="font-mono">Porch: <strong>{customSpecObj.porchM2 || 0}m²</strong></span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-400 font-semibold mr-1.5">Calculated Base Price:</span>
+                      <span className={`text-sm font-extrabold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                        {formatAud(design.basePrice || calculateCustomFloorplanPrice(customSpecObj, design.specTier))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-400">Ground Living (m²)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={design.customSpec?.groundLivingM2 || 140}
-                  onChange={(e) => {
-                    const gM2 = parseFloat(e.target.value) || 0;
-                    const spec = { ...(design.customSpec || { storeys: "single", firstLivingM2: 0, garageM2: 36, alfrescoM2: 15, porchM2: 4, balconyM2: 0, groundRateM2: 0, upperRateM2: 0, ancillaryRateM2: 0, scaffoldingAllowance: 0 }), groundLivingM2: gM2 };
-                    const totalM2 = calculateCustomTotalM2(spec);
-                    const basePrice = calculateCustomFloorplanPrice(spec, design.specTier);
-                    onChange({
-                      customSpec: spec,
-                      designM2: totalM2,
-                      basePrice,
-                    });
-                  }}
-                  className="h-12 text-base font-mono font-bold rounded-xl"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-400">Garage (m²)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={design.customSpec?.garageM2 || 36}
-                  onChange={(e) => {
-                    const garM2 = parseFloat(e.target.value) || 0;
-                    const spec = { ...(design.customSpec || { storeys: "single", groundLivingM2: 140, firstLivingM2: 0, alfrescoM2: 15, porchM2: 4, balconyM2: 0, groundRateM2: 0, upperRateM2: 0, ancillaryRateM2: 0, scaffoldingAllowance: 0 }), garageM2: garM2 };
-                    const totalM2 = calculateCustomTotalM2(spec);
-                    const basePrice = calculateCustomFloorplanPrice(spec, design.specTier);
-                    onChange({
-                      customSpec: spec,
-                      designM2: totalM2,
-                      basePrice,
-                    });
-                  }}
-                  className="h-12 text-base font-mono font-bold rounded-xl"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-400">Alfresco (m²)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={design.customSpec?.alfrescoM2 || 15}
-                  onChange={(e) => {
-                    const alfM2 = parseFloat(e.target.value) || 0;
-                    const spec = { ...(design.customSpec || { storeys: "single", groundLivingM2: 140, firstLivingM2: 0, garageM2: 36, porchM2: 4, balconyM2: 0, groundRateM2: 0, upperRateM2: 0, ancillaryRateM2: 0, scaffoldingAllowance: 0 }), alfrescoM2: alfM2 };
-                    const totalM2 = calculateCustomTotalM2(spec);
-                    const basePrice = calculateCustomFloorplanPrice(spec, design.specTier);
-                    onChange({
-                      customSpec: spec,
-                      designM2: totalM2,
-                      basePrice,
-                    });
-                  }}
-                  className="h-12 text-base font-mono font-bold rounded-xl"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-400">Porch (m²)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={design.customSpec?.porchM2 || 4}
-                  onChange={(e) => {
-                    const porM2 = parseFloat(e.target.value) || 0;
-                    const spec = { ...(design.customSpec || { storeys: "single", groundLivingM2: 140, firstLivingM2: 0, garageM2: 36, alfrescoM2: 15, balconyM2: 0, groundRateM2: 0, upperRateM2: 0, ancillaryRateM2: 0, scaffoldingAllowance: 0 }), porchM2: porM2 };
-                    const totalM2 = calculateCustomTotalM2(spec);
-                    const basePrice = calculateCustomFloorplanPrice(spec, design.specTier);
-                    onChange({
-                      customSpec: spec,
-                      designM2: totalM2,
-                      basePrice,
-                    });
-                  }}
-                  className="h-12 text-base font-mono font-bold rounded-xl"
-                />
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Primary Floor Plan Confirmation & Option to Add 2nd Dwelling */}
         {hasFloorPlanSelected && (
