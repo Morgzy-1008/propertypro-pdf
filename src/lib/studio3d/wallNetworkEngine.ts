@@ -373,9 +373,44 @@ export function cleanAndSnapWallGraph(
   }
 
   // 4. Bind every Opening3D to a hosted WallSegment (`wallId` + `positionAlongWallRatio: 0..1`)
-  const openings: Opening3D[] = (rawOpenings || []).map((op) =>
-    projectOpeningOntoHostWall(op, walls, widthM, lengthM)
+  // Drop any orphan opening that fails to anchor to a valid structural wall, and deduplicate overlapping openings on the same wall.
+  const projectedOpenings: Opening3D[] = [];
+  for (const rawOp of rawOpenings || []) {
+    const anchored = projectOpeningOntoHostWall(rawOp, walls, widthM, lengthM);
+    if (!anchored) continue;
+    projectedOpenings.push(anchored);
+  }
+
+  // Deduplicate openings that overlap on the same host wall
+  const openingPriority = (t: Opening3D["type"]): number => {
+    if (t === "garage_door") return 6;
+    if (t === "stacker_door" || t === "sliding_door") return 5;
+    if (t === "door" || t === "barn_door") return 4;
+    if (t === "cavity_slider") return 3;
+    return 2; // window
+  };
+
+  const sortedOpenings = [...projectedOpenings].sort(
+    (a, b) => openingPriority(b.type) - openingPriority(a.type) || b.width - a.width
   );
+  const openings: Opening3D[] = [];
+  for (const op of sortedOpenings) {
+    const conflicts = openings.some((existing) => {
+      if ((existing.level ?? 0) !== (op.level ?? 0)) return false;
+      if (existing.wallId && op.wallId && existing.wallId === op.wallId) {
+        const dist = pointDist(existing.position, op.position);
+        return dist < (existing.width + op.width) / 2 + 0.08;
+      }
+      if (existing.wallOrientation === op.wallOrientation) {
+        const dist = pointDist(existing.position, op.position);
+        return dist < Math.min(existing.width, op.width) * 0.65;
+      }
+      return false;
+    });
+    if (!conflicts) {
+      openings.push(op);
+    }
+  }
 
   return { walls, openings };
 }
@@ -383,29 +418,43 @@ export function cleanAndSnapWallGraph(
 /**
  * Anchors an Opening3D onto its parent WallSegment (or finds the closest matching wall segment
  * on the same level) and computes `wallId`, `positionAlongWallRatio` (0.0..1.0), and world position.
+ * Returns null if no valid host wall exists so floating/misplaced openings are eliminated.
  */
 export function projectOpeningOntoHostWall(
   op: Opening3D,
   walls: WallSegment[],
   widthM = 12.0,
   lengthM = 20.0
-): Opening3D {
+): Opening3D | null {
   const opLevel = op.level ?? 0;
+  const requiresExteriorWall =
+    op.type === "window" ||
+    op.type === "garage_door" ||
+    op.type === "sliding_door" ||
+    op.type === "stacker_door";
+
   let hostWall: WallSegment | undefined = op.wallId
-    ? walls.find((w) => w.id === op.wallId && (w.level ?? 0) === opLevel)
+    ? walls.find(
+        (w) =>
+          w.id === op.wallId &&
+          (w.level ?? 0) === opLevel &&
+          (!requiresExteriorWall || w.isExterior)
+      )
     : undefined;
 
   if (!hostWall) {
     let bestScore = Infinity;
     for (const w of walls) {
       if ((w.level ?? 0) !== opLevel) continue;
+      if (requiresExteriorWall && !w.isExterior) continue;
       const isHoriz = Math.abs(w.end[1] - w.start[1]) <= Math.abs(w.end[0] - w.start[0]);
       const orientMatch = op.wallOrientation
         ? (op.wallOrientation === "horizontal") === isHoriz
         : true;
+      if (requiresExteriorWall && !orientMatch) continue;
       const d = distPointToLine(op.position, w.start, w.end);
-      const score = d + (orientMatch ? 0 : 0.45);
-      if (d <= 0.48 && score < bestScore) {
+      const score = d + (orientMatch ? 0 : 0.45) + (op.isExterior === w.isExterior ? 0 : 0.25);
+      if (d <= 0.36 && score < bestScore) {
         bestScore = score;
         hostWall = w;
       }
@@ -413,45 +462,55 @@ export function projectOpeningOntoHostWall(
   }
 
   if (!hostWall) {
-    return op;
+    return null;
   }
 
   const isHoriz = Math.abs(hostWall.end[1] - hostWall.start[1]) <= Math.abs(hostWall.end[0] - hostWall.start[0]);
-  const halfW = (op.width || 0.82) / 2;
-  const minPier = 0.06;
+  let effectiveWidth = op.width || 0.82;
+  const minPier = 0.08;
 
-  // Ensure hostWall spans wide enough to host this opening cleanly
+  // Ensure hostWall spans wide enough to host this opening if it's within 0.45m of the wall end
   if (isHoriz) {
     const minX = Math.min(hostWall.start[0], hostWall.end[0]);
     const maxX = Math.max(hostWall.start[0], hostWall.end[0]);
+    const halfW = effectiveWidth / 2;
     const reqMin = Math.max(0, Number((op.position[0] - halfW - minPier).toFixed(3)));
-    const reqMax = Math.min(widthM + 2, Number((op.position[0] + halfW + minPier).toFixed(3)));
-    if (reqMin < minX && minX - reqMin <= 0.75) {
+    const reqMax = Math.min(widthM, Number((op.position[0] + halfW + minPier).toFixed(3)));
+    if (reqMin < minX && minX - reqMin <= 0.45) {
       if (hostWall.start[0] <= hostWall.end[0]) hostWall.start[0] = reqMin;
       else hostWall.end[0] = reqMin;
     }
-    if (reqMax > maxX && reqMax - maxX <= 0.75) {
+    if (reqMax > maxX && reqMax - maxX <= 0.45) {
       if (hostWall.end[0] >= hostWall.start[0]) hostWall.end[0] = reqMax;
       else hostWall.start[0] = reqMax;
     }
   } else {
     const minZ = Math.min(hostWall.start[1], hostWall.end[1]);
     const maxZ = Math.max(hostWall.start[1], hostWall.end[1]);
+    const halfW = effectiveWidth / 2;
     const reqMin = Math.max(0, Number((op.position[1] - halfW - minPier).toFixed(3)));
-    const reqMax = Math.min(lengthM + 2, Number((op.position[1] + halfW + minPier).toFixed(3)));
-    if (reqMin < minZ && minZ - reqMin <= 0.75) {
+    const reqMax = Math.min(lengthM, Number((op.position[1] + halfW + minPier).toFixed(3)));
+    if (reqMin < minZ && minZ - reqMin <= 0.45) {
       if (hostWall.start[1] <= hostWall.end[1]) hostWall.start[1] = reqMin;
       else hostWall.end[1] = reqMin;
     }
-    if (reqMax > maxZ && reqMax - maxZ <= 0.75) {
+    if (reqMax > maxZ && reqMax - maxZ <= 0.45) {
       if (hostWall.end[1] >= hostWall.start[1]) hostWall.end[1] = reqMax;
       else hostWall.start[1] = reqMax;
     }
   }
 
   const wallLen = Math.max(0.1, pointDist(hostWall.start, hostWall.end));
+  if (wallLen < 0.55) {
+    return null;
+  }
+  if (effectiveWidth > wallLen - minPier * 2) {
+    effectiveWidth = Number(Math.max(0.42, wallLen - minPier * 2).toFixed(2));
+  }
+
+  const halfW = effectiveWidth / 2;
   const rawT = projectPointOnLine(op.position, hostWall.start, hostWall.end);
-  const marginT = Math.min(0.45, (halfW + 0.02) / wallLen);
+  const marginT = Math.min(0.48, (halfW + minPier * 0.75) / wallLen);
   const clampedT = Math.max(marginT, Math.min(1 - marginT, rawT));
 
   const newX = Number((hostWall.start[0] + clampedT * (hostWall.end[0] - hostWall.start[0])).toFixed(3));
@@ -461,7 +520,9 @@ export function projectOpeningOntoHostWall(
 
   return {
     ...op,
+    width: effectiveWidth,
     wallId: hostWall.id,
+    isExterior: hostWall.isExterior,
     positionAlongWallRatio: Number(clampedT.toFixed(4)),
     wallOrientation: isHoriz ? "horizontal" : "vertical",
     position: [newX, newZ],

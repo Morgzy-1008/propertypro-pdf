@@ -1,6 +1,16 @@
 # Workspace Rules — Hudson Homes | House & Land Package Flyer Builder
 These rules apply strictly to this project and supplement the global rules in GEMINI.md. Do not duplicate generic documentation or basic testing setup here — keep this file strictly focused on project architecture and execution guardrails.
 
+## DEFAULT OPERATING MODE: ALWAYS-ON AUTO-SHIP & SELF-HEALING PIPELINE
+
+Every normal plain-English message from the user automatically executes this 5-stage pipeline as the standard default behavior (no slash commands required):
+
+1. **Stage 1 — Automatic Prompt Expansion (Always Active by Default)**: Treat every casual or 1-sentence plain-English message as a high-level goal and internally expand it into a complete Senior Full-Stack Engineering Specification before editing files. Scan all related components, hooks, state stores, styles, and API routes for full responsiveness, loading/empty states, and error fallbacks.
+2. **Stage 2 — Direct Execution (Zero Unnecessary Mid-Task Review Briefs)**: Move straight from Internal Spec Expansion → Codebase Audit → Code Implementation without pausing for permission unless a destructive data deletion or paid billing change requires confirmation.
+3. **Stage 3 — Internal 5-Pillar Lead Architect Critic Pass**: Audit (1) UI, Layout & Typography Integrity, (2) State, Data & API Resilience, (3) Project Domain & Business Rules (pricing/quoting, flyer print baselines, 3D/2D architectural rules), (4) Pre-Deploy Build & Storage Hygiene Gate (`npx tsc --noEmit` & `npm run build` with zero asset bloat), and (5) Live Browser & Console Verification.
+4. **Stage 4 — Autonomous Self-Re-Prompting & Repair Loop (Up to 3 Cycles)**: Automatically diagnose and repair any TypeScript, build, layout, or runtime console error across up to 3 self-healing cycles before finishing.
+5. **Stage 5 — Clean Final Summary**: Report back once compiled cleanly via `npm run build` and verified in the live browser.
+
 ## App Identity & Core Stack
 Hudson Homes Flyer Builder is an automated real estate marketing platform that tracks vacant land stock and dynamically generates print-ready House & Land package flyers. Key architectural conventions:
 - **Framework**: React / Next.js single-page application.

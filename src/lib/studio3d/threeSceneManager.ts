@@ -552,11 +552,39 @@ export class ThreeStudioSceneManager {
       metalness: 0.12,
     });
 
-    // 4. Garage Polished Concrete Slab
+    // 4. Garage Smooth Trowelled Concrete Slab
+    let concreteTex: THREE.CanvasTexture | null = null;
+    if (typeof document !== "undefined") {
+      const cCanvas = document.createElement("canvas");
+      cCanvas.width = 256;
+      cCanvas.height = 256;
+      const cCtx = cCanvas.getContext("2d");
+      if (cCtx) {
+        cCtx.fillStyle = "#b0b8c4";
+        cCtx.fillRect(0, 0, 256, 256);
+        for (let i = 0; i < 900; i++) {
+          cCtx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.16)" : "rgba(71,85,105,0.16)";
+          cCtx.fillRect((i * 73) % 256, (i * 139) % 256, 3, 3);
+        }
+        // Saw-cut concrete expansion control joint lines
+        cCtx.strokeStyle = "rgba(51,65,85,0.45)";
+        cCtx.lineWidth = 2;
+        cCtx.beginPath();
+        cCtx.moveTo(128, 0);
+        cCtx.lineTo(128, 256);
+        cCtx.moveTo(0, 128);
+        cCtx.lineTo(256, 128);
+        cCtx.stroke();
+      }
+      concreteTex = new THREE.CanvasTexture(cCanvas);
+      configureWorldSpaceTexture(concreteTex, true);
+    }
     this.materials.concrete = new THREE.MeshStandardMaterial({
-      color: 0x94a3b8,
-      roughness: 0.55,
-      metalness: 0.05,
+      ...(concreteTex ? { map: concreteTex } : {}),
+      color: 0xb0b8c4,
+      roughness: 0.52,
+      metalness: 0.04,
+      side: THREE.DoubleSide,
     });
 
     // 5. Merbau / Spotted Gum Timber Decking (Alfresco / Porch)
@@ -764,10 +792,16 @@ export class ThreeStudioSceneManager {
       const cfg = storeSurfaces[sid];
       let mat = this.surfaceMaterials[sid];
       if (!mat) {
+        const useDoubleSide =
+          sid === "roof_main" ||
+          sid === "roof_fascia_gutter" ||
+          sid === "interior_ceiling" ||
+          sid === "interior_floor_living" ||
+          sid === "interior_floor_bedrooms" ||
+          sid === "interior_floor_wet_areas" ||
+          sid === "driveway_paving";
         mat = new THREE.MeshStandardMaterial({
-          side: sid === "roof_main" || sid === "roof_fascia_gutter" || sid === "interior_ceiling"
-            ? THREE.DoubleSide
-            : THREE.FrontSide,
+          side: useDoubleSide ? THREE.DoubleSide : THREE.FrontSide,
         });
         mat.userData.surfaceId = sid;
         this.surfaceMaterials[sid] = mat;
@@ -794,7 +828,17 @@ export class ThreeStudioSceneManager {
   public getSurfaceMaterial(surfaceId: SemanticSurfaceId): THREE.MeshStandardMaterial {
     let mat = this.surfaceMaterials[surfaceId];
     if (!mat) {
-      mat = new THREE.MeshStandardMaterial();
+      const useDoubleSide =
+        surfaceId === "roof_main" ||
+        surfaceId === "roof_fascia_gutter" ||
+        surfaceId === "interior_ceiling" ||
+        surfaceId === "interior_floor_living" ||
+        surfaceId === "interior_floor_bedrooms" ||
+        surfaceId === "interior_floor_wet_areas" ||
+        surfaceId === "driveway_paving";
+      mat = new THREE.MeshStandardMaterial({
+        side: useDoubleSide ? THREE.DoubleSide : THREE.FrontSide,
+      });
       mat.userData.surfaceId = surfaceId;
       this.surfaceMaterials[surfaceId] = mat;
       const cfg = useHouseMaterialStore.getState().surfaces[surfaceId];
@@ -871,6 +915,54 @@ export class ThreeStudioSceneManager {
     }
   }
 
+  private blueprintTextureCache = new Map<string, THREE.CanvasTexture>();
+
+  private disposeGroupChildren(group: THREE.Group): void {
+    while (group.children.length > 0) {
+      const child = group.children[0];
+      group.remove(child);
+      child.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.isMesh && mesh.geometry) {
+          mesh.geometry.dispose();
+        }
+      });
+    }
+  }
+
+  private clampPolygonToLevelExteriorWalls(
+    polygon: [number, number][],
+    levelNum: number
+  ): [number, number][] {
+    if (!this.design || !polygon || polygon.length < 3) return polygon;
+    const lvlWalls = (this.design.walls || []).filter((w) => (w.level ?? 0) === levelNum);
+    const extWalls = lvlWalls.filter((w) => w.isExterior);
+    const refWalls = extWalls.length >= 3 ? extWalls : lvlWalls;
+    if (refWalls.length === 0) return polygon;
+
+    let globalMinX = Infinity,
+      globalMaxX = -Infinity,
+      globalMinZ = Infinity,
+      globalMaxZ = -Infinity;
+    for (const w of refWalls) {
+      const x0 = Math.min(w.start[0], w.end[0]);
+      const x1 = Math.max(w.start[0], w.end[0]);
+      const z0 = Math.min(w.start[1], w.end[1]);
+      const z1 = Math.max(w.start[1], w.end[1]);
+      if (x0 < globalMinX) globalMinX = x0;
+      if (x1 > globalMaxX) globalMaxX = x1;
+      if (z0 < globalMinZ) globalMinZ = z0;
+      if (z1 > globalMaxZ) globalMaxZ = z1;
+    }
+    if (!Number.isFinite(globalMinX) || !Number.isFinite(globalMinZ)) return polygon;
+
+    return polygon.map(([px, pz]) => {
+      const cz = Math.max(globalMinZ, Math.min(globalMaxZ, pz));
+      const cx = Math.max(globalMinX, Math.min(globalMaxX, px));
+      return [cx, cz] as [number, number];
+    });
+  }
+
   public rebuildScene(preserveCamera = false): void {
     if (!this.design) {
       this.buildEmptyStudio();
@@ -890,22 +982,12 @@ export class ThreeStudioSceneManager {
       this.selectionBoxHelper = null;
     }
 
-    // Clear previous geometry
-    while (this.boundaryGroup.children.length > 0) {
-      this.boundaryGroup.remove(this.boundaryGroup.children[0]);
-    }
-    while (this.buildingGroup.children.length > 0) {
-      this.buildingGroup.remove(this.buildingGroup.children[0]);
-    }
-    while (this.fixturesGroup.children.length > 0) {
-      this.fixturesGroup.remove(this.fixturesGroup.children[0]);
-    }
-    while (this.roofGroup.children.length > 0) {
-      this.roofGroup.remove(this.roofGroup.children[0]);
-    }
-    while (this.facadeGroup.children.length > 0) {
-      this.facadeGroup.remove(this.facadeGroup.children[0]);
-    }
+    // Clear previous geometry and free GPU buffers
+    this.disposeGroupChildren(this.boundaryGroup);
+    this.disposeGroupChildren(this.buildingGroup);
+    this.disposeGroupChildren(this.fixturesGroup);
+    this.disposeGroupChildren(this.roofGroup);
+    this.disposeGroupChildren(this.facadeGroup);
 
     // Set orbit target to center of building and update camera
     const centerX = this.design.widthM / 2;
@@ -1051,13 +1133,14 @@ export class ThreeStudioSceneManager {
     lotTurfMesh.receiveShadow = true;
     this.buildingGroup.add(lotTurfMesh);
 
-    // Helper to extrude stepped slabs/plinths cleanly from room polygons on a level (cutting out Stairwell Void holes on upper floors)
+    // Helper to extrude stepped slabs/plinths cleanly from room polygons on a level (clamped strictly to external walls, cutting out Stairwell Void holes)
     const addRoomPolygonSlabs = (
       levelRooms: Room3D[],
       baseY: number,
       slabDepth: number,
       mat: THREE.Material,
-      padM = 0.06
+      padM = 0.0,
+      levelNum = 0
     ) => {
       const voidRooms = levelRooms.filter(
         (vr) => vr.name === "Void" && vr.polygon && vr.polygon.length >= 3
@@ -1065,18 +1148,20 @@ export class ThreeStudioSceneManager {
       for (const room of levelRooms) {
         if (room.name === "Void") continue;
         if (!room.polygon || room.polygon.length < 3) continue;
-        const rxs = room.polygon.map((p) => p[0]);
-        const rzs = room.polygon.map((p) => p[1]);
+        const clampedPoly = this.clampPolygonToLevelExteriorWalls(room.polygon, levelNum);
+        const rxs = clampedPoly.map((p) => p[0]);
+        const rzs = clampedPoly.map((p) => p[1]);
         const rMinX = Math.min(...rxs);
         const rMaxX = Math.max(...rxs);
         const rMinZ = Math.min(...rzs);
         const rMaxZ = Math.max(...rzs);
+        if (rMaxX - rMinX < 0.2 || rMaxZ - rMinZ < 0.2) continue;
         const cx =
-          room.polygon.reduce((acc, p) => acc + p[0], 0) / room.polygon.length;
+          clampedPoly.reduce((acc, p) => acc + p[0], 0) / clampedPoly.length;
         const cz =
-          room.polygon.reduce((acc, p) => acc + p[1], 0) / room.polygon.length;
+          clampedPoly.reduce((acc, p) => acc + p[1], 0) / clampedPoly.length;
         const shape = new THREE.Shape();
-        room.polygon.forEach(([px, pz], idx) => {
+        clampedPoly.forEach(([px, pz], idx) => {
           const ex = px + (px >= cx ? padM : -padM);
           const ez = pz + (pz >= cz ? padM : -padM);
           if (idx === 0) shape.moveTo(ex, -ez);
@@ -1118,17 +1203,30 @@ export class ThreeStudioSceneManager {
       }
     };
 
-    // Concrete Slab Foundation (300mm FFL on Level 0)
+    // Concrete Slab Foundation (300mm FFL on Level 0) — ALWAYS use exact stepped room polygons clamped to external walls!
     const slabW = this.design.widthM;
     const slabL = this.design.lengthM;
     const slabMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
     const level0Rooms = (this.design.rooms || []).filter((r) => (r.level ?? 0) === 0);
-    if (level0Rooms.length > 0 && this.design.levels && this.design.levels.length > 1) {
-      addRoomPolygonSlabs(level0Rooms, 0.0, 0.30, slabMat, 0.08);
+    if (level0Rooms.length > 0) {
+      addRoomPolygonSlabs(level0Rooms, 0.0, 0.30, slabMat, 0.0, 0);
     } else {
-      const slabGeom = new THREE.BoxGeometry(slabW, 0.30, slabL);
+      const clampedBox = this.clampPolygonToLevelExteriorWalls(
+        [
+          [0, 0],
+          [slabW, 0],
+          [slabW, slabL],
+          [0, slabL],
+        ],
+        0
+      );
+      const minX = Math.min(...clampedBox.map((p) => p[0]));
+      const maxX = Math.max(...clampedBox.map((p) => p[0]));
+      const minZ = Math.min(...clampedBox.map((p) => p[1]));
+      const maxZ = Math.max(...clampedBox.map((p) => p[1]));
+      const slabGeom = new THREE.BoxGeometry(Math.max(1, maxX - minX), 0.30, Math.max(1, maxZ - minZ));
       const slabMesh = new THREE.Mesh(slabGeom, slabMat);
-      slabMesh.position.set(slabW / 2, 0.15, slabL / 2);
+      slabMesh.position.set((minX + maxX) / 2, 0.15, (minZ + maxZ) / 2);
       slabMesh.receiveShadow = true;
       slabMesh.userData.isSlabOrGround = true;
       this.buildingGroup.add(slabMesh);
@@ -1151,7 +1249,7 @@ export class ThreeStudioSceneManager {
           const plinthH = 0.30 + lvl.elevationOffsetM;
           const plinthMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.72 });
           if (lvlRooms.length > 0) {
-            addRoomPolygonSlabs(lvlRooms, 0.0, plinthH, plinthMat, 0.08);
+            addRoomPolygonSlabs(lvlRooms, 0.0, plinthH, plinthMat, 0.0, lvl.level);
           } else {
             const plinthGeom = new THREE.BoxGeometry(lW, plinthH, lL);
             const plinthMesh = new THREE.Mesh(plinthGeom, plinthMat);
@@ -1167,9 +1265,9 @@ export class ThreeStudioSceneManager {
           const upperFFL = 0.30 + lvl.elevationOffsetM;
           const upperSlabMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.45 });
           if (lvlRooms.length > 0) {
-            addRoomPolygonSlabs(lvlRooms, upperFFL - upperSlabH, upperSlabH, upperSlabMat, 0.08);
+            addRoomPolygonSlabs(lvlRooms, upperFFL - upperSlabH, upperSlabH, upperSlabMat, 0.0, lvl.level);
           } else {
-            const upperSlabGeom = new THREE.BoxGeometry(lW + 0.08, upperSlabH, lL + 0.08);
+            const upperSlabGeom = new THREE.BoxGeometry(lW, upperSlabH, lL);
             const upperSlabMesh = new THREE.Mesh(upperSlabGeom, upperSlabMat);
             upperSlabMesh.position.set(cX, upperFFL - upperSlabH / 2, cZ);
             upperSlabMesh.castShadow = true;
@@ -1772,6 +1870,50 @@ export class ThreeStudioSceneManager {
     return this.activeLevelFilter;
   }
 
+  private createTransparentBlueprintTexture(
+    img: HTMLImageElement,
+    sx: number,
+    sy: number,
+    sw: number,
+    sh: number,
+    cacheKey: string
+  ): THREE.CanvasTexture | null {
+    const cached = this.blueprintTextureCache.get(cacheKey);
+    if (cached) return cached;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = sw;
+    canvas.height = sh;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.clearRect(0, 0, sw, sh);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    try {
+      const imgData = ctx.getImageData(0, 0, sw, sh);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        if (lum > 210) {
+          // Make white paper background 100% transparent so 3D floor finishes shine through and nothing sticks out past external walls
+          data[i + 3] = 0;
+        } else {
+          data[i + 3] = Math.min(220, Math.round((225 - lum) * 1.45));
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    } catch {
+      // Cross-origin fallback if needed
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    tex.needsUpdate = true;
+    this.blueprintTextureCache.set(cacheKey, tex);
+    return tex;
+  }
+
   private buildRoomFloors(): void {
     if (!this.design) return;
 
@@ -1786,6 +1928,7 @@ export class ThreeStudioSceneManager {
       const lM = this.design.lengthM;
       const mainCrop = this.design.floorplanCrop;
       const url = encodeURI(this.design.floorplanImageUrl);
+      const overlayOpacity = this.wallXrayMode ? 0.78 : 0.36;
 
       if (this.design.levels && this.design.levels.length > 1) {
         const levelEntries = this.design.levels.filter(
@@ -1803,13 +1946,14 @@ export class ThreeStudioSceneManager {
           const pL = Math.max(0.5, b.depthM);
           const pX = b.x + pW / 2;
           const pZ = b.z + pL / 2;
-          const pY = 0.308 + (lvl.elevationOffsetM || 0);
+          const pY = 0.319 + (lvl.elevationOffsetM || 0);
 
           const baseGeom = new THREE.PlaneGeometry(pW, pL);
           const baseMat = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             transparent: true,
-            opacity: 0.94,
+            opacity: overlayOpacity,
+            depthWrite: false,
           });
           const baseMesh = new THREE.Mesh(baseGeom, baseMat);
           baseMesh.rotation.x = -Math.PI / 2;
@@ -1829,21 +1973,9 @@ export class ThreeStudioSceneManager {
               const sy = lvl.floorplanCrop.minY;
               const sw = Math.max(16, lvl.floorplanCrop.maxX - lvl.floorplanCrop.minX);
               const sh = Math.max(16, lvl.floorplanCrop.maxY - lvl.floorplanCrop.minY);
-
-              const canvas = document.createElement("canvas");
-              canvas.width = sw;
-              canvas.height = sh;
-              const ctx = canvas.getContext("2d");
-              if (ctx) {
-                // Draw full cropped level architectural floorplan without room-polygon clipping so hallways, stairs, and labels are 100% visible!
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, sw, sh);
-                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-
-                const tex = new THREE.CanvasTexture(canvas);
-                tex.colorSpace = THREE.SRGBColorSpace;
-                tex.anisotropy = 8;
-                tex.needsUpdate = true;
+              const cacheKey = `${url}_${sx}_${sy}_${sw}_${sh}`;
+              const tex = this.createTransparentBlueprintTexture(img, sx, sy, sw, sh, cacheKey);
+              if (tex) {
                 mat.map = tex;
                 mat.needsUpdate = true;
                 mesh.visible = this.cameraMode !== "walkthrough";
@@ -1853,17 +1985,18 @@ export class ThreeStudioSceneManager {
           img.src = url;
         }
       } else {
-        // Single-Level Crisp White Architectural Drawing Sheet Base on Top of Slab
+        // Single-Level Transparent CAD Linework Overlay on Top of 3D Room Floors
         const baseGeom = new THREE.PlaneGeometry(wM, lM);
         const baseMat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
-          opacity: 0.94,
+          opacity: overlayOpacity,
+          depthWrite: false,
         });
         const baseMesh = new THREE.Mesh(baseGeom, baseMat);
         baseMesh.rotation.x = -Math.PI / 2;
-        baseMesh.position.set(wM / 2, 0.308, lM / 2);
-        baseMesh.visible = this.cameraMode !== "walkthrough";
+        baseMesh.position.set(wM / 2, 0.319, lM / 2);
+        baseMesh.visible = false;
         baseMesh.userData.isBlueprintUnderlay = true;
         this.buildingGroup.add(baseMesh);
 
@@ -1871,22 +2004,21 @@ export class ThreeStudioSceneManager {
           const img = new Image();
           img.crossOrigin = "anonymous";
           img.onload = () => {
-            const cropW = mainCrop.maxX - mainCrop.minX;
-            const cropH = mainCrop.maxY - mainCrop.minY;
-            const canvas = document.createElement("canvas");
-            canvas.width = cropW;
-            canvas.height = cropH;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              ctx.fillStyle = "#ffffff";
-              ctx.fillRect(0, 0, cropW, cropH);
-              ctx.drawImage(img, mainCrop.minX, mainCrop.minY, cropW, cropH, 0, 0, cropW, cropH);
-              const tex = new THREE.CanvasTexture(canvas);
-              tex.colorSpace = THREE.SRGBColorSpace;
-              tex.anisotropy = 8;
-              tex.needsUpdate = true;
+            const cropW = Math.max(16, mainCrop.maxX - mainCrop.minX);
+            const cropH = Math.max(16, mainCrop.maxY - mainCrop.minY);
+            const cacheKey = `${url}_${mainCrop.minX}_${mainCrop.minY}_${cropW}_${cropH}`;
+            const tex = this.createTransparentBlueprintTexture(
+              img,
+              mainCrop.minX,
+              mainCrop.minY,
+              cropW,
+              cropH,
+              cacheKey
+            );
+            if (tex) {
               baseMat.map = tex;
               baseMat.needsUpdate = true;
+              baseMesh.visible = this.cameraMode !== "walkthrough";
             }
           };
           img.src = url;
@@ -1933,22 +2065,29 @@ export class ThreeStudioSceneManager {
 
     allRooms.forEach((room) => {
       if (room.name === "Void") return; // Stairwell void is an open floor cutout
-      if (this.activeLevelFilter !== "all" && (room.level ?? 0) !== this.activeLevelFilter) return;
+      const roomLevel = room.level ?? 0;
+      if (this.activeLevelFilter !== "all" && roomLevel !== this.activeLevelFilter) return;
       if (!room.polygon || room.polygon.length < 3) return;
 
-      const shape = new THREE.Shape();
-      const p0 = room.polygon[0];
-      shape.moveTo(p0[0], p0[1]);
-      for (let i = 1; i < room.polygon.length; i++) {
-        shape.lineTo(room.polygon[i][0], room.polygon[i][1]);
+      const clampedPoly = this.clampPolygonToLevelExteriorWalls(room.polygon, roomLevel);
+
+      // Floor shape uses (px, -pz) + rotation.x = -Math.PI/2 so face normal points straight UP (+Y)
+      const floorShape = new THREE.Shape();
+      const ceilingShape = new THREE.Shape();
+      const p0 = clampedPoly[0];
+      floorShape.moveTo(p0[0], -p0[1]);
+      ceilingShape.moveTo(p0[0], p0[1]);
+      for (let i = 1; i < clampedPoly.length; i++) {
+        floorShape.lineTo(clampedPoly[i][0], -clampedPoly[i][1]);
+        ceilingShape.lineTo(clampedPoly[i][0], clampedPoly[i][1]);
       }
-      shape.closePath();
+      floorShape.closePath();
+      ceilingShape.closePath();
 
       // Cut out Stairwell Void holes inside large upper-floor room floor meshes
-      const roomLevel = room.level ?? 0;
       if (roomLevel >= 2 && room.areaM2 > 16) {
-        const rxs = room.polygon.map((p) => p[0]);
-        const rzs = room.polygon.map((p) => p[1]);
+        const rxs = clampedPoly.map((p) => p[0]);
+        const rzs = clampedPoly.map((p) => p[1]);
         const rMinX = Math.min(...rxs);
         const rMaxX = Math.max(...rxs);
         const rMinZ = Math.min(...rzs);
@@ -1963,65 +2102,107 @@ export class ThreeStudioSceneManager {
             vr.center[1] >= rMinZ &&
             vr.center[1] <= rMaxZ
           ) {
-            const holePath = new THREE.Path();
+            const floorHole = new THREE.Path();
+            const ceilHole = new THREE.Path();
             vr.polygon.forEach(([vx, vz], idx) => {
-              if (idx === 0) holePath.moveTo(vx, vz);
-              else holePath.lineTo(vx, vz);
+              if (idx === 0) {
+                floorHole.moveTo(vx, -vz);
+                ceilHole.moveTo(vx, vz);
+              } else {
+                floorHole.lineTo(vx, -vz);
+                ceilHole.lineTo(vx, vz);
+              }
             });
-            holePath.closePath();
-            shape.holes.push(holePath);
+            floorHole.closePath();
+            ceilHole.closePath();
+            floorShape.holes.push(floorHole);
+            ceilingShape.holes.push(ceilHole);
           }
         }
       }
 
-      const rName = (room.name || "").toLowerCase();
-      const isWetArea =
-        room.floorFinish === "tiles" ||
-        rName.includes("bath") ||
-        rName.includes("ensuite") ||
-        rName.includes("wc") ||
-        rName.includes("powder") ||
-        rName.includes("laundry");
-      const isBedroomZone =
-        room.floorFinish === "carpet" ||
-        rName.includes("bed") ||
-        rName.includes("master") ||
-        rName.includes("wir") ||
-        rName.includes("robe") ||
-        rName.includes("media") ||
-        rName.includes("theatre");
-      const isOutdoorZone =
-        rName.includes("porch") ||
-        rName.includes("alfresco") ||
-        rName.includes("balcony") ||
-        rName.includes("garage");
+      const rName = `${room.name || ""} ${room.customLabel || ""}`.toLowerCase();
+      const isGarageZone = rName.includes("garage") || room.floorFinish === "concrete";
+      const isTiledOutdoorZone =
+        rName.includes("alfresco") || rName.includes("porch") || rName.includes("balcony");
+      const isOutdoorZone = isGarageZone || isTiledOutdoorZone;
 
-      let floorSurfaceId: SemanticSurfaceId = "interior_floor_living";
-      if (isWetArea) floorSurfaceId = "interior_floor_wet_areas";
-      else if (isBedroomZone) floorSurfaceId = "interior_floor_bedrooms";
-      else if (isOutdoorZone) floorSurfaceId = "driveway_paving";
+      const isBedroomOrCarpetRoom =
+        !isOutdoorZone &&
+        (room.floorFinish === "carpet" ||
+          rName.includes("bed") ||
+          rName.includes("master") ||
+          rName.includes("wir") ||
+          rName.includes("robe") ||
+          rName.includes("media") ||
+          rName.includes("cinema") ||
+          rName.includes("theatre") ||
+          rName.includes("lounge") ||
+          rName.includes("study"));
 
-      const floorGeom = new THREE.ShapeGeometry(shape);
-      const floorMat = isOutdoorZone
-        ? (this.materials[room.floorFinish] || this.getSurfaceMaterial("driveway_paving"))
-        : this.getSurfaceMaterial(floorSurfaceId);
+      const isWetRoom =
+        !isOutdoorZone &&
+        !isBedroomOrCarpetRoom &&
+        (rName.includes("bath") ||
+          rName.includes("ensuite") ||
+          rName.includes("wc") ||
+          rName.includes("powder") ||
+          rName.includes("laundry"));
+
+      // Enforce user floor rules:
+      // - Garage: Concreted (this.materials.concrete)
+      // - Alfresco / Porch / Balcony: Tiled (interior_floor_wet_areas)
+      // - Rooms (Bedrooms, Media, Cinema, Lounge, Study, WIR): Carpet (interior_floor_bedrooms)
+      // - Living Area (Living, Family, Dining, Kitchen, Entry, Hallway) & Wet Areas: Tiled (interior_floor_living / interior_floor_wet_areas)
+      let floorSurfaceId: SemanticSurfaceId | undefined = "interior_floor_living";
+      if (isGarageZone) {
+        floorSurfaceId = undefined;
+      } else if (isTiledOutdoorZone || isWetRoom) {
+        floorSurfaceId = "interior_floor_wet_areas";
+      } else if (isBedroomOrCarpetRoom) {
+        floorSurfaceId = "interior_floor_bedrooms";
+      } else {
+        floorSurfaceId = "interior_floor_living";
+      }
+
+      const floorGeom = new THREE.ShapeGeometry(floorShape);
+      const floorMat = isGarageZone
+        ? this.materials.concrete
+        : this.getSurfaceMaterial(floorSurfaceId!);
       const floorMesh = new THREE.Mesh(floorGeom, floorMat);
-      floorMesh.rotation.x = Math.PI / 2;
-      // Place slightly below blueprint underlay (0.304) in orbit blueprint mode, or above (0.312) in walkthrough / PBR mode
+      floorMesh.rotation.x = -Math.PI / 2;
+
+      const isBaseEnvelopePolygon =
+        room.id === "r_main_core" ||
+        room.id === "r_ff_living" ||
+        room.id.includes("_split_rear") ||
+        room.id.includes("_ground_front");
+      const isSecondaryWingPolygon =
+        room.id === "r_front_wing" || room.id === "r_north_wing";
+      const isTertiaryCorridorPolygon =
+        room.id === "r_entry" || room.id === "r_front_mid_room";
       const elevOffset = room.elevationOffsetM || 0;
-      floorMesh.position.y =
-        hasBlueprintUnderlay && this.cameraMode !== "walkthrough"
-          ? 0.304 + elevOffset
-          : 0.312 + elevOffset;
+      const baseFloorY = isBaseEnvelopePolygon
+        ? 0.306
+        : isSecondaryWingPolygon
+        ? 0.309
+        : isTertiaryCorridorPolygon
+        ? 0.312
+        : 0.315;
+      floorMesh.position.y = baseFloorY + elevOffset;
       floorMesh.receiveShadow = true;
-      floorMesh.userData.surfaceId = floorSurfaceId;
+      if (floorSurfaceId) {
+        floorMesh.userData.surfaceId = floorSurfaceId;
+      } else {
+        applyWorldSpaceUVs(floorGeom, 2.0, floorMesh.scale);
+      }
       floorMesh.userData.isSemanticRoomFloor = true;
       floorMesh.userData.elevationOffsetM = elevOffset;
       this.buildingGroup.add(floorMesh);
 
       // Build Interior Ceiling Soffit Plane (visible in Virtual Walkthrough mode for realistic enclosed rooms)
       if (!isOutdoorZone) {
-        const ceilingGeom = new THREE.ShapeGeometry(shape);
+        const ceilingGeom = new THREE.ShapeGeometry(ceilingShape);
         const ceilingMesh = new THREE.Mesh(
           ceilingGeom,
           this.getSurfaceMaterial("interior_ceiling")
@@ -2034,9 +2215,9 @@ export class ThreeStudioSceneManager {
         this.buildingGroup.add(ceilingMesh);
 
         // Build 67x18mm Interior Skirting Boards along room polygon edges
-        for (let i = 0; i < room.polygon.length; i++) {
-          const a = room.polygon[i];
-          const b = room.polygon[(i + 1) % room.polygon.length];
+        for (let i = 0; i < clampedPoly.length; i++) {
+          const a = clampedPoly[i];
+          const b = clampedPoly[(i + 1) % clampedPoly.length];
           const edgeLen = Math.hypot(b[0] - a[0], b[1] - a[1]);
           if (edgeLen < 0.8) continue;
           const edgeAng = Math.atan2(b[1] - a[1], b[0] - a[0]);
@@ -2058,8 +2239,8 @@ export class ThreeStudioSceneManager {
         // Build Architectural Interior Feature Wall panel in Master Suite or Living room
         if (!featureWallAdded && (rName.includes("master") || rName.includes("living"))) {
           featureWallAdded = true;
-          const a = room.polygon[0];
-          const b = room.polygon[1];
+          const a = clampedPoly[0];
+          const b = clampedPoly[1];
           const featLen = Math.max(1.8, Math.hypot(b[0] - a[0], b[1] - a[1]) - 0.3);
           const featAng = Math.atan2(b[1] - a[1], b[0] - a[0]);
           const featGeom = new THREE.BoxGeometry(featLen, ceilingH - 0.08, 0.022);
@@ -2419,7 +2600,14 @@ export class ThreeStudioSceneManager {
       // Constraint B: Match openings primarily by hosted `op.wallId === wall.id`, with geometric fallback
       const isWallHorizontal = Math.abs(p1.y - p2.y) <= Math.abs(p1.x - p2.x);
       const wallOpenings = openings.filter((op) => {
+        if (renderedOpeningIds.has(op.id)) return false;
         if ((op.level ?? 0) !== wallLevel) return false;
+        const requiresExterior =
+          op.type === "window" ||
+          op.type === "garage_door" ||
+          op.type === "sliding_door" ||
+          op.type === "stacker_door";
+        if (requiresExterior && !wall.isExterior) return false;
         if (op.wallId && wallIdsOnLevel.has(op.wallId)) {
           return op.wallId === wall.id;
         }
@@ -2465,10 +2653,10 @@ export class ThreeStudioSceneManager {
               op.positionAlongWallRatio !== undefined && op.wallId === wall.id
                 ? op.positionAlongWallRatio * wallLen
                 : p1.distanceTo(opPos);
-            const clampedW = Math.min(op.width, Math.max(0.20, wallLen - 0.08));
+            const clampedW = Math.min(op.width, Math.max(0.20, wallLen - 0.12));
             const opHalfW = clampedW / 2;
-            const openStart = Math.max(0, Math.min(wallLen - clampedW, d - opHalfW));
-            const openEnd = Math.min(wallLen, openStart + clampedW);
+            const openStart = Math.max(0.06, Math.min(wallLen - clampedW - 0.06, d - opHalfW));
+            const openEnd = Math.min(wallLen - 0.06, openStart + clampedW);
             return {
               op,
               d: (openStart + openEnd) / 2,
@@ -2566,10 +2754,11 @@ export class ThreeStudioSceneManager {
             this.buildingGroup.add(lintelMesh);
           }
 
-          // 4. Build Opening Geometry anchored directly onto the host wall at (oX, oZ)
+          // 4. Build Opening Geometry anchored directly onto the host wall at (oX, oZ) with clamped width
           const anchoredOp: Opening3D = {
             ...op,
             position: [oX, oZ],
+            width: Math.max(0.24, openEnd - openStart),
             wallId: wall.id,
           };
           this.buildOpeningObject(anchoredOp, angle, ffl);

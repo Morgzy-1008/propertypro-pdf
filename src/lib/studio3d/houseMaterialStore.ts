@@ -1026,25 +1026,29 @@ export function getOrGeneratePbrMaps(config: SurfaceMaterialConfig): GeneratedPb
       setHeightAndRough(crossX, y, 2, plankH, 0.2, Math.min(0.9, baseRough + 0.2));
     }
   } else if (pattern === "porcelain_tile" || pattern === "subway_tile") {
-    const cols = pattern === "subway_tile" ? 4 : 2;
-    const rows = pattern === "subway_tile" ? 8 : 2;
+    const cols = pattern === "subway_tile" ? 4 : 4;
+    const rows = pattern === "subway_tile" ? 8 : 4;
     const cellW = size / cols;
     const cellH = size / rows;
-    const grout = 3;
+    const grout = pattern === "subway_tile" ? 2.5 : 3;
 
     aCtx.fillStyle = config.secondaryColorHex || "#94a3b8";
     aCtx.fillRect(0, 0, size, size);
-    heightBuffer.fill(0.2);
-    roughBuffer.fill(0.75);
+    heightBuffer.fill(0.18);
+    roughBuffer.fill(0.78);
 
     for (let rIdx = 0; rIdx < rows; rIdx++) {
       const shift = pattern === "subway_tile" && rIdx % 2 === 1 ? cellW / 2 : 0;
       for (let cIdx = -1; cIdx <= cols; cIdx++) {
         const tx = cIdx * cellW + shift;
         const ty = rIdx * cellH;
-        aCtx.fillStyle = config.baseColorHex;
+        const jitter = (((rIdx * 7 + cIdx * 13) & 3) - 1.5) * 3;
+        const tr = clampByte(primary.r + jitter);
+        const tg = clampByte(primary.g + jitter);
+        const tb = clampByte(primary.b + jitter);
+        aCtx.fillStyle = `rgb(${tr},${tg},${tb})`;
         aCtx.fillRect(tx + grout, ty + grout, cellW - grout * 2, cellH - grout * 2);
-        setHeightAndRough(tx + grout, ty + grout, cellW - grout * 2, cellH - grout * 2, 0.85, baseRough);
+        setHeightAndRough(tx + grout, ty + grout, cellW - grout * 2, cellH - grout * 2, 0.86, baseRough);
       }
     }
   } else if (pattern === "marble_vein" || pattern === "travertine") {
@@ -1099,7 +1103,25 @@ export function getOrGeneratePbrMaps(config: SurfaceMaterialConfig): GeneratedPb
       aCtx.fillRect(0, y + panelH - 4, size, 4);
       setHeightAndRough(0, y + panelH - 4, size, 4, 0.15, 0.7);
     }
-  } else if (pattern === "plush_carpet" || pattern === "render_stucco") {
+  } else if (pattern === "plush_carpet") {
+    aCtx.fillStyle = config.baseColorHex;
+    aCtx.fillRect(0, 0, size, size);
+    for (let y = 0; y < size; y += 4) {
+      aCtx.fillStyle =
+        (y / 4) % 2 === 0
+          ? `rgba(${clampByte(primary.r + 10)},${clampByte(primary.g + 9)},${clampByte(primary.b + 7)},0.55)`
+          : `rgba(${clampByte(primary.r - 12)},${clampByte(primary.g - 11)},${clampByte(primary.b - 9)},0.55)`;
+      aCtx.fillRect(0, y, size, 2);
+    }
+    for (let i = 0; i < 2400; i++) {
+      const px = (i * 67 + 11) % size;
+      const py = (i * 131 + 29) % size;
+      const delta = i % 2 === 0 ? 15 : -15;
+      aCtx.fillStyle = `rgb(${clampByte(primary.r + delta)},${clampByte(primary.g + delta)},${clampByte(primary.b + delta)})`;
+      aCtx.fillRect(px, py, 2, 2);
+      setHeightAndRough(px, py, 2, 2, i % 2 === 0 ? 0.78 : 0.28, baseRough);
+    }
+  } else if (pattern === "render_stucco") {
     aCtx.fillStyle = config.baseColorHex;
     aCtx.fillRect(0, 0, size, size);
     for (let i = 0; i < 1600; i++) {
@@ -1341,38 +1363,38 @@ export function createDefaultSurfaceConfigs(): Record<SemanticSurfaceId, Surface
     },
     interior_floor_living: {
       surfaceId: "interior_floor_living",
-      name: "European Natural Oak Wide-Plank Timber",
-      category: "timber",
-      baseColorHex: "#c08b5c",
-      secondaryColorHex: "#8c5828",
-      roughness: 0.28,
-      metalness: 0.05,
-      textureScaleMeters: 1.8,
-      bumpScale: 0.02,
-      patternType: "timber_plank",
+      name: "600×600mm Rectified Porcelain Floor Tile (Warm Stone)",
+      category: "tiles",
+      baseColorHex: "#ede8df",
+      secondaryColorHex: "#8c857b",
+      roughness: 0.22,
+      metalness: 0.08,
+      textureScaleMeters: 2.4,
+      bumpScale: 0.018,
+      patternType: "porcelain_tile",
     },
     interior_floor_bedrooms: {
       surfaceId: "interior_floor_bedrooms",
-      name: "100% NZ Wool Loop-Pile Carpet (Silver Ash)",
+      name: "100% NZ Wool Plush Loop-Pile Carpet (Warm Oatmeal Taupe)",
       category: "paint",
-      baseColorHex: "#949aa3",
-      secondaryColorHex: "#64748b",
-      roughness: 0.88,
+      baseColorHex: "#c4b5a3",
+      secondaryColorHex: "#8f806f",
+      roughness: 0.90,
       metalness: 0.0,
-      textureScaleMeters: 1.0,
-      bumpScale: 0.03,
+      textureScaleMeters: 1.2,
+      bumpScale: 0.035,
       patternType: "plush_carpet",
     },
     interior_floor_wet_areas: {
       surfaceId: "interior_floor_wet_areas",
       name: "600×600mm Rectified Carrara Porcelain Tile",
       category: "tiles",
-      baseColorHex: "#e8edf3",
-      secondaryColorHex: "#94a3b8",
-      roughness: 0.16,
-      metalness: 0.1,
-      textureScaleMeters: 1.2,
-      bumpScale: 0.016,
+      baseColorHex: "#e4ebf1",
+      secondaryColorHex: "#7b8898",
+      roughness: 0.18,
+      metalness: 0.08,
+      textureScaleMeters: 2.4,
+      bumpScale: 0.018,
       patternType: "porcelain_tile",
     },
     interior_ceiling: {

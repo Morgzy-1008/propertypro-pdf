@@ -10,6 +10,7 @@ export type FloorFinish = "timber" | "carpet" | "tiles" | "concrete" | "decking"
 
 export type RoomCategory =
   | "Living"
+  | "Family"
   | "Dining"
   | "Kitchen"
   | "Master Bed"
@@ -23,6 +24,9 @@ export type RoomCategory =
   | "Powder"
   | "Laundry"
   | "Cinema"
+  | "Media"
+  | "Lounge"
+  | "Study"
   | "Mud Nook"
   | "Study/WIL"
   | "Butler Pantry"
@@ -162,6 +166,7 @@ export type FixtureType =
   | "bed_queen"
   | "bed_double"
   | "sofa_sectional"
+  | "coffee_table"
   | "dining_table"
   | "cinema_seating"
   | "mud_nook_bench"
@@ -422,10 +427,12 @@ export interface SceneSelectedElement {
   id: string;
   kind: "fixture" | "opening" | "wall";
   elementType: string;
+  type?: string;
+  wallId?: string;
   label: string;
   roomName?: string;
   level: number;
-  position: [number, number]; // [x, z] in meters
+  position: [number, number] | [number, number, number];
   rotationDeg: number;
   screenX?: number;
   screenY?: number;
