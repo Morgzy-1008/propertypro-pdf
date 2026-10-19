@@ -453,10 +453,7 @@ function apiDevPlugin() {
                 body += chunk;
               }
               const parsed = JSON.parse(body || "{}");
-              const isFal = req.url.startsWith("/api/fal-render");
-              const { default: handler } = isFal
-                ? await import("./api/fal-render.js")
-                : await import("./api/house-material-ai.js");
+              const { default: handler } = await import("./api/redo-ai.js");
 
               const mockReq = { method: "POST", body: parsed };
               const mockRes = {
