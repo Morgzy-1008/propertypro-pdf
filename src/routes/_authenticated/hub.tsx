@@ -629,6 +629,20 @@ function WelcomeHubPage() {
             isComingSoon={false}
           />
 
+          {/* Portal 05b: Facade Generator (AI Custom Facade Render Studio & Library Approval) */}
+          <PortalCard
+            to="/facade-generator"
+            title="Facade Generator"
+            icon={Sparkles}
+            glowGradient="from-cyan-400 via-amber-400 to-orange-500"
+            lightBeam="from-transparent via-cyan-400 to-transparent"
+            innerGlow="from-cyan-500/25 via-amber-500/15 to-transparent"
+            iconColor="text-cyan-400"
+            iconBg="from-cyan-500/20 to-amber-500/15 border-cyan-500/35"
+            isLight={isLight}
+            isComingSoon={false}
+          />
+
           {/* Portal 06: 3D Studio & Architectural Elevations (Locked for everyone except Morgan Hales as "Under Development... Coming Soon") */}
           <PortalCard
             to="/3d-studio"

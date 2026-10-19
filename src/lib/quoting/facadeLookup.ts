@@ -2,6 +2,7 @@ import { HUDSON_FACADES } from "../../components/flyer/facades.data";
 import { PRE_RENDERED_FACADES } from "../../components/flyer/preRenderedFacades.data";
 import { duplexFacadesForDesign, DUPLEX_FACADES } from "../../components/flyer/duplexFacades.data";
 import type { FacadeItem } from "../../components/flyer/facadeLibrary";
+import { findApprovedCustomFacade } from "../facade-generator/facadeGeneratorStorage";
 
 /**
  * Checks if a design model belongs to the Narrow Double Storey range:
@@ -106,6 +107,11 @@ export function findFacadeForDesign(
 ): FacadeItem | undefined {
   if (!facadeNameOrId) {
     facadeNameOrId = "Classic";
+  }
+
+  const customApproved = findApprovedCustomFacade(facadeNameOrId);
+  if (customApproved) {
+    return customApproved;
   }
 
   const rawKey = facadeNameOrId.trim().toLowerCase();

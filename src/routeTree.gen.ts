@@ -23,6 +23,7 @@ import { Route as AuthenticatedBraindumpRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticated/database'
 import { Route as AuthenticatedElevations3dRouteImport } from './routes/_authenticated/elevations-3d'
+import { Route as AuthenticatedFacadeGeneratorRouteImport } from './routes/_authenticated/facade-generator'
 import { Route as AuthenticatedFloorplanEditorRouteImport } from './routes/_authenticated/floorplan-editor'
 import { Route as AuthenticatedFloorplanLibraryRouteImport } from './routes/_authenticated/floorplan-library'
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
@@ -108,6 +109,12 @@ const AuthenticatedElevations3dRoute =
   AuthenticatedElevations3dRouteImport.update({
     id: '/elevations-3d',
     path: '/elevations-3d',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedFacadeGeneratorRoute =
+  AuthenticatedFacadeGeneratorRouteImport.update({
+    id: '/facade-generator',
+    path: '/facade-generator',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedFloorplanEditorRoute =
@@ -210,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof AuthenticatedCrmRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/elevations-3d': typeof AuthenticatedElevations3dRoute
+  '/facade-generator': typeof AuthenticatedFacadeGeneratorRoute
   '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/floorplan-library': typeof AuthenticatedFloorplanLibraryRoute
   '/flyer': typeof AuthenticatedFlyerRoute
@@ -241,6 +249,7 @@ export interface FileRoutesByTo {
   '/crm': typeof AuthenticatedCrmRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/elevations-3d': typeof AuthenticatedElevations3dRoute
+  '/facade-generator': typeof AuthenticatedFacadeGeneratorRoute
   '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/floorplan-library': typeof AuthenticatedFloorplanLibraryRoute
   '/flyer': typeof AuthenticatedFlyerRoute
@@ -274,6 +283,7 @@ export interface FileRoutesById {
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/database': typeof AuthenticatedDatabaseRoute
   '/_authenticated/elevations-3d': typeof AuthenticatedElevations3dRoute
+  '/_authenticated/facade-generator': typeof AuthenticatedFacadeGeneratorRoute
   '/_authenticated/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/_authenticated/floorplan-library': typeof AuthenticatedFloorplanLibraryRoute
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
@@ -307,6 +317,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/database'
     | '/elevations-3d'
+    | '/facade-generator'
     | '/floorplan-editor'
     | '/floorplan-library'
     | '/flyer'
@@ -338,6 +349,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/database'
     | '/elevations-3d'
+    | '/facade-generator'
     | '/floorplan-editor'
     | '/floorplan-library'
     | '/flyer'
@@ -370,6 +382,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crm'
     | '/_authenticated/database'
     | '/_authenticated/elevations-3d'
+    | '/_authenticated/facade-generator'
     | '/_authenticated/floorplan-editor'
     | '/_authenticated/floorplan-library'
     | '/_authenticated/flyer'
@@ -507,6 +520,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedElevations3dRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/facade-generator': {
+      id: '/_authenticated/facade-generator'
+      path: '/facade-generator'
+      fullPath: '/facade-generator'
+      preLoaderRoute: typeof AuthenticatedFacadeGeneratorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/floorplan-editor': {
       id: '/_authenticated/floorplan-editor'
       path: '/floorplan-editor'
@@ -628,6 +648,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDatabaseRoute: typeof AuthenticatedDatabaseRoute
   AuthenticatedElevations3dRoute: typeof AuthenticatedElevations3dRoute
+  AuthenticatedFacadeGeneratorRoute: typeof AuthenticatedFacadeGeneratorRoute
   AuthenticatedFloorplanEditorRoute: typeof AuthenticatedFloorplanEditorRoute
   AuthenticatedFloorplanLibraryRoute: typeof AuthenticatedFloorplanLibraryRoute
   AuthenticatedFlyerRoute: typeof AuthenticatedFlyerRoute
@@ -645,6 +666,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDatabaseRoute: AuthenticatedDatabaseRoute,
   AuthenticatedElevations3dRoute: AuthenticatedElevations3dRoute,
+  AuthenticatedFacadeGeneratorRoute: AuthenticatedFacadeGeneratorRoute,
   AuthenticatedFloorplanEditorRoute: AuthenticatedFloorplanEditorRoute,
   AuthenticatedFloorplanLibraryRoute: AuthenticatedFloorplanLibraryRoute,
   AuthenticatedFlyerRoute: AuthenticatedFlyerRoute,

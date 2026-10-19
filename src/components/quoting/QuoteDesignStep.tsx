@@ -75,6 +75,7 @@ import {
 import { duplexFacadesForDesign } from "@/components/flyer/duplexFacades.data";
 import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/facadePricing";
 import { isSingleGarageDesign, isNarrowDoubleStorey, findFacadeForDesign } from "@/lib/quoting/facadeLookup";
+import { getApprovedCustomFacadesForDesign } from "@/lib/facade-generator/facadeGeneratorStorage";
 import { FacadeLibrary } from "@/components/flyer/FacadeLibraryDialog";
 import { fileToImageDataUrl } from "@/components/flyer/fileToImage";
 import { QuoteFacadeRenderPreview, QuoteFacadeEnlargeModal } from "./QuoteFacadeRenderPreview";
@@ -342,6 +343,16 @@ export function getFacadesForDesignAndHousingType(
   housingType: string = "Single Storey",
   division: Division = getActiveDivision()
 ): { name: string; uplift: number; note?: string; range?: string; url?: string; id?: string }[] {
+  const customApproved = getApprovedCustomFacadesForDesign(designName, housingType, division);
+  const withCustom = (
+    list: { name: string; uplift: number; note?: string; range?: string; url?: string; id?: string }[]
+  ) => {
+    if (customApproved.length === 0) return list;
+    const existingNames = new Set(list.map((f) => f.name.toLowerCase()));
+    const uniqueCustom = customApproved.filter((c) => !existingNames.has(c.name.toLowerCase()));
+    return [...list, ...uniqueCustom];
+  };
+
   const isNsw = division === "NSW";
   const isMulberry = designName ? /^mulberry\b/i.test(designName) : false;
   const isAcreage = isMulberry || housingType === "Acreage" || housingType === "Acreage & Split Level" || housingType === "Ranch & Acreage";
@@ -349,9 +360,9 @@ export function getFacadesForDesignAndHousingType(
   if (isAcreage) {
     const size = designName ? (Number(designName.match(/\d+/)?.[0]) || 0) : 0;
     if (isNsw) {
-      return size >= 33 ? NSW_MULBERRY_FACADES["33-39"] : NSW_MULBERRY_FACADES["22-28"];
+      return withCustom(size >= 33 ? NSW_MULBERRY_FACADES["33-39"] : NSW_MULBERRY_FACADES["22-28"]);
     }
-    return size >= 33 ? HOUSING_FACADES["Acreage (Large)"] : HOUSING_FACADES["Acreage"];
+    return withCustom(size >= 33 ? HOUSING_FACADES["Acreage (Large)"] : HOUSING_FACADES["Acreage"]);
   }
 
   // Check if duplex or dual living design
@@ -371,14 +382,16 @@ export function getFacadesForDesignAndHousingType(
     if (duplexList.length > 0) {
       const isTwoStorey = /two\s*stor|double| - td/i.test(designName) || housingType === "Double Storey";
       const storey: FacadeStorey = isTwoStorey ? "double" : "single";
-      return duplexList.map((f) => ({
-        name: f.name,
-        uplift: facadePriceForDesign(f.name, storey, designName) ?? 0,
-        note: f.note,
-        range: f.range,
-        url: f.url,
-        id: f.id,
-      }));
+      return withCustom(
+        duplexList.map((f) => ({
+          name: f.name,
+          uplift: facadePriceForDesign(f.name, storey, designName) ?? 0,
+          note: f.note,
+          range: f.range,
+          url: f.url,
+          id: f.id,
+        }))
+      );
     }
   }
 
@@ -397,11 +410,11 @@ export function getFacadesForDesignAndHousingType(
   // Cinnamon, Mauve, and Maroon are split-level designs with normal double storey front facades - treat as standard double storey
   const isDoubleFrontSplit = designName ? /cinnamon|mauve|maroon/i.test(designName) : false;
   if (isDoubleFrontSplit) {
-    return isNsw ? NSW_DOUBLE_STOREY_FACADES : HOUSING_FACADES["Double Storey"];
+    return withCustom(isNsw ? NSW_DOUBLE_STOREY_FACADES : HOUSING_FACADES["Double Storey"]);
   }
 
   if (housingType === "Split Level") {
-    return isNsw ? NSW_SPLIT_DESIGN_FACADES : HOUSING_FACADES["Split Level"];
+    return withCustom(isNsw ? NSW_SPLIT_DESIGN_FACADES : HOUSING_FACADES["Split Level"]);
   }
 
   // Narrow Double Storey designs (Carolinas, Turquoise, Sabel/Sable)
@@ -421,41 +434,45 @@ export function getFacadesForDesignAndHousingType(
       { name: "Sierra", qldUplift: 39100, nswUplift: 38300, id: "sierra-narrow-dg", url: "/facades/sierra-narrow-dg.png" },
       { name: "Meridian", qldUplift: 53800, nswUplift: 52700, id: "meridian-narrow-dg", url: "/facades/meridian-narrow-dg.png" },
     ];
-    return narrowList.map((f) => ({
-      name: f.name,
-      uplift: isNsw ? f.nswUplift : f.qldUplift,
-      range: "Narrow Double Storey",
-      id: f.id,
-      url: f.url,
-    }));
+    return withCustom(
+      narrowList.map((f) => ({
+        name: f.name,
+        uplift: isNsw ? f.nswUplift : f.qldUplift,
+        range: "Narrow Double Storey",
+        id: f.id,
+        url: f.url,
+      }))
+    );
   }
 
   if (housingType === "Double Storey" || housingType === "double") {
-    return isNsw ? NSW_DOUBLE_STOREY_FACADES : HOUSING_FACADES["Double Storey"];
+    return withCustom(isNsw ? NSW_DOUBLE_STOREY_FACADES : HOUSING_FACADES["Double Storey"]);
   }
 
   if (housingType === "Dual Living") {
-    return HOUSING_FACADES["Dual Living"];
+    return withCustom(HOUSING_FACADES["Dual Living"]);
   }
 
   if (housingType === "Granny Flat") {
-    return HOUSING_FACADES["Granny Flat"];
+    return withCustom(HOUSING_FACADES["Granny Flat"]);
   }
 
   if (isSingleGarageDesign(designName, housingType)) {
     const baseList = isNsw ? NSW_SINGLE_STOREY_FACADES : HOUSING_FACADES["Single Storey"];
-    return baseList.map((f, idx) => {
-      const resolved = findFacadeForDesign(f.name, false, "Single Storey", designName);
-      return {
-        ...f,
-        name: f.name.includes("Single Garage") ? f.name : `${f.name} (Single Garage)`,
-        id: `${(resolved?.id || f.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}-${idx}`,
-        url: resolved?.url || (f as any).url,
-      };
-    });
+    return withCustom(
+      baseList.map((f, idx) => {
+        const resolved = findFacadeForDesign(f.name, false, "Single Storey", designName);
+        return {
+          ...f,
+          name: f.name.includes("Single Garage") ? f.name : `${f.name} (Single Garage)`,
+          id: `${(resolved?.id || f.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}-${idx}`,
+          url: resolved?.url || (f as any).url,
+        };
+      })
+    );
   }
 
-  return isNsw ? NSW_SINGLE_STOREY_FACADES : HOUSING_FACADES["Single Storey"];
+  return withCustom(isNsw ? NSW_SINGLE_STOREY_FACADES : HOUSING_FACADES["Single Storey"]);
 }
 
 export function QuoteDesignStep({
