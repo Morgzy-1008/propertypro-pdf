@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
@@ -9,6 +9,18 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const APP_BUILD_TIME = Date.now();
+
+// Merge .env and .env.local into process.env for local dev API handlers
+try {
+  const loadedEnv = loadEnv("development", __dirname, "");
+  for (const [k, v] of Object.entries(loadedEnv)) {
+    if (process.env[k] === undefined) {
+      process.env[k] = v;
+    }
+  }
+} catch {
+  // Ignore if loadEnv is unavailable
+}
 
 function versionPlugin() {
   const version = "2026.1";
@@ -399,6 +411,52 @@ function apiDevPlugin() {
               }
               const parsed = JSON.parse(body || "{}");
               const { default: handler } = await import("./api/hub-chat.js");
+
+              const mockReq = { method: "POST", body: parsed };
+              const mockRes = {
+                setHeader: (k: string, v: string) => res.setHeader(k, v),
+                status: (code: number) => {
+                  res.statusCode = code;
+                  return {
+                    json: (data: any) => {
+                      res.setHeader("Content-Type", "application/json");
+                      res.end(JSON.stringify(data));
+                    },
+                    end: () => res.end(),
+                  };
+                },
+              };
+
+              await handler(mockReq, mockRes);
+              return;
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader("Content-Type", "application/json");
+              return res.end(JSON.stringify({ error: err.message }));
+            }
+          }
+        }
+
+        if (req.url && (req.url.startsWith("/api/house-material-ai") || req.url.startsWith("/api/fal-render"))) {
+          if (req.method === "OPTIONS") {
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+            res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+            res.statusCode = 200;
+            return res.end();
+          }
+
+          if (req.method === "POST") {
+            try {
+              let body = "";
+              for await (const chunk of req) {
+                body += chunk;
+              }
+              const parsed = JSON.parse(body || "{}");
+              const isFal = req.url.startsWith("/api/fal-render");
+              const { default: handler } = isFal
+                ? await import("./api/fal-render.js")
+                : await import("./api/house-material-ai.js");
 
               const mockReq = { method: "POST", body: parsed };
               const mockRes = {

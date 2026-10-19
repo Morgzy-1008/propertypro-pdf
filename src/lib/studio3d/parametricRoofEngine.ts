@@ -425,6 +425,8 @@ export function generateProceduralHipRoof(
   const roofMesh = new THREE.Mesh(roofGeom, roofMat);
   roofMesh.castShadow = true;
   roofMesh.receiveShadow = true;
+  roofMesh.userData.surfaceId = "roof_main";
+  roofMesh.userData.defaultScaleMeters = 1.2;
 
   // 3. Build Stepped Eaves Perimeter Polygon (following the exact stepped building boundary!)
   const eavesLoop: [number, number][] = [];
@@ -471,13 +473,15 @@ export function generateProceduralHipRoof(
   // 4. Stepped Fascia Board Band (180mm height around stepped eaves perimeter)
   const fasciaGeom = new THREE.BufferGeometry();
   const fasciaPositions: number[] = [];
+  const fasciaUvs: number[] = [];
   const fBottom = eavesH - 0.18;
   const fTop = eavesH;
 
   for (let i = 0; i < eavesLoop.length - 1; i++) {
     const pA = eavesLoop[i];
     const pB = eavesLoop[i + 1];
-    if (Math.hypot(pB[0] - pA[0], pB[1] - pA[1]) < 0.01) continue;
+    const segLen = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]);
+    if (segLen < 0.01) continue;
     const v1: [number, number, number] = [pA[0], fBottom, pA[1]];
     const v2: [number, number, number] = [pB[0], fBottom, pB[1]];
     const v3: [number, number, number] = [pB[0], fTop, pB[1]];
@@ -485,9 +489,12 @@ export function generateProceduralHipRoof(
 
     fasciaPositions.push(...v1, ...v2, ...v3);
     fasciaPositions.push(...v1, ...v3, ...v4);
+    const uMax = segLen / 1.5;
+    fasciaUvs.push(0, 0, uMax, 0, uMax, 0.12, 0, 0, uMax, 0.12, 0, 0.12);
   }
 
   fasciaGeom.setAttribute("position", new THREE.Float32BufferAttribute(fasciaPositions, 3));
+  fasciaGeom.setAttribute("uv", new THREE.Float32BufferAttribute(fasciaUvs, 2));
   fasciaGeom.computeVertexNormals();
 
   const fasciaMat = new THREE.MeshStandardMaterial({
@@ -496,17 +503,22 @@ export function generateProceduralHipRoof(
     side: THREE.DoubleSide,
   });
   const fasciaMesh = new THREE.Mesh(fasciaGeom, fasciaMat);
+  fasciaMesh.castShadow = true;
+  fasciaMesh.receiveShadow = true;
+  fasciaMesh.userData.surfaceId = "roof_fascia_gutter";
 
   // 5. Stepped Colorbond Quad Gutter
   const gutterGeom = new THREE.BufferGeometry();
   const gutterPositions: number[] = [];
+  const gutterUvs: number[] = [];
   const gTop = eavesH + 0.04;
   const gBot = eavesH - 0.11;
 
   for (let i = 0; i < eavesLoop.length - 1; i++) {
     const pA = eavesLoop[i];
     const pB = eavesLoop[i + 1];
-    if (Math.hypot(pB[0] - pA[0], pB[1] - pA[1]) < 0.01) continue;
+    const segLen = Math.hypot(pB[0] - pA[0], pB[1] - pA[1]);
+    if (segLen < 0.01) continue;
     const v1: [number, number, number] = [pA[0], gBot, pA[1]];
     const v2: [number, number, number] = [pB[0], gBot, pB[1]];
     const v3: [number, number, number] = [pB[0], gTop, pB[1]];
@@ -514,9 +526,12 @@ export function generateProceduralHipRoof(
 
     gutterPositions.push(...v1, ...v2, ...v3);
     gutterPositions.push(...v1, ...v3, ...v4);
+    const uMax = segLen / 1.5;
+    gutterUvs.push(0, 0, uMax, 0, uMax, 0.1, 0, 0, uMax, 0.1, 0, 0.1);
   }
 
   gutterGeom.setAttribute("position", new THREE.Float32BufferAttribute(gutterPositions, 3));
+  gutterGeom.setAttribute("uv", new THREE.Float32BufferAttribute(gutterUvs, 2));
   gutterGeom.computeVertexNormals();
 
   const gutterMat = new THREE.MeshStandardMaterial({
@@ -526,6 +541,9 @@ export function generateProceduralHipRoof(
     side: THREE.DoubleSide,
   });
   const gutterMesh = new THREE.Mesh(gutterGeom, gutterMat);
+  gutterMesh.castShadow = true;
+  gutterMesh.receiveShadow = true;
+  gutterMesh.userData.surfaceId = "roof_fascia_gutter";
 
   return {
     roofMesh,

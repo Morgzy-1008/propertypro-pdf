@@ -6,6 +6,7 @@
  */
 
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import {
   BuildingDesign3D,
   Room3D,
@@ -29,6 +30,14 @@ import {
   DEFAULT_FITOUT_CONFIG,
   DEFAULT_CUSTOM_FACADE_CONFIG,
 } from "./floorplanTo3dEngine";
+import { applyWorldSpaceUVs, configureWorldSpaceTexture } from "./worldSpaceUv";
+import {
+  useHouseMaterialStore,
+  SemanticSurfaceId,
+  SurfaceMaterialConfig,
+  ALL_SEMANTIC_SURFACES,
+  getOrGeneratePbrMaps,
+} from "./houseMaterialStore";
 
 export type CameraMode = "orbit" | "walkthrough";
 
@@ -36,6 +45,7 @@ export interface SceneManagerOptions {
   container: HTMLElement;
   design: BuildingDesign3D | null;
   onRoomChange?: (roomName: string) => void;
+  onSurfaceSelect?: (surfaceId: SemanticSurfaceId) => void;
   isLight?: boolean;
 }
 
@@ -43,19 +53,26 @@ export class ThreeStudioSceneManager {
   private container: HTMLElement;
   private design: BuildingDesign3D | null = null;
   private onRoomChange?: (roomName: string) => void;
+  private onSurfaceSelect?: (surfaceId: SemanticSurfaceId) => void;
   private emptyGrid: THREE.GridHelper | null = null;
   private isLight = false;
 
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
+  private pmremGenerator: THREE.PMREMGenerator | null = null;
+  private envMapTexture: THREE.Texture | null = null;
   private animFrameId: number | null = null;
+  private unsubscribeMaterialStore: (() => void) | null = null;
+  private lastSyncedTimestamp = 0;
 
   // Camera & Interaction state
   private cameraMode: CameraMode = "orbit";
   private isMouseDown = false;
   private isRightMouseDown = false;
+  private mouseDownClientPos = { x: 0, y: 0 };
   private previousMousePosition = { x: 0, y: 0 };
+  private raycaster = new THREE.Raycaster();
 
   // Orbit parameters
   private orbitTarget = new THREE.Vector3(7, 1.2, 8);
@@ -76,8 +93,10 @@ export class ThreeStudioSceneManager {
   private fixturesGroup = new THREE.Group();
   private facadeGroup = new THREE.Group();
 
-  // Cached materials
+  // Cached materials & Reactive Semantic Surface PBR Materials
   private materials: Record<string, THREE.Material> = {};
+  private surfaceMaterials: Partial<Record<SemanticSurfaceId, THREE.MeshStandardMaterial>> = {};
+  private textureLoader = new THREE.TextureLoader();
 
   constructor(options: SceneManagerOptions) {
     this.container = options.container;
@@ -86,6 +105,7 @@ export class ThreeStudioSceneManager {
       ? ensureOutdoorZonesOpenAndFurnished(ensureCompleteWallNetwork(options.design))
       : null;
     this.onRoomChange = options.onRoomChange;
+    this.onSurfaceSelect = options.onSurfaceSelect;
 
     // 1. Scene
     this.scene = new THREE.Scene();
@@ -98,22 +118,35 @@ export class ThreeStudioSceneManager {
     this.camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
     this.updateOrbitCamera();
 
-    // 3. Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // 3. Renderer (preserveDrawingBuffer: true for structure-locked AI viewport/depth capture)
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+    });
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
 
     this.container.appendChild(this.renderer.domElement);
 
-    // 4. Lighting & Materials
+    // 4. Lighting, HDRI Environment & Materials
     this.setupLighting();
     this.setupMaterials();
+    this.initSemanticSurfaceMaterials();
 
-    // 5. Build Environment & Building
+    // 5. Subscribe to reactive PBR material store
+    this.unsubscribeMaterialStore = useHouseMaterialStore.subscribe((state) => {
+      if (state.lastUpdatedTimestamp !== this.lastSyncedTimestamp) {
+        this.lastSyncedTimestamp = state.lastUpdatedTimestamp;
+        this.syncPbrMaterialsFromStore(state.lastUpdatedSurfaceId || undefined);
+      }
+    });
+
+    // 6. Build Environment & Building
     this.scene.add(this.boundaryGroup);
     this.scene.add(this.buildingGroup);
     this.scene.add(this.fixturesGroup);
@@ -126,38 +159,57 @@ export class ThreeStudioSceneManager {
       this.buildEmptyStudio();
     }
 
-    // 6. Event listeners
+    // 7. Event listeners
     this.bindEvents();
 
-    // 7. Start render loop
+    // 8. Start render loop
     this.startLoop();
   }
 
   private setupLighting(): void {
+    // Daytime HDRI / PMREM Environment Map for realistic PBR specular reflections & bounce light
+    try {
+      this.pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+      this.pmremGenerator.compileEquirectangularShader();
+      const roomEnv = new RoomEnvironment();
+      const envRT = this.pmremGenerator.fromScene(roomEnv, 0.04);
+      this.envMapTexture = envRT.texture;
+      this.scene.environment = this.envMapTexture;
+      this.scene.environmentIntensity = 0.65;
+      roomEnv.dispose();
+    } catch {
+      // Fallback if WebGL context does not support PMREM
+    }
+
     // Ambient Skylight
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334155, 0.85);
     hemiLight.position.set(0, 50, 0);
     this.scene.add(hemiLight);
 
-    // Warm Directional Sunlight
-    const sunLight = new THREE.DirectionalLight(0xfff8ed, 1.4);
+    // Warm Directional Sunlight with Soft Shadow Mapping
+    const sunLight = new THREE.DirectionalLight(0xfff8ed, 1.45);
     sunLight.position.set(25, 40, 20);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 2048;
     sunLight.shadow.mapSize.height = 2048;
     sunLight.shadow.camera.near = 0.5;
     sunLight.shadow.camera.far = 120;
-    sunLight.shadow.camera.left = -25;
-    sunLight.shadow.camera.right = 25;
-    sunLight.shadow.camera.top = 25;
-    sunLight.shadow.camera.bottom = -25;
+    sunLight.shadow.camera.left = -28;
+    sunLight.shadow.camera.right = 28;
+    sunLight.shadow.camera.top = 28;
+    sunLight.shadow.camera.bottom = -28;
     sunLight.shadow.bias = -0.0005;
     this.scene.add(sunLight);
 
     // Soft Fill Light
-    const fillLight = new THREE.DirectionalLight(0xdbeafe, 0.45);
+    const fillLight = new THREE.DirectionalLight(0xdbeafe, 0.48);
     fillLight.position.set(-20, 25, -20);
     this.scene.add(fillLight);
+
+    // Warm Interior Bounce Light for Virtual Walkthrough Realism
+    const interiorBounceLight = new THREE.PointLight(0xfffbeb, 0.65, 28, 1.2);
+    interiorBounceLight.position.set(6.5, 2.5, 10.5);
+    this.scene.add(interiorBounceLight);
   }
 
   private createAustralBrickTexture(brickStyle?: string): THREE.CanvasTexture | null {
@@ -637,6 +689,179 @@ export class ThreeStudioSceneManager {
     });
   }
 
+  private applyConfigToThreeMaterial(
+    mat: THREE.MeshStandardMaterial,
+    config: SurfaceMaterialConfig
+  ): void {
+    mat.roughness = config.roughness;
+    mat.metalness = config.metalness;
+    mat.userData.surfaceId = config.surfaceId;
+    mat.userData.textureScaleMeters = config.textureScaleMeters || 1.5;
+
+    const maps = getOrGeneratePbrMaps(config);
+    const albedoUrl = config.albedoMapUrl || maps?.albedoDataUrl;
+    const normalUrl = config.normalMapUrl || maps?.normalDataUrl;
+    const roughUrl = config.roughnessMapUrl || maps?.roughnessDataUrl;
+
+    if (albedoUrl && typeof document !== "undefined") {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const tex = new THREE.Texture(img);
+        configureWorldSpaceTexture(tex, true);
+        mat.map = tex;
+        mat.color.set("#ffffff");
+        mat.needsUpdate = true;
+      };
+      img.src = albedoUrl;
+    } else {
+      mat.map = null;
+      mat.color.set(config.baseColorHex || "#cccccc");
+    }
+
+    if (normalUrl && typeof document !== "undefined") {
+      const nImg = new Image();
+      nImg.crossOrigin = "anonymous";
+      nImg.onload = () => {
+        const nTex = new THREE.Texture(nImg);
+        configureWorldSpaceTexture(nTex, false);
+        mat.normalMap = nTex;
+        const nStrength = Math.max(0.15, (config.bumpScale ?? 0.025) * 16);
+        mat.normalScale.set(nStrength, nStrength);
+        mat.needsUpdate = true;
+      };
+      nImg.src = normalUrl;
+    }
+
+    if (roughUrl && typeof document !== "undefined") {
+      const rImg = new Image();
+      rImg.crossOrigin = "anonymous";
+      rImg.onload = () => {
+        const rTex = new THREE.Texture(rImg);
+        configureWorldSpaceTexture(rTex, false);
+        mat.roughnessMap = rTex;
+        mat.needsUpdate = true;
+      };
+      rImg.src = roughUrl;
+    }
+
+    mat.needsUpdate = true;
+  }
+
+  private initSemanticSurfaceMaterials(): void {
+    const storeSurfaces = useHouseMaterialStore.getState().surfaces;
+    for (const desc of ALL_SEMANTIC_SURFACES) {
+      const sid = desc.surfaceId;
+      const cfg = storeSurfaces[sid];
+      let mat = this.surfaceMaterials[sid];
+      if (!mat) {
+        mat = new THREE.MeshStandardMaterial({
+          side: sid === "roof_main" || sid === "roof_fascia_gutter" || sid === "interior_ceiling"
+            ? THREE.DoubleSide
+            : THREE.FrontSide,
+        });
+        mat.userData.surfaceId = sid;
+        this.surfaceMaterials[sid] = mat;
+      }
+      mat.userData.surfaceId = sid;
+      if (cfg) {
+        this.applyConfigToThreeMaterial(mat, cfg);
+      }
+    }
+
+    // Bind legacy material aliases so multi-face walls and standard builders use reactive PBR instances
+    this.materials.brick = this.getSurfaceMaterial("exterior_wall_main");
+    this.materials.cladding = this.getSurfaceMaterial("exterior_cladding_feature");
+    this.materials.renderMonument = this.getSurfaceMaterial("portico_facade");
+    this.materials.garageDoor = this.getSurfaceMaterial("garage_door");
+    this.materials.frame = this.getSurfaceMaterial("window_frames");
+    this.materials.aggregateDriveway = this.getSurfaceMaterial("driveway_paving");
+    this.materials.interiorWall = this.getSurfaceMaterial("interior_walls_main");
+    this.materials.timber = this.getSurfaceMaterial("interior_floor_living");
+    this.materials.carpet = this.getSurfaceMaterial("interior_floor_bedrooms");
+    this.materials.tiles = this.getSurfaceMaterial("interior_floor_wet_areas");
+  }
+
+  public getSurfaceMaterial(surfaceId: SemanticSurfaceId): THREE.MeshStandardMaterial {
+    let mat = this.surfaceMaterials[surfaceId];
+    if (!mat) {
+      mat = new THREE.MeshStandardMaterial();
+      mat.userData.surfaceId = surfaceId;
+      this.surfaceMaterials[surfaceId] = mat;
+      const cfg = useHouseMaterialStore.getState().surfaces[surfaceId];
+      if (cfg) {
+        this.applyConfigToThreeMaterial(mat, cfg);
+      }
+    }
+    return mat;
+  }
+
+  public syncPbrMaterialsFromStore(targetSurfaceId?: SemanticSurfaceId): void {
+    const storeSurfaces = useHouseMaterialStore.getState().surfaces;
+    const idsToSync: SemanticSurfaceId[] = targetSurfaceId
+      ? [targetSurfaceId]
+      : ALL_SEMANTIC_SURFACES.map((s) => s.surfaceId);
+
+    for (const sid of idsToSync) {
+      const cfg = storeSurfaces[sid];
+      if (!cfg) continue;
+      const mat = this.getSurfaceMaterial(sid);
+      this.applyConfigToThreeMaterial(mat, cfg);
+    }
+
+    // Re-project world-space UVs for any meshes matching the updated surfaceId(s)
+    this.applyPbrAndWorldSpaceUVsToScene(targetSurfaceId);
+
+    // If any floor material was customized, ensure 3D PBR room floors are visible
+    if (
+      targetSurfaceId === "interior_floor_living" ||
+      targetSurfaceId === "interior_floor_bedrooms" ||
+      targetSurfaceId === "interior_floor_wet_areas"
+    ) {
+      this.buildingGroup.traverse((obj) => {
+        if ((obj as THREE.Mesh).isMesh && obj.userData.isBlueprintUnderlay) {
+          obj.visible = false;
+        }
+      });
+    }
+  }
+
+  private applyPbrAndWorldSpaceUVsToScene(filterSurfaceId?: SemanticSurfaceId): void {
+    const storeSurfaces = useHouseMaterialStore.getState().surfaces;
+    const groups = [
+      this.buildingGroup,
+      this.facadeGroup,
+      this.fixturesGroup,
+      this.roofGroup,
+    ];
+
+    for (const grp of groups) {
+      grp.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh || !mesh.geometry) return;
+
+        const sid = mesh.userData.surfaceId as SemanticSurfaceId | undefined;
+        const altSid = mesh.userData.hasInteriorSurfaceId as SemanticSurfaceId | undefined;
+        if (!sid) return;
+        if (filterSurfaceId && sid !== filterSurfaceId && altSid !== filterSurfaceId) return;
+
+        const activeSid = filterSurfaceId === altSid && altSid ? altSid : sid;
+        const cfg = storeSurfaces[activeSid];
+        const scaleM = cfg?.textureScaleMeters || mesh.userData.defaultScaleMeters || 1.5;
+
+        // Bind single-material mesh to reactive PBR material instance
+        if (!Array.isArray(mesh.material)) {
+          mesh.material = this.getSurfaceMaterial(sid);
+        }
+
+        // Apply world-space UV mapping (except on custom pre-parameterized hip roof slopes unless requested)
+        if (sid !== "roof_main" || !mesh.userData.keepSlopeUVs) {
+          applyWorldSpaceUVs(mesh.geometry, scaleM, mesh.scale);
+        }
+      });
+    }
+  }
+
   public rebuildScene(preserveCamera = false): void {
     if (!this.design) {
       this.buildEmptyStudio();
@@ -685,7 +910,7 @@ export class ThreeStudioSceneManager {
     // 2. Build Lot Boundaries, Cadastral Pegs, and 1.8m Australian Fencing
     this.buildBoundariesAndFences();
 
-    // 3. Build Room Floors
+    // 3. Build Room Floors, Ceilings, Skirting & Feature Wall
     this.buildRoomFloors();
 
     // 4. Build Walls with accurate Door & Window cutouts + 250mm/90mm structural caps
@@ -697,11 +922,14 @@ export class ThreeStudioSceneManager {
     // 5. Build Architectural Facade Features (Columns, Gables, Portico, Alfresco Piers)
     this.buildFacadeFeatures();
 
-    // 6. Build Interior Fixtures (Kitchen island, benchtops, sinks, vanities, baths, furniture)
+    // 6. Build Interior Fixtures (Kitchen island, benchtops, splashback, sinks, vanities, baths, furniture)
     this.buildFixtures();
 
     // 7. Build Parametric Hip Roof
     this.buildRoof();
+
+    // 8. Apply Semantic PBR Materials & World-Space UV Projection across all tagged meshes
+    this.applyPbrAndWorldSpaceUVsToScene();
   }
 
   private isFrontAtSouthEdge(): boolean {
@@ -903,6 +1131,7 @@ export class ThreeStudioSceneManager {
       const drivewayMesh = new THREE.Mesh(drivewayGeom, this.materials.aggregateDriveway);
       drivewayMesh.position.set(garageX, 0.025, (driveStartZ + driveEndZ) / 2);
       drivewayMesh.receiveShadow = true;
+      drivewayMesh.userData.surfaceId = "driveway_paving";
       this.buildingGroup.add(drivewayMesh);
 
       const porch = (this.design.rooms || []).find((r) => r.name === "Porch");
@@ -911,9 +1140,10 @@ export class ThreeStudioSceneManager {
       const pathEndZ = lotSouth + 0.8;
       const pathL = Math.max(1.5, pathEndZ - pathStartZ);
       const pathGeom = new THREE.BoxGeometry(1.4, 0.06, pathL);
-      const pathMesh = new THREE.Mesh(pathGeom, this.materials.stoneCap);
+      const pathMesh = new THREE.Mesh(pathGeom, this.materials.aggregateDriveway);
       pathMesh.position.set(pathX, 0.03, (pathStartZ + pathEndZ) / 2);
       pathMesh.receiveShadow = true;
+      pathMesh.userData.surfaceId = "driveway_paving";
       this.buildingGroup.add(pathMesh);
     } else {
       const driveL = Math.abs(lotNorth) + 2.0;
@@ -921,15 +1151,17 @@ export class ThreeStudioSceneManager {
       const drivewayMesh = new THREE.Mesh(drivewayGeom, this.materials.aggregateDriveway);
       drivewayMesh.position.set(garageX, 0.025, lotNorth / 2 - 1.0);
       drivewayMesh.receiveShadow = true;
+      drivewayMesh.userData.surfaceId = "driveway_paving";
       this.buildingGroup.add(drivewayMesh);
 
       const porch = (this.design.rooms || []).find((r) => r.name === "Porch");
       const pathX = porch ? porch.center[0] : 6.5;
       const pathL = Math.abs(lotNorth) + 1.0;
       const pathGeom = new THREE.BoxGeometry(1.6, 0.06, pathL);
-      const pathMesh = new THREE.Mesh(pathGeom, this.materials.stoneCap);
+      const pathMesh = new THREE.Mesh(pathGeom, this.materials.aggregateDriveway);
       pathMesh.position.set(pathX, 0.03, lotNorth / 2 - 0.5);
       pathMesh.receiveShadow = true;
+      pathMesh.userData.surfaceId = "driveway_paving";
       this.buildingGroup.add(pathMesh);
     }
   }
@@ -1088,34 +1320,39 @@ export class ThreeStudioSceneManager {
       if (facade === "hamptons" || customFacade.porticoStyle === "pitched_gable") {
         // HAMPTONS COASTAL / PITCHED GABLE FACADE
         const postGeom = new THREE.BoxGeometry(0.14, porchH, 0.14);
-        const postMesh = new THREE.Mesh(postGeom, this.materials.renderWhite);
+        const postMesh = new THREE.Mesh(postGeom, this.getSurfaceMaterial("portico_facade"));
         postMesh.position.set(colX, ffl + porchH / 2, colZ);
         postMesh.castShadow = true;
+        postMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(postMesh);
 
         const capGeom = new THREE.BoxGeometry(0.20, 0.08, 0.20);
-        const capMesh = new THREE.Mesh(capGeom, this.materials.renderWhite);
+        const capMesh = new THREE.Mesh(capGeom, this.getSurfaceMaterial("portico_facade"));
         capMesh.position.set(colX, ffl + porchH - 0.04, colZ);
+        capMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(capMesh);
 
         const plinthGeom = new THREE.BoxGeometry(0.24, 0.28, 0.24);
-        const plinthMesh = new THREE.Mesh(plinthGeom, this.materials.renderWhite);
+        const plinthMesh = new THREE.Mesh(plinthGeom, this.getSurfaceMaterial("portico_facade"));
         plinthMesh.position.set(colX, ffl + 0.14, colZ);
+        plinthMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(plinthMesh);
 
         // Scyon Linea Cladding Front Gable Peak
         const gableW = Math.max(3.2, porchSpanW + 1.2);
         const gableH = 1.35;
         const gableGeom = new THREE.ConeGeometry(gableW / 2, gableH, 4);
-        const gableMesh = new THREE.Mesh(gableGeom, this.materials.cladding);
+        const gableMesh = new THREE.Mesh(gableGeom, this.getSurfaceMaterial("exterior_cladding_feature"));
         gableMesh.rotation.y = Math.PI / 4;
         gableMesh.position.set(porchMidX, ffl + porchH + gableH / 2, colZ - 0.05);
         gableMesh.scale.set(1, 1, 0.08);
+        gableMesh.userData.surfaceId = "exterior_cladding_feature";
         this.facadeGroup.add(gableMesh);
 
         const trimGeom = new THREE.BoxGeometry(gableW * 0.78, 0.09, 0.08);
-        const trimMesh = new THREE.Mesh(trimGeom, this.materials.renderWhite);
+        const trimMesh = new THREE.Mesh(trimGeom, this.getSurfaceMaterial("portico_facade"));
         trimMesh.position.set(porchMidX, ffl + porchH + 0.04, colZ);
+        trimMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(trimMesh);
 
       } else if (
@@ -1125,31 +1362,36 @@ export class ThreeStudioSceneManager {
       ) {
         // EXECUTIVE GRANDE / ACREAGE HOMESTEAD FACADE (Substantial 470x470 Twin/Corner Brick Piers)
         const pierGeom = new THREE.BoxGeometry(0.47, porchH, 0.47);
-        const pierMesh = new THREE.Mesh(pierGeom, this.materials.brick);
+        const pierMesh = new THREE.Mesh(pierGeom, this.getSurfaceMaterial("exterior_wall_main"));
         pierMesh.position.set(colX, ffl + porchH / 2, colZ);
         pierMesh.castShadow = true;
+        pierMesh.userData.surfaceId = "exterior_wall_main";
         this.facadeGroup.add(pierMesh);
 
         const stoneCapGeom = new THREE.BoxGeometry(0.54, 0.09, 0.54);
-        const stoneCapMesh = new THREE.Mesh(stoneCapGeom, this.materials.stoneCap);
+        const stoneCapMesh = new THREE.Mesh(stoneCapGeom, this.getSurfaceMaterial("portico_facade"));
         stoneCapMesh.position.set(colX, ffl + porchH - 0.045, colZ);
+        stoneCapMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(stoneCapMesh);
 
         // Second matching pier on right side of portico
-        const pier2Mesh = new THREE.Mesh(pierGeom, this.materials.brick);
+        const pier2Mesh = new THREE.Mesh(pierGeom, this.getSurfaceMaterial("exterior_wall_main"));
         pier2Mesh.position.set(porchP2[0], ffl + porchH / 2, colZ);
         pier2Mesh.castShadow = true;
+        pier2Mesh.userData.surfaceId = "exterior_wall_main";
         this.facadeGroup.add(pier2Mesh);
 
-        const stoneCap2Mesh = new THREE.Mesh(stoneCapGeom, this.materials.stoneCap);
+        const stoneCap2Mesh = new THREE.Mesh(stoneCapGeom, this.getSurfaceMaterial("portico_facade"));
         stoneCap2Mesh.position.set(porchP2[0], ffl + porchH - 0.045, colZ);
+        stoneCap2Mesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(stoneCap2Mesh);
 
         const beamW = porchSpanW + 0.65;
         const beamGeom = new THREE.BoxGeometry(beamW, 0.30, 0.38);
-        const beamMesh = new THREE.Mesh(beamGeom, this.materials.renderMonument);
+        const beamMesh = new THREE.Mesh(beamGeom, this.getSurfaceMaterial("portico_facade"));
         beamMesh.position.set(porchMidX, ffl + porchH - 0.15, colZ);
         beamMesh.castShadow = true;
+        beamMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(beamMesh);
 
       } else if (facade === "contempo" || customFacade.porticoStyle === "cedar_batten_screen") {
@@ -1159,17 +1401,19 @@ export class ThreeStudioSceneManager {
         for (let i = 0; i < battenCount; i++) {
           const bx = colX - screenW / 2 + (i / (battenCount - 1)) * screenW;
           const battenGeom = new THREE.BoxGeometry(0.055, porchH, 0.045);
-          const battenMesh = new THREE.Mesh(battenGeom, this.materials.cedarBatten);
+          const battenMesh = new THREE.Mesh(battenGeom, this.getSurfaceMaterial("exterior_cladding_feature"));
           battenMesh.position.set(bx, ffl + porchH / 2, colZ);
           battenMesh.castShadow = true;
+          battenMesh.userData.surfaceId = "exterior_cladding_feature";
           this.facadeGroup.add(battenMesh);
         }
 
         const canopyW = porchSpanW + 0.9;
         const canopyGeom = new THREE.BoxGeometry(canopyW, 0.16, projDepth);
-        const canopyMesh = new THREE.Mesh(canopyGeom, this.materials.renderMonument);
+        const canopyMesh = new THREE.Mesh(canopyGeom, this.getSurfaceMaterial("portico_facade"));
         canopyMesh.position.set(porchMidX, ffl + porchH, colZ + projDepth * 0.4);
         canopyMesh.castShadow = true;
+        canopyMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(canopyMesh);
 
       } else if (
@@ -1179,73 +1423,79 @@ export class ThreeStudioSceneManager {
       ) {
         // BRONTE DESIGNER / PALM SPRINGS BOX PARAPET FACADE
         const colGeom = new THREE.BoxGeometry(0.18, porchH, 0.18);
-        const colMesh = new THREE.Mesh(colGeom, this.materials.renderWhite);
+        const colMesh = new THREE.Mesh(colGeom, this.getSurfaceMaterial("portico_facade"));
         colMesh.position.set(colX, ffl + porchH / 2, colZ);
         colMesh.castShadow = true;
+        colMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(colMesh);
 
         const slabW = porchSpanW + 0.8;
         const slabGeom = new THREE.BoxGeometry(slabW, 0.24, projDepth);
-        const slabMesh = new THREE.Mesh(slabGeom, this.materials.renderWhite);
+        const slabMesh = new THREE.Mesh(slabGeom, this.getSurfaceMaterial("portico_facade"));
         slabMesh.position.set(porchMidX, ffl + porchH, colZ + projDepth * 0.35);
         slabMesh.castShadow = true;
+        slabMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(slabMesh);
 
         // Architectural Box Parapet Fascia across front master & portico
         const parapetW = Math.min(this.design.widthM * 0.65, porchP2[0] + 0.5);
         const parapetGeom = new THREE.BoxGeometry(parapetW, 0.65, 0.28);
-        const parapetMesh = new THREE.Mesh(parapetGeom, this.materials.renderWhite);
+        const parapetMesh = new THREE.Mesh(parapetGeom, this.getSurfaceMaterial("portico_facade"));
         parapetMesh.position.set(parapetW / 2, ffl + porchH + 0.32, colZ + 0.12);
         parapetMesh.castShadow = true;
+        parapetMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(parapetMesh);
 
       } else if (facade === "skillion" || customFacade.rooflineStyle === "skillion_mono") {
         // ARCHITECTURAL SKILLION MONO-PITCH FACADE
         const pierGeom = new THREE.BoxGeometry(0.32, porchH + 0.35, 0.32);
-        const pierMesh = new THREE.Mesh(pierGeom, this.materials.renderMonument);
+        const pierMesh = new THREE.Mesh(pierGeom, this.getSurfaceMaterial("portico_facade"));
         pierMesh.position.set(colX, ffl + (porchH + 0.35) / 2, colZ);
         pierMesh.castShadow = true;
+        pierMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(pierMesh);
 
         // Raked Skillion Canopy over Portico
         const canopyW = porchSpanW + 1.1;
         const canopyGeom = new THREE.BoxGeometry(canopyW, 0.18, projDepth + 0.4);
-        const canopyMesh = new THREE.Mesh(canopyGeom, this.materials.renderMonument);
+        const canopyMesh = new THREE.Mesh(canopyGeom, this.getSurfaceMaterial("portico_facade"));
         canopyMesh.position.set(porchMidX, ffl + porchH + 0.22, colZ + 0.35);
         canopyMesh.rotation.z = 0.14; // Raked 8-degree skillion tilt
         canopyMesh.castShadow = true;
+        canopyMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(canopyMesh);
 
       } else {
         // MODERN METRO / CANTILEVER PORTICO FACADE
         const pierGeom = new THREE.BoxGeometry(0.36, porchH, 0.36);
-        const pierMesh = new THREE.Mesh(pierGeom, this.materials.renderMonument);
+        const pierMesh = new THREE.Mesh(pierGeom, this.getSurfaceMaterial("portico_facade"));
         pierMesh.position.set(colX, ffl + porchH / 2, colZ);
         pierMesh.castShadow = true;
+        pierMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(pierMesh);
 
         const beamW = porchSpanW + 0.55;
         const beamGeom = new THREE.BoxGeometry(beamW, 0.24, 0.28);
-        const beamMesh = new THREE.Mesh(beamGeom, this.materials.renderWhite);
+        const beamMesh = new THREE.Mesh(beamGeom, this.getSurfaceMaterial("portico_facade"));
         beamMesh.position.set(porchMidX, ffl + porchH - 0.12, colZ);
         beamMesh.castShadow = true;
+        beamMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(beamMesh);
       }
     }
 
     // 2. CUSTOM DESIGN-TAILORED FEATURE BLADE WALL & GARAGE ARTICULATION
-    if (!isSouthFront && customFacade.featureBladeWall) {
+    if (customFacade.featureBladeWall) {
       const bladeH = porchH + 0.45;
       const bladeGeom = new THREE.BoxGeometry(0.28, bladeH, projDepth * 0.85);
-      const bladeMat =
-        customFacade.accentMaterial === "austral_face_brick"
-          ? this.materials.brick
-          : customFacade.accentMaterial === "cedar_timber_batten"
-          ? this.materials.cedarBatten
-          : this.materials.renderMonument;
-      const bladeMesh = new THREE.Mesh(bladeGeom, bladeMat);
-      bladeMesh.position.set(porchP1[0] - 0.18, ffl + bladeH / 2, colZ + 0.25);
+      const bladeMesh = new THREE.Mesh(bladeGeom, this.getSurfaceMaterial("exterior_cladding_feature"));
+      bladeMesh.position.set(
+        porchP1[0] - 0.18,
+        ffl + bladeH / 2,
+        isSouthFront ? this.design.lengthM - 0.25 : colZ + 0.25
+      );
       bladeMesh.castShadow = true;
+      bladeMesh.userData.surfaceId = "exterior_cladding_feature";
       this.facadeGroup.add(bladeMesh);
     }
 
@@ -1254,9 +1504,10 @@ export class ThreeStudioSceneManager {
       if (garOp) {
         const browW = garOp.width + 0.9;
         const browGeom = new THREE.BoxGeometry(browW, 0.16, 0.65);
-        const browMesh = new THREE.Mesh(browGeom, this.materials.renderWhite);
+        const browMesh = new THREE.Mesh(browGeom, this.getSurfaceMaterial("portico_facade"));
         browMesh.position.set(garOp.position[0], ffl + garOp.headHeight + 0.15, garOp.position[1] - 0.25);
         browMesh.castShadow = true;
+        browMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(browMesh);
       }
     }
@@ -1273,10 +1524,8 @@ export class ThreeStudioSceneManager {
       }
       if (isSouthFront) {
         if (this.design.id === "amber-21") {
-          // Amber 21 pier and porch posts are built with exact 1:100 coordinates in buildRoomFloors()
           return;
         }
-        // Only a corner Alfresco (on the North-East or North-West edge of the building) has a freestanding outer corner pier
         const openCorners: [number, number][] = [];
         const wM = this.design.widthM;
         if (maxX >= wM - 0.5 && minX > 0.5) {
@@ -1287,10 +1536,11 @@ export class ThreeStudioSceneManager {
 
         openCorners.forEach(([cornerX, cornerZ]) => {
           const alfPierGeom = new THREE.BoxGeometry(0.35, porchH, 0.35);
-          const alfPierMesh = new THREE.Mesh(alfPierGeom, this.materials.brick);
+          const alfPierMesh = new THREE.Mesh(alfPierGeom, this.getSurfaceMaterial("exterior_wall_main"));
           alfPierMesh.position.set(cornerX, ffl + porchH / 2, cornerZ);
           alfPierMesh.castShadow = true;
           alfPierMesh.receiveShadow = true;
+          alfPierMesh.userData.surfaceId = "exterior_wall_main";
           this.facadeGroup.add(alfPierMesh);
 
           const pierCapGeom = new THREE.BoxGeometry(0.35, 0.016, 0.35);
@@ -1307,28 +1557,31 @@ export class ThreeStudioSceneManager {
         const houseSideZ = minZ;
 
         const alfPierGeom = new THREE.BoxGeometry(0.36, porchH, 0.36);
-        const alfPierMat =
+        const alfPierSid: SemanticSurfaceId =
           facade === "modern" || facade === "contempo" || facade === "skillion"
-            ? this.materials.renderMonument
-            : this.materials.brick;
-        const alfPierMesh = new THREE.Mesh(alfPierGeom, alfPierMat);
+            ? "portico_facade"
+            : "exterior_wall_main";
+        const alfPierMesh = new THREE.Mesh(alfPierGeom, this.getSurfaceMaterial(alfPierSid));
         alfPierMesh.position.set(outerCornerX, ffl + porchH / 2, outerCornerZ);
         alfPierMesh.castShadow = true;
         alfPierMesh.receiveShadow = true;
+        alfPierMesh.userData.surfaceId = alfPierSid;
         this.facadeGroup.add(alfPierMesh);
 
         const rearSpanW = Math.abs(houseSideX - outerCornerX) + 0.36;
         const rearBeamGeom = new THREE.BoxGeometry(rearSpanW, 0.24, 0.28);
-        const rearBeamMesh = new THREE.Mesh(rearBeamGeom, this.materials.renderWhite);
+        const rearBeamMesh = new THREE.Mesh(rearBeamGeom, this.getSurfaceMaterial("portico_facade"));
         rearBeamMesh.position.set((houseSideX + outerCornerX) / 2, ffl + porchH - 0.12, outerCornerZ);
         rearBeamMesh.castShadow = true;
+        rearBeamMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(rearBeamMesh);
 
         const sideSpanD = Math.abs(outerCornerZ - houseSideZ) + 0.36;
         const sideBeamGeom = new THREE.BoxGeometry(0.28, 0.24, sideSpanD);
-        const sideBeamMesh = new THREE.Mesh(sideBeamGeom, this.materials.renderWhite);
+        const sideBeamMesh = new THREE.Mesh(sideBeamGeom, this.getSurfaceMaterial("portico_facade"));
         sideBeamMesh.position.set(outerCornerX, ffl + porchH - 0.12, (houseSideZ + outerCornerZ) / 2);
         sideBeamMesh.castShadow = true;
+        sideBeamMesh.userData.surfaceId = "portico_facade";
         this.facadeGroup.add(sideBeamMesh);
       }
     }
@@ -1398,6 +1651,7 @@ export class ThreeStudioSceneManager {
           baseMesh.rotation.x = -Math.PI / 2;
           baseMesh.position.set(pX, pY, pZ);
           baseMesh.visible = false;
+          baseMesh.userData.isBlueprintUnderlay = true;
           this.buildingGroup.add(baseMesh);
           levelMats.push({ lvl, mat: baseMat, mesh: baseMesh });
         }
@@ -1458,77 +1712,83 @@ export class ThreeStudioSceneManager {
                 tex.needsUpdate = true;
                 mat.map = tex;
                 mat.needsUpdate = true;
-                mesh.visible = true;
+                mesh.visible = this.cameraMode !== "walkthrough";
               }
             }
           };
           img.src = url;
         }
-        return;
-      }
+      } else {
+        // Single-Level Crisp White Architectural Drawing Sheet Base on Top of Slab
+        const baseGeom = new THREE.PlaneGeometry(wM, lM);
+        const baseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const baseMesh = new THREE.Mesh(baseGeom, baseMat);
+        baseMesh.rotation.x = -Math.PI / 2;
+        baseMesh.position.set(wM / 2, 0.308, lM / 2);
+        baseMesh.visible = this.cameraMode !== "walkthrough";
+        baseMesh.userData.isBlueprintUnderlay = true;
+        this.buildingGroup.add(baseMesh);
 
-      // Single-Level Crisp White Architectural Drawing Sheet Base on Top of Slab
-      const baseGeom = new THREE.PlaneGeometry(wM, lM);
-      const baseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const baseMesh = new THREE.Mesh(baseGeom, baseMat);
-      baseMesh.rotation.x = -Math.PI / 2;
-      baseMesh.position.set(wM / 2, 0.308, lM / 2);
-      this.buildingGroup.add(baseMesh);
+        if (typeof document !== "undefined") {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            const cropW = mainCrop.maxX - mainCrop.minX;
+            const cropH = mainCrop.maxY - mainCrop.minY;
+            const canvas = document.createElement("canvas");
+            canvas.width = cropW;
+            canvas.height = cropH;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(0, 0, cropW, cropH);
+              ctx.drawImage(img, mainCrop.minX, mainCrop.minY, cropW, cropH, 0, 0, cropW, cropH);
+              const tex = new THREE.CanvasTexture(canvas);
+              tex.colorSpace = THREE.SRGBColorSpace;
+              tex.anisotropy = 8;
+              tex.needsUpdate = true;
+              baseMat.map = tex;
+              baseMat.needsUpdate = true;
+            }
+          };
+          img.src = url;
+        }
 
-      if (typeof document !== "undefined") {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          const cropW = mainCrop.maxX - mainCrop.minX;
-          const cropH = mainCrop.maxY - mainCrop.minY;
-          const canvas = document.createElement("canvas");
-          canvas.width = cropW;
-          canvas.height = cropH;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, cropW, cropH);
-            ctx.drawImage(img, mainCrop.minX, mainCrop.minY, cropW, cropH, 0, 0, cropW, cropH);
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.colorSpace = THREE.SRGBColorSpace;
-            tex.anisotropy = 8;
-            tex.needsUpdate = true;
-            baseMat.map = tex;
-            baseMat.needsUpdate = true;
-          }
-        };
-        img.src = url;
-      }
+        // Build Alfresco NE 350x350mm Brick Pier & Porch SE Twin 90x90mm Posts shown on Amber 21 floorplan
+        if (this.design.id === "amber-21") {
+          const ceilingH = this.design.ceilingHeightM || 2.44;
+          const ffl = 0.30;
+          const alfPierGeom = new THREE.BoxGeometry(0.35, ceilingH, 0.35);
+          const alfPier = new THREE.Mesh(alfPierGeom, this.getSurfaceMaterial("exterior_wall_main"));
+          alfPier.position.set(6.845, ffl + ceilingH / 2, 0.175);
+          alfPier.castShadow = true;
+          alfPier.userData.surfaceId = "exterior_wall_main";
+          this.buildingGroup.add(alfPier);
 
-      // Build Alfresco NE 350x350mm Brick Pier & Porch SE Twin 90x90mm Posts shown on Amber 21 floorplan
-      if (this.design.id === "amber-21") {
-        const ceilingH = this.design.ceilingHeightM || 2.44;
-        const ffl = 0.30;
-        const alfPierGeom = new THREE.BoxGeometry(0.35, ceilingH, 0.35);
-        const alfPier = new THREE.Mesh(alfPierGeom, this.materials.brick);
-        alfPier.position.set(6.845, ffl + ceilingH / 2, 0.175);
-        alfPier.castShadow = true;
-        this.buildingGroup.add(alfPier);
-
-        const alfPierCap = new THREE.Mesh(
-          new THREE.BoxGeometry(0.35, 0.016, 0.35),
-          new THREE.MeshBasicMaterial({ color: 0xb91c1c })
-        );
-        alfPierCap.position.set(6.845, ffl + ceilingH + 0.008, 0.175);
-        this.buildingGroup.add(alfPierCap);
-
-        [4.59, 4.78].forEach((px) => {
-          const post = new THREE.Mesh(
-            new THREE.BoxGeometry(0.09, ceilingH, 0.09),
-            this.materials.frame
+          const alfPierCap = new THREE.Mesh(
+            new THREE.BoxGeometry(0.35, 0.016, 0.35),
+            new THREE.MeshBasicMaterial({ color: 0xb91c1c })
           );
-          post.position.set(px, ffl + ceilingH / 2, 19.91);
-          post.castShadow = true;
-          this.buildingGroup.add(post);
-        });
+          alfPierCap.position.set(6.845, ffl + ceilingH + 0.008, 0.175);
+          this.buildingGroup.add(alfPierCap);
+
+          [4.59, 4.78].forEach((px) => {
+            const post = new THREE.Mesh(
+              new THREE.BoxGeometry(0.09, ceilingH, 0.09),
+              this.getSurfaceMaterial("portico_facade")
+            );
+            post.position.set(px, ffl + ceilingH / 2, 19.91);
+            post.castShadow = true;
+            post.userData.surfaceId = "portico_facade";
+            this.buildingGroup.add(post);
+          });
+        }
       }
-      return;
     }
+
+    // Always build semantic 3D PBR room floor meshes, ceiling soffits, skirting boards & feature wall
+    const ceilingH = this.design.ceilingHeightM || 2.44;
+    let featureWallAdded = false;
 
     (this.design.rooms || []).forEach((room) => {
       if (this.activeLevelFilter !== "all" && (room.level ?? 0) !== this.activeLevelFilter) return;
@@ -1542,13 +1802,111 @@ export class ThreeStudioSceneManager {
       }
       shape.closePath();
 
+      const rName = (room.name || "").toLowerCase();
+      const isWetArea =
+        room.floorFinish === "tiles" ||
+        rName.includes("bath") ||
+        rName.includes("ensuite") ||
+        rName.includes("wc") ||
+        rName.includes("powder") ||
+        rName.includes("laundry");
+      const isBedroomZone =
+        room.floorFinish === "carpet" ||
+        rName.includes("bed") ||
+        rName.includes("master") ||
+        rName.includes("wir") ||
+        rName.includes("robe") ||
+        rName.includes("media") ||
+        rName.includes("theatre");
+      const isOutdoorZone =
+        rName.includes("porch") ||
+        rName.includes("alfresco") ||
+        rName.includes("balcony") ||
+        rName.includes("garage");
+
+      let floorSurfaceId: SemanticSurfaceId = "interior_floor_living";
+      if (isWetArea) floorSurfaceId = "interior_floor_wet_areas";
+      else if (isBedroomZone) floorSurfaceId = "interior_floor_bedrooms";
+      else if (isOutdoorZone) floorSurfaceId = "driveway_paving";
+
       const floorGeom = new THREE.ShapeGeometry(shape);
-      const floorMat = this.materials[room.floorFinish] || this.materials.timber;
+      const floorMat = isOutdoorZone
+        ? (this.materials[room.floorFinish] || this.getSurfaceMaterial("driveway_paving"))
+        : this.getSurfaceMaterial(floorSurfaceId);
       const floorMesh = new THREE.Mesh(floorGeom, floorMat);
       floorMesh.rotation.x = Math.PI / 2;
-      floorMesh.position.y = 0.305 + (room.elevationOffsetM || 0); // Level-aware floor finish elevation
+      // Place slightly below blueprint underlay (0.305) in orbit blueprint mode, or above (0.312) in walkthrough / PBR mode
+      const elevOffset = room.elevationOffsetM || 0;
+      floorMesh.position.y =
+        hasBlueprintUnderlay && this.cameraMode !== "walkthrough"
+          ? 0.305 + elevOffset
+          : 0.312 + elevOffset;
       floorMesh.receiveShadow = true;
+      floorMesh.userData.surfaceId = floorSurfaceId;
+      floorMesh.userData.isSemanticRoomFloor = true;
+      floorMesh.userData.elevationOffsetM = elevOffset;
       this.buildingGroup.add(floorMesh);
+
+      // Build Interior Ceiling Soffit Plane (visible in Virtual Walkthrough mode for realistic enclosed rooms)
+      if (!isOutdoorZone) {
+        const ceilingGeom = new THREE.ShapeGeometry(shape);
+        const ceilingMesh = new THREE.Mesh(
+          ceilingGeom,
+          this.getSurfaceMaterial("interior_ceiling")
+        );
+        ceilingMesh.rotation.x = Math.PI / 2;
+        ceilingMesh.position.y = 0.30 + ceilingH - 0.01 + elevOffset;
+        ceilingMesh.visible = this.cameraMode === "walkthrough";
+        ceilingMesh.userData.surfaceId = "interior_ceiling";
+        ceilingMesh.userData.isInteriorCeiling = true;
+        this.buildingGroup.add(ceilingMesh);
+
+        // Build 67x18mm Interior Skirting Boards along room polygon edges
+        for (let i = 0; i < room.polygon.length; i++) {
+          const a = room.polygon[i];
+          const b = room.polygon[(i + 1) % room.polygon.length];
+          const edgeLen = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          if (edgeLen < 0.8) continue;
+          const edgeAng = Math.atan2(b[1] - a[1], b[0] - a[0]);
+          const skirtGeom = new THREE.BoxGeometry(edgeLen - 0.2, 0.067, 0.018);
+          const skirtMesh = new THREE.Mesh(
+            skirtGeom,
+            this.getSurfaceMaterial("interior_skirting_architraves")
+          );
+          skirtMesh.position.set(
+            (a[0] + b[0]) / 2,
+            0.312 + 0.0335 + elevOffset,
+            (a[1] + b[1]) / 2
+          );
+          skirtMesh.rotation.y = -edgeAng;
+          skirtMesh.userData.surfaceId = "interior_skirting_architraves";
+          this.buildingGroup.add(skirtMesh);
+        }
+
+        // Build Architectural Interior Feature Wall panel in Master Suite or Living room
+        if (!featureWallAdded && (rName.includes("master") || rName.includes("living"))) {
+          featureWallAdded = true;
+          const a = room.polygon[0];
+          const b = room.polygon[1];
+          const featLen = Math.max(1.8, Math.hypot(b[0] - a[0], b[1] - a[1]) - 0.3);
+          const featAng = Math.atan2(b[1] - a[1], b[0] - a[0]);
+          const featGeom = new THREE.BoxGeometry(featLen, ceilingH - 0.08, 0.022);
+          const featMesh = new THREE.Mesh(
+            featGeom,
+            this.getSurfaceMaterial("interior_feature_wall")
+          );
+          featMesh.position.set(
+            (a[0] + b[0]) / 2,
+            0.30 + ceilingH / 2 + elevOffset,
+            (a[1] + b[1]) / 2 + 0.06
+          );
+          featMesh.rotation.y = -featAng;
+          featMesh.castShadow = true;
+          featMesh.receiveShadow = true;
+          featMesh.userData.surfaceId = "interior_feature_wall";
+          this.buildingGroup.add(featMesh);
+        }
+      }
     });
   }
 
@@ -1686,16 +2044,19 @@ export class ThreeStudioSceneManager {
     centerX: number,
     centerY: number,
     centerZ: number,
-    mat: THREE.Material
+    mat: THREE.Material,
+    surfaceId?: SemanticSurfaceId
   ): void {
     const topGeom = new THREE.BoxGeometry(width, barThick, depth);
     const topMesh = new THREE.Mesh(topGeom, mat);
     topMesh.position.set(centerX, centerY + height / 2 - barThick / 2, centerZ);
+    if (surfaceId) topMesh.userData.surfaceId = surfaceId;
     parent.add(topMesh);
 
     const botGeom = new THREE.BoxGeometry(width, barThick, depth);
     const botMesh = new THREE.Mesh(botGeom, mat);
     botMesh.position.set(centerX, centerY - height / 2 + barThick / 2, centerZ);
+    if (surfaceId) botMesh.userData.surfaceId = surfaceId;
     parent.add(botMesh);
 
     const sideH = Math.max(0.02, height - barThick * 2);
@@ -1703,10 +2064,12 @@ export class ThreeStudioSceneManager {
 
     const leftMesh = new THREE.Mesh(sideGeom, mat);
     leftMesh.position.set(centerX - width / 2 + barThick / 2, centerY, centerZ);
+    if (surfaceId) leftMesh.userData.surfaceId = surfaceId;
     parent.add(leftMesh);
 
     const rightMesh = new THREE.Mesh(sideGeom, mat);
     rightMesh.position.set(centerX + width / 2 - barThick / 2, centerY, centerZ);
+    if (surfaceId) rightMesh.userData.surfaceId = surfaceId;
     parent.add(rightMesh);
   }
 
@@ -1735,6 +2098,13 @@ export class ThreeStudioSceneManager {
     mesh.rotation.y = -angle;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    mesh.userData.surfaceId =
+      isExterior && !bothIndoors
+        ? level >= 2
+          ? "exterior_cladding_feature"
+          : "exterior_wall_main"
+        : "interior_walls_main";
+    mesh.userData.hasInteriorSurfaceId = "interior_walls_main";
     this.buildingGroup.add(mesh);
 
     // Structural Top Cross-Section Cap (for Dollhouse & Plan inspection)
@@ -1917,7 +2287,14 @@ export class ThreeStudioSceneManager {
           const openMid = (openStart + openEnd) / 2;
           const oX = p1.x + Math.cos(angle) * openMid;
           const oZ = p1.y + Math.sin(angle) * openMid;
+          const { bothIndoors } = this.classifyWallSides(wall.isExterior, oX, oZ, angle, wallLevel);
           const openMat = this.getWallMaterials(wall.isExterior, oX, oZ, angle, wallLevel);
+          const wallSid: SemanticSurfaceId =
+            wall.isExterior && !bothIndoors
+              ? wallLevel >= 2
+                ? "exterior_cladding_feature"
+                : "exterior_wall_main"
+              : "interior_walls_main";
 
           // 2. Sill Wall under window (0 to sillHeight)
           if (op.sillHeight > 0.05) {
@@ -1927,6 +2304,8 @@ export class ThreeStudioSceneManager {
             sillMesh.rotation.y = -angle;
             sillMesh.castShadow = true;
             sillMesh.receiveShadow = true;
+            sillMesh.userData.surfaceId = wallSid;
+            sillMesh.userData.hasInteriorSurfaceId = "interior_walls_main";
             this.buildingGroup.add(sillMesh);
           }
 
@@ -1939,6 +2318,8 @@ export class ThreeStudioSceneManager {
             lintelMesh.rotation.y = -angle;
             lintelMesh.castShadow = true;
             lintelMesh.receiveShadow = true;
+            lintelMesh.userData.surfaceId = wallSid;
+            lintelMesh.userData.hasInteriorSurfaceId = "interior_walls_main";
             this.buildingGroup.add(lintelMesh);
           }
 
@@ -2003,14 +2384,9 @@ export class ThreeStudioSceneManager {
 
       // 1. Overhead Open Hamper Bulkhead Header (at ceiling height, open walk-through below!)
       const headerGeom = new THREE.BoxGeometry(len, bulkheadH, thickness);
-      const headerMat = new THREE.MeshStandardMaterial({
-        color: 0xf8fafc,
-        roughness: 0.5,
-        transparent: true,
-        opacity: 0.88,
-      });
-      const headerMesh = new THREE.Mesh(headerGeom, headerMat);
+      const headerMesh = new THREE.Mesh(headerGeom, this.getSurfaceMaterial("interior_ceiling"));
       headerMesh.position.set(0, clearH + bulkheadH / 2, 0);
+      headerMesh.userData.surfaceId = "interior_ceiling";
       group.add(headerMesh);
 
       // 2. Dashed 90mm Structural Cap on Top of Bulkhead & Dashed 90mm Floor Markings
@@ -2078,7 +2454,7 @@ export class ThreeStudioSceneManager {
       const endPt = new THREE.Vector2(x + Math.cos(angle) * halfW, z + Math.sin(angle) * halfW);
       const peakPt = new THREE.Vector2(op.bifoldPeak[0], op.bifoldPeak[1]);
 
-      const leafMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.35 });
+      const leafMat = this.getSurfaceMaterial("interior_skirting_architraves");
       const capMat = new THREE.MeshBasicMaterial({ color: 0xd97706 });
 
       [
@@ -2095,6 +2471,7 @@ export class ThreeStudioSceneManager {
         leafMesh.position.set(midX, ffl + op.height / 2, midZ);
         leafMesh.rotation.y = -leafAngle;
         leafMesh.castShadow = true;
+        leafMesh.userData.surfaceId = "interior_skirting_architraves";
         this.buildingGroup.add(leafMesh);
 
         const topCapGeom = new THREE.BoxGeometry(len, 0.018, 0.045);
@@ -2118,9 +2495,10 @@ export class ThreeStudioSceneManager {
       const leafMidZ = (hinge.y + open.y) / 2;
 
       const isExt = Boolean(op.isExterior);
-      const doorFrameMat = isExt
-        ? this.materials.frame
-        : new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.35 });
+      const frameSid: SemanticSurfaceId = isExt ? "window_frames" : "interior_skirting_architraves";
+      const leafSid: SemanticSurfaceId = isExt ? "front_entry_door" : "interior_skirting_architraves";
+      const doorFrameMat = this.getSurfaceMaterial(frameSid);
+      const doorLeafMat = this.getSurfaceMaterial(leafSid);
       const doorCapMat = new THREE.MeshBasicMaterial({
         color: isExt ? 0xea580c : 0xd97706, // Orange for External Door, Amber-Gold for Internal Door
       });
@@ -2133,12 +2511,15 @@ export class ThreeStudioSceneManager {
       const doorwayGroup = new THREE.Group();
       const jL = new THREE.Mesh(new THREE.BoxGeometry(jambThick, op.height, jambDepth), doorFrameMat);
       jL.position.set(-threshLen / 2 + jambThick / 2, op.height / 2, 0);
+      jL.userData.surfaceId = frameSid;
       doorwayGroup.add(jL);
       const jR = new THREE.Mesh(new THREE.BoxGeometry(jambThick, op.height, jambDepth), doorFrameMat);
       jR.position.set(threshLen / 2 - jambThick / 2, op.height / 2, 0);
+      jR.userData.surfaceId = frameSid;
       doorwayGroup.add(jR);
       const jTop = new THREE.Mesh(new THREE.BoxGeometry(threshLen, jambThick, jambDepth), doorFrameMat);
       jTop.position.set(0, op.height - jambThick / 2, 0);
+      jTop.userData.surfaceId = frameSid;
       doorwayGroup.add(jTop);
       doorwayGroup.position.set((hinge.x + closed.x) / 2, ffl, (hinge.y + closed.y) / 2);
       doorwayGroup.rotation.y = -threshAngle;
@@ -2150,12 +2531,13 @@ export class ThreeStudioSceneManager {
       const leafGroup = new THREE.Group();
       const leafH = op.height - 0.03;
       const stileW = isExt ? 0.095 : 0.085;
-      this.addHollowFrame(leafGroup, leafLen, leafH, 0.042, stileW, 0, leafH / 2, 0, doorFrameMat);
+      this.addHollowFrame(leafGroup, leafLen, leafH, 0.042, stileW, 0, leafH / 2, 0, doorLeafMat, leafSid);
 
       if (isExt) {
         // Mid Lock Rail + Transparent Glass Panels on External Hinged Doors
-        const midRail = new THREE.Mesh(new THREE.BoxGeometry(leafLen - stileW * 2, 0.09, 0.04), doorFrameMat);
+        const midRail = new THREE.Mesh(new THREE.BoxGeometry(leafLen - stileW * 2, 0.09, 0.04), doorLeafMat);
         midRail.position.set(0, 0.85, 0);
+        midRail.userData.surfaceId = leafSid;
         leafGroup.add(midRail);
 
         const glassPane = new THREE.Mesh(
@@ -2166,12 +2548,12 @@ export class ThreeStudioSceneManager {
         leafGroup.add(glassPane);
       } else {
         // Internal Door Recessed Shaker Panel Infill
-        const panelInfillMat = new THREE.MeshStandardMaterial({ color: 0xfffbeb, roughness: 0.4 });
         const infill = new THREE.Mesh(
           new THREE.BoxGeometry(Math.max(0.1, leafLen - stileW * 2), Math.max(0.2, leafH - stileW * 2), 0.024),
-          panelInfillMat
+          doorLeafMat
         );
         infill.position.set(0, leafH / 2, 0);
+        infill.userData.surfaceId = leafSid;
         leafGroup.add(infill);
       }
 
@@ -2241,11 +2623,7 @@ export class ThreeStudioSceneManager {
     if (op.type === "cavity_slider") {
       // Built-In Sliding Robe Doors (2-Panel Bypass Sliding Doors in Aluminium Frame & Track)
       const robeFrameMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.25, metalness: 0.7 });
-      const robePanelMat = new THREE.MeshStandardMaterial({
-        color: 0xe2e8f0,
-        roughness: 0.12,
-        metalness: 0.35,
-      });
+      const robePanelMat = this.getSurfaceMaterial("interior_skirting_architraves");
 
       // Outer Perimeter Sliding Track Frame (Top Head Track, Bottom Sill Track, Left & Right Jambs)
       this.addHollowFrame(group, op.width, op.height, 0.085, 0.028, 0, op.height / 2, 0, robeFrameMat);
@@ -2265,6 +2643,7 @@ export class ThreeStudioSceneManager {
           robePanelMat
         );
         infill.position.set(offsetX, op.height / 2, offsetZ);
+        infill.userData.surfaceId = "interior_skirting_architraves";
         group.add(infill);
       });
 
@@ -2294,6 +2673,7 @@ export class ThreeStudioSceneManager {
       const slabMesh = new THREE.Mesh(slabGeom, this.materials.barnDoorWood);
       slabMesh.position.set(0, op.height / 2, 0.06);
       slabMesh.castShadow = true;
+      slabMesh.userData.surfaceId = "interior_skirting_architraves";
       group.add(slabMesh);
 
       const roller1 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 16), this.materials.barnDoorIron);
@@ -2306,15 +2686,17 @@ export class ThreeStudioSceneManager {
     } else if (op.type === "garage_door") {
       // High-Detail 4-Panel Sectional Garage Door
       const doorGeom = new THREE.BoxGeometry(op.width, op.height, 0.06);
-      const doorMesh = new THREE.Mesh(doorGeom, this.materials.garageDoor);
+      const doorMesh = new THREE.Mesh(doorGeom, this.getSurfaceMaterial("garage_door"));
       doorMesh.position.set(0, op.height / 2, 0);
       doorMesh.castShadow = true;
+      doorMesh.userData.surfaceId = "garage_door";
       group.add(doorMesh);
 
       // Perimeter Weatherstrip Trim
       const trimTopGeom = new THREE.BoxGeometry(op.width + 0.06, 0.04, 0.09);
-      const trimTopMesh = new THREE.Mesh(trimTopGeom, this.materials.frame);
+      const trimTopMesh = new THREE.Mesh(trimTopGeom, this.getSurfaceMaterial("window_frames"));
       trimTopMesh.position.set(0, op.height + 0.02, 0.01);
+      trimTopMesh.userData.surfaceId = "window_frames";
       group.add(trimTopMesh);
 
       // Top Structural Header Indicator for Garage Door in 1:100 Plan & Dollhouse
@@ -2326,12 +2708,14 @@ export class ThreeStudioSceneManager {
 
     } else if (op.type === "stacker_door" || op.type === "sliding_door") {
       // 2-Panel or 3-Panel Stacker / Sliding Glass Door with Hollow Outer Frame & Transparent Glazing Panels!
-      this.addHollowFrame(group, op.width, op.height, 0.14, 0.048, 0, op.height / 2, 0, this.materials.frame);
+      const frameMat = this.getSurfaceMaterial("window_frames");
+      this.addHollowFrame(group, op.width, op.height, 0.14, 0.048, 0, op.height / 2, 0, frameMat, "window_frames");
 
       // Recessed Floor Track
       const trackGeom = new THREE.BoxGeometry(op.width + 0.02, 0.028, 0.15);
-      const trackMesh = new THREE.Mesh(trackGeom, this.materials.frame);
+      const trackMesh = new THREE.Mesh(trackGeom, frameMat);
       trackMesh.position.set(0, 0.014, 0);
+      trackMesh.userData.surfaceId = "window_frames";
       group.add(trackMesh);
 
       // Multiple Glazed Sliding Sashes (Each with its own hollow perimeter sash frame + transparent glass pane)
@@ -2346,7 +2730,7 @@ export class ThreeStudioSceneManager {
         const pZ = p % 2 === 0 ? 0.022 : -0.022;
 
         // Hollow Sash Stile/Rail Frame around this Sliding Door Panel
-        this.addHollowFrame(group, panelW, panelH, 0.036, 0.038, pX, op.height / 2, pZ, this.materials.frame);
+        this.addHollowFrame(group, panelW, panelH, 0.036, 0.038, pX, op.height / 2, pZ, frameMat, "window_frames");
 
         // Transparent Glass Panel inside Sash
         const glassGeom = new THREE.BoxGeometry(
@@ -2382,16 +2766,18 @@ export class ThreeStudioSceneManager {
 
       const centerY = op.sillHeight + op.height / 2;
       const barThick = 0.042;
+      const frameMat = this.getSurfaceMaterial("window_frames");
 
       // 1. Hollow Outer Perimeter Aluminium Window Frame (Top Head, Bottom Sill, Left & Right Jambs)
-      this.addHollowFrame(group, op.width, op.height, 0.12, barThick, 0, centerY, 0, this.materials.frame);
+      this.addHollowFrame(group, op.width, op.height, 0.12, barThick, 0, centerY, 0, frameMat, "window_frames");
 
       // 2. Center Vertical Sash Mullion
       const innerH = Math.max(0.1, op.height - barThick * 2);
       const innerW = Math.max(0.1, op.width - barThick * 2);
       const mullionGeom = new THREE.BoxGeometry(0.036, innerH, 0.06);
-      const mullionMesh = new THREE.Mesh(mullionGeom, this.materials.frame);
+      const mullionMesh = new THREE.Mesh(mullionGeom, frameMat);
       mullionMesh.position.set(0, centerY, 0);
+      mullionMesh.userData.surfaceId = "window_frames";
       group.add(mullionMesh);
 
       // 3. Transparent See-Through Glass Panes (Left & Right Sashes)
@@ -2427,10 +2813,11 @@ export class ThreeStudioSceneManager {
     } else {
       // HINGED DOORS (Fallback when exact hingePoint/openPoint not specified)
       const isFrontEntry = op.isExterior && (op.code.includes("EXT") || op.label.toLowerCase().includes("entry"));
-      const doorFrameMat = op.isExterior ? this.materials.frame : this.materials.interiorWall;
+      const frameSid: SemanticSurfaceId = op.isExterior ? "window_frames" : "interior_skirting_architraves";
+      const doorFrameMat = this.getSurfaceMaterial(frameSid);
 
       // Hollow Perimeter Frame
-      this.addHollowFrame(group, op.width, op.height, 0.11, 0.04, 0, op.height / 2, 0, doorFrameMat);
+      this.addHollowFrame(group, op.width, op.height, 0.11, 0.04, 0, op.height / 2, 0, doorFrameMat, frameSid);
 
       if (isFrontEntry) {
         const hasSidelight = op.width >= 1.0;
@@ -2438,12 +2825,10 @@ export class ThreeStudioSceneManager {
         const sidelightW = hasSidelight ? op.width - 0.88 : 0;
         const doorSlabX = hasSidelight ? op.width / 2 - doorSlabW / 2 - 0.04 : 0;
 
-        let doorMat = this.materials.renderMonument;
-        if (facade === "hamptons") doorMat = this.materials.renderWhite;
-        if (facade === "contempo") doorMat = this.materials.cedarBatten;
+        const doorMat = this.getSurfaceMaterial("front_entry_door");
 
         // Framed Door Leaf with Transparent Glazed Vision Panel
-        this.addHollowFrame(group, doorSlabW, op.height - 0.08, 0.045, 0.11, doorSlabX, op.height / 2, 0.01, doorMat);
+        this.addHollowFrame(group, doorSlabW, op.height - 0.08, 0.045, 0.11, doorSlabX, op.height / 2, 0.01, doorMat, "front_entry_door");
         const visionGlass = new THREE.Mesh(
           new THREE.BoxGeometry(Math.max(0.15, doorSlabW - 0.22), op.height - 0.30, 0.016),
           clearGlassMat
@@ -2465,10 +2850,12 @@ export class ThreeStudioSceneManager {
         handleMesh.position.set(handleX, 1.05, 0.055);
         group.add(handleMesh);
       } else {
+        const leafSid: SemanticSurfaceId = op.isExterior ? "front_entry_door" : "interior_skirting_architraves";
         const doorGeom = new THREE.BoxGeometry(op.width - 0.08, op.height - 0.06, 0.04);
-        const doorMat = op.isExterior ? this.materials.renderMonument : this.materials.interiorWall;
+        const doorMat = this.getSurfaceMaterial(leafSid);
         const doorMesh = new THREE.Mesh(doorGeom, doorMat);
         doorMesh.position.set(0, op.height / 2, 0);
+        doorMesh.userData.surfaceId = leafSid;
         group.add(doorMesh);
 
         const leverGeom = new THREE.BoxGeometry(0.12, 0.02, 0.06);
@@ -2499,67 +2886,11 @@ export class ThreeStudioSceneManager {
     const hasDedicatedSinkFixture = allFixtures.some((f) => f.type === "kitchen_sink");
     const hasDedicatedCooktopFixture = allFixtures.some((f) => f.type === "cooktop_oven");
 
-    // Material helpers driven by InteriorFitoutConfig (with procedural Caesarstone marble veining)
-    const stoneHex =
-      fitout.stoneColor === "carrara_marble"
-        ? 0xf1f5f9
-        : fitout.stoneColor === "concrete_grey"
-        ? 0x94a3b8
-        : fitout.stoneColor === "empirical_black"
-        ? 0x1e293b
-        : 0xf8fafc; // calacatta_white
-    let stoneTexture: THREE.CanvasTexture | null = null;
-    if (typeof document !== "undefined") {
-      const sCanvas = document.createElement("canvas");
-      sCanvas.width = 256;
-      sCanvas.height = 256;
-      const sCtx = sCanvas.getContext("2d");
-      if (sCtx) {
-        sCtx.fillStyle =
-          fitout.stoneColor === "empirical_black"
-            ? "#1e293b"
-            : fitout.stoneColor === "concrete_grey"
-            ? "#94a3b8"
-            : "#f8fafc";
-        sCtx.fillRect(0, 0, 256, 256);
-        sCtx.strokeStyle =
-          fitout.stoneColor === "empirical_black"
-            ? "rgba(255,255,255,0.22)"
-            : "rgba(100,116,139,0.28)";
-        sCtx.lineWidth = 2.2;
-        sCtx.beginPath();
-        sCtx.moveTo(10, 30);
-        sCtx.bezierCurveTo(85, 65, 130, 145, 245, 220);
-        sCtx.moveTo(160, 10);
-        sCtx.bezierCurveTo(190, 80, 210, 120, 250, 175);
-        sCtx.stroke();
-      }
-      stoneTexture = new THREE.CanvasTexture(sCanvas);
-      stoneTexture.wrapS = THREE.RepeatWrapping;
-      stoneTexture.wrapT = THREE.RepeatWrapping;
-    }
-    const stoneMat = new THREE.MeshStandardMaterial({
-      ...(stoneTexture ? { map: stoneTexture } : {}),
-      color: stoneHex,
-      roughness: 0.12,
-      metalness: 0.08,
-    });
-
-    const cabHex =
-      fitout.cabinetryFinish === "natural_oak" || fitout.cabinetryFinish === "polytec_oak"
-        ? 0xd9a05b
-        : fitout.cabinetryFinish === "florentine_walnut"
-        ? 0x5c3a21
-        : fitout.cabinetryFinish === "botanic_sage"
-        ? 0x4d6b53
-        : fitout.cabinetryFinish === "matte_white"
-        ? 0xf8fafc
-        : 0x334155; // polytec_charcoal
-    const cabMat = new THREE.MeshStandardMaterial({
-      color: cabHex,
-      roughness: 0.34,
-      metalness: 0.06,
-    });
+    // Bind joinery and benchtops to reactive semantic PBR materials from useHouseMaterialStore
+    const stoneMat = this.getSurfaceMaterial("kitchen_benchtop");
+    const cabMat = this.getSurfaceMaterial("kitchen_cabinetry_lower");
+    const cabUpperMat = this.getSurfaceMaterial("kitchen_cabinetry_upper");
+    const splashbackMat = this.getSurfaceMaterial("kitchen_splashback");
 
     const tapHex =
       fitout.tapwareFinish === "matte_black"
@@ -2622,6 +2953,7 @@ export class ThreeStudioSceneManager {
         carcassMesh.position.y = carcassH / 2;
         carcassMesh.castShadow = true;
         carcassMesh.receiveShadow = true;
+        carcassMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(carcassMesh);
 
         // 2. Caesarstone Benchtop Slab (20mm or 40mm)
@@ -2630,6 +2962,7 @@ export class ThreeStudioSceneManager {
         topMesh.position.y = fix.height - stoneThicknessM / 2;
         topMesh.castShadow = true;
         topMesh.receiveShadow = true;
+        topMesh.userData.surfaceId = "kitchen_benchtop";
         group.add(topMesh);
 
         // Crisp Benchtop Perimeter Outline
@@ -2647,11 +2980,13 @@ export class ThreeStudioSceneManager {
           const wfLeft = new THREE.Mesh(wfGeom, stoneMat);
           wfLeft.position.set(-fix.width / 2 + stoneThicknessM / 2, fix.height / 2, 0);
           wfLeft.castShadow = true;
+          wfLeft.userData.surfaceId = "kitchen_benchtop";
           group.add(wfLeft);
 
           const wfRight = new THREE.Mesh(wfGeom, stoneMat);
           wfRight.position.set(fix.width / 2 - stoneThicknessM / 2, fix.height / 2, 0);
           wfRight.castShadow = true;
+          wfRight.userData.surfaceId = "kitchen_benchtop";
           group.add(wfRight);
         }
 
@@ -2685,6 +3020,7 @@ export class ThreeStudioSceneManager {
           const seatGeom = new THREE.BoxGeometry(0.38, 0.04, 0.34);
           const seatMesh = new THREE.Mesh(seatGeom, cabMat);
           seatMesh.position.set(stoolX, 0.65, stoolZ);
+          seatMesh.userData.surfaceId = "kitchen_cabinetry_lower";
           group.add(seatMesh);
         });
 
@@ -2740,17 +3076,19 @@ export class ThreeStudioSceneManager {
         group.add(handleMesh);
 
       } else if (fix.type === "kitchen_cabinetry") {
-        // Rear Kitchen Benchtop + Base Cabinetry + Overhead Cupboards (aligned to 2100mm or 2340mm joineryTopH)
+        // Rear Kitchen Benchtop + Base Cabinetry + Splashback + Overhead Cupboards (aligned to 2100mm or 2340mm joineryTopH)
         const carcassH = fix.height - stoneThicknessM;
         const baseGeom = new THREE.BoxGeometry(fix.width, carcassH, fix.depth);
         const baseMesh = new THREE.Mesh(baseGeom, cabMat);
         baseMesh.position.y = carcassH / 2;
         baseMesh.castShadow = true;
+        baseMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(baseMesh);
 
         const topGeom = new THREE.BoxGeometry(fix.width, stoneThicknessM, fix.depth);
         const topMesh = new THREE.Mesh(topGeom, stoneMat);
         topMesh.position.y = fix.height - stoneThicknessM / 2;
+        topMesh.userData.surfaceId = "kitchen_benchtop";
         group.add(topMesh);
 
         const edgeLine = new THREE.LineSegments(
@@ -2760,14 +3098,24 @@ export class ThreeStudioSceneManager {
         edgeLine.position.y = fix.height - stoneThicknessM / 2;
         group.add(edgeLine);
 
-        // Overhead Kitchen Cupboards (from 1.52m up to joineryTopH: 2.10m standard or 2.34m upgraded)
+        // Kitchen Splashback Panel (between rear benchtop at fix.height and overhead cupboards at 1.52m)
         const ohBottom = 1.52;
+        const splashH = Math.max(0.55, ohBottom - fix.height);
+        const splashGeom = new THREE.BoxGeometry(fix.width, splashH, 0.024);
+        const splashMesh = new THREE.Mesh(splashGeom, splashbackMat);
+        splashMesh.position.set(0, fix.height + splashH / 2, -fix.depth / 2 + 0.015);
+        splashMesh.receiveShadow = true;
+        splashMesh.userData.surfaceId = "kitchen_splashback";
+        group.add(splashMesh);
+
+        // Overhead Kitchen Cupboards (from 1.52m up to joineryTopH: 2.10m standard or 2.34m upgraded)
         const ohHeight = Math.max(0.55, joineryTopH - ohBottom);
         const ohDepth = Math.min(0.36, fix.depth * 0.58);
         const ohGeom = new THREE.BoxGeometry(fix.width, ohHeight, ohDepth);
-        const ohMesh = new THREE.Mesh(ohGeom, cabMat);
+        const ohMesh = new THREE.Mesh(ohGeom, cabUpperMat);
         ohMesh.position.set(0, ohBottom + ohHeight / 2, -fix.depth / 2 + ohDepth / 2);
         ohMesh.castShadow = true;
+        ohMesh.userData.surfaceId = "kitchen_cabinetry_upper";
         group.add(ohMesh);
 
         if (!hasDedicatedCooktopFixture) {
@@ -2816,17 +3164,18 @@ export class ThreeStudioSceneManager {
         group.add(bodyMesh);
 
         // Side & Overhead Fridge Gable Panels (aligned to 2100mm or 2340mm joineryTopH)
-        const gableMat = cabMat;
-        const rightGable = new THREE.Mesh(new THREE.BoxGeometry(0.025, joineryTopH, fix.depth), gableMat);
+        const rightGable = new THREE.Mesh(new THREE.BoxGeometry(0.025, joineryTopH, fix.depth), cabUpperMat);
         rightGable.position.set(-fix.width / 2, joineryTopH / 2, 0);
+        rightGable.userData.surfaceId = "kitchen_cabinetry_upper";
         group.add(rightGable);
 
         const overheadCupboardH = Math.max(0.18, joineryTopH - fridgeH - 0.04);
         const overheadFridgeCab = new THREE.Mesh(
           new THREE.BoxGeometry(fix.width, overheadCupboardH, fix.depth),
-          gableMat
+          cabUpperMat
         );
         overheadFridgeCab.position.set(0, joineryTopH - overheadCupboardH / 2, 0);
+        overheadFridgeCab.userData.surfaceId = "kitchen_cabinetry_upper";
         group.add(overheadFridgeCab);
 
         // Top Outline for 1:100 Plan clarity
@@ -2841,9 +3190,10 @@ export class ThreeStudioSceneManager {
         // Walk-In Corner Pantry Cabinet & Shelving (P)
         const panH = Math.max(fix.height || 2.04, joineryTopH);
         // Left Gable Panel
-        const sideGable = new THREE.Mesh(new THREE.BoxGeometry(0.035, panH, fix.depth), cabMat);
+        const sideGable = new THREE.Mesh(new THREE.BoxGeometry(0.035, panH, fix.depth), cabUpperMat);
         sideGable.position.set(fix.width / 2 - 0.018, panH / 2, 0);
         sideGable.castShadow = true;
+        sideGable.userData.surfaceId = "kitchen_cabinetry_upper";
         group.add(sideGable);
 
         // Internal White Melamine Pantry Shelves (5 tiers when 2340mm joinery is enabled)
@@ -2862,6 +3212,7 @@ export class ThreeStudioSceneManager {
         const deskTopMesh = new THREE.Mesh(deskTopGeom, cabMat);
         deskTopMesh.position.y = fix.height - 0.018;
         deskTopMesh.castShadow = true;
+        deskTopMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(deskTopMesh);
 
         const deskEdge = new THREE.LineSegments(
@@ -2877,10 +3228,11 @@ export class ThreeStudioSceneManager {
         const tubCabGeom = new THREE.BoxGeometry(fix.width, cabH, fix.depth);
         const tubCabMesh = new THREE.Mesh(
           tubCabGeom,
-          new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 })
+          cabMat
         );
         tubCabMesh.position.y = cabH / 2;
         tubCabMesh.castShadow = true;
+        tubCabMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(tubCabMesh);
 
         // Stainless Steel Rim & Deep Laundry Trough Bowl
@@ -2988,11 +3340,13 @@ export class ThreeStudioSceneManager {
         const baseGeom = new THREE.BoxGeometry(fix.width, carcassH, fix.depth);
         const baseMesh = new THREE.Mesh(baseGeom, cabMat);
         baseMesh.position.y = carcassH / 2;
+        baseMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(baseMesh);
 
         const topGeom = new THREE.BoxGeometry(fix.width, stoneThicknessM, fix.depth);
         const topMesh = new THREE.Mesh(topGeom, stoneMat);
         topMesh.position.y = fix.height - stoneThicknessM / 2;
+        topMesh.userData.surfaceId = "kitchen_benchtop";
         group.add(topMesh);
 
         const bowlGeom = new THREE.BoxGeometry(0.42, 0.02, 0.38);
@@ -3014,9 +3368,9 @@ export class ThreeStudioSceneManager {
       } else if (fix.type === "mud_nook_bench") {
         // Mud Nook Built-in Oak Bench
         const benchGeom = new THREE.BoxGeometry(fix.width, fix.height, fix.depth);
-        const benchMat = new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.5 });
-        const benchMesh = new THREE.Mesh(benchGeom, benchMat);
+        const benchMesh = new THREE.Mesh(benchGeom, cabMat);
         benchMesh.position.y = fix.height / 2;
+        benchMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(benchMesh);
       } else if (fix.type === "vanity_double" || fix.type === "vanity_single") {
         // Floating Bathroom Vanity Cabinet + Stone Top + Ceramic Basin(s) + Mixer Tap(s) + Frameless Mirror
@@ -3031,11 +3385,13 @@ export class ThreeStudioSceneManager {
         const vanityMesh = new THREE.Mesh(vanityGeom, cabMat);
         vanityMesh.position.y = 0.28 + cabH / 2; // Floating 280mm off floor
         vanityMesh.castShadow = true;
+        vanityMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(vanityMesh);
 
         const vTopGeom = new THREE.BoxGeometry(vanityW, stoneThicknessM, fix.depth);
         const vTopMesh = new THREE.Mesh(vTopGeom, stoneMat);
         vTopMesh.position.y = fix.height - stoneThicknessM / 2;
+        vTopMesh.userData.surfaceId = "kitchen_benchtop";
         group.add(vTopMesh);
 
         const vTopEdge = new THREE.LineSegments(
@@ -3422,6 +3778,22 @@ export class ThreeStudioSceneManager {
   // Camera & Mode Controls
   public setCameraMode(mode: CameraMode): void {
     this.cameraMode = mode;
+    // Toggle interior ceiling visibility and PBR floor prominence between Orbit Blueprint & Walkthrough modes
+    this.buildingGroup.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      if (mesh.userData.isInteriorCeiling) {
+        mesh.visible = mode === "walkthrough";
+      }
+      if (mesh.userData.isBlueprintUnderlay) {
+        mesh.visible = mode !== "walkthrough";
+      }
+      if (mesh.userData.isSemanticRoomFloor) {
+        const elevOffset = mesh.userData.elevationOffsetM || 0;
+        mesh.position.y = mode === "walkthrough" ? 0.312 + elevOffset : 0.305 + elevOffset;
+      }
+    });
+
     if (mode === "walkthrough") {
       // Place camera in living room or entrance at eye level
       const w = this.design ? this.design.widthM : 14;
@@ -3759,7 +4131,7 @@ export class ThreeStudioSceneManager {
     this.rebuildScene();
   }
 
-  // Keyboard and mouse navigation
+  // Keyboard and mouse navigation + Click-to-Inspect Semantic Surface Raycasting
   private bindEvents(): void {
     const el = this.renderer.domElement;
 
@@ -3767,6 +4139,19 @@ export class ThreeStudioSceneManager {
       this.isMouseDown = e.button === 0;
       this.isRightMouseDown = e.button === 2;
       this.previousMousePosition = { x: e.clientX, y: e.clientY };
+      this.mouseDownStartPosition = { x: e.clientX, y: e.clientY };
+    });
+
+    el.addEventListener("mouseup", (e) => {
+      if (e.button === 0 && this.design) {
+        const dragDist = Math.hypot(
+          e.clientX - this.mouseDownStartPosition.x,
+          e.clientY - this.mouseDownStartPosition.y
+        );
+        if (dragDist < 5) {
+          this.handleCanvasSurfaceClick(e);
+        }
+      }
     });
 
     window.addEventListener("mouseup", () => {
@@ -3831,6 +4216,105 @@ export class ThreeStudioSceneManager {
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(w, h);
     });
+  }
+
+  private handleCanvasSurfaceClick(e: MouseEvent): void {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const ndc = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const targets = [
+      this.buildingGroup,
+      this.facadeGroup,
+      this.fixturesGroup,
+      this.roofGroup,
+    ];
+    const intersects = this.raycaster.intersectObjects(targets, true);
+    for (const hit of intersects) {
+      const obj = hit.object as THREE.Mesh;
+      if (!obj.visible) continue;
+      // Check face material surfaceId first (handles multi-material 250mm exterior walls where outer face is brick and inner face is interior plaster)
+      if (Array.isArray(obj.material) && hit.face && hit.face.materialIndex !== undefined) {
+        const faceMat = obj.material[hit.face.materialIndex];
+        const faceSid = faceMat?.userData?.surfaceId as SemanticSurfaceId | undefined;
+        if (faceSid) {
+          useHouseMaterialStore.getState().setSelectedSurfaceId(faceSid);
+          return;
+        }
+      }
+      let cur: THREE.Object3D | null = obj;
+      while (cur) {
+        const sid = cur.userData?.surfaceId as SemanticSurfaceId | undefined;
+        if (sid) {
+          useHouseMaterialStore.getState().setSelectedSurfaceId(sid);
+          return;
+        }
+        cur = cur.parent;
+      }
+    }
+  }
+
+  /**
+   * Captures the exact 3D camera viewport (both RGB color pass and structure-locked depth pass)
+   * as PNG data URLs for the Fal.ai Photorealistic Rendering pipeline (`fal-ai/flux-control-lora-depth` & `fal-ai/flux-pro/kontext`).
+   */
+  public captureViewportForAiRender(): {
+    colorDataUrl: string;
+    depthDataUrl: string;
+    width: number;
+    height: number;
+    cameraMode: CameraMode;
+  } {
+    const canvas = this.renderer.domElement;
+    const width = canvas.width || 1024;
+    const height = canvas.height || 768;
+
+    // 1. Render crisp RGB color pass with ACES Filmic tone mapping and PBR lighting
+    this.renderer.render(this.scene, this.camera);
+    const colorDataUrl = canvas.toDataURL("image/png");
+
+    // 2. Render structure-locked Depth Map pass fitted to the current camera frustum
+    const prevOverride = this.scene.overrideMaterial;
+    const prevBg = this.scene.background;
+    const prevNear = this.camera.near;
+    const prevFar = this.camera.far;
+
+    if (this.cameraMode === "walkthrough") {
+      this.camera.near = 0.25;
+      this.camera.far = 16.0;
+    } else {
+      this.camera.near = Math.max(1.0, this.orbitDistance - 20.0);
+      this.camera.far = this.orbitDistance + 24.0;
+    }
+    this.camera.updateProjectionMatrix();
+
+    const depthMat = new THREE.MeshDepthMaterial({
+      side: THREE.DoubleSide,
+    });
+    this.scene.overrideMaterial = depthMat;
+    this.scene.background = new THREE.Color(0x000000);
+    this.renderer.render(this.scene, this.camera);
+    const depthDataUrl = canvas.toDataURL("image/png");
+    depthMat.dispose();
+
+    // Restore original camera & scene state and re-render seamlessly
+    this.scene.overrideMaterial = prevOverride;
+    this.scene.background = prevBg;
+    this.camera.near = prevNear;
+    this.camera.far = prevFar;
+    this.camera.updateProjectionMatrix();
+    this.renderer.render(this.scene, this.camera);
+
+    return {
+      colorDataUrl,
+      depthDataUrl,
+      width,
+      height,
+      cameraMode: this.cameraMode,
+    };
   }
 
   private updateOrbitCamera(): void {
@@ -3921,6 +4405,10 @@ export class ThreeStudioSceneManager {
   }
 
   public destroy(): void {
+    if (this.unsubscribeMaterialStore) {
+      this.unsubscribeMaterialStore();
+      this.unsubscribeMaterialStore = null;
+    }
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
     }

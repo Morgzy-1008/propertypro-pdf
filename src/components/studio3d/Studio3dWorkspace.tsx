@@ -75,6 +75,7 @@ import {
   vectorizeFloorplanForDesign,
   renderFileToHighResFloorplanUrl,
 } from "@/lib/studio3d/runtimeFloorplanVectorizer";
+import { RealismAiAndPhotorealBar } from "@/components/studio3d/RealismAiAndPhotorealBar";
 
 export function Studio3dWorkspace() {
   const { mode } = useTheme();
@@ -1113,6 +1114,20 @@ export function Studio3dWorkspace() {
             <Sofa className="h-3.5 w-3.5 text-amber-500" />
             <span>Benchtops, Sinks, Vanities & Furniture</span>
           </button>
+
+          {/* Interactive 3D House Realism, Conversational Material AI & Fal.ai Photorealistic Rendering */}
+          <RealismAiAndPhotorealBar
+            isLight={isLight}
+            hasDesign={Boolean(design)}
+            designName={design?.name}
+            cameraMode={cameraMode}
+            currentRoomName={currentRoomName}
+            onCaptureViewport={() =>
+              sceneManagerRef.current
+                ? sceneManagerRef.current.captureViewportForAiRender()
+                : null
+            }
+          />
 
           {/* 2D Floorplan Blueprint Underlay Toggle */}
           <button
