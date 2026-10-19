@@ -132,6 +132,7 @@ export interface Opening3D {
 export interface Room3D {
   id: string;
   name: RoomCategory;
+  category?: string;
   customLabel?: string;
   polygon: [number, number][]; // 2D vertices in meters
   center: [number, number];    // centroid [x, y] in meters
@@ -182,6 +183,8 @@ export interface Fixture3D {
   roomName: string;
   position: [number, number, number]; // [x, y_elevation, z] in meters
   rotationY: number;                  // rotation around Y axis in radians
+  rotationDeg?: number;
+  dimensions?: [number, number, number];
   width: number;                      // in meters
   depth: number;                      // in meters
   height: number;                     // in meters

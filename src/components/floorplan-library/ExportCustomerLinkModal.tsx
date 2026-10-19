@@ -311,7 +311,7 @@ export function ExportCustomerLinkModal({
               }`}
             >
               <div className="p-3 bg-white rounded-xl shadow-md">
-                <QrCode url={activeUrl} size={180} />
+                <QrCode value={activeUrl} size={180} />
               </div>
               <p className="text-[11px] text-slate-400 text-center max-w-xs">
                 Scan with any mobile camera to open the private customer floorplan gallery instantly.

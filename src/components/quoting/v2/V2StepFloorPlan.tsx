@@ -91,6 +91,7 @@ import type {
   BaseDesignCandidate,
   FloorplanAreaBreakdown,
   CustomFloorAreaItem,
+  CustomFloorplanSpec,
 } from "@/lib/quoting/quoteTypes";
 import { ModifiedFloorplanModal, type ExtractedAreaSchedule } from "@/components/quoting/ModifiedFloorplanModal";
 import { DivisionSwitcher } from "@/components/auth/DivisionSwitcher";
@@ -218,7 +219,9 @@ export function V2StepFloorPlan({
 
   const [activeStaff, setActiveStaff] = useState(() => getActiveStaffUser());
   useEffect(() => {
-    return onStaffUserChanged((u) => setActiveStaff(u));
+    return onStaffUserChanged((u) => {
+      if (u) setActiveStaff(u);
+    });
   }, []);
   const showAutoQuote = canAccessAutoQuote(activeStaff);
 

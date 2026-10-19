@@ -19,7 +19,8 @@ import type {
   InclusionTier,
   QuoteSelectedLineItem,
 } from "@/lib/quoting/quoteTypes";
-import type { DivisionId } from "@/lib/divisionContext";
+import type { Division as DivisionId } from "@/lib/divisionContext";
+export type PropertyOverlayCheckReport = VerifiedPropertyComplianceReport;
 
 export type AutoQuoteSubMode = "modified" | "custom";
 
@@ -1139,28 +1140,27 @@ export function buildLineItemsFromAutoQuoteCheckOff(
     .filter((it) => it.checked && it.category !== "structural_areas" && it.totalPriceDelta !== 0)
     .map((it) => ({
       id: `mod_aq_${it.id}`,
-      catalogueId: `aq_${it.category}`,
+      catalogueItemId: `aq_${it.category}`,
       category:
         it.category === "benchtops"
-          ? "Kitchen & Joinery"
+          ? "kitchen"
           : it.category === "wet_rooms"
-          ? "Bathroom & Ensuite"
+          ? "bathroom"
           : it.category === "doors_windows"
-          ? "Doors & Windows"
+          ? "doors_windows"
           : it.category === "ceilings"
-          ? "Structural & Ceilings"
+          ? "ceiling_height"
           : it.category === "driveway_external"
-          ? "External Works"
-          : "Custom Plan Adjustments",
+          ? "external"
+          : "extensions",
       name: it.title,
       description: `${it.measuredSpec} (vs Std: ${it.standardBaselineSpec}) — ${it.varianceSummary}`,
+      unitType: "fixed" as const,
       quantity: it.quantity,
-      unit: it.unit,
       unitRate: it.unitRate,
-      marginPercent: 0,
       subtotal: it.totalPriceDelta,
       isIncluded: true,
-      isOptionalUpgrade: false,
+      isClientSelectable: true,
       clientSelected: true,
     }));
 }

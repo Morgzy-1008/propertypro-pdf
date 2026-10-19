@@ -1860,5 +1860,8 @@ header.concept-editor-header button.btn-tender-action:hover,
   color: #334155 !important;
 }
 
-
-
+/* Defer layout and paint calculations for heavy sections strictly below the initial fold */
+.heavy-section-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 380px;
+}

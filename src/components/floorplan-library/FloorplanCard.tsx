@@ -42,7 +42,7 @@ interface FloorplanCardProps {
   isClientMode?: boolean;
   hidePricing?: boolean;
   consultantId?: string;
-  onEnquire?: (variant: FloorplanRecord, facadeName?: string) => void;
+  onEnquire?: (variant: any, facadeName?: string) => void;
 }
 
 export function FloorplanCard({

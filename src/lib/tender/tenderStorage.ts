@@ -762,7 +762,7 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
     processedVariations.push({
       id: `var_flood_${Date.now()}`,
       description: `Slab Elevation & Flood Pad Works (${s.slabElevationMeters || 0.3}m) (subject to initial site reports)`,
-      cost: s.floodOverlayCost,
+      cost: s.floodOverlayCost || 0,
       category: "all_variations",
       isStructural: false,
     });

@@ -208,6 +208,8 @@ export interface VectorizedFloorplanPatch {
     maxX: number;
     minZ: number;
     maxZ: number;
+    cx?: number;
+    cz?: number;
   };
   walls: WallSegment[];
   openings: Opening3D[];
@@ -350,6 +352,9 @@ function applyVectorizedPatch(
           alfrescoM2: 24.94,
           porchM2: 11.54,
           balconyM2: 12.48,
+          bedrooms: baseDesign.schedule?.bedrooms ?? 4,
+          bathrooms: baseDesign.schedule?.bathrooms ?? 3,
+          cars: baseDesign.schedule?.cars ?? 3,
         }
       : baseDesign.schedule;
 
@@ -378,6 +383,7 @@ function applyVectorizedPatch(
       showFencing: baseDesign.boundary?.showFencing ?? true,
       fenceHeightM: baseDesign.boundary?.fenceHeightM || 1.8,
       fenceStyle: baseDesign.boundary?.fenceStyle || "colorbond_monument",
+      hasSideGates: baseDesign.boundary?.hasSideGates ?? true,
     },
     levels: patch.levels || baseDesign.levels,
     facade: "modern",
@@ -1336,14 +1342,7 @@ async function runCanvasFloorplanVectorizer(
   const vBands = scanDoubleLineBands(false);
   await yieldToMain();
 
-  const openHampers: Array<{
-    id: string;
-    start: [number, number];
-    end: [number, number];
-    thickness: number;
-    bulkheadHeightM?: number;
-    label: string;
-  }> = [];
+  const openHampers: OpenHamperSegment[] = [];
   for (const h of hBands.hampers) {
     openHampers.push({
       id: `hamper_h_${h.coordM}_${h.startM}`,
@@ -3011,7 +3010,14 @@ async function runCanvasFloorplanVectorizer(
     } else {
       // Sliding-window scan across central stairwell zone (x in 0..0.55*widthM, z in 0.25..0.72*lengthM)
       let bestTreads = 0;
-      let bestBox: typeof detectedStairwell = null;
+      let bestBox: {
+        minX: number;
+        maxX: number;
+        minZ: number;
+        maxZ: number;
+        cx: number;
+        cz: number;
+      } | null = null;
       const winW = 2.00;
       const winL = 2.85;
       for (let wz = +(lengthM * 0.26).toFixed(2); wz <= lengthM * 0.72 - winL; wz += 0.55) {
@@ -4128,8 +4134,8 @@ async function runCanvasFloorplanVectorizer(
               maxX: +(upperPatch.stairwellBounds.maxX + xOffset).toFixed(2),
               minZ: +(upperPatch.stairwellBounds.minZ + zOffset).toFixed(2),
               maxZ: +(upperPatch.stairwellBounds.maxZ + zOffset).toFixed(2),
-              cx: +(upperPatch.stairwellBounds.cx + xOffset).toFixed(2),
-              cz: +(upperPatch.stairwellBounds.cz + zOffset).toFixed(2),
+              cx: +((upperPatch.stairwellBounds.cx ?? (upperPatch.stairwellBounds.minX + upperPatch.stairwellBounds.maxX) / 2) + xOffset).toFixed(2),
+              cz: +((upperPatch.stairwellBounds.cz ?? (upperPatch.stairwellBounds.minZ + upperPatch.stairwellBounds.maxZ) / 2) + zOffset).toFixed(2),
             }
           : {
               minX: 0.25,

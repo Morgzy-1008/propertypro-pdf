@@ -38,72 +38,98 @@ export interface InclusionComparisonItem {
 }
 
 export interface DesignArchitectureBreakdown {
-  totalAreaM2: number;
-  totalAreaSquares: number;
-  groundFloorLivingM2: number;
-  upperFloorLivingM2: number;
+  totalAreaM2?: number;
+  totalAreaSquares?: number;
+  totalSquares?: number;
+  groundFloorInternalM2?: number;
+  firstFloorInternalM2?: number;
+  groundFloorLivingM2?: number;
+  upperFloorLivingM2?: number;
   garageM2: number;
   alfrescoM2: number;
-  porchAndBalconyM2: number;
-  overallWidthM: number;
-  overallLengthM: number;
-  minimumLotWidthM: number;
-  sizeDifferenceVsBenchmarkM2: number; // e.g. -14.5 m² smaller or +8.2 m² larger
-  sizeValueAdjustmentAud: number; // Dollar adjustment for floorplan size difference
+  porchM2?: number;
+  balconyM2?: number;
+  porchAndBalconyM2?: number;
+  houseWidthMeters?: number;
+  houseDepthMeters?: number;
+  minLotWidthMeters?: number;
+  overallWidthM?: number;
+  overallLengthM?: number;
+  minimumLotWidthM?: number;
+  sizeDifferenceVsBenchmarkM2?: number;
+  sizeValueAdjustmentAud?: number;
   bedroomsCount: number;
-  masterBedroomDimensions: string; // e.g. "4.2m × 3.9m + WIR + Ensuite"
-  secondaryBedroomsDimensions: string; // e.g. "Bed 2–4: 3.1m × 3.0m with built-in robes"
-  bathroomsCount: number; // e.g. 2 or 2.5
+  masterSuiteDimensions?: string;
+  masterBedroomDimensions?: string;
+  secondaryBedroomsAverageSize?: string;
+  secondaryBedroomsDimensions?: string;
+  bedroomSizesDetail?: string[];
+  bathroomsCount: number;
   ensuitesCount: number;
   powderRoomsCount: number;
-  kitchenCount: number;
-  kitchenDimensionsAndLayout: string; // e.g. "2700mm × 900mm Island + Walk-In Pantry"
-  butlersPantryOrWip: string; // e.g. "Walk-In Pantry (Shelving only)" or "Full Butler's Pantry with Sink & Stone"
+  kitchensCount?: number;
+  kitchenCount?: number;
+  kitchenDimensionsAndLayout: string;
+  butlersPantryOrWip: string;
   livingZonesCount: number;
-  livingZonesList: string[]; // e.g. ["Open Family/Dining", "Separate Media Room", "Children's Activity Retreat", "Study Nook"]
-  specialDesignFeatures: string[]; // e.g. ["Mudroom drop-zone", "Under-roof Alfresco", "Double Lock-Up Garage"]
+  livingZonesList: string[];
+  studyOrOfficeIncluded?: boolean | string;
+  alfrescoIncluded?: boolean;
+  garageSpaces?: number;
+  designFeaturesIncluded?: string[];
+  specialDesignFeatures?: string[];
+  designVerdictNotes?: string;
 }
 
 export interface PromotionAndMarketingAudit {
-  promotionName: string; // e.g. "Live More Designer Pack" or "Fixed Price Turnkey Value"
-  inclusionTierName: string; // e.g. "Freedom by Metricon" / "Aspire Inclusion Range" / "Hudson H2 Design Collection"
-  advertisedPromoValueAud: number; // What the builder claims the promo is worth (e.g. $65,000)
-  trueTradePromoValueAud: number; // Real trade value after stripping inflated RRP markups
+  promotionName?: string;
+  inclusionRangeTier?: string;
+  inclusionTierName?: string;
+  advertisedValueClaim?: string;
+  realAssessedValue?: number | string;
+  advertisedPromoValueAud?: number;
+  trueTradePromoValueAud?: number;
   websiteUrlChecked: string;
-  whatIsActuallyIncludedInPromo: string[];
-  promotionFinePrintAndCatches: string[]; // Conditions, expiry hooks, excluded items in the promo fine writing
-  marketingVsRealityVerdict: string;
+  activePromotionsFound?: string[];
+  whatIsActuallyIncludedInPromo?: string[];
+  promotionFinePrintTraps?: string[];
+  promotionFinePrintAndCatches?: string[];
+  websiteVsEstimateDiscrepancies?: string[];
+  standardInclusionsSummary?: string;
+  marketingVsRealityVerdict?: string;
 }
 
 export interface ContractClauseAnalysis {
-  contractFormType: string; // e.g. "HIA QLD/NSW Fixed Price Lump Sum" vs "Builder Custom Cost-Plus / Provisional Tender"
+  contractFormType?: string;
   priceLockMonths: number;
   priceLockNotes: string;
   escalationClauseRisk: RiskLevel;
   escalationClauseNotes: string;
-  provisionalVariationMarginPercent: number; // e.g. 20% - 25% builder margin on variations
+  provisionalVariationMarginPercent: number;
   rockExcavationCoverage: string;
   pieringAllowanceMeters: number;
   siteCostVarianceRisk: RiskLevel;
-  balAndAcousticAllowanceNote: string;
+  bushfireBalAllowance?: string;
+  acousticAllowance?: string;
+  balAndAcousticAllowanceNote?: string;
   liquidatedDamagesPerWeek: number;
   defectsPeriodMonths: number;
   structuralWarrantyYears: number;
   structuralWarrantyFinePrint: string;
   finePrintWarnings: string[];
-  generalBuilderConcerns: string[]; // Broader flags & concerns about the builder's tender or practices
+  generalBuilderConcerns: string[];
   overallRisk: RiskLevel;
 }
 
 export interface ReputationAnalysis {
-  rating: number; // e.g. 4.8
+  rating: number;
   reviewCount: number;
-  source: string; // e.g. "ProductReview.com.au, Google Reviews & QBCC/Fair Trading Records"
+  source: string;
   sentimentSummary: string;
-  preConstructionAdminMonths: number; // Deposit to Slab Pour
-  constructionDurationMonths: number; // Slab Pour to Keys Handover
-  averageBuildTimeMonths: number; // Total End-to-End or Build Time
-  buildTimeReliabilityNote: string;
+  preConstructionAdminMonths: number;
+  constructionDurationMonths: number;
+  averageBuildTimeMonths: number;
+  buildTimeReliabilityNote?: string;
   licensingAndFinancialNote: string;
   recentReviewHighlights: string[];
   topStrengths: string[];
@@ -116,9 +142,11 @@ export interface BuilderExtractedData {
   isHudson: boolean;
   modelName: string;
   facadeName?: string;
-  housingType: HousingStoreyType;
+  inclusionTierName?: string;
+  housingType: HousingStoreyType | string;
   totalAreaM2: number;
   totalAreaSquares: number;
+  areaDifferenceFromBenchmarkM2?: number;
 
   // Financials
   basePrice: number;
@@ -131,10 +159,11 @@ export interface BuilderExtractedData {
   statedPricePerM2: number;
 
   // Normalization (True Apples-to-Apples Value)
-  omissionsCost: number; // Total value of missing or inferior inclusions
-  siteCostContingency: number; // Expected unbudgeted cost from provisional sums
-  sizeParityAdjustmentCost: number; // Dollar adjustment if plan is smaller/larger than benchmark
-  normalizedTruePrice: number; // Stated Price + Omissions Cost + Site Contingency + Size Parity Adjustment
+  omissionsCost: number;
+  siteCostContingency: number;
+  sizeParityAdjustmentValue?: number;
+  sizeParityAdjustmentCost?: number;
+  normalizedTruePrice: number;
   normalizedPricePerM2: number;
 
   // Detailed Design & Spatial Architecture Breakdown
@@ -153,18 +182,18 @@ export interface BuilderExtractedData {
   reputation: ReputationAnalysis;
 
   // Scoring
-  inclusionsScore: number; // 0 - 100
-  financialValueScore: number; // 0 - 100
-  contractSafetyScore: number; // 0 - 100
-  reputationScore: number; // 0 - 100
-  designSpaceScore: number; // 0 - 100
-  overallScore: number; // 0 - 100
+  inclusionsScore: number;
+  financialValueScore: number;
+  contractSafetyScore: number;
+  reputationScore: number;
+  designSpaceScore?: number;
+  overallScore: number;
 
   // Verdict
   isBestValue: boolean;
   valueVerdictTitle: string;
   executiveSummary: string;
-  whyThisBuilderSummary: string[];
+  whyThisBuilderSummary?: string[];
   keyAdvantages: string[];
   keyDisadvantages: string[];
 }
@@ -193,11 +222,15 @@ export interface BuilderQuoteInput {
 }
 
 export interface WhyWinnerBreakdownSection {
-  title: string;
-  category: "financial" | "design_size" | "inclusions" | "promotions_fine_print" | "contract_risk" | "reputation_build_time";
-  winnerPosition: string;
-  competitorComparison: string;
-  dollarOrRiskImpact: string;
+  pillarTitle: string;
+  winnerHighlight: string;
+  detailedExplanation: string;
+  quantifiedDollarImpact: string;
+  title?: string;
+  category?: "financial" | "design_size" | "inclusions" | "promotions_fine_print" | "contract_risk" | "reputation_build_time";
+  winnerPosition?: string;
+  competitorComparison?: string;
+  dollarOrRiskImpact?: string;
 }
 
 export interface TenderComparisonSession {
@@ -209,8 +242,8 @@ export interface TenderComparisonSession {
   builders: BuilderExtractedData[];
   winningBuilderId: string;
   executiveSummary: string;
-  briefValueVerdict: string;
+  briefValueVerdict?: string;
   whyWinnerDetailedBreakdown: WhyWinnerBreakdownSection[];
   keyDifferencesSummary: string[];
-  researchSourcesChecked: string[];
+  researchSourcesChecked?: string[];
 }

@@ -1002,7 +1002,7 @@ export function TenderComparePortal() {
 
               {/* FULL 5-PILLAR BREAKDOWN ON EXACTLY WHY THE WINNER WINS */}
               <div
-                className={`p-6 sm:p-8 rounded-3xl border space-y-5 ${
+                className={`heavy-section-deferred p-6 sm:p-8 rounded-3xl border space-y-5 ${
                   isLight ? "bg-white border-slate-200 text-slate-900" : "bg-slate-900/70 border-slate-800 text-white"
                 }`}
               >
@@ -1137,7 +1137,7 @@ export function TenderComparePortal() {
                               </div>
                               <p className="text-slate-300 font-semibold">{d.secondaryBedroomsAverageSize}</p>
                               <div className="space-y-1 pt-1 text-[11px] font-mono text-slate-400">
-                                {d.bedroomSizesDetail.map((bed, idx) => (
+                                {(d.bedroomSizesDetail || []).map((bed, idx) => (
                                   <div key={idx}>• {bed}</div>
                                 ))}
                               </div>
@@ -1235,7 +1235,7 @@ export function TenderComparePortal() {
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                               Active Promotions Detected:
                             </span>
-                            {p.activePromotionsFound.map((promo, idx) => (
+                            {(p.activePromotionsFound || []).map((promo, idx) => (
                               <div key={idx} className="flex items-start gap-1.5 text-slate-200 text-[11px]">
                                 <CheckCircle2 className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
                                 <span>{promo}</span>
@@ -1247,7 +1247,7 @@ export function TenderComparePortal() {
                             <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 block">
                               Promotion Fine Print &amp; Exclusions Uncovered:
                             </span>
-                            {p.promotionFinePrintTraps.map((trap, idx) => (
+                            {(p.promotionFinePrintTraps || []).map((trap, idx) => (
                               <div
                                 key={idx}
                                 className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-200 flex items-start gap-1.5 leading-snug"
@@ -1262,7 +1262,7 @@ export function TenderComparePortal() {
                             <span className="text-[10px] font-bold uppercase text-cyan-400 block">
                               Website Photography vs Submitted Estimate:
                             </span>
-                            {p.websiteVsEstimateDiscrepancies.map((disc, idx) => (
+                            {(p.websiteVsEstimateDiscrepancies || []).map((disc, idx) => (
                               <p key={idx} className="text-[11px] text-slate-300 leading-relaxed">
                                 {disc}
                               </p>

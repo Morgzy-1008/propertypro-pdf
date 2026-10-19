@@ -1039,7 +1039,6 @@ export function V2StepVariations({
     setCustomPrice("");
     setCustomDescription("");
     setIsCustomDialogOpen(false);
-    setShowCustomForm(false);
     const priceDisplay =
       price < 0
         ? `-$${Math.abs(price).toLocaleString("en-AU")}`

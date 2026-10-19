@@ -36,7 +36,7 @@ interface FloorplanPresentationModalProps {
   isClientMode?: boolean;
   division?: "QLD" | "NSW";
   hidePricing?: boolean;
-  onEnquire?: (variant: FloorplanRecord, facadeName?: string) => void;
+  onEnquire?: (variant: any, facadeName?: string) => void;
 }
 
 export function FloorplanPresentationModal({
@@ -77,7 +77,7 @@ export function FloorplanPresentationModal({
   const eligibleFacades: DesignFacadeOption[] = useMemo(() => {
     const isDouble =
       item.housingType === "Double Storey" ||
-      item.housingType === "double" ||
+      (item.housingType as string) === "double" ||
       Boolean(activeVariant.label && /cinnamon|mauve|maroon/i.test(activeVariant.label));
 
     const suitable = getFacadesForDesignAndHousingType(

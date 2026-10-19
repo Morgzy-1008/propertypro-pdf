@@ -160,7 +160,7 @@ export function housePriceFor(
     return Math.max(0, row.ss - discount);
   }
   if (range === "ss") {
-    const fhb = findFhbPrice(name, div, undefined, options);
+    const fhb = findFhbPrice(name, division, undefined, options);
     if (fhb !== null) return fhb;
   }
   if (!row) return null;

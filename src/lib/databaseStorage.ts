@@ -534,7 +534,9 @@ export function getLocalLots(): Lot[] {
           // If lots list is empty, repopulate from seed catalog
           if (cleanLots.length === 0) {
             const seed = generateSeedData();
-            cleanLots = seed.lots.filter((l) => !deletedIds.has(l.id));
+            cleanLots = seed.lots
+              .filter((l) => !deletedIds.has(l.id))
+              .map((l) => ({ ...l, updated_at: l.updated_at || new Date().toISOString() }));
             changed = true;
           }
 

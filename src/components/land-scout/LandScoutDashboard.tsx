@@ -1849,6 +1849,7 @@ export function LandScoutDashboard() {
         <GeminiApiKeyModal
           isOpen={isApiKeyModalOpen}
           onClose={() => setIsApiKeyModalOpen(false)}
+          onKeySaved={() => setIsApiKeyModalOpen(false)}
         />
 
         <LandValuationDrawer

@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
-import type { DivisionId } from "@/lib/divisionContext";
+import type { Division as DivisionId } from "@/lib/divisionContext";
 import type {
   QuoteDesignSelection,
   QuoteSelectedLineItem,
@@ -291,8 +291,7 @@ export function AutoQuoteWorkshopPanel({
       });
     } else {
       // Custom Mode Application
-      const rates = getCustomAreaRates(design.specTier);
-      const customSpec = {
+      const draftSpec = {
         groundLivingM2:
           (isDouble ? zoneMap.get("groundLivingM2") : zoneMap.get("livingM2")) || 150,
         firstLivingM2: isDouble ? zoneMap.get("firstLivingM2") || 100 : 0,
@@ -301,10 +300,18 @@ export function AutoQuoteWorkshopPanel({
         porchM2: zoneMap.get("porchM2") || 4.5,
         balconyM2: zoneMap.get("balconyM2") || 0,
         storeys: isDouble ? ("double" as const) : ("single" as const),
-        groundRateM2: rates.groundLiving,
-        upperRateM2: rates.firstLiving,
-        ancillaryRateM2: rates.garage,
+        groundRateM2: 0,
+        upperRateM2: 0,
+        ancillaryRateM2: 0,
         scaffoldingAllowance: isDouble ? 8500 : 0,
+      };
+      const rates = getCustomAreaRates(draftSpec, design.specTier);
+      const customSpec = {
+        ...draftSpec,
+        groundRateM2: rates.groundLivingRate,
+        upperRateM2: rates.firstLivingRate,
+        ancillaryRateM2: rates.garageRate,
+        scaffoldingAllowance: rates.scaffoldingAllowance,
       };
       const totalM2 = calculateCustomTotalM2(customSpec);
       const basePrice = calculateCustomFloorplanPrice(customSpec, design.specTier);

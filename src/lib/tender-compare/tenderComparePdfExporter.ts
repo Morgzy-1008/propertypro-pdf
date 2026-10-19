@@ -472,10 +472,10 @@ export function buildTenderComparisonJsPdf(session: TenderComparisonSession): js
         const d = b.designArchitecture;
         return {
           primary: d
-            ? `Internal: ${(d.groundFloorInternalM2 + d.firstFloorInternalM2).toFixed(1)} m2 | Total: ${b.totalAreaM2} m2`
+            ? `Internal: ${((d.groundFloorInternalM2 ?? 0) + (d.firstFloorInternalM2 ?? 0)).toFixed(1)} m2 | Total: ${b.totalAreaM2} m2`
             : `${b.totalAreaM2} m2 Total`,
           secondary: d
-            ? `GF: ${d.groundFloorInternalM2}m2 | FF: ${d.firstFloorInternalM2}m2 | Gar: ${d.garageM2}m2 | Alf: ${d.alfrescoM2}m2`
+            ? `GF: ${d.groundFloorInternalM2 ?? 0}m2 | FF: ${d.firstFloorInternalM2 ?? 0}m2 | Gar: ${d.garageM2}m2 | Alf: ${d.alfrescoM2}m2`
             : "",
           tone: "bold",
         };

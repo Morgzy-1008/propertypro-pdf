@@ -617,22 +617,23 @@ export function V2StepSiteCosts({
     for (const flag of overlayItems) {
       if (flag.status !== "verified_hit") continue;
       if (flag.category === "bushfire" || flag.id.includes("bushfire")) {
-        patch.bushfireRequired = true;
-        if (!site.balRating || site.balRating === "None" || site.balRating === "BAL-LOW") {
-          patch.balRating = "BAL-12.5";
+        patch.bushfireReportRequired = true;
+        if (!site.bushfireBal || site.bushfireBal === "None" || site.bushfireBal === "BAL-LOW") {
+          patch.bushfireBal = "BAL-12.5";
           patch.bushfireCost = 5500;
         }
         appliedCount++;
       } else if (flag.category === "flood" || flag.id.includes("flood")) {
+        patch.floodReportRequired = true;
         patch.floodOverlayRequired = true;
-        if (!site.floodCost || site.floodCost <= 0) {
-          patch.floodCost = 3500;
+        if (!site.floodOverlayCost || site.floodOverlayCost <= 0) {
+          patch.floodOverlayCost = 3500;
         }
         appliedCount++;
       } else if (flag.category === "acoustic" || flag.id.includes("acoustic")) {
-        patch.acousticRequired = true;
-        if (!site.acousticCategory || site.acousticCategory === "None") {
-          patch.acousticCategory = "Category 1";
+        patch.acousticReportRequired = true;
+        if (!site.acousticTier || site.acousticTier === "None") {
+          patch.acousticTier = "Category 1";
           patch.acousticCost = 3800;
         }
         appliedCount++;
@@ -2233,7 +2234,7 @@ export function V2StepSiteCosts({
                             type="number"
                             step="500"
                             placeholder="0"
-                            value={site.floodOverlayCost > 0 ? site.floodOverlayCost : ""}
+                            value={(site.floodOverlayCost ?? 0) > 0 ? site.floodOverlayCost : ""}
                             onFocus={(e) => e.target.select()}
                             onChange={(e) => {
                               const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
@@ -2928,7 +2929,7 @@ export function V2StepSiteCosts({
                       <Input
                         type="number"
                         placeholder="11000"
-                        value={site.councilDaCost > 0 ? site.councilDaCost : ""}
+                        value={(site.councilDaCost ?? 0) > 0 ? site.councilDaCost : ""}
                         onFocus={(e) => e.target.select()}
                         onChange={(e) => {
                           const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
@@ -2981,7 +2982,7 @@ export function V2StepSiteCosts({
                         <Input
                           type="number"
                           placeholder="2000"
-                          value={site.councilSetbackRelaxationCost > 0 ? site.councilSetbackRelaxationCost : ""}
+                          value={(site.councilSetbackRelaxationCost ?? 0) > 0 ? site.councilSetbackRelaxationCost : ""}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => {
                             const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
@@ -3066,7 +3067,7 @@ export function V2StepSiteCosts({
                       <Input
                         type="number"
                         placeholder="23000"
-                        value={site.dualLivingInfrastructureCost > 0 ? site.dualLivingInfrastructureCost : ""}
+                        value={(site.dualLivingInfrastructureCost ?? 0) > 0 ? site.dualLivingInfrastructureCost : ""}
                         onFocus={(e) => e.target.select()}
                         onChange={(e) => {
                           const cleaned = e.target.value.replace(/^0+(?=\d)/, "");

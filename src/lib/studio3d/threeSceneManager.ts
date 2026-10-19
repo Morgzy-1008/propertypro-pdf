@@ -1239,6 +1239,7 @@ export class ThreeStudioSceneManager {
         if (this.activeLevelFilter !== "all" && this.activeLevelFilter < lvl.level) continue;
         const lvlRooms = (this.design.rooms || []).filter((r) => (r.level ?? 0) === lvl.level);
         const b = lvl.worldBounds;
+        if (!b) continue;
         const lW = Math.max(1.0, b.widthM);
         const lL = Math.max(1.0, b.depthM);
         const cX = b.x + lW / 2;
@@ -1800,15 +1801,15 @@ export class ThreeStudioSceneManager {
     }
 
     const l2Lvl = (this.design.levels || []).find((l) => l.level === 2);
-    const pivotX = l2Lvl ? l2Lvl.worldBounds.x + l2Lvl.worldBounds.widthM / 2 : this.design.widthM / 2;
-    const pivotZ = l2Lvl ? l2Lvl.worldBounds.z + l2Lvl.worldBounds.depthM / 2 : this.design.lengthM / 2;
+    const pivotX = l2Lvl?.worldBounds ? l2Lvl.worldBounds.x + l2Lvl.worldBounds.widthM / 2 : this.design.widthM / 2;
+    const pivotZ = l2Lvl?.worldBounds ? l2Lvl.worldBounds.z + l2Lvl.worldBounds.depthM / 2 : this.design.lengthM / 2;
 
     const transformPt = (pt: [number, number]): [number, number] => [
       +((pt[0] - pivotX) * scaleRatio + pivotX + dx).toFixed(3),
       +((pt[1] - pivotZ) * scaleRatio + pivotZ + dz).toFixed(3),
     ];
 
-    if (l2Lvl) {
+    if (l2Lvl?.worldBounds) {
       const newW = +(l2Lvl.worldBounds.widthM * scaleRatio).toFixed(2);
       const newD = +(l2Lvl.worldBounds.depthM * scaleRatio).toFixed(2);
       l2Lvl.worldBounds = {
@@ -1942,6 +1943,7 @@ export class ThreeStudioSceneManager {
 
         for (const lvl of levelEntries) {
           const b = lvl.worldBounds;
+          if (!b) continue;
           const pW = Math.max(0.5, b.widthM);
           const pL = Math.max(0.5, b.depthM);
           const pX = b.x + pW / 2;
@@ -1969,6 +1971,7 @@ export class ThreeStudioSceneManager {
           img.crossOrigin = "anonymous";
           img.onload = () => {
             for (const { lvl, mat, mesh } of levelMats) {
+              if (!lvl.floorplanCrop) continue;
               const sx = lvl.floorplanCrop.minX;
               const sy = lvl.floorplanCrop.minY;
               const sw = Math.max(16, lvl.floorplanCrop.maxX - lvl.floorplanCrop.minX);
@@ -4087,7 +4090,7 @@ export class ThreeStudioSceneManager {
 
     if (this.design.levels && this.design.levels.length > 1) {
       const upperLvl = this.design.levels.find((l) => (l.elevationOffsetM || 0) >= 2.0);
-      const upperMaxX = upperLvl
+      const upperMaxX = upperLvl?.worldBounds
         ? upperLvl.worldBounds.x + upperLvl.worldBounds.widthM
         : Infinity;
 

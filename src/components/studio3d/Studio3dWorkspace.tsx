@@ -205,7 +205,7 @@ export function Studio3dWorkspace() {
         id: f.id,
         type: f.type,
         roomName: f.roomName,
-        position: f.position,
+        position: [f.position[0], f.position[2] ?? f.position[1]] as [number, number],
         level: f.level,
       })),
       openings: (design.openings || []).map((o) => ({
@@ -218,7 +218,7 @@ export function Studio3dWorkspace() {
       rooms: (design.rooms || []).map((r) => ({
         id: r.id,
         name: r.name,
-        category: r.category,
+        category: r.category || r.name,
         level: r.level,
       })),
     };
@@ -493,7 +493,11 @@ export function Studio3dWorkspace() {
         };
     setL2Calibration(next);
     if (sceneManagerRef.current) {
-      sceneManagerRef.current.setL2Calibration(next);
+      sceneManagerRef.current.setL2Calibration({
+        offsetX: next.offsetXM,
+        offsetZ: next.offsetZM,
+        scale: next.scaleRatio,
+      });
     }
     toast.info(
       reset
@@ -539,7 +543,15 @@ export function Studio3dWorkspace() {
     for (const act of actions) {
       if (act.action === "auto_clean_fixtures") {
         const beforeCount = nextDesign.fixtures.length;
-        nextDesign = validateAndClampFixtures(nextDesign);
+        const validated = validateAndClampFixtures(
+          nextDesign.fixtures || [],
+          nextDesign.rooms || [],
+          nextDesign.walls || [],
+          nextDesign.widthM,
+          nextDesign.lengthM,
+          nextDesign.levels
+        );
+        nextDesign = { ...nextDesign, fixtures: validated.validFixtures };
         removedCount += Math.max(0, beforeCount - nextDesign.fixtures.length);
         modifiedCount++;
         continue;
@@ -582,7 +594,7 @@ export function Studio3dWorkspace() {
             let idToRemove = matching[0].id;
             if (act.locationFilter === "near_garage") {
               const sortedByFront = [...matching].sort(
-                (a, b) => b.position[1] - a.position[1]
+                (a, b) => (b.position[2] ?? b.position[1]) - (a.position[2] ?? a.position[1])
               );
               idToRemove = sortedByFront[0].id;
             } else if (act.locationFilter && act.locationFilter !== "all_misplaced") {
@@ -612,7 +624,7 @@ export function Studio3dWorkspace() {
             if (selectedElement?.id === f.id) {
               setSelectedElement({ ...selectedElement, rotationDeg: nextRot });
             }
-            return { ...f, rotationDeg: nextRot };
+            return { ...f, rotationDeg: nextRot, rotationY: (nextRot * Math.PI) / 180 };
           }
           return f;
         });
@@ -626,14 +638,13 @@ export function Studio3dWorkspace() {
             (!idToMove && targetType && f.type.toLowerCase().includes(targetType))
           ) {
             modifiedCount++;
-            const nextPos: [number, number] = [
-              Math.round((f.position[0] + dx) * 100) / 100,
-              Math.round((f.position[1] + dz) * 100) / 100,
-            ];
+            const nextX = Math.round((f.position[0] + dx) * 100) / 100;
+            const nextZ = Math.round(((f.position[2] ?? f.position[1]) + dz) * 100) / 100;
+            const nextPos3D: [number, number, number] = [nextX, f.position[1] ?? 0.45, nextZ];
             if (selectedElement?.id === f.id) {
-              setSelectedElement({ ...selectedElement, position: nextPos });
+              setSelectedElement({ ...selectedElement, position: [nextX, nextZ] });
             }
-            return { ...f, position: nextPos };
+            return { ...f, position: nextPos3D };
           }
           return f;
         });
@@ -648,10 +659,9 @@ export function Studio3dWorkspace() {
                 Math.round((op.position[1] + dz) * 100) / 100,
               ] as [number, number],
             };
-            const projected = projectOpeningOntoHostWall(
-              candidateOp,
-              nextDesign.walls
-            );
+            const projected =
+              projectOpeningOntoHostWall(candidateOp, nextDesign.walls) ||
+              candidateOp;
             if (selectedElement?.id === op.id) {
               setSelectedElement({
                 ...selectedElement,
@@ -663,20 +673,27 @@ export function Studio3dWorkspace() {
           return op;
         });
       } else if (act.action === "add_element" && targetType) {
+        const dims: [number, number, number] =
+          targetType === "kitchen_island"
+            ? [2.4, 0.9, 1.0]
+            : targetType === "vanity"
+              ? [1.2, 0.85, 0.52]
+              : [1.5, 0.8, 0.9];
         const newFix: Fixture3D = {
           id: `fix_custom_${Date.now()}`,
           type: (targetType as any) || "kitchen_island",
           position: [
             Math.round((nextDesign.widthM * 0.5) * 100) / 100,
+            0.45,
             Math.round((nextDesign.lengthM * 0.5) * 100) / 100,
           ],
-          dimensions:
-            targetType === "kitchen_island"
-              ? [2.4, 0.9, 1.0]
-              : targetType === "vanity"
-                ? [1.2, 0.85, 0.52]
-                : [1.5, 0.8, 0.9],
+          dimensions: dims,
+          width: dims[0],
+          height: dims[1],
+          depth: dims[2],
+          rotationY: 0,
           rotationDeg: 0,
+          label: targetType,
           level: typeof activeLevelFilter === "number" ? activeLevelFilter : 0,
           roomName: currentRoomName || "Living",
         };
@@ -1088,7 +1105,7 @@ export function Studio3dWorkspace() {
           combinedHintText
         ) ||
         (/mauve\s*35/i.test(combinedHintText) &&
-          Math.abs((analysis.modifiedAreas?.totalM2 || 0) - 410.75) < 8) ||
+          Math.abs(((analysis as any).modifiedAreas?.totalM2 || 0) - 410.75) < 8) ||
         (imgAspect > 2.05 &&
           imgAspect < 2.22 &&
           /split\s*level|gallery|balcony|scullery/i.test(combinedHintText));

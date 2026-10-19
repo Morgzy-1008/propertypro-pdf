@@ -1500,13 +1500,13 @@ export function runDeterministicTenderAnalysis(
     {
       pillarTitle: "2. Home Design, Floorplan Area (m²) & Room Size Audit",
       winnerHighlight: `${topBuilder.totalAreaM2} m² (${topBuilder.totalAreaSquares} sq) • ${topBuilder.designArchitecture.livingZonesCount} Living Zones • ${topBuilder.designArchitecture.bedroomsCount} Bedrooms`,
-      detailedExplanation: `${topBuilder.builderName}'s ${topBuilder.modelName} provides ${topBuilder.totalAreaM2} m² of total area with ${topBuilder.designArchitecture.livingZonesCount} distinct living rooms (${topBuilder.designArchitecture.livingZonesList.join(", ")}), ${topBuilder.designArchitecture.butlersPantryOrWip}, and generous secondary bedrooms (${topBuilder.designArchitecture.secondaryBedroomsAverageSize}). Size difference against ${runnerUp.builderName} (${runnerUp.totalAreaM2} m²) is ${runnerUp.areaDifferenceFromBenchmarkM2 > 0 ? `+${runnerUp.areaDifferenceFromBenchmarkM2}` : runnerUp.areaDifferenceFromBenchmarkM2} m².`,
+      detailedExplanation: `${topBuilder.builderName}'s ${topBuilder.modelName} provides ${topBuilder.totalAreaM2} m² of total area with ${topBuilder.designArchitecture.livingZonesCount} distinct living rooms (${topBuilder.designArchitecture.livingZonesList.join(", ")}), ${topBuilder.designArchitecture.butlersPantryOrWip}, and generous secondary bedrooms (${topBuilder.designArchitecture.secondaryBedroomsAverageSize}). Size difference against ${runnerUp.builderName} (${runnerUp.totalAreaM2} m²) is ${(runnerUp.areaDifferenceFromBenchmarkM2 ?? 0) > 0 ? `+${runnerUp.areaDifferenceFromBenchmarkM2}` : (runnerUp.areaDifferenceFromBenchmarkM2 ?? 0)} m².`,
       quantifiedDollarImpact: `${topBuilder.designArchitecture.livingZonesCount} Living Zones & Full WIP`,
     },
     {
       pillarTitle: "3. Website Promotion Fine Print vs Genuine Standard Inclusions",
       winnerHighlight: `${topBuilder.promotionAudit.inclusionRangeTier} — Zero Studio Upsell Traps`,
-      detailedExplanation: `Cross-examination of ${runnerUp.builderName}'s website promotions (${runnerUp.promotionAudit.advertisedValueClaim}) revealed critical fine print exclusions: ${runnerUp.promotionAudit.promotionFinePrintTraps.slice(0, 2).join(" ")} By contrast, ${topBuilder.builderName} builds all 32 turnkey inclusions directly into the base contract.`,
+      detailedExplanation: `Cross-examination of ${runnerUp.builderName}'s website promotions (${runnerUp.promotionAudit.advertisedValueClaim}) revealed critical fine print exclusions: ${(runnerUp.promotionAudit.promotionFinePrintTraps ?? []).slice(0, 2).join(" ")} By contrast, ${topBuilder.builderName} builds all 32 turnkey inclusions directly into the base contract.`,
       quantifiedDollarImpact: `Avoids $${runnerUp.omissionsCost.toLocaleString()} Studio Upsell`,
     },
     {
@@ -1535,7 +1535,7 @@ export function runDeterministicTenderAnalysis(
     whyWinnerDetailedBreakdown,
     keyDifferencesSummary: [
       `True Turnkey Cost Gap: ${topBuilder.builderName} ($${topBuilder.normalizedTruePrice.toLocaleString()}) saves the client $${savingsVsRunnerUp.toLocaleString()} compared to ${runnerUp.builderName} ($${runnerUp.normalizedTruePrice.toLocaleString()}) once $${runnerUp.omissionsCost.toLocaleString()} in omitted inclusions and $${runnerUp.siteCostContingency.toLocaleString()} in provisional site cost risks are factored in.`,
-      `Design & Room Dimensions: ${topBuilder.builderName} delivers ${topBuilder.totalAreaM2} m² with ${topBuilder.designArchitecture.livingZonesCount} living zones and ${topBuilder.designArchitecture.secondaryBedroomsAverageSize}, compared to ${runnerUp.totalAreaM2} m² (${runnerUp.areaDifferenceFromBenchmarkM2 >= 0 ? `+${runnerUp.areaDifferenceFromBenchmarkM2}` : runnerUp.areaDifferenceFromBenchmarkM2} m² difference) for ${runnerUp.builderName}.`,
+      `Design & Room Dimensions: ${topBuilder.builderName} delivers ${topBuilder.totalAreaM2} m² with ${topBuilder.designArchitecture.livingZonesCount} living zones and ${topBuilder.designArchitecture.secondaryBedroomsAverageSize}, compared to ${runnerUp.totalAreaM2} m² (${(runnerUp.areaDifferenceFromBenchmarkM2 ?? 0) >= 0 ? `+${runnerUp.areaDifferenceFromBenchmarkM2 ?? 0}` : (runnerUp.areaDifferenceFromBenchmarkM2 ?? 0)} m² difference) for ${runnerUp.builderName}.`,
       `Promotion Fine Print: ${runnerUp.builderName}'s advertised promotion (${runnerUp.promotionAudit.advertisedValueClaim}) contains critical fine print exclusions for flooring, driveway, bathroom stone, and multi-zone AC.`,
       `Build Speed & Contract Safety: ${topBuilder.builderName} offers a ${topBuilder.contractClauses.priceLockMonths}-month price lock, ${topBuilder.contractClauses.pieringAllowanceMeters}m piering, ${topBuilder.contractClauses.structuralWarrantyYears}-year structural warranty, and an average ${topBuilder.reputation.averageBuildTimeMonths}-month total build time (vs ${runnerUp.reputation.averageBuildTimeMonths} months).`,
     ],
