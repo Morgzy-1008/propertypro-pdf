@@ -19,6 +19,7 @@ import {
   X,
   LayoutGrid,
   Box,
+  Scale,
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -509,6 +510,19 @@ function WelcomeHubPage() {
             innerGlow="from-emerald-500/25 to-transparent"
             iconColor="text-emerald-400"
             iconBg="from-emerald-500/20 to-teal-500/10 border-emerald-500/30"
+            isLight={isLight}
+          />
+
+          {/* Portal 01b: Tender Compare (Forensic Builder & Contract Auditor) */}
+          <PortalCard
+            to="/tender-compare"
+            title="Tender Compare"
+            icon={Scale}
+            glowGradient="from-amber-400 via-orange-500 to-yellow-500"
+            lightBeam="from-transparent via-amber-400 to-transparent"
+            innerGlow="from-amber-500/25 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
             isLight={isLight}
           />
 

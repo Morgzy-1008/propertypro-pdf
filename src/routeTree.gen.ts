@@ -30,6 +30,7 @@ import { Route as AuthenticatedHubRouteImport } from './routes/_authenticated/hu
 import { Route as AuthenticatedLandScoutRouteImport } from './routes/_authenticated/land-scout'
 import { Route as AuthenticatedQuoteBuilderRouteImport } from './routes/_authenticated/quote-builder'
 import { Route as AuthenticatedSiteStudioRouteImport } from './routes/_authenticated/site-studio'
+import { Route as AuthenticatedTenderCompareRouteImport } from './routes/_authenticated/tender-compare'
 import { Route as AuthenticatedTenderRequestRouteImport } from './routes/_authenticated/tender-request'
 import { Route as BrowseLandRouteImport } from './routes/browse/land'
 import { Route as BrowsePackagesRouteImport } from './routes/browse/packages'
@@ -147,6 +148,12 @@ const AuthenticatedSiteStudioRoute = AuthenticatedSiteStudioRouteImport.update({
   path: '/site-studio',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTenderCompareRoute =
+  AuthenticatedTenderCompareRouteImport.update({
+    id: '/tender-compare',
+    path: '/tender-compare',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTenderRequestRoute =
   AuthenticatedTenderRequestRouteImport.update({
     id: '/tender-request',
@@ -210,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/land-scout': typeof AuthenticatedLandScoutRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/site-studio': typeof AuthenticatedSiteStudioRoute
+  '/tender-compare': typeof AuthenticatedTenderCompareRoute
   '/tender-request': typeof AuthenticatedTenderRequestRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
@@ -240,6 +248,7 @@ export interface FileRoutesByTo {
   '/land-scout': typeof AuthenticatedLandScoutRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/site-studio': typeof AuthenticatedSiteStudioRoute
+  '/tender-compare': typeof AuthenticatedTenderCompareRoute
   '/tender-request': typeof AuthenticatedTenderRequestRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
@@ -272,6 +281,7 @@ export interface FileRoutesById {
   '/_authenticated/land-scout': typeof AuthenticatedLandScoutRoute
   '/_authenticated/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/_authenticated/site-studio': typeof AuthenticatedSiteStudioRoute
+  '/_authenticated/tender-compare': typeof AuthenticatedTenderCompareRoute
   '/_authenticated/tender-request': typeof AuthenticatedTenderRequestRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
@@ -304,6 +314,7 @@ export interface FileRouteTypes {
     | '/land-scout'
     | '/quote-builder'
     | '/site-studio'
+    | '/tender-compare'
     | '/tender-request'
     | '/browse/land'
     | '/browse/packages'
@@ -334,6 +345,7 @@ export interface FileRouteTypes {
     | '/land-scout'
     | '/quote-builder'
     | '/site-studio'
+    | '/tender-compare'
     | '/tender-request'
     | '/browse/land'
     | '/browse/packages'
@@ -365,6 +377,7 @@ export interface FileRouteTypes {
     | '/_authenticated/land-scout'
     | '/_authenticated/quote-builder'
     | '/_authenticated/site-studio'
+    | '/_authenticated/tender-compare'
     | '/_authenticated/tender-request'
     | '/browse/land'
     | '/browse/packages'
@@ -543,6 +556,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSiteStudioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tender-compare': {
+      id: '/_authenticated/tender-compare'
+      path: '/tender-compare'
+      fullPath: '/tender-compare'
+      preLoaderRoute: typeof AuthenticatedTenderCompareRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tender-request': {
       id: '/_authenticated/tender-request'
       path: '/tender-request'
@@ -615,6 +635,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLandScoutRoute: typeof AuthenticatedLandScoutRoute
   AuthenticatedQuoteBuilderRoute: typeof AuthenticatedQuoteBuilderRoute
   AuthenticatedSiteStudioRoute: typeof AuthenticatedSiteStudioRoute
+  AuthenticatedTenderCompareRoute: typeof AuthenticatedTenderCompareRoute
   AuthenticatedTenderRequestRoute: typeof AuthenticatedTenderRequestRoute
 }
 
@@ -631,6 +652,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLandScoutRoute: AuthenticatedLandScoutRoute,
   AuthenticatedQuoteBuilderRoute: AuthenticatedQuoteBuilderRoute,
   AuthenticatedSiteStudioRoute: AuthenticatedSiteStudioRoute,
+  AuthenticatedTenderCompareRoute: AuthenticatedTenderCompareRoute,
   AuthenticatedTenderRequestRoute: AuthenticatedTenderRequestRoute,
 }
 
