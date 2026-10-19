@@ -15,6 +15,7 @@
     { "source": "/api/outpaint", "destination": "/api/redo-ai" },
     { "source": "/api/fal-render", "destination": "/api/redo-ai" },
     { "source": "/api/house-material-ai", "destination": "/api/redo-ai" },
+    { "source": "/api/ai/design-chat", "destination": "/api/redo-ai" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

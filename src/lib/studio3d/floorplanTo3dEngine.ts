@@ -163,6 +163,27 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
       const baths = planMeta?.baths ? Number(planMeta.baths) : isGranny ? 1 : totalM2 >= 280 ? 3 : 2;
       const cars = planMeta?.cars ? Number(planMeta.cars) : isGranny ? 0 : totalM2 >= 150 ? 2 : 1;
 
+      const SPECIAL_DIMENSIONS: Record<string, { w: number; l: number }> = {
+        "burgundy 27": { w: 11.15, l: 16.55 },
+        "burgundy 30": { w: 11.15, l: 17.75 },
+        "burgundy 32": { w: 11.15, l: 18.95 },
+        "burgundy 34": { w: 11.15, l: 20.15 },
+        "carolina 22": { w: 8.27, l: 15.35 },
+        "carolina 24": { w: 8.27, l: 16.55 },
+        "carolina 26": { w: 8.27, l: 17.75 },
+        "carolina 29": { w: 8.27, l: 19.35 },
+        "wisteria 22": { w: 11.39, l: 19.19 },
+        "wisteria 32": { w: 12.35, l: 21.11 },
+        "alabaster 31": { w: 11.39, l: 17.99 },
+        "alabaster 36": { w: 12.59, l: 19.79 },
+        "alabaster 40": { w: 12.59, l: 21.59 },
+        "lime 19": { w: 8.27, l: 14.39 },
+        "lime 21": { w: 8.27, l: 15.59 },
+        "lime 23": { w: 8.27, l: 16.79 },
+        "lime 25": { w: 8.27, l: 17.99 },
+      };
+      const specialDim = SPECIAL_DIMENSIONS[key];
+
       const parsedW = parseFloat(String(planMeta?.houseWidth || planMeta?.width || ""));
       const parsedL = parseFloat(String(planMeta?.houseLength || planMeta?.depth || ""));
 
@@ -171,20 +192,22 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
           ? (areas.groundLivingM2 || livingM2 * 0.55) + (areas.lowerLivingM2 || 0) + garageM2 + alfrescoM2 + porchM2
           : totalM2;
 
-      const widthM =
-        !isNaN(parsedW) && parsedW >= 6
-          ? parsedW
-          : isGranny
-          ? 7.2
-          : footprintM2 > 220
-          ? 14.2
-          : footprintM2 > 185
-          ? 12.1
-          : 10.8;
-      const lengthM =
-        !isNaN(parsedL) && parsedL >= 8
-          ? parsedL
-          : Math.round(Math.max(11.5, (footprintM2 / widthM) * 1.06) * 100) / 100;
+      const widthM = specialDim
+        ? specialDim.w
+        : !isNaN(parsedW) && parsedW >= 6
+        ? parsedW
+        : isGranny
+        ? 7.2
+        : footprintM2 > 220
+        ? 14.2
+        : footprintM2 > 185
+        ? 12.1
+        : 10.8;
+      const lengthM = specialDim
+        ? specialDim.l
+        : !isNaN(parsedL) && parsedL >= 8
+        ? parsedL
+        : Math.round(Math.max(11.5, (footprintM2 / widthM) * 1.06) * 100) / 100;
 
       map.set(key, {
         id: key.replace(/[^a-z0-9]+/g, "-"),
@@ -248,15 +271,38 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
     });
   }
 
+  const DOUBLE_STOREY_FAMILIES = new Set([
+    "alabaster",
+    "burgundy",
+    "carolina",
+    "ebony",
+    "lime",
+    "magnolia",
+    "mahogany",
+    "maize",
+    "marigold",
+    "mocha",
+    "mulberry",
+    "orchid",
+    "raven",
+    "teal",
+  ]);
+
   for (const [key, localUrl] of Object.entries(SPECIAL_LOCAL_FLOORPLANS)) {
     if (map.has(key)) continue;
     const parts = key.split(" ");
+    const family = parts[0]?.toLowerCase() || "";
     const nameTitle = parts
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
     const sqNum = parseInt(parts[parts.length - 1] || "24", 10) || 24;
     const totalM2 = Math.round(sqNum * 9.29 * 10) / 10;
-    const housingType = sqNum >= 31 ? "Double Storey" : "Single Storey";
+    const housingType =
+      family === "cayenne"
+        ? "Dual Living"
+        : DOUBLE_STOREY_FAMILIES.has(family) || (family === "wisteria" && sqNum >= 30) || sqNum >= 31
+        ? "Double Storey"
+        : "Single Storey";
     const areas = getStandardAreaBreakdown(nameTitle, housingType, totalM2);
     map.set(key, {
       id: key.replace(/[^a-z0-9]+/g, "-"),
@@ -270,8 +316,8 @@ export function getAllHudsonStandardDesigns(): StandardCatalogueDesignItem[] {
       bedrooms: 4,
       bathrooms: 2,
       cars: 2,
-      widthM: sqNum >= 30 ? 12.59 : 11.39,
-      lengthM: sqNum >= 26 ? 21.8 : 19.8,
+      widthM: family === "carolina" || family === "lime" ? 8.27 : family === "burgundy" ? 11.15 : sqNum >= 30 ? 12.35 : 11.39,
+      lengthM: family === "burgundy" && sqNum === 32 ? 18.95 : sqNum >= 26 ? 20.5 : 18.5,
       floorplanUrl: localUrl,
     });
   }
@@ -772,7 +818,272 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
     fixtures,
   });
 
-  return complete;
+  const validated = validateAndClampFixtures(
+    complete.fixtures || [],
+    complete.rooms || [],
+    complete.walls || [],
+    complete.widthM,
+    complete.lengthM,
+    complete.levels
+  );
+
+  return {
+    ...complete,
+    fixtures: validated.validFixtures,
+  };
+}
+
+/**
+ * Geometric & Semantic Room-Polygon Guard (`validateAndClampFixtures`):
+ * - Ensures every fixture & staircase lies strictly inside its level's exterior structural footprint.
+ * - Enforces hard exclusion zones: no vanity, toilet, bath, shower, bed, sofa, dining_table, or kitchen_island
+ *   may spawn inside or within 0.40m of the front opening of a Garage, Porch, Entry, Alfresco, Driveway,
+ *   Stairs, Void, Robe, WIR, Linen, or Store.
+ * - Enforces wet-room whitelist: vanity, toilet, bath, and shower can ONLY spawn inside Ensuite, Bath, WC, or Powder.
+ * - Clamps surviving fixtures inside their host room polygon so nothing pokes through walls.
+ */
+export function validateAndClampFixtures(
+  rawFixtures: Fixture3D[],
+  rooms: Room3D[],
+  walls: WallSegment[],
+  widthM: number,
+  lengthM: number,
+  levels?: { level: number; worldBounds?: { x: number; z: number; widthM: number; depthM: number } }[]
+): {
+  validFixtures: Fixture3D[];
+  removedIds: string[];
+  snappedIds: string[];
+} {
+  const removedIds: string[] = [];
+  const snappedIds: string[] = [];
+  const validFixtures: Fixture3D[] = [];
+
+  const getRoomBox = (r: Room3D) => {
+    let minX = Infinity,
+      maxX = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity;
+    for (const [x, z] of r.polygon || []) {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
+    return { minX, maxX, minZ, maxZ };
+  };
+
+  const pointInBox = (x: number, z: number, box: { minX: number; maxX: number; minZ: number; maxZ: number }, pad = 0) =>
+    x >= box.minX - pad && x <= box.maxX + pad && z >= box.minZ - pad && z <= box.maxZ + pad;
+
+  const isWetFixture = (t: Fixture3D["type"]) =>
+    t === "vanity_single" || t === "vanity_double" || t === "toilet" || t === "bath" || t === "shower";
+
+  const isExcludedIndoorFixture = (t: Fixture3D["type"]) =>
+    isWetFixture(t) ||
+    t === "bed_queen" ||
+    t === "bed_double" ||
+    t === "kitchen_island" ||
+    t === "kitchen_cabinetry" ||
+    t === "kitchen_sink" ||
+    t === "cooktop_oven" ||
+    t === "sofa_sectional" ||
+    t === "dining_table";
+
+  const HARD_EXCLUDED_ROOM_NAMES = new Set([
+    "garage",
+    "porch",
+    "entry",
+    "alfresco",
+    "driveway",
+    "stairs",
+    "void",
+    "robe",
+    "wir",
+    "linen",
+    "store",
+  ]);
+
+  const WET_WHITELIST_NAMES = ["ensuite", "bath", "wc", "powder", "ens/pwdr", "pwdr"];
+
+  for (const origFix of rawFixtures || []) {
+    const f: Fixture3D = {
+      ...origFix,
+      position: [...origFix.position] as [number, number, number],
+    };
+    const fLevel = f.level ?? 0;
+    const fx = f.position[0];
+    const fz = f.position[2];
+
+    // 1. Level exterior structural bounds check
+    const lvlMeta = (levels || []).find((l) => l.level === fLevel);
+    const lvlWalls = (walls || []).filter((w) => (w.level ?? 0) === fLevel);
+    let minLvlX = lvlMeta?.worldBounds ? lvlMeta.worldBounds.x : 0;
+    let maxLvlX = lvlMeta?.worldBounds ? lvlMeta.worldBounds.x + lvlMeta.worldBounds.widthM : widthM;
+    let minLvlZ = lvlMeta?.worldBounds ? lvlMeta.worldBounds.z : 0;
+    let maxLvlZ = lvlMeta?.worldBounds ? lvlMeta.worldBounds.z + lvlMeta.worldBounds.depthM : lengthM;
+
+    if (lvlWalls.length >= 4) {
+      const xs = lvlWalls.flatMap((w) => [w.start[0], w.end[0]]);
+      const zs = lvlWalls.flatMap((w) => [w.start[1], w.end[1]]);
+      minLvlX = Math.min(...xs);
+      maxLvlX = Math.max(...xs);
+      minLvlZ = Math.min(...zs);
+      maxLvlZ = Math.max(...zs);
+    }
+
+    const outOfFootprint =
+      fx < minLvlX - 0.18 ||
+      fx > maxLvlX + 0.18 ||
+      fz < minLvlZ - 0.18 ||
+      fz > maxLvlZ + 0.18;
+
+    // 2. Check scanline exterior wall containment at (fx, fz) so recesses (e.g. driveway in front of garage) are caught
+    let outsideScanlineEnvelope = false;
+    if (lvlWalls.length >= 4 && f.type !== "balustrade") {
+      const extWalls = lvlWalls.filter((w) => w.isExterior);
+      const checkWalls = extWalls.length >= 4 ? extWalls : lvlWalls;
+      const vSpanning = checkWalls.filter(
+        (w) =>
+          Math.abs(w.start[0] - w.end[0]) < 0.15 &&
+          fz >= Math.min(w.start[1], w.end[1]) - 0.8 &&
+          fz <= Math.max(w.start[1], w.end[1]) + 0.8
+      );
+      const hSpanning = checkWalls.filter(
+        (w) =>
+          Math.abs(w.start[1] - w.end[1]) < 0.15 &&
+          fx >= Math.min(w.start[0], w.end[0]) - 0.8 &&
+          fx <= Math.max(w.start[0], w.end[0]) + 0.8
+      );
+      if (vSpanning.length >= 2) {
+        const minVX = Math.min(...vSpanning.map((w) => w.start[0]));
+        const maxVX = Math.max(...vSpanning.map((w) => w.start[0]));
+        if (fx < minVX - 0.25 || fx > maxVX + 0.25) outsideScanlineEnvelope = true;
+      }
+      if (hSpanning.length >= 2) {
+        const minHZ = Math.min(...hSpanning.map((w) => w.start[1]));
+        const maxHZ = Math.max(...hSpanning.map((w) => w.start[1]));
+        if (fz < minHZ - 0.25 || fz > maxHZ + 0.25) outsideScanlineEnvelope = true;
+      }
+    }
+
+    // 3. Check Hard Exclusion Zones (Garage, Porch, Entry, Alfresco, Driveway in front of Garage, Stairs, Void, Robe, WIR, Store)
+    const levelRooms = (rooms || []).filter((r) => (r.level ?? 0) === fLevel && r.polygon && r.polygon.length >= 3);
+    let inExcludedZone = false;
+    if (isExcludedIndoorFixture(f.type)) {
+      for (const r of levelRooms) {
+        const rNameLow = (r.name || "").toLowerCase();
+        const rCustomLow = (r.customLabel || "").toLowerCase();
+        const box = getRoomBox(r);
+
+        if (rNameLow === "garage") {
+          // Exclude inside Garage AND the driveway apron directly in front of the Garage (+4.0m south) or within 0.40m of garage opening
+          if (
+            pointInBox(fx, fz, box, 0.25) ||
+            (fx >= box.minX - 0.40 && fx <= box.maxX + 0.40 && fz >= box.maxZ - 0.40)
+          ) {
+            inExcludedZone = true;
+            break;
+          }
+        } else if (
+          HARD_EXCLUDED_ROOM_NAMES.has(rNameLow) ||
+          rCustomLow.includes("porch") ||
+          rCustomLow.includes("garage") ||
+          rCustomLow.includes("alfresco")
+        ) {
+          // Only treat full-floor synthetic container polygons (area > 28 m²) as non-excluding if they are generic Entry/Living wrappers
+          const isSyntheticWrapper =
+            (rNameLow === "entry" || rNameLow === "living") &&
+            (box.maxX - box.minX) * (box.maxZ - box.minZ) > 28;
+          if (!isSyntheticWrapper && pointInBox(fx, fz, box, -0.05)) {
+            inExcludedZone = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // 4. Wet-Room Whitelist Check for vanities, toilets, baths, and showers
+    let wetRoomViolation = false;
+    if (isWetFixture(f.type)) {
+      const fRoomLow = (f.roomName || "").toLowerCase();
+      const labelMatchesWet = WET_WHITELIST_NAMES.some((w) => fRoomLow.includes(w));
+      const wetRoomsOnLevel = levelRooms.filter((r) => {
+        const rn = `${r.name} ${r.customLabel || ""}`.toLowerCase();
+        return WET_WHITELIST_NAMES.some((w) => rn.includes(w));
+      });
+      if (!labelMatchesWet) {
+        wetRoomViolation = true;
+      } else if (wetRoomsOnLevel.length > 0) {
+        const insideAnyWetRoom = wetRoomsOnLevel.some((wr) =>
+          pointInBox(fx, fz, getRoomBox(wr), 0.35)
+        );
+        if (!insideAnyWetRoom) {
+          wetRoomViolation = true;
+        }
+      }
+    }
+
+    if (outOfFootprint || outsideScanlineEnvelope || inExcludedZone || wetRoomViolation) {
+      // Attempt to snap into a valid matching room on the same level if none of this fixture type exists there yet
+      const candidateRoom = levelRooms.find((r) => {
+        const rn = `${r.name} ${r.customLabel || ""}`.toLowerCase();
+        if (HARD_EXCLUDED_ROOM_NAMES.has((r.name || "").toLowerCase())) return false;
+        if (isWetFixture(f.type)) {
+          return (
+            WET_WHITELIST_NAMES.some((w) => rn.includes(w)) &&
+            !validFixtures.some(
+              (vf) =>
+                (vf.level ?? 0) === fLevel &&
+                vf.type === f.type &&
+                pointInBox(vf.position[0], vf.position[2], getRoomBox(r), 0.25)
+            )
+          );
+        }
+        return rn.includes((f.roomName || "").toLowerCase());
+      });
+
+      if (candidateRoom && f.type === "staircase") {
+        const cb = getRoomBox(candidateRoom);
+        f.position[0] = Number(((cb.minX + cb.maxX) / 2).toFixed(2));
+        f.position[2] = Number(((cb.minZ + cb.maxZ) / 2).toFixed(2));
+        snappedIds.push(f.id);
+        validFixtures.push(f);
+      } else {
+        removedIds.push(f.id);
+      }
+      continue;
+    }
+
+    // 5. Clamp fixture inside its host room bounding box if a discrete room polygon (< 26 m²) contains it
+    const hostRoom = levelRooms.find((r) => {
+      const b = getRoomBox(r);
+      const area = (b.maxX - b.minX) * (b.maxZ - b.minZ);
+      return area <= 26 && pointInBox(fx, fz, b, 0.15);
+    });
+
+    if (hostRoom && f.type !== "balustrade" && f.type !== "staircase") {
+      const hb = getRoomBox(hostRoom);
+      const rotCos = Math.abs(Math.cos(f.rotationY || 0));
+      const rotSin = Math.abs(Math.sin(f.rotationY || 0));
+      const effHalfW = (f.width * rotCos + f.depth * rotSin) / 2 + 0.06;
+      const effHalfD = (f.width * rotSin + f.depth * rotCos) / 2 + 0.06;
+
+      if (hb.maxX - hb.minX > effHalfW * 2) {
+        f.position[0] = Number(
+          Math.max(hb.minX + effHalfW, Math.min(hb.maxX - effHalfW, f.position[0])).toFixed(2)
+        );
+      }
+      if (hb.maxZ - hb.minZ > effHalfD * 2) {
+        f.position[2] = Number(
+          Math.max(hb.minZ + effHalfD, Math.min(hb.maxZ - effHalfD, f.position[2])).toFixed(2)
+        );
+      }
+    }
+
+    validFixtures.push(f);
+  }
+
+  return { validFixtures, removedIds, snappedIds };
 }
 
 /**
@@ -908,6 +1219,21 @@ export function build3DDesignForStandardModel(
       ? "Dual Living"
       : "Single Storey";
 
+  // Standard Hudson Homes ceiling heights: 2590mm (2.59m) for Double Storey Ground Floor, 2440mm (2.44m) for Single Storey
+  const defaultCeilingHeightM = isJamesMauve
+    ? 2.74
+    : resolvedHousingType === "Double Storey" || resolvedHousingType === "Split Level"
+    ? 2.59
+    : 2.44;
+
+  const validatedPlaceholder = validateAndClampFixtures(
+    scaledFixtures,
+    scaledRooms,
+    scaledWalls,
+    spec.widthM,
+    spec.lengthM
+  );
+
   const generated: BuildingDesign3D = {
     ...baseTemplate,
     id: spec.id,
@@ -920,7 +1246,7 @@ export function build3DDesignForStandardModel(
     isCustomPlan: isJamesMauve,
     widthM: spec.widthM,
     lengthM: spec.lengthM,
-    ceilingHeightM: isJamesMauve ? 2.74 : spec.totalM2 >= 220 ? 2.59 : 2.44,
+    ceilingHeightM: defaultCeilingHeightM,
     floorplanImageUrl,
     floorplanCrop: undefined,
     openHampers: (baseTemplate.openHampers || []).map((h) => ({
@@ -948,14 +1274,14 @@ export function build3DDesignForStandardModel(
     rooms: scaledRooms,
     walls: scaledWalls,
     openings: scaledOpenings,
-    fixtures: scaledFixtures,
+    fixtures: validatedPlaceholder.validFixtures,
     boundary: {
       ...DEFAULT_BOUNDARY_CONFIG,
       lotWidthM: spec.widthM >= 14.2 ? 18 : spec.widthM >= 12.8 ? 16 : spec.widthM >= 11.4 ? 14 : 12.5,
       lotLengthM: spec.widthM >= 14.2 ? 35 : spec.widthM >= 12.8 ? 32 : spec.widthM >= 11.4 ? 30 : 28,
     },
     materials: { ...DEFAULT_MATERIAL_CONFIG },
-    fitout: { ...DEFAULT_FITOUT_CONFIG, showFurniture: isJamesMauve ? true : false },
+    fitout: { ...DEFAULT_FITOUT_CONFIG, showFurniture: true },
     customFacade: {
       ...DEFAULT_CUSTOM_FACADE_CONFIG,
       mode: "tailored",

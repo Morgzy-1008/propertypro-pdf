@@ -18,6 +18,7 @@ import {
   CustomFacadeConfig,
   FacadeType,
   FenceStyle,
+  SceneSelectedElement,
 } from "./studio3dTypes";
 import { generateProceduralHipRoof } from "./parametricRoofEngine";
 import { ensureCompleteWallNetwork } from "./wallNetworkEngine";
@@ -46,6 +47,7 @@ export interface SceneManagerOptions {
   design: BuildingDesign3D | null;
   onRoomChange?: (roomName: string) => void;
   onSurfaceSelect?: (surfaceId: SemanticSurfaceId) => void;
+  onElementSelect?: (element: SceneSelectedElement | null) => void;
   isLight?: boolean;
 }
 
@@ -54,8 +56,14 @@ export class ThreeStudioSceneManager {
   private design: BuildingDesign3D | null = null;
   private onRoomChange?: (roomName: string) => void;
   private onSurfaceSelect?: (surfaceId: SemanticSurfaceId) => void;
+  private onElementSelect?: (element: SceneSelectedElement | null) => void;
   private emptyGrid: THREE.GridHelper | null = null;
   private isLight = false;
+  private showCadDiagnosticCaps = false;
+  private wallXrayMode = false;
+  private l2Calibration = { offsetX: 0, offsetZ: 0, scale: 1.0 };
+  private selectedElementId: string | null = null;
+  private selectionBoxHelper: THREE.BoxHelper | null = null;
 
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
@@ -70,7 +78,7 @@ export class ThreeStudioSceneManager {
   private cameraMode: CameraMode = "orbit";
   private isMouseDown = false;
   private isRightMouseDown = false;
-  private mouseDownClientPos = { x: 0, y: 0 };
+  private mouseDownStartPosition = { x: 0, y: 0 };
   private previousMousePosition = { x: 0, y: 0 };
   private raycaster = new THREE.Raycaster();
 
@@ -106,6 +114,7 @@ export class ThreeStudioSceneManager {
       : null;
     this.onRoomChange = options.onRoomChange;
     this.onSurfaceSelect = options.onSurfaceSelect;
+    this.onElementSelect = options.onElementSelect;
 
     // 1. Scene
     this.scene = new THREE.Scene();
@@ -875,6 +884,12 @@ export class ThreeStudioSceneManager {
       this.emptyGrid = null;
     }
 
+    if (this.selectionBoxHelper) {
+      this.scene.remove(this.selectionBoxHelper);
+      this.selectionBoxHelper.dispose();
+      this.selectionBoxHelper = null;
+    }
+
     // Clear previous geometry
     while (this.boundaryGroup.children.length > 0) {
       this.boundaryGroup.remove(this.boundaryGroup.children[0]);
@@ -895,7 +910,9 @@ export class ThreeStudioSceneManager {
     // Set orbit target to center of building and update camera
     const centerX = this.design.widthM / 2;
     const centerZ = this.design.lengthM / 2;
-    this.orbitTarget.set(centerX, 1.2, centerZ);
+    if (!preserveCamera) {
+      this.orbitTarget.set(centerX, 1.2, centerZ);
+    }
     if (this.cameraMode === "orbit") {
       if (!preserveCamera) {
         const maxDim = Math.max(this.design.widthM, this.design.lengthM);
@@ -930,6 +947,25 @@ export class ThreeStudioSceneManager {
 
     // 8. Apply Semantic PBR Materials & World-Space UV Projection across all tagged meshes
     this.applyPbrAndWorldSpaceUVsToScene();
+
+    // 9. Re-attach selection BoxHelper if an element remains selected after nudge/rotate
+    if (this.selectedElementId) {
+      let foundObj: THREE.Object3D | null = null;
+      const searchGroups = [this.fixturesGroup, this.buildingGroup, this.facadeGroup];
+      for (const grp of searchGroups) {
+        grp.traverse((child) => {
+          if (!foundObj && child.userData?.selectableElement?.id === this.selectedElementId) {
+            foundObj = child;
+          }
+        });
+      }
+      if (foundObj) {
+        this.selectionBoxHelper = new THREE.BoxHelper(foundObj, 0x06b6d4);
+        this.scene.add(this.selectionBoxHelper);
+      } else {
+        this.selectedElementId = null;
+      }
+    }
   }
 
   private isFrontAtSouthEdge(): boolean {
@@ -1015,7 +1051,7 @@ export class ThreeStudioSceneManager {
     lotTurfMesh.receiveShadow = true;
     this.buildingGroup.add(lotTurfMesh);
 
-    // Helper to extrude stepped slabs/plinths cleanly from room polygons on a level
+    // Helper to extrude stepped slabs/plinths cleanly from room polygons on a level (cutting out Stairwell Void holes on upper floors)
     const addRoomPolygonSlabs = (
       levelRooms: Room3D[],
       baseY: number,
@@ -1023,8 +1059,18 @@ export class ThreeStudioSceneManager {
       mat: THREE.Material,
       padM = 0.06
     ) => {
+      const voidRooms = levelRooms.filter(
+        (vr) => vr.name === "Void" && vr.polygon && vr.polygon.length >= 3
+      );
       for (const room of levelRooms) {
+        if (room.name === "Void") continue;
         if (!room.polygon || room.polygon.length < 3) continue;
+        const rxs = room.polygon.map((p) => p[0]);
+        const rzs = room.polygon.map((p) => p[1]);
+        const rMinX = Math.min(...rxs);
+        const rMaxX = Math.max(...rxs);
+        const rMinZ = Math.min(...rzs);
+        const rMaxZ = Math.max(...rzs);
         const cx =
           room.polygon.reduce((acc, p) => acc + p[0], 0) / room.polygon.length;
         const cz =
@@ -1037,6 +1083,27 @@ export class ThreeStudioSceneManager {
           else shape.lineTo(ex, -ez);
         });
         shape.closePath();
+
+        // Cut out Stairwell Void holes inside large upper-floor slab polygons
+        if (baseY > 1.0 && voidRooms.length > 0 && (rMaxX - rMinX) * (rMaxZ - rMinZ) > 16) {
+          for (const vr of voidRooms) {
+            if (
+              vr.center[0] >= rMinX &&
+              vr.center[0] <= rMaxX &&
+              vr.center[1] >= rMinZ &&
+              vr.center[1] <= rMaxZ
+            ) {
+              const holePath = new THREE.Path();
+              vr.polygon.forEach(([vx, vz], idx) => {
+                if (idx === 0) holePath.moveTo(vx, -vz);
+                else holePath.lineTo(vx, -vz);
+              });
+              holePath.closePath();
+              shape.holes.push(holePath);
+            }
+          }
+        }
+
         const geom = new THREE.ExtrudeGeometry(shape, {
           depth: slabDepth,
           bevelEnabled: false,
@@ -1046,6 +1113,7 @@ export class ThreeStudioSceneManager {
         mesh.position.y = baseY;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        mesh.userData.isSlabOrGround = true;
         this.buildingGroup.add(mesh);
       }
     };
@@ -1062,6 +1130,7 @@ export class ThreeStudioSceneManager {
       const slabMesh = new THREE.Mesh(slabGeom, slabMat);
       slabMesh.position.set(slabW / 2, 0.15, slabL / 2);
       slabMesh.receiveShadow = true;
+      slabMesh.userData.isSlabOrGround = true;
       this.buildingGroup.add(slabMesh);
     }
 
@@ -1089,6 +1158,7 @@ export class ThreeStudioSceneManager {
             plinthMesh.position.set(cX, plinthH / 2, cZ);
             plinthMesh.castShadow = true;
             plinthMesh.receiveShadow = true;
+            plinthMesh.userData.isSlabOrGround = true;
             this.buildingGroup.add(plinthMesh);
           }
         } else {
@@ -1104,6 +1174,7 @@ export class ThreeStudioSceneManager {
             upperSlabMesh.position.set(cX, upperFFL - upperSlabH / 2, cZ);
             upperSlabMesh.castShadow = true;
             upperSlabMesh.receiveShadow = true;
+            upperSlabMesh.userData.isSlabOrGround = true;
             this.buildingGroup.add(upperSlabMesh);
           }
         }
@@ -1132,6 +1203,7 @@ export class ThreeStudioSceneManager {
       drivewayMesh.position.set(garageX, 0.025, (driveStartZ + driveEndZ) / 2);
       drivewayMesh.receiveShadow = true;
       drivewayMesh.userData.surfaceId = "driveway_paving";
+      drivewayMesh.userData.isSlabOrGround = true;
       this.buildingGroup.add(drivewayMesh);
 
       const porch = (this.design.rooms || []).find((r) => r.name === "Porch");
@@ -1144,6 +1216,7 @@ export class ThreeStudioSceneManager {
       pathMesh.position.set(pathX, 0.03, (pathStartZ + pathEndZ) / 2);
       pathMesh.receiveShadow = true;
       pathMesh.userData.surfaceId = "driveway_paving";
+      pathMesh.userData.isSlabOrGround = true;
       this.buildingGroup.add(pathMesh);
     } else {
       const driveL = Math.abs(lotNorth) + 2.0;
@@ -1152,6 +1225,7 @@ export class ThreeStudioSceneManager {
       drivewayMesh.position.set(garageX, 0.025, lotNorth / 2 - 1.0);
       drivewayMesh.receiveShadow = true;
       drivewayMesh.userData.surfaceId = "driveway_paving";
+      drivewayMesh.userData.isSlabOrGround = true;
       this.buildingGroup.add(drivewayMesh);
 
       const porch = (this.design.rooms || []).find((r) => r.name === "Porch");
@@ -1162,6 +1236,7 @@ export class ThreeStudioSceneManager {
       pathMesh.position.set(pathX, 0.03, lotNorth / 2 - 0.5);
       pathMesh.receiveShadow = true;
       pathMesh.userData.surfaceId = "driveway_paving";
+      pathMesh.userData.isSlabOrGround = true;
       this.buildingGroup.add(pathMesh);
     }
   }
@@ -1543,10 +1618,12 @@ export class ThreeStudioSceneManager {
           alfPierMesh.userData.surfaceId = "exterior_wall_main";
           this.facadeGroup.add(alfPierMesh);
 
-          const pierCapGeom = new THREE.BoxGeometry(0.35, 0.016, 0.35);
-          const pierCapMat = new THREE.MeshBasicMaterial({ color: 0xb91c1c });
+          const pierCapGeom = new THREE.BoxGeometry(0.36, 0.025, 0.36);
+          const pierCapMat = this.showCadDiagnosticCaps
+            ? new THREE.MeshBasicMaterial({ color: 0xb91c1c })
+            : this.materials.stoneCap;
           const pierCapMesh = new THREE.Mesh(pierCapGeom, pierCapMat);
-          pierCapMesh.position.set(cornerX, ffl + porchH + 0.008, cornerZ);
+          pierCapMesh.position.set(cornerX, ffl + porchH + 0.012, cornerZ);
           this.facadeGroup.add(pierCapMesh);
         });
       } else {
@@ -1599,6 +1676,93 @@ export class ThreeStudioSceneManager {
     return this.showBlueprintUnderlay;
   }
 
+  public setWallXrayMode(enabled: boolean): void {
+    this.wallXrayMode = enabled;
+    this.rebuildScene(true);
+  }
+
+  public getWallXrayMode(): boolean {
+    return this.wallXrayMode;
+  }
+
+  public setL2Calibration(cal: { offsetX?: number; offsetZ?: number; scale?: number }): void {
+    if (!this.design) return;
+    const newX = cal.offsetX !== undefined ? +cal.offsetX.toFixed(2) : this.l2Calibration.offsetX;
+    const newZ = cal.offsetZ !== undefined ? +cal.offsetZ.toFixed(2) : this.l2Calibration.offsetZ;
+    const newScale = cal.scale !== undefined ? +cal.scale.toFixed(3) : this.l2Calibration.scale;
+
+    const dx = newX - this.l2Calibration.offsetX;
+    const dz = newZ - this.l2Calibration.offsetZ;
+    const scaleRatio = newScale / (this.l2Calibration.scale || 1.0);
+
+    this.l2Calibration = { offsetX: newX, offsetZ: newZ, scale: newScale };
+
+    if (Math.abs(dx) < 1e-4 && Math.abs(dz) < 1e-4 && Math.abs(scaleRatio - 1) < 1e-4) {
+      return;
+    }
+
+    const l2Lvl = (this.design.levels || []).find((l) => l.level === 2);
+    const pivotX = l2Lvl ? l2Lvl.worldBounds.x + l2Lvl.worldBounds.widthM / 2 : this.design.widthM / 2;
+    const pivotZ = l2Lvl ? l2Lvl.worldBounds.z + l2Lvl.worldBounds.depthM / 2 : this.design.lengthM / 2;
+
+    const transformPt = (pt: [number, number]): [number, number] => [
+      +((pt[0] - pivotX) * scaleRatio + pivotX + dx).toFixed(3),
+      +((pt[1] - pivotZ) * scaleRatio + pivotZ + dz).toFixed(3),
+    ];
+
+    if (l2Lvl) {
+      const newW = +(l2Lvl.worldBounds.widthM * scaleRatio).toFixed(2);
+      const newD = +(l2Lvl.worldBounds.depthM * scaleRatio).toFixed(2);
+      l2Lvl.worldBounds = {
+        x: +(pivotX - newW / 2 + dx).toFixed(2),
+        z: +(pivotZ - newD / 2 + dz).toFixed(2),
+        widthM: newW,
+        depthM: newD,
+      };
+    }
+
+    for (const w of this.design.walls || []) {
+      if ((w.level ?? 0) === 2) {
+        w.start = transformPt(w.start);
+        w.end = transformPt(w.end);
+      }
+    }
+    for (const op of this.design.openings || []) {
+      if ((op.level ?? 0) === 2) {
+        op.position = transformPt(op.position);
+        op.width = +(op.width * scaleRatio).toFixed(3);
+        if (op.hingePoint) op.hingePoint = transformPt(op.hingePoint);
+        if (op.closedPoint) op.closedPoint = transformPt(op.closedPoint);
+        if (op.openPoint) op.openPoint = transformPt(op.openPoint);
+        if (op.bifoldPeak) op.bifoldPeak = transformPt(op.bifoldPeak);
+      }
+    }
+    for (const h of this.design.openHampers || []) {
+      if ((h.level ?? 0) === 2) {
+        h.start = transformPt(h.start);
+        h.end = transformPt(h.end);
+      }
+    }
+    for (const r of this.design.rooms || []) {
+      if ((r.level ?? 0) === 2) {
+        r.polygon = r.polygon.map((p) => transformPt(p));
+        r.center = transformPt(r.center);
+      }
+    }
+    for (const f of this.design.fixtures || []) {
+      if ((f.level ?? 0) === 2) {
+        const tp = transformPt([f.position[0], f.position[2]]);
+        f.position = [tp[0], f.position[1], tp[1]];
+      }
+    }
+
+    this.rebuildScene(true);
+  }
+
+  public getL2Calibration(): { offsetX: number; offsetZ: number; scale: number } {
+    return { ...this.l2Calibration };
+  }
+
   public setLevelFilter(level: "all" | number): void {
     this.activeLevelFilter = level;
     this.rebuildScene(true);
@@ -1645,7 +1809,7 @@ export class ThreeStudioSceneManager {
           const baseMat = new THREE.MeshBasicMaterial({
             color: 0xffffff,
             transparent: true,
-            alphaTest: 0.05,
+            opacity: 0.94,
           });
           const baseMesh = new THREE.Mesh(baseGeom, baseMat);
           baseMesh.rotation.x = -Math.PI / 2;
@@ -1665,46 +1829,16 @@ export class ThreeStudioSceneManager {
               const sy = lvl.floorplanCrop.minY;
               const sw = Math.max(16, lvl.floorplanCrop.maxX - lvl.floorplanCrop.minX);
               const sh = Math.max(16, lvl.floorplanCrop.maxY - lvl.floorplanCrop.minY);
-              const b = lvl.worldBounds;
-              const pW = Math.max(0.5, b.widthM);
-              const pL = Math.max(0.5, b.depthM);
 
               const canvas = document.createElement("canvas");
               canvas.width = sw;
               canvas.height = sh;
               const ctx = canvas.getContext("2d");
               if (ctx) {
-                const lvlRooms = (this.design?.rooms || []).filter(
-                  (r) => (r.level ?? 0) === lvl.level && r.polygon && r.polygon.length >= 3
-                );
-                if (lvlRooms.length > 0) {
-                  ctx.save();
-                  ctx.beginPath();
-                  const padM = 0.28;
-                  for (const room of lvlRooms) {
-                    const cx =
-                      room.polygon.reduce((acc, p) => acc + p[0], 0) / room.polygon.length;
-                    const cz =
-                      room.polygon.reduce((acc, p) => acc + p[1], 0) / room.polygon.length;
-                    room.polygon.forEach(([wx, wz], idx) => {
-                      const ex = wx + (wx >= cx ? padM : -padM);
-                      const ez = wz + (wz >= cz ? padM : -padM);
-                      const px = ((ex - b.x) / pW) * sw;
-                      const py = ((ez - b.z) / pL) * sh;
-                      if (idx === 0) ctx.moveTo(px, py);
-                      else ctx.lineTo(px, py);
-                    });
-                    ctx.closePath();
-                  }
-                  ctx.clip();
-                }
-
+                // Draw full cropped level architectural floorplan without room-polygon clipping so hallways, stairs, and labels are 100% visible!
                 ctx.fillStyle = "#ffffff";
                 ctx.fillRect(0, 0, sw, sh);
                 ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
-                if (lvlRooms.length > 0) {
-                  ctx.restore();
-                }
 
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.colorSpace = THREE.SRGBColorSpace;
@@ -1721,7 +1855,11 @@ export class ThreeStudioSceneManager {
       } else {
         // Single-Level Crisp White Architectural Drawing Sheet Base on Top of Slab
         const baseGeom = new THREE.PlaneGeometry(wM, lM);
-        const baseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const baseMat = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.94,
+        });
         const baseMesh = new THREE.Mesh(baseGeom, baseMat);
         baseMesh.rotation.x = -Math.PI / 2;
         baseMesh.position.set(wM / 2, 0.308, lM / 2);
@@ -1766,10 +1904,12 @@ export class ThreeStudioSceneManager {
           this.buildingGroup.add(alfPier);
 
           const alfPierCap = new THREE.Mesh(
-            new THREE.BoxGeometry(0.35, 0.016, 0.35),
-            new THREE.MeshBasicMaterial({ color: 0xb91c1c })
+            new THREE.BoxGeometry(0.36, 0.025, 0.36),
+            this.showCadDiagnosticCaps
+              ? new THREE.MeshBasicMaterial({ color: 0xb91c1c })
+              : this.materials.stoneCap
           );
-          alfPierCap.position.set(6.845, ffl + ceilingH + 0.008, 0.175);
+          alfPierCap.position.set(6.845, ffl + ceilingH + 0.012, 0.175);
           this.buildingGroup.add(alfPierCap);
 
           [4.59, 4.78].forEach((px) => {
@@ -1789,8 +1929,10 @@ export class ThreeStudioSceneManager {
     // Always build semantic 3D PBR room floor meshes, ceiling soffits, skirting boards & feature wall
     const ceilingH = this.design.ceilingHeightM || 2.44;
     let featureWallAdded = false;
+    const allRooms = this.design.rooms || [];
 
-    (this.design.rooms || []).forEach((room) => {
+    allRooms.forEach((room) => {
+      if (room.name === "Void") return; // Stairwell void is an open floor cutout
       if (this.activeLevelFilter !== "all" && (room.level ?? 0) !== this.activeLevelFilter) return;
       if (!room.polygon || room.polygon.length < 3) return;
 
@@ -1801,6 +1943,36 @@ export class ThreeStudioSceneManager {
         shape.lineTo(room.polygon[i][0], room.polygon[i][1]);
       }
       shape.closePath();
+
+      // Cut out Stairwell Void holes inside large upper-floor room floor meshes
+      const roomLevel = room.level ?? 0;
+      if (roomLevel >= 2 && room.areaM2 > 16) {
+        const rxs = room.polygon.map((p) => p[0]);
+        const rzs = room.polygon.map((p) => p[1]);
+        const rMinX = Math.min(...rxs);
+        const rMaxX = Math.max(...rxs);
+        const rMinZ = Math.min(...rzs);
+        const rMaxZ = Math.max(...rzs);
+        const voidRooms = allRooms.filter(
+          (vr) => (vr.level ?? 0) === roomLevel && vr.name === "Void" && vr.polygon?.length >= 3
+        );
+        for (const vr of voidRooms) {
+          if (
+            vr.center[0] >= rMinX &&
+            vr.center[0] <= rMaxX &&
+            vr.center[1] >= rMinZ &&
+            vr.center[1] <= rMaxZ
+          ) {
+            const holePath = new THREE.Path();
+            vr.polygon.forEach(([vx, vz], idx) => {
+              if (idx === 0) holePath.moveTo(vx, vz);
+              else holePath.lineTo(vx, vz);
+            });
+            holePath.closePath();
+            shape.holes.push(holePath);
+          }
+        }
+      }
 
       const rName = (room.name || "").toLowerCase();
       const isWetArea =
@@ -1835,11 +2007,11 @@ export class ThreeStudioSceneManager {
         : this.getSurfaceMaterial(floorSurfaceId);
       const floorMesh = new THREE.Mesh(floorGeom, floorMat);
       floorMesh.rotation.x = Math.PI / 2;
-      // Place slightly below blueprint underlay (0.305) in orbit blueprint mode, or above (0.312) in walkthrough / PBR mode
+      // Place slightly below blueprint underlay (0.304) in orbit blueprint mode, or above (0.312) in walkthrough / PBR mode
       const elevOffset = room.elevationOffsetM || 0;
       floorMesh.position.y =
         hasBlueprintUnderlay && this.cameraMode !== "walkthrough"
-          ? 0.305 + elevOffset
+          ? 0.304 + elevOffset
           : 0.312 + elevOffset;
       floorMesh.receiveShadow = true;
       floorMesh.userData.surfaceId = floorSurfaceId;
@@ -2013,21 +2185,30 @@ export class ThreeStudioSceneManager {
     angle: number,
     level = 0
   ): THREE.Material | THREE.Material[] {
+    const withXray = (baseMat: THREE.Material): THREE.Material => {
+      if (!this.wallXrayMode) return baseMat;
+      const cloned = baseMat.clone();
+      cloned.transparent = true;
+      cloned.opacity = 0.65;
+      cloned.userData = { ...baseMat.userData, isXrayClone: true };
+      return cloned;
+    };
+
     const { bothIndoors, inSign } = this.classifyWallSides(isExterior, posX, posZ, angle, level);
     if (bothIndoors) {
-      return this.materials.interiorWall;
+      return withXray(this.materials.interiorWall);
     }
     const extMat = level >= 2 ? this.materials.cladding : this.materials.brick;
     const plusZMat = inSign === 1 ? this.materials.interiorWall : extMat;
     const minusZMat = inSign === 1 ? extMat : this.materials.interiorWall;
 
     return [
-      this.materials.interiorWall, // +X jamb reveal (painted)
-      this.materials.interiorWall, // -X jamb reveal (painted)
-      extMat,                      // +Y top
-      extMat,                      // -Y bottom
-      plusZMat,                    // +Z face
-      minusZMat,                   // -Z face
+      withXray(this.materials.interiorWall), // +X jamb reveal (painted)
+      withXray(this.materials.interiorWall), // -X jamb reveal (painted)
+      withXray(extMat),                      // +Y top
+      withXray(extMat),                      // -Y bottom
+      withXray(plusZMat),                    // +Z face
+      withXray(minusZMat),                   // -Z face
     ];
   }
 
@@ -2088,7 +2269,8 @@ export class ThreeStudioSceneManager {
     posX: number,
     posZ: number,
     angle: number,
-    level = 0
+    level = 0,
+    wallId?: string
   ): void {
     const { bothIndoors, inSign } = this.classifyWallSides(isExterior, posX, posZ, angle, level);
     const mat = this.getWallMaterials(isExterior, posX, posZ, angle, level);
@@ -2105,27 +2287,44 @@ export class ThreeStudioSceneManager {
           : "exterior_wall_main"
         : "interior_walls_main";
     mesh.userData.hasInteriorSurfaceId = "interior_walls_main";
+    if (wallId) {
+      mesh.userData.selectableElement = {
+        id: wallId,
+        kind: "wall",
+        elementType: isExterior && !bothIndoors ? "exterior_wall" : "interior_wall",
+        label:
+          isExterior && !bothIndoors
+            ? "Exterior Structural Wall (240mm)"
+            : "Internal Stud Partition Wall (90mm)",
+        level,
+        position: [posX, yCenter, posZ],
+        rotationDeg: Math.round(((-angle * 180) / Math.PI + 360) % 360),
+      } satisfies SceneSelectedElement;
+    }
     this.buildingGroup.add(mesh);
 
-    // Structural Top Cross-Section Cap (for Dollhouse & Plan inspection)
-    const capH = 0.014;
+    // Structural Top Cross-Section Cap (Realistic masonry/plaster by default; diagnostic CAD colors only if enabled)
+    const capH = 0.012;
     const capY = yTop + capH / 2 + 0.001;
 
     if (isExterior && !bothIndoors) {
-      // 250mm External Wall Cap: 235mm Face Brick + 15mm Painted Interior Plaster Lining
       const extCapGroup = new THREE.Group();
-
       const plasterThick = 0.015;
       const brickThick = Math.max(0.10, thickness - plasterThick);
 
       const coreGeom = new THREE.BoxGeometry(len, capH, brickThick);
-      const coreMat = new THREE.MeshBasicMaterial({ color: 0xb91c1c }); // Brick Masonry Red
+      const extMat = level >= 2 ? this.materials.cladding : this.materials.brick;
+      const coreMat = this.showCadDiagnosticCaps
+        ? new THREE.MeshBasicMaterial({ color: 0xb91c1c })
+        : extMat;
       const coreMesh = new THREE.Mesh(coreGeom, coreMat);
       coreMesh.position.z = -inSign * (plasterThick / 2);
       extCapGroup.add(coreMesh);
 
       const innerPlasterGeom = new THREE.BoxGeometry(len, capH + 0.001, plasterThick);
-      const innerPlasterMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // Interior Painted Plaster Lining
+      const innerPlasterMat = this.showCadDiagnosticCaps
+        ? new THREE.MeshBasicMaterial({ color: 0xffffff })
+        : this.materials.interiorWall;
       const innerPlasterMesh = new THREE.Mesh(innerPlasterGeom, innerPlasterMat);
       innerPlasterMesh.position.z = inSign * (brickThick / 2);
       extCapGroup.add(innerPlasterMesh);
@@ -2134,26 +2333,31 @@ export class ThreeStudioSceneManager {
       extCapGroup.rotation.y = -angle;
       this.buildingGroup.add(extCapGroup);
     } else {
-      // Internal Painted Wall Composite Assembly:
-      // 10mm Plasterboard (0.01m) + Stud Frame Core + 10mm Plasterboard (0.01m)
       const intCapGroup = new THREE.Group();
-      const plasterThick = 0.012;
-      const frameThick = Math.max(0.05, thickness - plasterThick * 2);
+      if (this.showCadDiagnosticCaps) {
+        const plasterThick = 0.012;
+        const frameThick = Math.max(0.05, thickness - plasterThick * 2);
 
-      const frameGeom = new THREE.BoxGeometry(len, capH + 0.002, frameThick);
-      const frameMat = new THREE.MeshBasicMaterial({ color: 0x2563eb }); // Structural Stud Frame Core
-      intCapGroup.add(new THREE.Mesh(frameGeom, frameMat));
+        const frameGeom = new THREE.BoxGeometry(len, capH + 0.002, frameThick);
+        const frameMat = new THREE.MeshBasicMaterial({ color: 0x2563eb });
+        intCapGroup.add(new THREE.Mesh(frameGeom, frameMat));
 
-      const plasterGeom = new THREE.BoxGeometry(len, capH, plasterThick);
-      const plasterMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // Painted Plasterboard Lining
+        const plasterGeom = new THREE.BoxGeometry(len, capH, plasterThick);
+        const plasterMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-      const plasterSideA = new THREE.Mesh(plasterGeom, plasterMat);
-      plasterSideA.position.z = -(frameThick / 2 + plasterThick / 2);
-      intCapGroup.add(plasterSideA);
+        const plasterSideA = new THREE.Mesh(plasterGeom, plasterMat);
+        plasterSideA.position.z = -(frameThick / 2 + plasterThick / 2);
+        intCapGroup.add(plasterSideA);
 
-      const plasterSideB = new THREE.Mesh(plasterGeom, plasterMat);
-      plasterSideB.position.z = frameThick / 2 + plasterThick / 2;
-      intCapGroup.add(plasterSideB);
+        const plasterSideB = new THREE.Mesh(plasterGeom, plasterMat);
+        plasterSideB.position.z = frameThick / 2 + plasterThick / 2;
+        intCapGroup.add(plasterSideB);
+      } else {
+        // Realistic painted plasterboard top cap
+        const capGeom = new THREE.BoxGeometry(len, capH, thickness);
+        const capMesh = new THREE.Mesh(capGeom, this.materials.interiorWall);
+        intCapGroup.add(capMesh);
+      }
 
       intCapGroup.position.set(posX, capY, posZ);
       intCapGroup.rotation.y = -angle;
@@ -2194,8 +2398,10 @@ export class ThreeStudioSceneManager {
     const ceilingH = this.design.ceilingHeightM;
     const openings = (this.design.openings || []).map((op) => this.getEffectiveOpening(op));
     const walls = this.design.walls || [];
+    const wallIdsOnLevel = new Set(walls.map((w) => w.id));
+    const renderedOpeningIds = new Set<string>();
 
-    // Walls
+    // Walls & Hosted Openings
     walls.forEach((wall) => {
       const wallLevel = wall.level ?? 0;
       if (this.activeLevelFilter !== "all" && wallLevel !== this.activeLevelFilter) return;
@@ -2210,17 +2416,20 @@ export class ThreeStudioSceneManager {
       const midX = (p1.x + p2.x) / 2;
       const midZ = (p1.y + p2.y) / 2;
 
-      // Find openings situated along this wall on the SAME level
+      // Constraint B: Match openings primarily by hosted `op.wallId === wall.id`, with geometric fallback
       const isWallHorizontal = Math.abs(p1.y - p2.y) <= Math.abs(p1.x - p2.x);
       const wallOpenings = openings.filter((op) => {
         if ((op.level ?? 0) !== wallLevel) return false;
+        if (op.wallId && wallIdsOnLevel.has(op.wallId)) {
+          return op.wallId === wall.id;
+        }
         if (op.wallOrientation) {
           const opHoriz = op.wallOrientation === "horizontal";
           if (opHoriz !== isWallHorizontal) return false;
         }
         const opPos = new THREE.Vector2(op.position[0], op.position[1]);
         const dist = distToSegment(opPos, p1, p2);
-        return dist < 0.22;
+        return dist < 0.24;
       });
 
       const wallH = wall.height || ceilingH;
@@ -2237,11 +2446,12 @@ export class ThreeStudioSceneManager {
           midX,
           midZ,
           angle,
-          wallLevel
+          wallLevel,
+          wall.id
         );
       } else {
-        // Wall with Openings: Subdivide into exact scaled piers, sill walls, and lintel headers!
-        const sorted = wallOpenings
+        // Constraint B: Multi-Opening Interval Slicing with minimum 0.08m pier guard
+        const rawIntervals = wallOpenings
           .map((op) => {
             if (op.hingePoint && op.closedPoint) {
               const d1 = p1.distanceTo(new THREE.Vector2(op.hingePoint[0], op.hingePoint[1]));
@@ -2251,22 +2461,54 @@ export class ThreeStudioSceneManager {
               return { op, d: (openStart + openEnd) / 2, openStart, openEnd };
             }
             const opPos = new THREE.Vector2(op.position[0], op.position[1]);
-            const d = p1.distanceTo(opPos);
-            const opHalfW = op.width / 2;
+            const d =
+              op.positionAlongWallRatio !== undefined && op.wallId === wall.id
+                ? op.positionAlongWallRatio * wallLen
+                : p1.distanceTo(opPos);
+            const clampedW = Math.min(op.width, Math.max(0.20, wallLen - 0.08));
+            const opHalfW = clampedW / 2;
+            const openStart = Math.max(0, Math.min(wallLen - clampedW, d - opHalfW));
+            const openEnd = Math.min(wallLen, openStart + clampedW);
             return {
               op,
-              d,
-              openStart: Math.max(0, d - opHalfW),
-              openEnd: Math.min(wallLen, d + opHalfW),
+              d: (openStart + openEnd) / 2,
+              openStart,
+              openEnd,
             };
           })
-          .sort((a, b) => a.d - b.d);
+          .sort((a, b) => a.openStart - b.openStart);
+
+        // Enforce non-overlapping opening intervals with at least 0.08m structural pier or clean abutment
+        const sorted: typeof rawIntervals = [];
+        for (const item of rawIntervals) {
+          if (sorted.length === 0) {
+            sorted.push(item);
+            continue;
+          }
+          const prev = sorted[sorted.length - 1];
+          if (item.openStart < prev.openEnd + 0.08) {
+            const shiftedStart = Math.max(prev.openEnd, item.openStart);
+            const w = item.openEnd - item.openStart;
+            const shiftedEnd = Math.min(wallLen, shiftedStart + w);
+            if (shiftedEnd - shiftedStart >= 0.25) {
+              sorted.push({
+                op: item.op,
+                d: (shiftedStart + shiftedEnd) / 2,
+                openStart: shiftedStart,
+                openEnd: shiftedEnd,
+              });
+            }
+          } else {
+            sorted.push(item);
+          }
+        }
 
         let curDist = 0;
         sorted.forEach(({ op, openStart, openEnd }) => {
+          renderedOpeningIds.add(op.id);
           // 1. Left pier before opening
           const pierLen = openStart - curDist;
-          if (pierLen > 0.03) {
+          if (pierLen >= 0.06) {
             const pierMid = curDist + pierLen / 2;
             const posX = p1.x + Math.cos(angle) * pierMid;
             const posZ = p1.y + Math.sin(angle) * pierMid;
@@ -2280,7 +2522,8 @@ export class ThreeStudioSceneManager {
               posX,
               posZ,
               angle,
-              wallLevel
+              wallLevel,
+              wall.id
             );
           }
 
@@ -2323,15 +2566,20 @@ export class ThreeStudioSceneManager {
             this.buildingGroup.add(lintelMesh);
           }
 
-          // 4. Build Opening Geometry (Hollow frame + transparent glass panels or scaled door)
-          this.buildOpeningObject(op, angle, ffl);
+          // 4. Build Opening Geometry anchored directly onto the host wall at (oX, oZ)
+          const anchoredOp: Opening3D = {
+            ...op,
+            position: [oX, oZ],
+            wallId: wall.id,
+          };
+          this.buildOpeningObject(anchoredOp, angle, ffl);
 
           curDist = openEnd;
         });
 
         // Final pier after last opening
         const finalPierLen = wallLen - curDist;
-        if (finalPierLen > 0.03) {
+        if (finalPierLen >= 0.06) {
           const pierMid = curDist + finalPierLen / 2;
           const posX = p1.x + Math.cos(angle) * pierMid;
           const posZ = p1.y + Math.sin(angle) * pierMid;
@@ -2345,7 +2593,8 @@ export class ThreeStudioSceneManager {
             posX,
             posZ,
             angle,
-            wallLevel
+            wallLevel,
+            wall.id
           );
         }
       }
@@ -2355,8 +2604,6 @@ export class ThreeStudioSceneManager {
   /**
    * Builds 90mm Dashed Open Hampers:
    * - Not a door and not a full-height wall (completely open walk-through portal from floor to 2.10m / 2.34m).
-   * - Renders the 90mm parallel dashed lines on the floor threshold AND a 90mm overhead hamper bulkhead
-   *   at ceiling height topped with a dashed emerald-green 90mm structural cap.
    */
   private buildOpenHampers(): void {
     if (!this.design || !this.design.openHampers) return;
@@ -2384,37 +2631,37 @@ export class ThreeStudioSceneManager {
 
       // 1. Overhead Open Hamper Bulkhead Header (at ceiling height, open walk-through below!)
       const headerGeom = new THREE.BoxGeometry(len, bulkheadH, thickness);
-      const headerMesh = new THREE.Mesh(headerGeom, this.getSurfaceMaterial("interior_ceiling"));
+      const headerMesh = new THREE.Mesh(headerGeom, this.materials.interiorWall);
       headerMesh.position.set(0, clearH + bulkheadH / 2, 0);
-      headerMesh.userData.surfaceId = "interior_ceiling";
+      headerMesh.userData.surfaceId = "interior_walls_main";
       group.add(headerMesh);
 
-      // 2. Dashed 90mm Structural Cap on Top of Bulkhead & Dashed 90mm Floor Markings
-      const dashLen = 0.11;
-      const gapLen = 0.07;
-      const step = dashLen + gapLen;
-      const dashMat = new THREE.MeshBasicMaterial({ color: 0x10b981 }); // Emerald Green for 90mm Dashed Open Hampers
-      const edgeDashMat = new THREE.MeshBasicMaterial({ color: 0x047857 });
+      // 2. Diagnostic dashes only if showCadDiagnosticCaps is enabled
+      if (this.showCadDiagnosticCaps) {
+        const dashLen = 0.11;
+        const gapLen = 0.07;
+        const step = dashLen + gapLen;
+        const dashMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+        const edgeDashMat = new THREE.MeshBasicMaterial({ color: 0x047857 });
 
-      for (let xOffset = -len / 2 + dashLen / 2; xOffset <= len / 2 - dashLen / 2 + 0.02; xOffset += step) {
-        const clampedLen = Math.min(dashLen, len / 2 - (xOffset - dashLen / 2));
-        if (clampedLen <= 0.02) continue;
+        for (let xOffset = -len / 2 + dashLen / 2; xOffset <= len / 2 - dashLen / 2 + 0.02; xOffset += step) {
+          const clampedLen = Math.min(dashLen, len / 2 - (xOffset - dashLen / 2));
+          if (clampedLen <= 0.02) continue;
 
-        // Top Cap Dash (90mm wide)
-        const topDashGeom = new THREE.BoxGeometry(clampedLen, 0.018, thickness);
-        const topDash = new THREE.Mesh(topDashGeom, dashMat);
-        topDash.position.set(xOffset, ceilingH + 0.009, 0);
-        group.add(topDash);
+          const topDashGeom = new THREE.BoxGeometry(clampedLen, 0.018, thickness);
+          const topDash = new THREE.Mesh(topDashGeom, dashMat);
+          topDash.position.set(xOffset, ceilingH + 0.009, 0);
+          group.add(topDash);
 
-        // Floor Parallel 90mm Dashed Lines (two 10mm dashed lines separated by 70mm = 90mm)
-        const floorLineGeom = new THREE.BoxGeometry(clampedLen, 0.008, 0.012);
-        const floorLineA = new THREE.Mesh(floorLineGeom, edgeDashMat);
-        floorLineA.position.set(xOffset, 0.015, -0.039);
-        group.add(floorLineA);
+          const floorLineGeom = new THREE.BoxGeometry(clampedLen, 0.008, 0.012);
+          const floorLineA = new THREE.Mesh(floorLineGeom, edgeDashMat);
+          floorLineA.position.set(xOffset, 0.015, -0.039);
+          group.add(floorLineA);
 
-        const floorLineB = new THREE.Mesh(floorLineGeom, edgeDashMat);
-        floorLineB.position.set(xOffset, 0.015, 0.039);
-        group.add(floorLineB);
+          const floorLineB = new THREE.Mesh(floorLineGeom, edgeDashMat);
+          floorLineB.position.set(xOffset, 0.015, 0.039);
+          group.add(floorLineB);
+        }
       }
 
       group.position.set(midX, ffl, midZ);
@@ -2428,6 +2675,19 @@ export class ThreeStudioSceneManager {
     const x = op.position[0];
     const z = op.position[1];
     const ceilingH = this.design?.ceilingHeightM || 2.44;
+    const opLevel = op.level ?? 0;
+
+    const selectableMeta: SceneSelectedElement = {
+      id: op.id,
+      kind: "opening",
+      elementType: op.type,
+      label: op.label || op.code || op.type,
+      level: opLevel,
+      position: [x, ffl + op.height / 2, z],
+      rotationDeg: Math.round(((-angle * 180) / Math.PI + 360) % 360),
+      wallId: op.wallId,
+    };
+    group.userData.selectableElement = selectableMeta;
 
     const facade: FacadeType = this.design?.facade || this.design?.materials?.facade || "modern";
 
@@ -2455,7 +2715,6 @@ export class ThreeStudioSceneManager {
       const peakPt = new THREE.Vector2(op.bifoldPeak[0], op.bifoldPeak[1]);
 
       const leafMat = this.getSurfaceMaterial("interior_skirting_architraves");
-      const capMat = new THREE.MeshBasicMaterial({ color: 0xd97706 });
 
       [
         [startPt, peakPt],
@@ -2472,13 +2731,17 @@ export class ThreeStudioSceneManager {
         leafMesh.rotation.y = -leafAngle;
         leafMesh.castShadow = true;
         leafMesh.userData.surfaceId = "interior_skirting_architraves";
+        leafMesh.userData.selectableElement = selectableMeta;
         this.buildingGroup.add(leafMesh);
 
-        const topCapGeom = new THREE.BoxGeometry(len, 0.018, 0.045);
-        const topCapMesh = new THREE.Mesh(topCapGeom, capMat);
-        topCapMesh.position.set(midX, ffl + op.height + 0.009, midZ);
-        topCapMesh.rotation.y = -leafAngle;
-        this.buildingGroup.add(topCapMesh);
+        if (this.showCadDiagnosticCaps) {
+          const capMat = new THREE.MeshBasicMaterial({ color: 0xd97706 });
+          const topCapGeom = new THREE.BoxGeometry(len, 0.018, 0.045);
+          const topCapMesh = new THREE.Mesh(topCapGeom, capMat);
+          topCapMesh.position.set(midX, ffl + op.height + 0.009, midZ);
+          topCapMesh.rotation.y = -leafAngle;
+          this.buildingGroup.add(topCapMesh);
+        }
       });
       return;
     }
@@ -2499,9 +2762,6 @@ export class ThreeStudioSceneManager {
       const leafSid: SemanticSurfaceId = isExt ? "front_entry_door" : "interior_skirting_architraves";
       const doorFrameMat = this.getSurfaceMaterial(frameSid);
       const doorLeafMat = this.getSurfaceMaterial(leafSid);
-      const doorCapMat = new THREE.MeshBasicMaterial({
-        color: isExt ? 0xea580c : 0xd97706, // Orange for External Door, Amber-Gold for Internal Door
-      });
 
       // Doorway Jamb Frame in the Wall Opening (Left Jamb, Right Jamb & Head Bar)
       const jambDepth = isExt ? 0.24 : 0.095;
@@ -2509,6 +2769,7 @@ export class ThreeStudioSceneManager {
       const threshAngle = Math.atan2(closed.y - hinge.y, closed.x - hinge.x);
       const threshLen = hinge.distanceTo(closed);
       const doorwayGroup = new THREE.Group();
+      doorwayGroup.userData.selectableElement = selectableMeta;
       const jL = new THREE.Mesh(new THREE.BoxGeometry(jambThick, op.height, jambDepth), doorFrameMat);
       jL.position.set(-threshLen / 2 + jambThick / 2, op.height / 2, 0);
       jL.userData.surfaceId = frameSid;
@@ -2525,10 +2786,9 @@ export class ThreeStudioSceneManager {
       doorwayGroup.rotation.y = -threshAngle;
       this.buildingGroup.add(doorwayGroup);
 
-      // Open 3D Door Leaf Group:
-      // - External doors (Entry & Laundry external door): Hollow perimeter frame + transparent glass lite panel!
-      // - Internal doors (870mm std / 720mm bath & linen): Framed stiles/rails with recessed panel infill!
+      // Open 3D Door Leaf Group
       const leafGroup = new THREE.Group();
+      leafGroup.userData.selectableElement = selectableMeta;
       const leafH = op.height - 0.03;
       const stileW = isExt ? 0.095 : 0.085;
       this.addHollowFrame(leafGroup, leafLen, leafH, 0.042, stileW, 0, leafH / 2, 0, doorLeafMat, leafSid);
@@ -2561,13 +2821,6 @@ export class ThreeStudioSceneManager {
       leafGroup.rotation.y = -leafAngle;
       this.buildingGroup.add(leafGroup);
 
-      // High-visibility Top Edge Cap on Open Door Leaf (for 1:100 Plan & Dollhouse view)
-      const leafCapGeom = new THREE.BoxGeometry(leafLen, 0.02, 0.055);
-      const leafCap = new THREE.Mesh(leafCapGeom, doorCapMat);
-      leafCap.position.set(leafMidX, ffl + op.height + 0.01, leafMidZ);
-      leafCap.rotation.y = -leafAngle;
-      this.buildingGroup.add(leafCap);
-
       // Lever Handle on Both Sides of Open Door Leaf
       const handleDist = Math.max(0.1, leafLen - 0.10);
       const hX = hinge.x + Math.cos(leafAngle) * handleDist;
@@ -2578,44 +2831,42 @@ export class ThreeStudioSceneManager {
       handleMesh.rotation.y = -leafAngle;
       this.buildingGroup.add(handleMesh);
 
-      // Doorway Threshold Sill Strip (between hingePoint and closedPoint)
-      const threshGeom = new THREE.BoxGeometry(threshLen, 0.012, isExt ? 0.18 : 0.09);
-      const threshMat = new THREE.MeshBasicMaterial({
-        color: isExt ? 0xf97316 : 0xf59e0b,
-        transparent: true,
-        opacity: 0.75,
-      });
-      const threshMesh = new THREE.Mesh(threshGeom, threshMat);
-      threshMesh.position.set((hinge.x + closed.x) / 2, ffl + 0.014, (hinge.y + closed.y) / 2);
-      threshMesh.rotation.y = -threshAngle;
-      this.buildingGroup.add(threshMesh);
+      if (this.showCadDiagnosticCaps) {
+        const doorCapMat = new THREE.MeshBasicMaterial({
+          color: isExt ? 0xea580c : 0xd97706,
+        });
+        const leafCapGeom = new THREE.BoxGeometry(leafLen, 0.02, 0.055);
+        const leafCap = new THREE.Mesh(leafCapGeom, doorCapMat);
+        leafCap.position.set(leafMidX, ffl + op.height + 0.01, leafMidZ);
+        leafCap.rotation.y = -leafAngle;
+        this.buildingGroup.add(leafCap);
 
-      // 3D Quarter-Circle Door Swing Arc on Floor
-      const a1 = Math.atan2(closed.y - hinge.y, closed.x - hinge.x);
-      const a2 = Math.atan2(open.y - hinge.y, open.x - hinge.x);
-      let diff = a2 - a1;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
+        const a1 = Math.atan2(closed.y - hinge.y, closed.x - hinge.x);
+        const a2 = Math.atan2(open.y - hinge.y, open.x - hinge.x);
+        let diff = a2 - a1;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
 
-      const steps = 18;
-      const arcMat = new THREE.MeshBasicMaterial({ color: isExt ? 0xea580c : 0xd97706 });
-      for (let i = 0; i < steps; i += 2) {
-        const tA = a1 + (diff * i) / steps;
-        const tB = a1 + (diff * (i + 1.2)) / steps;
-        const pA = new THREE.Vector2(
-          hinge.x + Math.cos(tA) * leafLen,
-          hinge.y + Math.sin(tA) * leafLen
-        );
-        const pB = new THREE.Vector2(
-          hinge.x + Math.cos(tB) * leafLen,
-          hinge.y + Math.sin(tB) * leafLen
-        );
-        const segLen = pA.distanceTo(pB);
-        const segAng = Math.atan2(pB.y - pA.y, pB.x - pA.x);
-        const dashMesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.012, 0.024), arcMat);
-        dashMesh.position.set((pA.x + pB.x) / 2, ffl + 0.016, (pA.y + pB.y) / 2);
-        dashMesh.rotation.y = -segAng;
-        this.buildingGroup.add(dashMesh);
+        const steps = 18;
+        const arcMat = new THREE.MeshBasicMaterial({ color: isExt ? 0xea580c : 0xd97706 });
+        for (let i = 0; i < steps; i += 2) {
+          const tA = a1 + (diff * i) / steps;
+          const tB = a1 + (diff * (i + 1.2)) / steps;
+          const pA = new THREE.Vector2(
+            hinge.x + Math.cos(tA) * leafLen,
+            hinge.y + Math.sin(tA) * leafLen
+          );
+          const pB = new THREE.Vector2(
+            hinge.x + Math.cos(tB) * leafLen,
+            hinge.y + Math.sin(tB) * leafLen
+          );
+          const segLen = pA.distanceTo(pB);
+          const segAng = Math.atan2(pB.y - pA.y, pB.x - pA.x);
+          const dashMesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.012, 0.024), arcMat);
+          dashMesh.position.set((pA.x + pB.x) / 2, ffl + 0.016, (pA.y + pB.y) / 2);
+          dashMesh.rotation.y = -segAng;
+          this.buildingGroup.add(dashMesh);
+        }
       }
       return;
     }
@@ -2625,19 +2876,15 @@ export class ThreeStudioSceneManager {
       const robeFrameMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.25, metalness: 0.7 });
       const robePanelMat = this.getSurfaceMaterial("interior_skirting_architraves");
 
-      // Outer Perimeter Sliding Track Frame (Top Head Track, Bottom Sill Track, Left & Right Jambs)
       this.addHollowFrame(group, op.width, op.height, 0.085, 0.028, 0, op.height / 2, 0, robeFrameMat);
 
-      // 2 Overlapping Sliding Robe Door Panels (Left Front Track, Right Rear Track)
       const panelW = op.width / 2 + 0.025;
       const panelH = op.height - 0.05;
       [
         { offsetX: -op.width * 0.23, offsetZ: -0.016 },
         { offsetX: op.width * 0.23, offsetZ: 0.016 },
       ].forEach(({ offsetX, offsetZ }) => {
-        // Slim Aluminium Sash Frame around each Sliding Robe Panel
         this.addHollowFrame(group, panelW, panelH, 0.024, 0.028, offsetX, op.height / 2, offsetZ, robeFrameMat);
-        // Satin / Mirror Infill Panel
         const infill = new THREE.Mesh(
           new THREE.BoxGeometry(panelW - 0.05, panelH - 0.05, 0.014),
           robePanelMat
@@ -2647,22 +2894,22 @@ export class ThreeStudioSceneManager {
         group.add(infill);
       });
 
-      // Top Sliding Track Cap for 1:100 Plan visibility ( showing offset twin sliding tracks )
-      const trackCapMat = new THREE.MeshBasicMaterial({ color: 0xeab308 });
-      const trackCapA = new THREE.Mesh(new THREE.BoxGeometry(panelW, 0.018, 0.026), trackCapMat);
-      trackCapA.position.set(-op.width * 0.23, op.height + 0.01, -0.018);
-      group.add(trackCapA);
+      if (this.showCadDiagnosticCaps) {
+        const trackCapMat = new THREE.MeshBasicMaterial({ color: 0xeab308 });
+        const trackCapA = new THREE.Mesh(new THREE.BoxGeometry(panelW, 0.018, 0.026), trackCapMat);
+        trackCapA.position.set(-op.width * 0.23, op.height + 0.01, -0.018);
+        group.add(trackCapA);
 
-      const trackCapB = new THREE.Mesh(new THREE.BoxGeometry(panelW, 0.018, 0.026), trackCapMat);
-      trackCapB.position.set(op.width * 0.23, op.height + 0.01, 0.018);
-      group.add(trackCapB);
+        const trackCapB = new THREE.Mesh(new THREE.BoxGeometry(panelW, 0.018, 0.026), trackCapMat);
+        trackCapB.position.set(op.width * 0.23, op.height + 0.01, 0.018);
+        group.add(trackCapB);
+      }
 
       group.position.set(x, ffl, z);
       group.rotation.y = -angle;
       this.buildingGroup.add(group);
       return;
     } else if (op.type === "barn_door") {
-      // High-Detail Timber Barn Door with Top Black Steel Roller Track
       const trackGeom = new THREE.CylinderGeometry(0.015, 0.015, op.width * 1.8, 16);
       const trackMesh = new THREE.Mesh(trackGeom, this.materials.barnDoorIron);
       trackMesh.rotation.z = Math.PI / 2;
@@ -2699,26 +2946,24 @@ export class ThreeStudioSceneManager {
       trimTopMesh.userData.surfaceId = "window_frames";
       group.add(trimTopMesh);
 
-      // Top Structural Header Indicator for Garage Door in 1:100 Plan & Dollhouse
-      const garCapGeom = new THREE.BoxGeometry(op.width, 0.02, 0.26);
-      const garCapMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
-      const garCap = new THREE.Mesh(garCapGeom, garCapMat);
-      garCap.position.set(0, ceilingH + 0.016, 0);
-      group.add(garCap);
+      if (this.showCadDiagnosticCaps) {
+        const garCapGeom = new THREE.BoxGeometry(op.width, 0.02, 0.26);
+        const garCapMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+        const garCap = new THREE.Mesh(garCapGeom, garCapMat);
+        garCap.position.set(0, ceilingH + 0.016, 0);
+        group.add(garCap);
+      }
 
     } else if (op.type === "stacker_door" || op.type === "sliding_door") {
-      // 2-Panel or 3-Panel Stacker / Sliding Glass Door with Hollow Outer Frame & Transparent Glazing Panels!
       const frameMat = this.getSurfaceMaterial("window_frames");
       this.addHollowFrame(group, op.width, op.height, 0.14, 0.048, 0, op.height / 2, 0, frameMat, "window_frames");
 
-      // Recessed Floor Track
       const trackGeom = new THREE.BoxGeometry(op.width + 0.02, 0.028, 0.15);
       const trackMesh = new THREE.Mesh(trackGeom, frameMat);
       trackMesh.position.set(0, 0.014, 0);
       trackMesh.userData.surfaceId = "window_frames";
       group.add(trackMesh);
 
-      // Multiple Glazed Sliding Sashes (Each with its own hollow perimeter sash frame + transparent glass pane)
       const isStacker = op.type === "stacker_door" || op.width >= 3.0;
       const panelCount = isStacker ? 3 : 2;
       const innerW = op.width - 0.09;
@@ -2729,10 +2974,8 @@ export class ThreeStudioSceneManager {
         const pX = -innerW / 2 + (innerW / panelCount) * (p + 0.5);
         const pZ = p % 2 === 0 ? 0.022 : -0.022;
 
-        // Hollow Sash Stile/Rail Frame around this Sliding Door Panel
         this.addHollowFrame(group, panelW, panelH, 0.036, 0.038, pX, op.height / 2, pZ, frameMat, "window_frames");
 
-        // Transparent Glass Panel inside Sash
         const glassGeom = new THREE.BoxGeometry(
           Math.max(0.1, panelW - 0.076),
           Math.max(0.2, panelH - 0.076),
@@ -2743,21 +2986,21 @@ export class ThreeStudioSceneManager {
         group.add(glassMesh);
       }
 
-      // Top Structural Header Indicator for External Sliding Doors (Hollow frame outline + glass stripe)
-      const slideCapMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
-      const slideGlassCapMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-      const slideCapA = new THREE.Mesh(new THREE.BoxGeometry(op.width, 0.018, 0.045), slideCapMat);
-      slideCapA.position.set(0, ceilingH + 0.016, -0.05);
-      group.add(slideCapA);
-      const slideCapB = new THREE.Mesh(new THREE.BoxGeometry(op.width, 0.018, 0.045), slideCapMat);
-      slideCapB.position.set(0, ceilingH + 0.016, 0.05);
-      group.add(slideCapB);
-      const slideCapGlass = new THREE.Mesh(new THREE.BoxGeometry(op.width - 0.06, 0.02, 0.04), slideGlassCapMat);
-      slideCapGlass.position.set(0, ceilingH + 0.017, 0);
-      group.add(slideCapGlass);
+      if (this.showCadDiagnosticCaps) {
+        const slideCapMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+        const slideGlassCapMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        const slideCapA = new THREE.Mesh(new THREE.BoxGeometry(op.width, 0.018, 0.045), slideCapMat);
+        slideCapA.position.set(0, ceilingH + 0.016, -0.05);
+        group.add(slideCapA);
+        const slideCapB = new THREE.Mesh(new THREE.BoxGeometry(op.width, 0.018, 0.045), slideCapMat);
+        slideCapB.position.set(0, ceilingH + 0.016, 0.05);
+        group.add(slideCapB);
+        const slideCapGlass = new THREE.Mesh(new THREE.BoxGeometry(op.width - 0.06, 0.02, 0.04), slideGlassCapMat);
+        slideCapGlass.position.set(0, ceilingH + 0.017, 0);
+        group.add(slideCapGlass);
+      }
 
     } else if (op.type === "window") {
-      // Architectural Window with Projecting Sill Ledge, Hollow Aluminium Frame & Transparent Glass Panels!
       const sillGeom = new THREE.BoxGeometry(op.width + 0.06, 0.045, 0.26);
       const sillMesh = new THREE.Mesh(sillGeom, this.materials.stoneCap);
       sillMesh.position.set(0, op.sillHeight - 0.022, 0);
@@ -2768,10 +3011,8 @@ export class ThreeStudioSceneManager {
       const barThick = 0.042;
       const frameMat = this.getSurfaceMaterial("window_frames");
 
-      // 1. Hollow Outer Perimeter Aluminium Window Frame (Top Head, Bottom Sill, Left & Right Jambs)
       this.addHollowFrame(group, op.width, op.height, 0.12, barThick, 0, centerY, 0, frameMat, "window_frames");
 
-      // 2. Center Vertical Sash Mullion
       const innerH = Math.max(0.1, op.height - barThick * 2);
       const innerW = Math.max(0.1, op.width - barThick * 2);
       const mullionGeom = new THREE.BoxGeometry(0.036, innerH, 0.06);
@@ -2780,7 +3021,6 @@ export class ThreeStudioSceneManager {
       mullionMesh.userData.surfaceId = "window_frames";
       group.add(mullionMesh);
 
-      // 3. Transparent See-Through Glass Panes (Left & Right Sashes)
       const paneW = Math.max(0.08, (innerW - 0.036) / 2);
       [-paneW / 2 - 0.018, paneW / 2 + 0.018].forEach((paneX) => {
         const glassGeom = new THREE.BoxGeometry(paneW, innerH, 0.016);
@@ -2789,17 +3029,17 @@ export class ThreeStudioSceneManager {
         group.add(glassMesh);
       });
 
-      // Top Window Glazing Indicator Cap (Frame rails + Cyan glass centerline) for 1:100 Plan & Dollhouse view
-      const winFrameCapMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
-      const winGlassCapMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
-      const winCapOuter = new THREE.Mesh(new THREE.BoxGeometry(op.width, 0.016, 0.14), winFrameCapMat);
-      winCapOuter.position.set(0, ceilingH + 0.015, 0);
-      group.add(winCapOuter);
-      const winCapGlass = new THREE.Mesh(new THREE.BoxGeometry(op.width - 0.08, 0.02, 0.06), winGlassCapMat);
-      winCapGlass.position.set(0, ceilingH + 0.017, 0);
-      group.add(winCapGlass);
+      if (this.showCadDiagnosticCaps) {
+        const winFrameCapMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+        const winGlassCapMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+        const winCapOuter = new THREE.Mesh(new THREE.BoxGeometry(op.width, 0.016, 0.14), winFrameCapMat);
+        winCapOuter.position.set(0, ceilingH + 0.015, 0);
+        group.add(winCapOuter);
+        const winCapGlass = new THREE.Mesh(new THREE.BoxGeometry(op.width - 0.08, 0.02, 0.06), winGlassCapMat);
+        winCapGlass.position.set(0, ceilingH + 0.017, 0);
+        group.add(winCapGlass);
+      }
 
-      // Hamptons Colonial Glazing Bars (Crisp White Cross Grid)
       if (facade === "hamptons") {
         const barMat = this.materials.renderWhite;
         [-op.height * 0.22, op.height * 0.22].forEach((offsetY) => {
@@ -2816,7 +3056,6 @@ export class ThreeStudioSceneManager {
       const frameSid: SemanticSurfaceId = op.isExterior ? "window_frames" : "interior_skirting_architraves";
       const doorFrameMat = this.getSurfaceMaterial(frameSid);
 
-      // Hollow Perimeter Frame
       this.addHollowFrame(group, op.width, op.height, 0.11, 0.04, 0, op.height / 2, 0, doorFrameMat, frameSid);
 
       if (isFrontEntry) {
@@ -2827,7 +3066,6 @@ export class ThreeStudioSceneManager {
 
         const doorMat = this.getSurfaceMaterial("front_entry_door");
 
-        // Framed Door Leaf with Transparent Glazed Vision Panel
         this.addHollowFrame(group, doorSlabW, op.height - 0.08, 0.045, 0.11, doorSlabX, op.height / 2, 0.01, doorMat, "front_entry_door");
         const visionGlass = new THREE.Mesh(
           new THREE.BoxGeometry(Math.max(0.15, doorSlabW - 0.22), op.height - 0.30, 0.016),
@@ -2927,12 +3165,14 @@ export class ThreeStudioSceneManager {
     const stoneThicknessM = fitout.benchtopThicknessMm === 40 ? 0.045 : 0.022;
 
     allFixtures.forEach((fix) => {
-      if (this.activeLevelFilter !== "all" && (fix.level ?? 0) !== this.activeLevelFilter) return;
+      const fixLevel = fix.level ?? 0;
+      if (this.activeLevelFilter !== "all" && fixLevel !== this.activeLevelFilter) return;
 
       const isFurnitureType =
         fix.type === "bed_queen" ||
         fix.type === "bed_double" ||
         fix.type === "sofa_sectional" ||
+        fix.type === "coffee_table" ||
         fix.type === "dining_table" ||
         fix.type === "cinema_seating" ||
         fix.type === "tv_console" ||
@@ -2944,9 +3184,19 @@ export class ThreeStudioSceneManager {
       if (isFurnitureType && fitout.showFurniture === false) return;
 
       const group = new THREE.Group();
+      const fixElevY = ffl + (fix.elevationOffsetM || 0);
+      group.userData.selectableElement = {
+        id: fix.id,
+        kind: "fixture",
+        elementType: fix.type,
+        label: fix.label || fix.type,
+        roomName: fix.roomName,
+        level: fixLevel,
+        position: [fix.position[0], fixElevY, fix.position[2]],
+        rotationDeg: Math.round((((fix.rotationY || 0) * 180) / Math.PI + 360) % 360),
+      } satisfies SceneSelectedElement;
 
       if (fix.type === "kitchen_island") {
-        // 1. Base Cabinetry Carcass
         const carcassH = fix.height - stoneThicknessM;
         const carcassGeom = new THREE.BoxGeometry(fix.width - 0.06, carcassH, fix.depth - 0.06);
         const carcassMesh = new THREE.Mesh(carcassGeom, cabMat);
@@ -2956,7 +3206,6 @@ export class ThreeStudioSceneManager {
         carcassMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(carcassMesh);
 
-        // 2. Caesarstone Benchtop Slab (20mm or 40mm)
         const topGeom = new THREE.BoxGeometry(fix.width, stoneThicknessM, fix.depth);
         const topMesh = new THREE.Mesh(topGeom, stoneMat);
         topMesh.position.y = fix.height - stoneThicknessM / 2;
@@ -2965,16 +3214,16 @@ export class ThreeStudioSceneManager {
         topMesh.userData.surfaceId = "kitchen_benchtop";
         group.add(topMesh);
 
-        // Crisp Benchtop Perimeter Outline
-        const edgeEdges = new THREE.EdgesGeometry(topGeom);
-        const edgeLine = new THREE.LineSegments(
-          edgeEdges,
-          new THREE.LineBasicMaterial({ color: 0xd97706 })
-        );
-        edgeLine.position.y = fix.height - stoneThicknessM / 2;
-        group.add(edgeLine);
+        if (this.showCadDiagnosticCaps) {
+          const edgeEdges = new THREE.EdgesGeometry(topGeom);
+          const edgeLine = new THREE.LineSegments(
+            edgeEdges,
+            new THREE.LineBasicMaterial({ color: 0xd97706 })
+          );
+          edgeLine.position.y = fix.height - stoneThicknessM / 2;
+          group.add(edgeLine);
+        }
 
-        // 3. Optional 40mm Waterfall Stone Ends (Left & Right Vertical Stone Drops)
         if (fitout.waterfallEnds) {
           const wfGeom = new THREE.BoxGeometry(stoneThicknessM, fix.height, fix.depth);
           const wfLeft = new THREE.Mesh(wfGeom, stoneMat);
@@ -2990,7 +3239,6 @@ export class ThreeStudioSceneManager {
           group.add(wfRight);
         }
 
-        // 4. Undermount Sink Bowls if no separate dedicated kitchen_sink fixture exists
         if (!hasDedicatedSinkFixture) {
           const isDoubleSink = fitout.sinkStyle !== "single_wide_bowl";
           if (isDoubleSink) {
@@ -3013,7 +3261,6 @@ export class ThreeStudioSceneManager {
           group.add(tapStem);
         }
 
-        // 5. Four Breakfast Bar Stools along Dining Side (North side in Amber 21)
         const stoolOffsets = [-fix.width * 0.34, -fix.width * 0.11, fix.width * 0.11, fix.width * 0.34];
         const stoolZ = isExactCalibrated ? (-fix.depth / 2 - 0.16) : (fix.depth / 2 + 0.24);
         stoolOffsets.forEach((stoolX) => {
@@ -3025,21 +3272,20 @@ export class ThreeStudioSceneManager {
         });
 
       } else if (fix.type === "kitchen_sink") {
-        // Dedicated 1:100 Calibrated Double Bowl Undermount Sink & Drainer Board (Strictly bounded to sink outline!)
         const plateGeom = new THREE.BoxGeometry(fix.width, 0.016, fix.depth);
         const basePlate = new THREE.Mesh(plateGeom, applianceSteelMat);
         basePlate.position.y = 0.908;
         group.add(basePlate);
 
-        // Crisp Purple Appliance Outline Strictly Around the Sink (stopping at sink edge, not island edge!)
-        const sinkOutline = new THREE.LineSegments(
-          new THREE.EdgesGeometry(plateGeom),
-          new THREE.LineBasicMaterial({ color: 0x7c3aed })
-        );
-        sinkOutline.position.y = 0.912;
-        group.add(sinkOutline);
+        if (this.showCadDiagnosticCaps) {
+          const sinkOutline = new THREE.LineSegments(
+            new THREE.EdgesGeometry(plateGeom),
+            new THREE.LineBasicMaterial({ color: 0x7c3aed })
+          );
+          sinkOutline.position.y = 0.912;
+          group.add(sinkOutline);
+        }
 
-        // Left Drainer Ribs + Two Deep Sink Bowls
         const bowl1 = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.022, 0.36), sinkBowlMat);
         bowl1.position.set(0.04, 0.914, 0);
         group.add(bowl1);
@@ -3048,14 +3294,12 @@ export class ThreeStudioSceneManager {
         bowl2.position.set(0.36, 0.914, 0);
         group.add(bowl2);
 
-        // Drainer board grooves on left (-0.48 to -0.15)
         for (let r = -0.12; r <= 0.12; r += 0.06) {
           const rib = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.018, 0.014), sinkBowlMat);
           rib.position.set(-0.32, 0.913, r);
           group.add(rib);
         }
 
-        // Gooseneck Mixer Tap
         const tapStem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.018, 0.32, 16), tapMat);
         tapStem.position.set(0.20, 1.06, -0.18);
         group.add(tapStem);
@@ -3064,7 +3308,6 @@ export class ThreeStudioSceneManager {
         group.add(spout);
 
       } else if (fix.type === "dishwasher") {
-        // Underbench Dishwasher (DW) with Top Control Strip & Dashed Plan Outline
         const dwGeom = new THREE.BoxGeometry(fix.width, fix.height, fix.depth);
         const dwMesh = new THREE.Mesh(dwGeom, applianceSteelMat);
         dwMesh.position.y = fix.height / 2;
@@ -3076,7 +3319,6 @@ export class ThreeStudioSceneManager {
         group.add(handleMesh);
 
       } else if (fix.type === "kitchen_cabinetry") {
-        // Rear Kitchen Benchtop + Base Cabinetry + Splashback + Overhead Cupboards (aligned to 2100mm or 2340mm joineryTopH)
         const carcassH = fix.height - stoneThicknessM;
         const baseGeom = new THREE.BoxGeometry(fix.width, carcassH, fix.depth);
         const baseMesh = new THREE.Mesh(baseGeom, cabMat);
@@ -3091,14 +3333,15 @@ export class ThreeStudioSceneManager {
         topMesh.userData.surfaceId = "kitchen_benchtop";
         group.add(topMesh);
 
-        const edgeLine = new THREE.LineSegments(
-          new THREE.EdgesGeometry(topGeom),
-          new THREE.LineBasicMaterial({ color: 0xd97706 })
-        );
-        edgeLine.position.y = fix.height - stoneThicknessM / 2;
-        group.add(edgeLine);
+        if (this.showCadDiagnosticCaps) {
+          const edgeLine = new THREE.LineSegments(
+            new THREE.EdgesGeometry(topGeom),
+            new THREE.LineBasicMaterial({ color: 0xd97706 })
+          );
+          edgeLine.position.y = fix.height - stoneThicknessM / 2;
+          group.add(edgeLine);
+        }
 
-        // Kitchen Splashback Panel (between rear benchtop at fix.height and overhead cupboards at 1.52m)
         const ohBottom = 1.52;
         const splashH = Math.max(0.55, ohBottom - fix.height);
         const splashGeom = new THREE.BoxGeometry(fix.width, splashH, 0.024);
@@ -3108,7 +3351,6 @@ export class ThreeStudioSceneManager {
         splashMesh.userData.surfaceId = "kitchen_splashback";
         group.add(splashMesh);
 
-        // Overhead Kitchen Cupboards (from 1.52m up to joineryTopH: 2.10m standard or 2.34m upgraded)
         const ohHeight = Math.max(0.55, joineryTopH - ohBottom);
         const ohDepth = Math.min(0.36, fix.depth * 0.58);
         const ohGeom = new THREE.BoxGeometry(fix.width, ohHeight, ohDepth);
@@ -3127,7 +3369,6 @@ export class ThreeStudioSceneManager {
         }
 
       } else if (fix.type === "cooktop_oven") {
-        // 4-Burner Cooktop on Rear Bench + Underbench Oven Fascia
         const cooktopMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1, metalness: 0.65 });
         const burnerMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.25, metalness: 0.8 });
 
@@ -3136,7 +3377,6 @@ export class ThreeStudioSceneManager {
         plateMesh.position.y = 0.912;
         group.add(plateMesh);
 
-        // 4 Gas Burner Rings matching the 4 circles on Amber 21 floorplan
         [
           [-fix.width * 0.26, -fix.depth * 0.22],
           [fix.width * 0.26, -fix.depth * 0.22],
@@ -3148,14 +3388,12 @@ export class ThreeStudioSceneManager {
           group.add(ring);
         });
 
-        // Underbench Oven Glass Door
         const ovenGeom = new THREE.BoxGeometry(fix.width - 0.04, 0.58, 0.03);
         const ovenMesh = new THREE.Mesh(ovenGeom, cooktopMat);
         ovenMesh.position.set(0, 0.45, fix.depth / 2 + 0.015);
         group.add(ovenMesh);
 
       } else if (fix.type === "fridge_space") {
-        // Refrigerator Recess & Double-Door Stainless Refrigerator (F)
         const fridgeH = fix.height || 1.85;
         const bodyGeom = new THREE.BoxGeometry(fix.width - 0.04, fridgeH, fix.depth - 0.04);
         const bodyMesh = new THREE.Mesh(bodyGeom, applianceSteelMat);
@@ -3163,7 +3401,6 @@ export class ThreeStudioSceneManager {
         bodyMesh.castShadow = true;
         group.add(bodyMesh);
 
-        // Side & Overhead Fridge Gable Panels (aligned to 2100mm or 2340mm joineryTopH)
         const rightGable = new THREE.Mesh(new THREE.BoxGeometry(0.025, joineryTopH, fix.depth), cabUpperMat);
         rightGable.position.set(-fix.width / 2, joineryTopH / 2, 0);
         rightGable.userData.surfaceId = "kitchen_cabinetry_upper";
@@ -3178,25 +3415,23 @@ export class ThreeStudioSceneManager {
         overheadFridgeCab.userData.surfaceId = "kitchen_cabinetry_upper";
         group.add(overheadFridgeCab);
 
-        // Top Outline for 1:100 Plan clarity
-        const topOut = new THREE.LineSegments(
-          new THREE.EdgesGeometry(new THREE.BoxGeometry(fix.width, 0.02, fix.depth)),
-          new THREE.LineBasicMaterial({ color: 0x7c3aed })
-        );
-        topOut.position.y = joineryTopH + 0.01;
-        group.add(topOut);
+        if (this.showCadDiagnosticCaps) {
+          const topOut = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.BoxGeometry(fix.width, 0.02, fix.depth)),
+            new THREE.LineBasicMaterial({ color: 0x7c3aed })
+          );
+          topOut.position.y = joineryTopH + 0.01;
+          group.add(topOut);
+        }
 
       } else if (fix.type === "pantry_shelving") {
-        // Walk-In Corner Pantry Cabinet & Shelving (P)
         const panH = Math.max(fix.height || 2.04, joineryTopH);
-        // Left Gable Panel
         const sideGable = new THREE.Mesh(new THREE.BoxGeometry(0.035, panH, fix.depth), cabUpperMat);
         sideGable.position.set(fix.width / 2 - 0.018, panH / 2, 0);
         sideGable.castShadow = true;
         sideGable.userData.surfaceId = "kitchen_cabinetry_upper";
         group.add(sideGable);
 
-        // Internal White Melamine Pantry Shelves (5 tiers when 2340mm joinery is enabled)
         const shelfMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.4 });
         const shelfTiers = upgradeJoineryH ? [0.45, 0.90, 1.35, 1.75, 2.12] : [0.45, 0.90, 1.35, 1.75];
         shelfTiers.forEach((sy) => {
@@ -3207,7 +3442,6 @@ export class ThreeStudioSceneManager {
         });
 
       } else if (fix.type === "study_desk") {
-        // Study Nook Built-in Desk
         const deskTopGeom = new THREE.BoxGeometry(fix.width, 0.035, fix.depth);
         const deskTopMesh = new THREE.Mesh(deskTopGeom, cabMat);
         deskTopMesh.position.y = fix.height - 0.018;
@@ -3215,27 +3449,24 @@ export class ThreeStudioSceneManager {
         deskTopMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(deskTopMesh);
 
-        const deskEdge = new THREE.LineSegments(
-          new THREE.EdgesGeometry(deskTopGeom),
-          new THREE.LineBasicMaterial({ color: 0xb45309 })
-        );
-        deskEdge.position.y = fix.height - 0.018;
-        group.add(deskEdge);
+        if (this.showCadDiagnosticCaps) {
+          const deskEdge = new THREE.LineSegments(
+            new THREE.EdgesGeometry(deskTopGeom),
+            new THREE.LineBasicMaterial({ color: 0xb45309 })
+          );
+          deskEdge.position.y = fix.height - 0.018;
+          group.add(deskEdge);
+        }
 
       } else if (fix.type === "laundry_tub") {
-        // 45L Stainless Steel Laundry Tub & Sink Cabinetry (NO internal walls around it!)
         const cabH = fix.height - 0.04;
         const tubCabGeom = new THREE.BoxGeometry(fix.width, cabH, fix.depth);
-        const tubCabMesh = new THREE.Mesh(
-          tubCabGeom,
-          cabMat
-        );
+        const tubCabMesh = new THREE.Mesh(tubCabGeom, cabMat);
         tubCabMesh.position.y = cabH / 2;
         tubCabMesh.castShadow = true;
         tubCabMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(tubCabMesh);
 
-        // Stainless Steel Rim & Deep Laundry Trough Bowl
         const rimGeom = new THREE.BoxGeometry(fix.width + 0.01, 0.04, fix.depth + 0.01);
         const rimMesh = new THREE.Mesh(rimGeom, applianceSteelMat);
         rimMesh.position.y = fix.height - 0.02;
@@ -3246,7 +3477,6 @@ export class ThreeStudioSceneManager {
         bowlMesh.position.y = fix.height + 0.004;
         group.add(bowlMesh);
 
-        // Drain Plug & Laundry Mixer Tap
         const plug = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.03, 16), tapMat);
         plug.position.set(0, fix.height + 0.008, 0);
         group.add(plug);
@@ -3256,60 +3486,23 @@ export class ThreeStudioSceneManager {
         group.add(tapStem);
 
       } else if (fix.type === "washing_machine") {
-        // Dashed Square in Laundry = Space for a Future Washing Machine (Provision Outline on Floor + Wall Taps)
-        const dashMat = new THREE.MeshBasicMaterial({ color: 0x7c3aed });
-        const buildDashedRect = (rw: number, rd: number, yOff: number) => {
-          const dashLen = 0.09;
-          const gapLen = 0.055;
-          const step = dashLen + gapLen;
-          // Top & Bottom horizontal dashed edges
-          for (let dx = -rw / 2 + dashLen / 2; dx <= rw / 2 - dashLen / 2 + 0.02; dx += step) {
-            const cl = Math.min(dashLen, rw / 2 - (dx - dashLen / 2));
-            if (cl <= 0.015) continue;
-            const segGeom = new THREE.BoxGeometry(cl, 0.014, 0.022);
-            const segTop = new THREE.Mesh(segGeom, dashMat);
-            segTop.position.set(dx, yOff, -rd / 2);
-            group.add(segTop);
-            const segBot = new THREE.Mesh(segGeom, dashMat);
-            segBot.position.set(dx, yOff, rd / 2);
-            group.add(segBot);
-          }
-          // Left & Right vertical dashed edges
-          for (let dz = -rd / 2 + dashLen / 2; dz <= rd / 2 - dashLen / 2 + 0.02; dz += step) {
-            const cl = Math.min(dashLen, rd / 2 - (dz - dashLen / 2));
-            if (cl <= 0.015) continue;
-            const segGeom = new THREE.BoxGeometry(0.022, 0.014, cl);
-            const segL = new THREE.Mesh(segGeom, dashMat);
-            segL.position.set(-rw / 2, yOff, dz);
-            group.add(segL);
-            const segR = new THREE.Mesh(segGeom, dashMat);
-            segR.position.set(rw / 2, yOff, dz);
-            group.add(segR);
-          }
-        };
+        //Realistic Front-Loader Washing Machine Appliance
+        const wmH = Math.max(0.84, fix.height || 0.85);
+        const bodyGeom = new THREE.BoxGeometry(fix.width - 0.04, wmH, fix.depth - 0.04);
+        const bodyMesh = new THREE.Mesh(bodyGeom, ceramicWhiteMat);
+        bodyMesh.position.y = wmH / 2;
+        bodyMesh.castShadow = true;
+        group.add(bodyMesh);
 
-        // Subtle floor provision pad
-        const padMesh = new THREE.Mesh(
-          new THREE.BoxGeometry(fix.width, 0.008, fix.depth),
-          new THREE.MeshBasicMaterial({ color: 0xede9fe, transparent: true, opacity: 0.45 })
+        const drumRim = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.19, 0.19, 0.03, 24),
+          tapMat
         );
-        padMesh.position.y = 0.008;
-        group.add(padMesh);
-
-        // Outer & Inner Dashed Squares matching the WM Provision Symbol on AMBER 21.png
-        buildDashedRect(fix.width, fix.depth, 0.016);
-        buildDashedRect(fix.width * 0.68, fix.depth * 0.62, 0.016);
-
-        // Hot & Cold Washing Machine Wall Cocks on Rear Wall
-        [-0.08, 0.08].forEach((txOff) => {
-          const cock = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.05, 12), tapMat);
-          cock.rotation.x = Math.PI / 2;
-          cock.position.set(txOff, 0.95, -fix.depth / 2 + 0.03);
-          group.add(cock);
-        });
+        drumRim.rotation.x = Math.PI / 2;
+        drumRim.position.set(0, wmH * 0.48, (fix.depth - 0.04) / 2 + 0.01);
+        group.add(drumRim);
 
       } else if (fix.type === "linen_joinery" || fix.type === "robe_joinery") {
-        // Built-In Robe & Linen Cupboard Melamine Shelving + Chrome Hanging Rail (scaled to 2340mm when upgraded)
         const shelfMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.45 });
         const heights =
           fix.type === "linen_joinery"
@@ -3335,7 +3528,6 @@ export class ThreeStudioSceneManager {
         }
 
       } else if (fix.type === "butler_pantry") {
-        // Walk-In / Butler's Pantry Joinery Benchtop + Prep Sink & Mixer
         const carcassH = fix.height - stoneThicknessM;
         const baseGeom = new THREE.BoxGeometry(fix.width, carcassH, fix.depth);
         const baseMesh = new THREE.Mesh(baseGeom, cabMat);
@@ -3359,21 +3551,18 @@ export class ThreeStudioSceneManager {
         group.add(tapStem);
 
       } else if (fix.type === "cinema_seating") {
-        // Luxury Cinema Lounge
         const seatGeom = new THREE.BoxGeometry(fix.width, fix.height, fix.depth);
         const seatMat = new THREE.MeshStandardMaterial({ color: 0x1e1e24, roughness: 0.8 });
         const seatMesh = new THREE.Mesh(seatGeom, seatMat);
         seatMesh.position.y = fix.height / 2;
         group.add(seatMesh);
       } else if (fix.type === "mud_nook_bench") {
-        // Mud Nook Built-in Oak Bench
         const benchGeom = new THREE.BoxGeometry(fix.width, fix.height, fix.depth);
         const benchMesh = new THREE.Mesh(benchGeom, cabMat);
         benchMesh.position.y = fix.height / 2;
         benchMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(benchMesh);
       } else if (fix.type === "vanity_double" || fix.type === "vanity_single") {
-        // Floating Bathroom Vanity Cabinet + Stone Top + Ceramic Basin(s) + Mixer Tap(s) + Frameless Mirror
         const vanityW =
           !isExactCalibrated &&
           fix.roomName.toLowerCase().includes("ensuite") &&
@@ -3383,7 +3572,7 @@ export class ThreeStudioSceneManager {
         const cabH = 0.54;
         const vanityGeom = new THREE.BoxGeometry(vanityW, cabH, fix.depth);
         const vanityMesh = new THREE.Mesh(vanityGeom, cabMat);
-        vanityMesh.position.y = 0.28 + cabH / 2; // Floating 280mm off floor
+        vanityMesh.position.y = 0.28 + cabH / 2;
         vanityMesh.castShadow = true;
         vanityMesh.userData.surfaceId = "kitchen_cabinetry_lower";
         group.add(vanityMesh);
@@ -3394,14 +3583,15 @@ export class ThreeStudioSceneManager {
         vTopMesh.userData.surfaceId = "kitchen_benchtop";
         group.add(vTopMesh);
 
-        const vTopEdge = new THREE.LineSegments(
-          new THREE.EdgesGeometry(vTopGeom),
-          new THREE.LineBasicMaterial({ color: 0xdb2777 })
-        );
-        vTopEdge.position.y = fix.height - stoneThicknessM / 2;
-        group.add(vTopEdge);
+        if (this.showCadDiagnosticCaps) {
+          const vTopEdge = new THREE.LineSegments(
+            new THREE.EdgesGeometry(vTopGeom),
+            new THREE.LineBasicMaterial({ color: 0xdb2777 })
+          );
+          vTopEdge.position.y = fix.height - stoneThicknessM / 2;
+          group.add(vTopEdge);
+        }
 
-        // Ceramic Oval Vessel Basin(s) + Mixer Taps
         const isDouble =
           fix.type === "vanity_double" ||
           (!isExactCalibrated &&
@@ -3415,7 +3605,6 @@ export class ThreeStudioSceneManager {
           basinMesh.position.set(bx, fix.height + 0.055, 0.01);
           group.add(basinMesh);
 
-          // Drain dot inside basin
           const drainDot = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.12, 16), tapMat);
           drainDot.position.set(bx, fix.height + 0.058, 0.01);
           group.add(drainDot);
@@ -3426,7 +3615,6 @@ export class ThreeStudioSceneManager {
           group.add(vTapMesh);
         });
 
-        // Large Polished Vanity Mirror
         const mirrorGeom = new THREE.BoxGeometry(vanityW * 0.94, 0.92, 0.025);
         const mirrorMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.04, metalness: 0.94 });
         const mirrorMesh = new THREE.Mesh(mirrorGeom, mirrorMat);
@@ -3434,14 +3622,12 @@ export class ThreeStudioSceneManager {
         group.add(mirrorMesh);
 
       } else if (fix.type === "shower") {
-        // Semi-Frameless Glass Shower Enclosure + Tiled Base Hob + Diagonal Waste Drain + Rain Shower Rail
         const baseGeom = new THREE.BoxGeometry(fix.width, 0.045, fix.depth);
         const baseMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35 });
         const baseMesh = new THREE.Mesh(baseGeom, baseMat);
         baseMesh.position.y = 0.0225;
         group.add(baseMesh);
 
-        // Center Floor Waste Grate
         const grate = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.05, 16), tapMat);
         grate.position.set(0, 0.026, 0);
         group.add(grate);
@@ -3451,15 +3637,15 @@ export class ThreeStudioSceneManager {
         showerMesh.position.y = fix.height / 2;
         group.add(showerMesh);
 
-        // Top Chrome Frame Perimeter of Glass Shower Screen
-        const screenCap = new THREE.LineSegments(
-          new THREE.EdgesGeometry(new THREE.BoxGeometry(fix.width, 0.02, fix.depth)),
-          new THREE.LineBasicMaterial({ color: 0x0d9488 })
-        );
-        screenCap.position.y = fix.height;
-        group.add(screenCap);
+        if (this.showCadDiagnosticCaps) {
+          const screenCap = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.BoxGeometry(fix.width, 0.02, fix.depth)),
+            new THREE.LineBasicMaterial({ color: 0x0d9488 })
+          );
+          screenCap.position.y = fix.height;
+          group.add(screenCap);
+        }
 
-        // Shower Rail & Overhead Rain Rose
         const railGeom = new THREE.CylinderGeometry(0.012, 0.012, 1.1, 12);
         const railMesh = new THREE.Mesh(railGeom, tapMat);
         railMesh.position.set(0, 1.45, -fix.depth / 2 + 0.06);
@@ -3471,29 +3657,27 @@ export class ThreeStudioSceneManager {
         group.add(roseMesh);
 
       } else if (fix.type === "bath") {
-        // Inset Tiled Cradle Bathtub OR Freestanding Oval Acrylic Bathtub
         if (fitout.bathStyle === "inset_tiled" || isExactCalibrated) {
-          // Outer Tiled Cradle Hob matching exact blueprint rectangle
           const hobGeom = new THREE.BoxGeometry(fix.width, fix.height, fix.depth);
           const hobMesh = new THREE.Mesh(hobGeom, stoneMat);
           hobMesh.position.y = fix.height / 2;
           hobMesh.castShadow = true;
           group.add(hobMesh);
 
-          const hobEdge = new THREE.LineSegments(
-            new THREE.EdgesGeometry(hobGeom),
-            new THREE.LineBasicMaterial({ color: 0x0d9488 })
-          );
-          hobEdge.position.y = fix.height / 2;
-          group.add(hobEdge);
+          if (this.showCadDiagnosticCaps) {
+            const hobEdge = new THREE.LineSegments(
+              new THREE.EdgesGeometry(hobGeom),
+              new THREE.LineBasicMaterial({ color: 0x0d9488 })
+            );
+            hobEdge.position.y = fix.height / 2;
+            group.add(hobEdge);
+          }
 
-          // Inner Molded White Acrylic Bath Recess
           const innerGeom = new THREE.BoxGeometry(fix.width - 0.18, 0.03, fix.depth - 0.16);
           const innerMesh = new THREE.Mesh(innerGeom, ceramicWhiteMat);
           innerMesh.position.y = fix.height + 0.008;
           group.add(innerMesh);
 
-          // Bath Drain Plug
           const plug = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.035, 16), tapMat);
           plug.position.set(-fix.width * 0.32, fix.height + 0.012, 0);
           group.add(plug);
@@ -3506,25 +3690,21 @@ export class ThreeStudioSceneManager {
           group.add(bathMesh);
         }
 
-        // Bath Filler Spout
         const spoutStand = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, fix.height + 0.16, 12), tapMat);
         spoutStand.position.set(0, (fix.height + 0.16) / 2, -fix.depth / 2 + 0.06);
         group.add(spoutStand);
 
       } else if (fix.type === "toilet") {
-        // Close-Coupled Dual Flush Toilet Suite (Cistern at back -Z, Pan projecting forward +Z)
         const cisternGeom = new THREE.BoxGeometry(fix.width, fix.height, 0.19);
         const cisternMesh = new THREE.Mesh(cisternGeom, ceramicWhiteMat);
         cisternMesh.position.set(0, fix.height / 2, -fix.depth / 2 + 0.095);
         cisternMesh.castShadow = true;
         group.add(cisternMesh);
 
-        // Dual Flush Chrome Button on Top of Cistern
         const flushBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.015, 16), tapMat);
         flushBtn.position.set(0, fix.height + 0.008, -fix.depth / 2 + 0.095);
         group.add(flushBtn);
 
-        // Elongated Toilet Pan & Seat
         const panGeom = new THREE.CylinderGeometry(fix.width * 0.44, fix.width * 0.36, 0.42, 24);
         const panMesh = new THREE.Mesh(panGeom, ceramicWhiteMat);
         panMesh.scale.set(1, 1, 1.25);
@@ -3533,7 +3713,6 @@ export class ThreeStudioSceneManager {
         group.add(panMesh);
 
       } else if (fix.type === "bed_queen" || fix.type === "bed_double") {
-        // Timber Bed Base + Upholstered Headboard + Mattress + Pillows
         const baseGeom = new THREE.BoxGeometry(fix.width, 0.28, fix.depth);
         const baseMesh = new THREE.Mesh(baseGeom, cabMat);
         baseMesh.position.y = 0.14;
@@ -3560,7 +3739,6 @@ export class ThreeStudioSceneManager {
         });
 
       } else if (fix.type === "sofa_sectional") {
-        // L-Shaped Plush Sectional Sofa + Timber Coffee Table
         const sofaMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.82 });
         const seatBaseGeom = new THREE.BoxGeometry(fix.width, 0.42, 0.92);
         const seatBase = new THREE.Mesh(seatBaseGeom, sofaMat);
@@ -3578,13 +3756,14 @@ export class ThreeStudioSceneManager {
         chaiseMesh.position.set(fix.width / 2 - 0.475, 0.21, 0);
         group.add(chaiseMesh);
 
-        const ctGeom = new THREE.BoxGeometry(1.10, 0.36, 0.65);
-        const ctMesh = new THREE.Mesh(ctGeom, cabMat);
-        ctMesh.position.set(-0.35, 0.18, 0.35);
+      } else if (fix.type === "coffee_table") {
+        const ctGeom = new THREE.BoxGeometry(fix.width, fix.height, fix.depth);
+        const ctMesh = new THREE.Mesh(ctGeom, stoneMat);
+        ctMesh.position.y = fix.height / 2;
+        ctMesh.castShadow = true;
         group.add(ctMesh);
 
       } else if (fix.type === "tv_entertainment_unit") {
-        // Lowline Timber Entertainment Joinery + 75" Wall-Mounted Flatscreen TV
         const unitGeom = new THREE.BoxGeometry(fix.width, fix.height, fix.depth);
         const unitMesh = new THREE.Mesh(unitGeom, cabMat);
         unitMesh.position.y = fix.height / 2;
@@ -3598,7 +3777,6 @@ export class ThreeStudioSceneManager {
         group.add(tvMesh);
 
       } else if (fix.type === "dining_table") {
-        // Solid Timber Dining Table + 4 Legs + 6 Dining Chairs
         const tableMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.38 });
         const tableGeom = new THREE.BoxGeometry(fix.width, 0.06, fix.depth);
         const tableMesh = new THREE.Mesh(tableGeom, tableMat);
@@ -3642,7 +3820,6 @@ export class ThreeStudioSceneManager {
           const yTop = (s + 1) * stepRise;
           const zCenter = fix.depth / 2 - (s + 0.5) * stepRun;
 
-          // Solid Timber Tread
           const treadGeom = new THREE.BoxGeometry(fix.width - 0.04, 0.038, stepRun + 0.025);
           const treadMesh = new THREE.Mesh(treadGeom, treadMat);
           treadMesh.position.set(0, yTop - 0.019, zCenter);
@@ -3650,14 +3827,12 @@ export class ThreeStudioSceneManager {
           treadMesh.receiveShadow = true;
           group.add(treadMesh);
 
-          // Painted White Riser
           const riserGeom = new THREE.BoxGeometry(fix.width - 0.06, stepRise, 0.018);
           const riserMesh = new THREE.Mesh(riserGeom, riserMat);
           riserMesh.position.set(0, yTop - stepRise / 2, zCenter + stepRun / 2);
           group.add(riserMesh);
         }
 
-        // Sloped Steel Side Stringers & Handrails on full-flight stairs
         if (totalRise >= 1.2) {
           const flightSlopeLen = Math.hypot(fix.depth, totalRise);
           const slopeAngle = Math.atan2(totalRise, fix.depth);
@@ -3677,7 +3852,6 @@ export class ThreeStudioSceneManager {
         }
 
       } else if (fix.type === "balustrade") {
-        // Frameless Toughened Glass Balcony Balustrade with Monument Aluminium Top Rail & Posts
         const balH = fix.height || 1.05;
         const glassGeom = new THREE.BoxGeometry(fix.width, balH - 0.06, 0.024);
         const glassMesh = new THREE.Mesh(glassGeom, this.materials.glass);
@@ -3699,14 +3873,13 @@ export class ThreeStudioSceneManager {
         }
 
       } else {
-        // Generic Joinery / Cabinetry
         const genGeom = new THREE.BoxGeometry(fix.width, fix.height, fix.depth);
         const genMesh = new THREE.Mesh(genGeom, cabMat);
         genMesh.position.y = fix.height / 2;
         group.add(genMesh);
       }
 
-      group.position.set(fix.position[0], ffl + (fix.elevationOffsetM || 0), fix.position[2]);
+      group.position.set(fix.position[0], fixElevY, fix.position[2]);
       group.rotation.y = fix.rotationY;
       this.fixturesGroup.add(group);
     });
@@ -4218,6 +4391,34 @@ export class ThreeStudioSceneManager {
     });
   }
 
+  public clearSelectedElement(): void {
+    this.selectedElementId = null;
+    if (this.selectionBoxHelper) {
+      this.scene.remove(this.selectionBoxHelper);
+      this.selectionBoxHelper.dispose();
+      this.selectionBoxHelper = null;
+    }
+    if (this.onElementSelect) {
+      this.onElementSelect(null);
+    }
+  }
+
+  private setSelectedSceneObject(targetObj: THREE.Object3D | null, selectable: SceneSelectedElement | null): void {
+    if (this.selectionBoxHelper) {
+      this.scene.remove(this.selectionBoxHelper);
+      this.selectionBoxHelper.dispose();
+      this.selectionBoxHelper = null;
+    }
+    this.selectedElementId = selectable?.id || null;
+    if (targetObj && selectable) {
+      this.selectionBoxHelper = new THREE.BoxHelper(targetObj, 0x06b6d4);
+      this.scene.add(this.selectionBoxHelper);
+    }
+    if (this.onElementSelect) {
+      this.onElementSelect(selectable);
+    }
+  }
+
   private handleCanvasSurfaceClick(e: MouseEvent): void {
     const rect = this.renderer.domElement.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
@@ -4227,32 +4428,82 @@ export class ThreeStudioSceneManager {
     );
     this.raycaster.setFromCamera(ndc, this.camera);
     const targets = [
+      this.fixturesGroup,
       this.buildingGroup,
       this.facadeGroup,
-      this.fixturesGroup,
       this.roofGroup,
     ];
     const intersects = this.raycaster.intersectObjects(targets, true);
+
+    let matchedSelectable: { obj: THREE.Object3D; data: SceneSelectedElement } | null = null;
+    let matchedSurfaceId: SemanticSurfaceId | null = null;
+
     for (const hit of intersects) {
       const obj = hit.object as THREE.Mesh;
       if (!obj.visible) continue;
-      // Check face material surfaceId first (handles multi-material 250mm exterior walls where outer face is brick and inner face is interior plaster)
-      if (Array.isArray(obj.material) && hit.face && hit.face.materialIndex !== undefined) {
-        const faceMat = obj.material[hit.face.materialIndex];
-        const faceSid = faceMat?.userData?.surfaceId as SemanticSurfaceId | undefined;
-        if (faceSid) {
-          useHouseMaterialStore.getState().setSelectedSurfaceId(faceSid);
-          return;
+
+      // Skip blueprint underlay & invisible helpers for element selection
+      let curCheck: THREE.Object3D | null = obj;
+      let isUnderlayOrCeiling = false;
+      let isFloorOrSlab = false;
+      let foundSelectableObj: THREE.Object3D | null = null;
+      let foundSelectableData: SceneSelectedElement | null = null;
+
+      while (curCheck) {
+        if (curCheck.userData?.isBlueprintUnderlay || curCheck.userData?.isInteriorCeiling) {
+          isUnderlayOrCeiling = true;
+        }
+        if (curCheck.userData?.isSemanticRoomFloor || curCheck.userData?.isSlabOrGround) {
+          isFloorOrSlab = true;
+        }
+        if (!foundSelectableData && curCheck.userData?.selectableElement) {
+          foundSelectableObj = curCheck;
+          foundSelectableData = curCheck.userData.selectableElement as SceneSelectedElement;
+        }
+        curCheck = curCheck.parent;
+      }
+
+      if (isUnderlayOrCeiling) continue;
+
+      if (!matchedSelectable && foundSelectableObj && foundSelectableData && !isFloorOrSlab) {
+        matchedSelectable = { obj: foundSelectableObj, data: foundSelectableData };
+      }
+
+      if (!matchedSurfaceId) {
+        // Check face material surfaceId first (handles multi-material exterior walls where outer face is brick and inner face is interior plaster)
+        if (Array.isArray(obj.material) && hit.face && hit.face.materialIndex !== undefined) {
+          const faceMat = obj.material[hit.face.materialIndex];
+          const faceSid = faceMat?.userData?.surfaceId as SemanticSurfaceId | undefined;
+          if (faceSid) {
+            matchedSurfaceId = faceSid;
+          }
+        }
+        if (!matchedSurfaceId) {
+          let cur: THREE.Object3D | null = obj;
+          while (cur) {
+            const sid = cur.userData?.surfaceId as SemanticSurfaceId | undefined;
+            if (sid) {
+              matchedSurfaceId = sid;
+              break;
+            }
+            cur = cur.parent;
+          }
         }
       }
-      let cur: THREE.Object3D | null = obj;
-      while (cur) {
-        const sid = cur.userData?.surfaceId as SemanticSurfaceId | undefined;
-        if (sid) {
-          useHouseMaterialStore.getState().setSelectedSurfaceId(sid);
-          return;
-        }
-        cur = cur.parent;
+
+      if (matchedSelectable && matchedSurfaceId) break;
+    }
+
+    if (matchedSelectable) {
+      this.setSelectedSceneObject(matchedSelectable.obj, matchedSelectable.data);
+    } else {
+      this.clearSelectedElement();
+    }
+
+    if (matchedSurfaceId) {
+      useHouseMaterialStore.getState().setSelectedSurfaceId(matchedSurfaceId);
+      if (this.onSurfaceSelect) {
+        this.onSurfaceSelect(matchedSurfaceId);
       }
     }
   }
@@ -4271,6 +4522,9 @@ export class ThreeStudioSceneManager {
     const canvas = this.renderer.domElement;
     const width = canvas.width || 1024;
     const height = canvas.height || 768;
+
+    const prevHelperVisible = this.selectionBoxHelper ? this.selectionBoxHelper.visible : false;
+    if (this.selectionBoxHelper) this.selectionBoxHelper.visible = false;
 
     // 1. Render crisp RGB color pass with ACES Filmic tone mapping and PBR lighting
     this.renderer.render(this.scene, this.camera);
@@ -4305,6 +4559,7 @@ export class ThreeStudioSceneManager {
     this.scene.background = prevBg;
     this.camera.near = prevNear;
     this.camera.far = prevFar;
+    if (this.selectionBoxHelper) this.selectionBoxHelper.visible = prevHelperVisible;
     this.camera.updateProjectionMatrix();
     this.renderer.render(this.scene, this.camera);
 

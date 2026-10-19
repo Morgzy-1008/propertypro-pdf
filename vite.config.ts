@@ -437,7 +437,12 @@ function apiDevPlugin() {
           }
         }
 
-        if (req.url && (req.url.startsWith("/api/house-material-ai") || req.url.startsWith("/api/fal-render"))) {
+        if (
+          req.url &&
+          (req.url.startsWith("/api/house-material-ai") ||
+            req.url.startsWith("/api/ai/design-chat") ||
+            req.url.startsWith("/api/fal-render"))
+        ) {
           if (req.method === "OPTIONS") {
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");

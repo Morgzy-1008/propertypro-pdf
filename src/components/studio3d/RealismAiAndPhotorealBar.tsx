@@ -23,11 +23,13 @@ import {
   useHouseMaterialStore,
 } from "@/lib/studio3d/houseMaterialStore";
 import {
+  ActiveSceneContext,
   ConversationalArchitectTurn,
   QUICK_ARCHITECT_PROMPTS,
   processHouseMaterialCommand,
   startVoiceArchitectRecognition,
 } from "@/lib/studio3d/conversationalMaterialAi";
+import { SceneAction } from "@/lib/studio3d/studio3dTypes";
 import {
   ArchitecturalLightingMood,
   FalRenderPipeline,
@@ -44,6 +46,8 @@ interface RealismAiAndPhotorealBarProps {
   designName?: string;
   cameraMode: CameraMode;
   currentRoomName?: string;
+  activeSceneContext?: ActiveSceneContext;
+  onExecuteSceneActions?: (actions: SceneAction[]) => void;
   onCaptureViewport: () => {
     colorDataUrl: string;
     depthDataUrl: string;
@@ -59,6 +63,8 @@ export function RealismAiAndPhotorealBar({
   designName,
   cameraMode,
   currentRoomName,
+  activeSceneContext,
+  onExecuteSceneActions,
   onCaptureViewport,
 }: RealismAiAndPhotorealBarProps) {
   const surfaces = useHouseMaterialStore((s) => s.surfaces);
@@ -104,7 +110,7 @@ export function RealismAiAndPhotorealBar({
     {
       id: "welcome_turn",
       role: "assistant",
-      text: "G'day! I'm your Conversational AI Architect ('Talk to the House'). Ask me by text or voice to change any of the 20 exterior or interior surfaces—or ask for a bespoke material and I'll synthesize a seamless world-space PBR texture on the fly!",
+      text: "G'day! I'm your Conversational AI Architect ('Talk to the House'). Ask me by text or voice to change any of the 20 exterior or interior surfaces, or ask me to remove, move, rotate, or clean up 3D fixtures and geometry!",
       timestamp: Date.now(),
       modelUsed: "gemini-3.8-flash",
     },
@@ -149,8 +155,16 @@ export function RealismAiAndPhotorealBar({
     try {
       const assistantTurn = await processHouseMaterialCommand(promptText, {
         generateAiTextureTile: generateCustomAiTile,
+        activeSceneContext,
       });
       setChatHistory((prev) => [...prev, assistantTurn]);
+      if (
+        assistantTurn.appliedSceneActions &&
+        assistantTurn.appliedSceneActions.length > 0 &&
+        onExecuteSceneActions
+      ) {
+        onExecuteSceneActions(assistantTurn.appliedSceneActions);
+      }
       const count = assistantTurn.appliedUpdates?.length || 0;
       if (count > 0) {
         toast.success(
@@ -158,7 +172,7 @@ export function RealismAiAndPhotorealBar({
         );
       }
     } catch (err: any) {
-      toast.error(err?.message || "Failed to process material command");
+      toast.error(err?.message || "Failed to process AI architect command");
     } finally {
       setIsAiProcessing(false);
     }
@@ -643,6 +657,20 @@ export function RealismAiAndPhotorealBar({
                 }`}
               >
                 <div className="leading-relaxed">{turn.text}</div>
+                {turn.appliedSceneActions && turn.appliedSceneActions.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-slate-500/20 flex flex-wrap gap-1">
+                    {turn.appliedSceneActions.map((act, idx) => (
+                      <span
+                        key={`${act.action}_${idx}`}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/40"
+                      >
+                        🔧 {act.action.replace(/_/g, " ")}
+                        {act.targetElementType ? `: ${act.targetElementType}` : ""}
+                        {act.targetElementId ? ` (${act.targetElementId})` : ""}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {turn.appliedUpdates && turn.appliedUpdates.length > 0 && (
                   <div className="mt-2 pt-2 border-t border-slate-500/20 flex flex-wrap gap-1">
                     {turn.appliedUpdates.map((u) => (

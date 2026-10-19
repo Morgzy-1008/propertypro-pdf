@@ -288,15 +288,215 @@ export function deriveInternalWallsFromRooms(
 }
 
 /**
+ * Performs orthogonal rectification (< 4 deg tolerance), corner vertex welding (within 0.25m),
+ * wall deduplication, and binds every Opening3D onto a parent `wallId` with a normalized
+ * `positionAlongWallRatio` (0.0..1.0) so doors and windows never float away from walls.
+ */
+export function cleanAndSnapWallGraph(
+  rawWalls: WallSegment[],
+  rawOpenings: Opening3D[],
+  widthM = 12.0,
+  lengthM = 20.0
+): { walls: WallSegment[]; openings: Opening3D[] } {
+  // 1. Orthogonal rectification (< 4° ≈ tan(4°) = 0.07)
+  const orthoWalls: WallSegment[] = (rawWalls || []).map((w) => {
+    const dx = w.end[0] - w.start[0];
+    const dz = w.end[1] - w.start[1];
+    const len = Math.hypot(dx, dz);
+    if (len > 0.1) {
+      if (Math.abs(dz) / len < 0.07) {
+        const z = Number(((w.start[1] + w.end[1]) / 2).toFixed(3));
+        const x1 = Number(Math.min(w.start[0], w.end[0]).toFixed(3));
+        const x2 = Number(Math.max(w.start[0], w.end[0]).toFixed(3));
+        return { ...w, start: [x1, z], end: [x2, z] };
+      }
+      if (Math.abs(dx) / len < 0.07) {
+        const x = Number(((w.start[0] + w.end[0]) / 2).toFixed(3));
+        const z1 = Number(Math.min(w.start[1], w.end[1]).toFixed(3));
+        const z2 = Number(Math.max(w.start[1], w.end[1]).toFixed(3));
+        return { ...w, start: [x, z1], end: [x, z2] };
+      }
+    }
+    return { ...w, start: [...w.start], end: [...w.end] };
+  });
+
+  // 2. Deduplicate collinear/overlapping segments
+  const walls = deduplicateWallSegments(orthoWalls).map((w) => ({
+    ...w,
+    start: [...w.start] as [number, number],
+    end: [...w.end] as [number, number],
+    thickness: w.isExterior ? Math.max(0.24, w.thickness || 0.25) : 0.09,
+  }));
+
+  // 3. Weld orthogonal corner endpoints within 0.25m on the same level so corners meet cleanly
+  const weldTol = 0.25;
+  for (const w of walls) {
+    const lvl = w.level ?? 0;
+    const isHoriz = Math.abs(w.end[1] - w.start[1]) <= Math.abs(w.end[0] - w.start[0]);
+    if (isHoriz) {
+      const z = w.start[1];
+      for (const other of walls) {
+        if (other === w || (other.level ?? 0) !== lvl) continue;
+        const otherVert = Math.abs(other.end[0] - other.start[0]) < Math.abs(other.end[1] - other.start[1]);
+        if (!otherVert) continue;
+        const ox = other.start[0];
+        const minOZ = Math.min(other.start[1], other.end[1]) - weldTol;
+        const maxOZ = Math.max(other.start[1], other.end[1]) + weldTol;
+        if (z >= minOZ && z <= maxOZ) {
+          if (Math.abs(w.start[0] - ox) <= weldTol && Math.abs(w.start[0] - ox) > 0.001) {
+            w.start[0] = ox;
+          }
+          if (Math.abs(w.end[0] - ox) <= weldTol && Math.abs(w.end[0] - ox) > 0.001) {
+            w.end[0] = ox;
+          }
+        }
+      }
+    } else {
+      const x = w.start[0];
+      for (const other of walls) {
+        if (other === w || (other.level ?? 0) !== lvl) continue;
+        const otherHoriz = Math.abs(other.end[1] - other.start[1]) <= Math.abs(other.end[0] - other.start[0]);
+        if (!otherHoriz) continue;
+        const oz = other.start[1];
+        const minOX = Math.min(other.start[0], other.end[0]) - weldTol;
+        const maxOX = Math.max(other.start[0], other.end[0]) + weldTol;
+        if (x >= minOX && x <= maxOX) {
+          if (Math.abs(w.start[1] - oz) <= weldTol && Math.abs(w.start[1] - oz) > 0.001) {
+            w.start[1] = oz;
+          }
+          if (Math.abs(w.end[1] - oz) <= weldTol && Math.abs(w.end[1] - oz) > 0.001) {
+            w.end[1] = oz;
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Bind every Opening3D to a hosted WallSegment (`wallId` + `positionAlongWallRatio: 0..1`)
+  const openings: Opening3D[] = (rawOpenings || []).map((op) =>
+    projectOpeningOntoHostWall(op, walls, widthM, lengthM)
+  );
+
+  return { walls, openings };
+}
+
+/**
+ * Anchors an Opening3D onto its parent WallSegment (or finds the closest matching wall segment
+ * on the same level) and computes `wallId`, `positionAlongWallRatio` (0.0..1.0), and world position.
+ */
+export function projectOpeningOntoHostWall(
+  op: Opening3D,
+  walls: WallSegment[],
+  widthM = 12.0,
+  lengthM = 20.0
+): Opening3D {
+  const opLevel = op.level ?? 0;
+  let hostWall: WallSegment | undefined = op.wallId
+    ? walls.find((w) => w.id === op.wallId && (w.level ?? 0) === opLevel)
+    : undefined;
+
+  if (!hostWall) {
+    let bestScore = Infinity;
+    for (const w of walls) {
+      if ((w.level ?? 0) !== opLevel) continue;
+      const isHoriz = Math.abs(w.end[1] - w.start[1]) <= Math.abs(w.end[0] - w.start[0]);
+      const orientMatch = op.wallOrientation
+        ? (op.wallOrientation === "horizontal") === isHoriz
+        : true;
+      const d = distPointToLine(op.position, w.start, w.end);
+      const score = d + (orientMatch ? 0 : 0.45);
+      if (d <= 0.48 && score < bestScore) {
+        bestScore = score;
+        hostWall = w;
+      }
+    }
+  }
+
+  if (!hostWall) {
+    return op;
+  }
+
+  const isHoriz = Math.abs(hostWall.end[1] - hostWall.start[1]) <= Math.abs(hostWall.end[0] - hostWall.start[0]);
+  const halfW = (op.width || 0.82) / 2;
+  const minPier = 0.06;
+
+  // Ensure hostWall spans wide enough to host this opening cleanly
+  if (isHoriz) {
+    const minX = Math.min(hostWall.start[0], hostWall.end[0]);
+    const maxX = Math.max(hostWall.start[0], hostWall.end[0]);
+    const reqMin = Math.max(0, Number((op.position[0] - halfW - minPier).toFixed(3)));
+    const reqMax = Math.min(widthM + 2, Number((op.position[0] + halfW + minPier).toFixed(3)));
+    if (reqMin < minX && minX - reqMin <= 0.75) {
+      if (hostWall.start[0] <= hostWall.end[0]) hostWall.start[0] = reqMin;
+      else hostWall.end[0] = reqMin;
+    }
+    if (reqMax > maxX && reqMax - maxX <= 0.75) {
+      if (hostWall.end[0] >= hostWall.start[0]) hostWall.end[0] = reqMax;
+      else hostWall.start[0] = reqMax;
+    }
+  } else {
+    const minZ = Math.min(hostWall.start[1], hostWall.end[1]);
+    const maxZ = Math.max(hostWall.start[1], hostWall.end[1]);
+    const reqMin = Math.max(0, Number((op.position[1] - halfW - minPier).toFixed(3)));
+    const reqMax = Math.min(lengthM + 2, Number((op.position[1] + halfW + minPier).toFixed(3)));
+    if (reqMin < minZ && minZ - reqMin <= 0.75) {
+      if (hostWall.start[1] <= hostWall.end[1]) hostWall.start[1] = reqMin;
+      else hostWall.end[1] = reqMin;
+    }
+    if (reqMax > maxZ && reqMax - maxZ <= 0.75) {
+      if (hostWall.end[1] >= hostWall.start[1]) hostWall.end[1] = reqMax;
+      else hostWall.start[1] = reqMax;
+    }
+  }
+
+  const wallLen = Math.max(0.1, pointDist(hostWall.start, hostWall.end));
+  const rawT = projectPointOnLine(op.position, hostWall.start, hostWall.end);
+  const marginT = Math.min(0.45, (halfW + 0.02) / wallLen);
+  const clampedT = Math.max(marginT, Math.min(1 - marginT, rawT));
+
+  const newX = Number((hostWall.start[0] + clampedT * (hostWall.end[0] - hostWall.start[0])).toFixed(3));
+  const newZ = Number((hostWall.start[1] + clampedT * (hostWall.end[1] - hostWall.start[1])).toFixed(3));
+  const dx = newX - op.position[0];
+  const dz = newZ - op.position[1];
+
+  return {
+    ...op,
+    wallId: hostWall.id,
+    positionAlongWallRatio: Number(clampedT.toFixed(4)),
+    wallOrientation: isHoriz ? "horizontal" : "vertical",
+    position: [newX, newZ],
+    hingePoint: op.hingePoint
+      ? [Number((op.hingePoint[0] + dx).toFixed(3)), Number((op.hingePoint[1] + dz).toFixed(3))]
+      : undefined,
+    closedPoint: op.closedPoint
+      ? [Number((op.closedPoint[0] + dx).toFixed(3)), Number((op.closedPoint[1] + dz).toFixed(3))]
+      : undefined,
+    openPoint: op.openPoint
+      ? [Number((op.openPoint[0] + dx).toFixed(3)), Number((op.openPoint[1] + dz).toFixed(3))]
+      : undefined,
+    bifoldPeak: op.bifoldPeak
+      ? [Number((op.bifoldPeak[0] + dx).toFixed(3)), Number((op.bifoldPeak[1] + dz).toFixed(3))]
+      : undefined,
+  };
+}
+
+/**
  * Ensures a BuildingDesign3D has a 100% complete, fully-scaled internal wall network
- * with zero overlapping or duplicate walls.
+ * with zero overlapping or duplicate walls and all openings anchored to host walls.
  */
 export function ensureCompleteWallNetwork(design: BuildingDesign3D): BuildingDesign3D {
   if (!design || !design.rooms) return design;
   if (design.exactStructuralWalls) {
+    const snapped = cleanAndSnapWallGraph(
+      design.walls || [],
+      design.openings || [],
+      design.widthM || 14.8,
+      design.lengthM || 16.62
+    );
     return {
       ...design,
-      walls: deduplicateWallSegments(design.walls || []),
+      walls: snapped.walls,
+      openings: snapped.openings,
     };
   }
 
@@ -309,9 +509,17 @@ export function ensureCompleteWallNetwork(design: BuildingDesign3D): BuildingDes
     design.lengthM || 16.62
   );
 
+  const snapped = cleanAndSnapWallGraph(
+    [...currentWalls, ...derived],
+    design.openings || [],
+    design.widthM || 14.8,
+    design.lengthM || 16.62
+  );
+
   return {
     ...design,
-    walls: deduplicateWallSegments([...currentWalls, ...derived]),
+    walls: snapped.walls,
+    openings: snapped.openings,
   };
 }
 
@@ -366,3 +574,4 @@ export function calculateWallNetworkMetrics(design: BuildingDesign3D): {
     roomCount: completeDesign.rooms?.length || 0,
   };
 }
+

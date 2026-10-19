@@ -28,12 +28,16 @@ import {
   LevelConfig3D,
   OpenHamperSegment,
 } from "./studio3dTypes";
-import { DEFAULT_FITOUT_CONFIG, DEFAULT_CUSTOM_FACADE_CONFIG } from "./floorplanTo3dEngine";
-import { deduplicateWallSegments } from "./wallNetworkEngine";
+import {
+  DEFAULT_FITOUT_CONFIG,
+  DEFAULT_CUSTOM_FACADE_CONFIG,
+  validateAndClampFixtures,
+} from "./floorplanTo3dEngine";
+import { deduplicateWallSegments, cleanAndSnapWallGraph } from "./wallNetworkEngine";
 import { resolveLocalFloorplanUrl } from "@/components/flyer/floorplans";
 import { scoreFloorplanPage } from "@/lib/pdfPages";
 
-const CACHE_VERSION = "v17_exact_architectural_vectorizer";
+const CACHE_VERSION = "v22_two_stage_calibrated_vectorizer";
 const MEMORY_CACHE = new Map<string, VectorizedFloorplanPatch>();
 const IDB_NAME = "hudson_studio3d_vectorizer_cache";
 const IDB_STORE = "vectorized_plans";
@@ -199,6 +203,12 @@ export interface VectorizedFloorplanPatch {
   lengthM: number;
   exactStructuralWalls: boolean;
   levels?: LevelConfig3D[];
+  stairwellBounds?: {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+  };
   walls: WallSegment[];
   openings: Opening3D[];
   openHampers: OpenHamperSegment[];
@@ -663,10 +673,14 @@ async function runCanvasFloorplanVectorizer(
         }
       }
 
-      // Filter out tiny logo/border noise clusters (such as top-left HUDSON logo)
+      const isPortraitSheet = H > W * 1.15;
+      const optionThresholdY = isPortraitSheet ? H * 0.89 : H * 0.66;
+
+      // Filter out tiny logo/border noise clusters (such as top-left HUDSON logo or top schedule table on portrait sheets)
       const validSubClusters = splitClusters.filter((cl) => {
         if (cl.pts.length < 25) return false;
         if (cl.maxY < H * 0.14 && cl.maxX < W * 0.25) return false;
+        if (isPortraitSheet && cl.maxY < H * 0.35) return false;
         return true;
       });
 
@@ -677,6 +691,13 @@ async function runCanvasFloorplanVectorizer(
         ...c,
         pts: [...c.pts],
       }));
+
+      const designLower = `${baseDesign.name || ""} ${baseDesign.variantName || ""}`.toLowerCase();
+      const allowSplitLevelSeam =
+        baseDesign.housingType === "Split Level" ||
+        (baseDesign.schedule?.lowerLivingM2 ?? 0) > 0 ||
+        designLower.includes("mauve") ||
+        designLower.includes("split");
 
       let didMerge = true;
       while (didMerge) {
@@ -693,29 +714,45 @@ async function runCanvasFloorplanVectorizer(
             const minHeight = Math.max(1, Math.min(a.maxY - a.minY, b.maxY - b.minY));
             const gapX = Math.max(0, Math.max(a.minX, b.minX) - Math.min(a.maxX, b.maxX));
 
+            // Prevent merging a bottom "Option" inset diagram (e.g. Wisteria 32 Option Bed 5 with Bath at y > 0.67H on landscape sheets)
+            const upperSub = a.minY < b.minY ? a : b;
+            const lowerSub = a.minY < b.minY ? b : a;
+            const isBottomOptionInset =
+              lowerSub.minY > optionThresholdY &&
+              upperSub.maxY - upperSub.minY > H * 0.30 &&
+              gapY >= Math.round(90 * scaleRef);
+
+            const maxVertGap = allowSplitLevelSeam
+              ? Math.round(320 * scaleRef)
+              : Math.round(280 * scaleRef);
+
             const sameColumnVertMerge =
-              overlapX >= minWidth * 0.25 &&
-              gapY <= Math.round(280 * scaleRef) &&
-              !(Math.min(a.minX, b.minX) > W * 0.35 && Math.max(a.maxX, b.maxX) < W * 0.66);
+              !isBottomOptionInset &&
+              overlapX >= minWidth * 0.20 &&
+              gapY <= maxVertGap &&
+              // Never merge across the vertical gutter (~0.50W) separating Ground Floor (left) and First Floor (right)
+              !(Math.min(a.maxX, b.maxX) < W * 0.52 && Math.max(a.minX, b.minX) > W * 0.48);
 
             const attachedGarageBayMerge =
-              overlapY >= minHeight * 0.32 &&
-              gapX <= Math.round(350 * scaleRef) &&
-              Math.max(a.maxX, b.maxX) < W * 0.49;
-
-            const rightFirstFloorSubMerge =
               overlapY >= minHeight * 0.25 &&
-              gapX <= Math.round(450 * scaleRef) &&
-              Math.min(a.minX, b.minX) > W * 0.56;
+              gapX <= Math.round(350 * scaleRef) &&
+              Math.max(a.maxX, b.maxX) < W * 0.52;
+
+            // First Floor on double-storey sheets starts at ~0.50W..0.55W (e.g. Burgundy 32 starts at 0.545W)
+            // and can have a ~310px vertical gap in 250mm exterior walls where the upper floor steps in at Bed 1/WIR & Gallery
+            const rightFirstFloorSubMerge =
+              (overlapY >= minHeight * 0.15 || gapY <= Math.round(420 * scaleRef)) &&
+              gapX <= Math.round(520 * scaleRef) &&
+              Math.min(a.minX, b.minX) > W * 0.48 &&
+              Math.max(a.maxY, b.maxY) < H * 0.93;
 
             if (sameColumnVertMerge || attachedGarageBayMerge || rightFirstFloorSubMerge) {
               if (
+                allowSplitLevelSeam &&
                 sameColumnVertMerge &&
                 Math.min(a.pts.length, b.pts.length) >= 180 &&
                 Math.min(a.minX, b.minX) < W * 0.35
               ) {
-                const upperSub = a.minY < b.minY ? a : b;
-                const lowerSub = a.minY < b.minY ? b : a;
                 const seamY = Math.round((upperSub.maxY + lowerSub.minY) / 2);
                 if (seamY > H * 0.30 && seamY < H * 0.68) {
                   detectedSplitY = seamY;
@@ -738,10 +775,19 @@ async function runCanvasFloorplanVectorizer(
       const finalClusters = mergedDrawings.length > 0 ? mergedDrawings : splitClusters;
       if (finalClusters.length > 0) {
         finalClusters.sort((a, b) => {
+          // Prefer main Ground Floor cluster (left side, large point count, not a bottom Option inset)
+          const aIsOption = a.minY > optionThresholdY && a.maxX < W * 0.50;
+          const bIsOption = b.minY > optionThresholdY && b.maxX < W * 0.50;
+          if (aIsOption !== bIsOption) return aIsOption ? 1 : -1;
+          const aIsLeft = a.minX < W * 0.46;
+          const bIsLeft = b.minX < W * 0.46;
+          if (aIsLeft !== bIsLeft && Math.min(a.pts.length, b.pts.length) >= 100) {
+            return aIsLeft ? -1 : 1;
+          }
           if (
             finalClusters.length >= 2 &&
             Math.min(a.pts.length, b.pts.length) > 150 &&
-            Math.abs(a.minX - b.minX) > 600 * scaleRef
+            Math.abs(a.minX - b.minX) > 400 * scaleRef
           ) {
             return a.minX - b.minX;
           }
@@ -754,24 +800,29 @@ async function runCanvasFloorplanVectorizer(
         maxY = main.maxY;
 
         // Detect if there is a Right-Side First Floor (Upper Storey) Cluster on this sheet
-        // (ignoring any middle "Option" insets by picking the rightmost major cluster aligned with main.maxY)
-        const rightCandidates = finalClusters
+        const rightSubClusters = finalClusters
           .slice(1)
           .filter(
             (cl) =>
-              cl.minX > main.maxX + Math.round(140 * scaleRef) &&
-              cl.pts.length >= Math.max(180, main.pts.length * 0.22) &&
-              Math.abs(cl.maxY - main.maxY) < H * 0.24
-          )
-          .sort((a, b) => b.maxX - a.maxX);
+              cl.minX > main.maxX + Math.round(45 * scaleRef) &&
+              cl.minY < (isPortraitSheet ? H * 0.90 : H * 0.76) &&
+              cl.maxY > main.minY - H * 0.08
+          );
+        const totalRightPts = rightSubClusters.reduce((acc, c) => acc + c.pts.length, 0);
+        const isKnownDoubleStorey =
+          baseDesign.housingType === "Double Storey" ||
+          (baseDesign.schedule?.firstLivingM2 ?? 0) > 0;
 
-        if (rightCandidates.length > 0) {
-          const ff = rightCandidates[0];
+        if (
+          rightSubClusters.length > 0 &&
+          (totalRightPts >= Math.max(120, main.pts.length * 0.14) ||
+            (isKnownDoubleStorey && totalRightPts >= 50))
+        ) {
           detectedUpperCluster = {
-            minX: ff.minX,
-            maxX: ff.maxX,
-            minY: ff.minY,
-            maxY: ff.maxY,
+            minX: Math.min(...rightSubClusters.map((c) => c.minX)),
+            maxX: Math.max(...rightSubClusters.map((c) => c.maxX)),
+            minY: Math.min(...rightSubClusters.map((c) => c.minY)),
+            maxY: Math.max(...rightSubClusters.map((c) => c.maxY)),
           };
         }
       }
@@ -829,8 +880,12 @@ async function runCanvasFloorplanVectorizer(
       }
     }
 
+    const minExpandLimitX = clusterOverride?.skipMultiCluster
+      ? Math.max(marginX, clusterOverride.minX - Math.round(45 * scaleRef))
+      : Math.max(marginX, minX - maxExpandX);
+
     let emptyCols = 0;
-    for (let x = minX - 1; x >= Math.max(marginX, minX - maxExpandX); x--) {
+    for (let x = minX - 1; x >= minExpandLimitX; x--) {
       let colHasPier = false;
       for (let y = minY; y <= maxY; y += 2) {
         if (isSolidBlock(x, y)) {
@@ -846,8 +901,16 @@ async function runCanvasFloorplanVectorizer(
       }
     }
 
+    const maxExpandLimitX = detectedUpperCluster
+      ? Math.min(
+          W - marginX,
+          maxX + maxExpandX,
+          Math.round((maxX + detectedUpperCluster.minX) / 2) - 8
+        )
+      : Math.min(W - marginX, maxX + maxExpandX);
+
     emptyCols = 0;
-    for (let x = maxX + 1; x <= Math.min(W - marginX, maxX + maxExpandX); x++) {
+    for (let x = maxX + 1; x <= maxExpandLimitX; x++) {
       let colHasPier = false;
       for (let y = minY; y <= maxY; y += 2) {
         if (isSolidBlock(x, y)) {
@@ -897,11 +960,33 @@ async function runCanvasFloorplanVectorizer(
     )
       maxY++;
 
-    // Sync southern front baseline between Ground Floor Porch and First Floor Balcony when aligned
-    if (detectedUpperCluster && Math.abs(detectedUpperCluster.maxY - maxY) < Math.round(240 * scaleRef)) {
-      const sharedSouthY = Math.max(maxY, detectedUpperCluster.maxY);
-      maxY = sharedSouthY;
-      detectedUpperCluster.maxY = sharedSouthY;
+    // Trim trailing bottom title captions (e.g. "Ground Floor" / "First Floor" printed below the house)
+    // by snapping maxY to the lowest row that contains either a 350mm solid pier or a horizontal structural wall run
+    const minWallRunPx = Math.max(24, Math.round(36 * scaleRef));
+    const rowHasStructuralWallOrPier = (y: number): boolean => {
+      let run = 0;
+      for (let x = minX; x <= maxX; x += 2) {
+        if (isSolidBlock(x, y)) return true;
+        if (getLum(x, y) < 82 && getLum(x, y - 2) < 88 && getLum(x, y + 2) < 88) {
+          run += 2;
+          if (run >= minWallRunPx) return true;
+        } else {
+          run = 0;
+        }
+      }
+      return false;
+    };
+    const minTrimStopY = maxY - Math.min(Math.round(480 * scaleRef), Math.floor((maxY - minY) * 0.22));
+    for (let y = maxY; y >= minTrimStopY; y -= 2) {
+      if (rowHasStructuralWallOrPier(y) || rowHasStructuralWallOrPier(y - 1)) {
+        // Walk down to the outer face of this bottom wall/pier
+        let exactBotY = y;
+        while (exactBotY < maxY && (rowHasStructuralWallOrPier(exactBotY + 1) || isSolidBlock(minX, exactBotY + 1))) {
+          exactBotY++;
+        }
+        maxY = Math.min(maxY, exactBotY + Math.round(4 * scaleRef));
+        break;
+      }
     }
   }
 
@@ -2466,19 +2551,42 @@ async function runCanvasFloorplanVectorizer(
     });
   }
 
-  // --- STEP 8B: Detect Enclosed Indoor Room Bays (Ensuite, Main Bath, Laundry & Bedrooms) from Wall Network ---
+  // --- STEP 8B: Detect Enclosed Indoor Room Bays (Ensuite, Main Bath, WC/Powder, Laundry, Stairwell & Bedrooms) from Wall Network ---
   const cellM = 0.20;
   const gW = Math.max(10, Math.ceil(widthM / cellM));
   const gH = Math.max(10, Math.ceil(lengthM / cellM));
   const grid = new Uint8Array(gW * gH);
 
-  // Mark outdoor/garage zones & exterior margins as blocked (1)
+  // Precompute per-row (Z) and per-column (X) exterior wall scanline envelope so open outdoor setbacks & driveways are strictly blocked
+  const getScanlineXBoundsAtZ = (z: number): [number, number] => {
+    const activeX: number[] = [];
+    for (const t of vExtTracks) {
+      if (t.intervals.some((iv) => z >= iv.start - 0.45 && z <= iv.end + 0.45)) {
+        activeX.push(t.coord);
+      }
+    }
+    if (activeX.length >= 2) {
+      return [Math.min(...activeX), Math.max(...activeX)];
+    }
+    return [0, widthM];
+  };
+
+  // Mark outdoor/garage/driveway zones & exterior scanline margins as blocked (1)
   for (let iz = 0; iz < gH; iz++) {
     const z = (iz + 0.5) * cellM;
+    const [scanMinX, scanMaxX] = getScanlineXBoundsAtZ(z);
     for (let ix = 0; ix < gW; ix++) {
       const x = (ix + 0.5) * cellM;
+      const outsideScanlineX = x < scanMinX - 0.08 || x > scanMaxX + 0.08;
       if (isUpperFloorScan) {
-        if (z > upperBalconyMinZ + 0.1 || x < 0.15 || x > widthM - 0.15 || z < 0.15 || z > lengthM - 0.15) {
+        if (
+          outsideScanlineX ||
+          z > upperBalconyMinZ + 0.1 ||
+          x < 0.15 ||
+          x > widthM - 0.15 ||
+          z < 0.15 ||
+          z > lengthM - 0.15
+        ) {
           grid[iz * gW + ix] = 1;
         }
         continue;
@@ -2488,9 +2596,25 @@ async function runCanvasFloorplanVectorizer(
         x >= porchXMin - 0.1 && x <= porchXMax + 0.1 && z >= porchZMin - 0.1 && z <= porchZMax + 0.1;
       const inGar =
         x >= garXMin - 0.1 && x <= garXMax + 0.1 && z >= garZMin - 0.1 && z <= garZMax + 0.1;
-      const outSouth = z > frontWingMaxZ && (x < garXMin || x > garXMax);
+      // CRITICAL FIX (Constraint A): Block the open driveway apron in front of the garage (z >= garZMax)
+      // where "Ground Floor" title text is printed on plans like Burgundy 32
+      const inDrivewayFrontOfGarage =
+        z >= garZMax - 0.15 && x >= garXMin - 0.25 && x <= garXMax + 0.25;
+      const outSouth = z > frontWingMaxZ - 0.08;
       const outWestStep = hasWestPorchStepIn && x < frontMinX && z > porchZMin;
-      if (inAlf || inPorch || inGar || outSouth || outWestStep || x < 0.15 || x > widthM - 0.15 || z < 0.15 || z > lengthM - 0.15) {
+      if (
+        outsideScanlineX ||
+        inAlf ||
+        inPorch ||
+        inGar ||
+        inDrivewayFrontOfGarage ||
+        outSouth ||
+        outWestStep ||
+        x < 0.15 ||
+        x > widthM - 0.15 ||
+        z < 0.15 ||
+        z > lengthM - 0.15
+      ) {
         grid[iz * gW + ix] = 1;
       }
     }
@@ -2516,6 +2640,70 @@ async function runCanvasFloorplanVectorizer(
     markSegmentOnGrid(h.start, h.end, 0.12);
   }
 
+  // Helper to check if a pixel belongs to a solid black CAD wall core
+  const isWallPixel = (px: number, py: number): boolean =>
+    getLum(px, py) < 88 &&
+    ((getLum(px - 2, py) < 88 && getLum(px + 2, py) < 88) ||
+      (getLum(px, py - 2) < 88 && getLum(px, py + 2) < 88));
+
+  // Helper to detect parallel stair tread cadence inside a bounding box [minX, maxX, minZ, maxZ]
+  const measureStairTreadCadence = (bMinX: number, bMaxX: number, bMinZ: number, bMaxZ: number): number => {
+    const bw = bMaxX - bMinX;
+    const bl = bMaxZ - bMinZ;
+    if (bw < 0.85 || bl < 0.85 || Math.min(bw, bl) > 2.38 || Math.max(bw, bl) > 4.6) return 0;
+    const px1 = toPxX(bMinX + 0.12);
+    const px2 = toPxX(bMaxX - 0.12);
+    const py1 = toPxY(bMinZ + 0.12);
+    const py2 = toPxY(bMaxZ - 0.12);
+    if (px2 - px1 < 12 || py2 - py1 < 12) return 0;
+
+    // Count horizontal parallel tread lines along vertical scanlines
+    let maxHorizTreads = 0;
+    for (let sx = px1 + 4; sx <= px2 - 4; sx += Math.max(4, Math.floor((px2 - px1) / 5))) {
+      let transitions = 0;
+      let inDark = false;
+      let lastDarkY = -999;
+      for (let sy = py1; sy <= py2; sy++) {
+        const dark = getLum(sx, sy) < 175 && !isWallPixel(sx, sy);
+        if (dark && !inDark) {
+          const gapM = (sy - lastDarkY) / pxPerM;
+          if (lastDarkY < 0 || (gapM >= 0.16 && gapM <= 0.42)) {
+            transitions++;
+            lastDarkY = sy;
+          }
+          inDark = true;
+        } else if (!dark) {
+          inDark = false;
+        }
+      }
+      if (transitions > maxHorizTreads) maxHorizTreads = transitions;
+    }
+
+    // Count vertical parallel tread lines along horizontal scanlines
+    let maxVertTreads = 0;
+    for (let sy = py1 + 4; sy <= py2 - 4; sy += Math.max(4, Math.floor((py2 - py1) / 5))) {
+      let transitions = 0;
+      let inDark = false;
+      let lastDarkX = -999;
+      for (let sx = px1; sx <= px2; sx++) {
+        const dark = getLum(sx, sy) < 175 && !isWallPixel(sx, sy);
+        if (dark && !inDark) {
+          const gapM = (sx - lastDarkX) / pxPerM;
+          if (lastDarkX < 0 || (gapM >= 0.16 && gapM <= 0.42)) {
+            transitions++;
+            lastDarkX = sx;
+          }
+          inDark = true;
+        } else if (!dark) {
+          inDark = false;
+        }
+      }
+      if (transitions > maxVertTreads) maxVertTreads = transitions;
+    }
+
+    return Math.max(maxHorizTreads, maxVertTreads);
+  };
+
   interface RoomBay {
     minX: number;
     maxX: number;
@@ -2527,6 +2715,7 @@ async function runCanvasFloorplanVectorizer(
     l: number;
     areaM2: number;
     fixtureScore: number;
+    stairTreads: number;
   }
 
   const bays: RoomBay[] = [];
@@ -2571,38 +2760,47 @@ async function runCanvasFloorplanVectorizer(
       const rl = +(rMaxZ - rMinZ).toFixed(2);
       const areaM2 = +(count * cellM * cellM).toFixed(2);
 
-      // Ignore tinyrobe pockets or giant open-plan living halls
-      if (rw < 1.15 || rl < 1.15 || areaM2 < 2.1 || areaM2 > 22.0) continue;
+      // Constraint A: Lower minimum room bay threshold to 1.35 m² so Powder & WC rooms (1.35..3.50 m²) are captured
+      if (rw < 0.85 || rl < 0.85 || Math.max(rw, rl) < 1.15 || areaM2 < 1.35 || areaM2 > 22.0) continue;
       // Ignore if this bay contains the Kitchen Sink
       if (sinkXM >= rMinX - 0.2 && sinkXM <= rMaxX + 0.2 && sinkZM >= rMinZ - 0.2 && sinkZM <= rMaxZ + 0.2) {
         continue;
       }
 
-      // Measure CAD fixture linework density in the inner wall band (0.18m..0.68m from walls, avoiding center room label)
+      const stairTreads = measureStairTreadCadence(rMinX, rMaxX, rMinZ, rMaxZ);
+
+      // Measure CAD fixture linework density in the inner wall band (0.16m..0.68m from walls, avoiding center room label text)
       let darkHits = 0,
         samples = 0;
       const pX1 = toPxX(rMinX + 0.16),
         pX2 = toPxX(rMaxX - 0.16);
       const pY1 = toPxY(rMinZ + 0.16),
         pY2 = toPxY(rMaxZ - 0.16);
-      const midX1 = toPxX(rMinX + rw * 0.34),
-        midX2 = toPxX(rMaxX - rw * 0.34);
-      const midY1 = toPxY(rMinZ + rl * 0.34),
-        midY2 = toPxY(rMaxZ - rl * 0.34);
+      const midX1 = toPxX(rMinX + rw * 0.28),
+        midX2 = toPxX(rMaxX - rw * 0.28);
+      const midY1 = toPxY(rMinZ + rl * 0.28),
+        midY2 = toPxY(rMaxZ - rl * 0.28);
       for (let py = pY1; py <= pY2; py += 4) {
         for (let px = pX1; px <= pX2; px += 4) {
           if (px >= midX1 && px <= midX2 && py >= midY1 && py <= midY2) continue;
           samples++;
-          if (getLum(px, py) < 175) darkHits++;
+          if (getLum(px, py) < 175 && !isWallPixel(px, py)) {
+            darkHits++;
+          }
         }
       }
       let fixtureScore = samples > 0 ? darkHits / samples : 0;
+
+      // Penalize stair tread bays in fixtureScore so stairs are never mistaken for bathrooms
+      if (stairTreads >= 6) {
+        fixtureScore *= 0.25;
+      }
 
       // Bonus if bordered by a 720mm wet-area door or external side door
       const hasWetDoor = openings.some(
         (o) =>
           o.type === "door" &&
-          (o.width <= 0.76 || (o.isExterior && o.position[1] < lengthM * 0.72)) &&
+          (o.width <= 0.78 || (o.isExterior && o.position[1] < lengthM * 0.72)) &&
           o.position[0] >= rMinX - 0.35 &&
           o.position[0] <= rMaxX + 0.35 &&
           o.position[1] >= rMinZ - 0.35 &&
@@ -2621,28 +2819,147 @@ async function runCanvasFloorplanVectorizer(
         l: rl,
         areaM2,
         fixtureScore,
+        stairTreads,
       });
     }
   }
 
-  // Classify wet-area bays (2.1..9.5 m²) vs Bedroom bays (7.8..21.5 m²)
-  const wetCandidateBays = bays
-    .filter((b) => b.areaM2 >= 2.1 && b.areaM2 <= 9.8 && Math.min(b.w, b.l) <= 3.3)
+  // Detect Stairwell Shaft on Double-Storey plans (or upper floor scans)
+  let detectedStairwell: {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+    cx: number;
+    cz: number;
+  } | null = null;
+  const isDoubleStoreyPlan =
+    isUpperFloorScan ||
+    baseDesign.housingType === "Double Storey" ||
+    detectedUpperCluster !== null ||
+    (baseDesign.schedule?.firstLivingM2 ?? 0) > 0;
+
+  if (isDoubleStoreyPlan) {
+    const stairCandidateBays = bays
+      .filter(
+        (b) =>
+          b.stairTreads >= 6 &&
+          b.areaM2 >= 2.2 &&
+          b.areaM2 <= 8.2 &&
+          Math.min(b.w, b.l) <= 2.35 &&
+          b.cz >= lengthM * 0.22 &&
+          b.cz <= lengthM * 0.80 &&
+          b.cx <= widthM * 0.72
+      )
+      .sort((a, b) => b.stairTreads - a.stairTreads);
+
+    if (stairCandidateBays.length > 0) {
+      const sb = stairCandidateBays[0];
+      const sw = Math.min(2.15, sb.w);
+      const sl = Math.min(3.10, sb.l);
+      detectedStairwell = {
+        minX: +(sb.cx - sw / 2).toFixed(2),
+        maxX: +(sb.cx + sw / 2).toFixed(2),
+        minZ: +(sb.cz - sl / 2).toFixed(2),
+        maxZ: +(sb.cz + sl / 2).toFixed(2),
+        cx: sb.cx,
+        cz: sb.cz,
+      };
+    } else {
+      // Sliding-window scan across central stairwell zone (x in 0..0.55*widthM, z in 0.25..0.72*lengthM)
+      let bestTreads = 0;
+      let bestBox: typeof detectedStairwell = null;
+      const winW = 2.00;
+      const winL = 2.85;
+      for (let wz = +(lengthM * 0.26).toFixed(2); wz <= lengthM * 0.72 - winL; wz += 0.55) {
+        for (let wx = 0.20; wx <= Math.max(0.4, widthM * 0.55 - winW); wx += 0.55) {
+          const treads = measureStairTreadCadence(wx, wx + winW, wz, wz + winL);
+          if (treads > bestTreads && treads >= 7) {
+            bestTreads = treads;
+            bestBox = {
+              minX: +wx.toFixed(2),
+              maxX: +(wx + winW).toFixed(2),
+              minZ: +wz.toFixed(2),
+              maxZ: +(wz + winL).toFixed(2),
+              cx: +(wx + winW / 2).toFixed(2),
+              cz: +(wz + winL / 2).toFixed(2),
+            };
+          }
+        }
+      }
+      detectedStairwell = bestBox;
+    }
+  }
+
+  const usedWetSet = new Set<RoomBay>();
+  if (detectedStairwell) {
+    for (const b of bays) {
+      if (
+        Math.abs(b.cx - detectedStairwell.cx) < 1.1 &&
+        Math.abs(b.cz - detectedStairwell.cz) < 1.4
+      ) {
+        usedWetSet.add(b);
+      }
+    }
+    rooms.push({
+      id: isUpperFloorScan ? "r_stair_void_auto" : "r_stairs_auto",
+      name: isUpperFloorScan ? "Void" : "Stairs",
+      customLabel: isUpperFloorScan ? "Stairwell Void" : "Stairwell",
+      polygon: [
+        [detectedStairwell.minX, detectedStairwell.minZ],
+        [detectedStairwell.maxX, detectedStairwell.minZ],
+        [detectedStairwell.maxX, detectedStairwell.maxZ],
+        [detectedStairwell.minX, detectedStairwell.maxZ],
+      ],
+      areaM2: +((detectedStairwell.maxX - detectedStairwell.minX) * (detectedStairwell.maxZ - detectedStairwell.minZ)).toFixed(2),
+      floorFinish: "timber",
+      center: [detectedStairwell.cx, detectedStairwell.cz],
+    });
+  }
+
+  // Constraint A: Separate Full Wet Bays (Ensuite/Bath: 3.20..11.50 m², Laundry: 2.80..8.50 m²) vs WC/Powder Bays (1.35..3.50 m²)
+  const fullWetCandidateBays = bays
+    .filter(
+      (b) =>
+        !usedWetSet.has(b) &&
+        b.areaM2 >= 2.80 &&
+        b.areaM2 <= 11.50 &&
+        Math.min(b.w, b.l) >= 1.30 &&
+        Math.min(b.w, b.l) <= 3.60 &&
+        b.stairTreads < 6
+    )
     .sort((a, b) => b.fixtureScore - a.fixtureScore);
 
-  const selectedWetBays = wetCandidateBays.slice(0, 3);
-  const usedWetSet = new Set(selectedWetBays);
+  const maxFullWetCount = isUpperFloorScan ? 2 : isDoubleStoreyPlan ? 2 : 3;
+  const selectedWetBays = fullWetCandidateBays.slice(0, maxFullWetCount);
+  for (const b of selectedWetBays) usedWetSet.add(b);
 
-  // Assign Ensuite (closest to North or South master corner), Main Bath (largest wet bay), and Laundry
+  // Assign Ensuite, Main Bath, and Laundry based on floor context
   if (selectedWetBays.length > 0) {
-    // Sort by area descending to pick Main Bath vs Ensuite vs Laundry
     const byZ = [...selectedWetBays].sort((a, b) => a.cz - b.cz);
-    const ensBay = byZ[0];
-    const remainingWet = selectedWetBays.filter((b) => b !== ensBay).sort((a, b) => b.areaM2 - a.areaM2);
-    const bathBay = remainingWet[0];
-    const ldryBay = remainingWet[1];
+    let ensBay: RoomBay | undefined;
+    let bathBay: RoomBay | undefined;
+    let ldryBay: RoomBay | undefined;
 
-    if (ensBay) {
+    if (isUpperFloorScan) {
+      // Upper floor has Master Ensuite + Upper Main Bath (no Laundry)
+      ensBay = byZ[0];
+      bathBay = byZ[1];
+    } else if (isDoubleStoreyPlan) {
+      // Ground floor of a double-storey plan typically has Laundry (and optional Guest Ensuite if 2 large wet bays exist)
+      ldryBay = selectedWetBays[0];
+      if (selectedWetBays.length > 1 && selectedWetBays[1].areaM2 >= 3.4) {
+        ensBay = selectedWetBays[1];
+      }
+    } else {
+      // Single storey: Ensuite, Main Bath, and Laundry
+      ensBay = byZ[0];
+      const remainingWet = selectedWetBays.filter((b) => b !== ensBay).sort((a, b) => b.areaM2 - a.areaM2);
+      bathBay = remainingWet[0];
+      ldryBay = remainingWet[1];
+    }
+
+    if (ensBay && ensBay.areaM2 >= 3.0) {
       rooms.push({
         id: "r_ensuite_auto",
         name: "Ensuite",
@@ -2693,7 +3010,7 @@ async function runCanvasFloorplanVectorizer(
       });
     }
 
-    if (bathBay) {
+    if (bathBay && bathBay.areaM2 >= 3.2) {
       rooms.push({
         id: "r_bath_auto",
         name: "Bath",
@@ -2754,7 +3071,7 @@ async function runCanvasFloorplanVectorizer(
       });
     }
 
-    if (ldryBay) {
+    if (ldryBay && ldryBay.areaM2 >= 2.6) {
       rooms.push({
         id: "r_laundry_auto",
         name: "Laundry",
@@ -2793,32 +3110,164 @@ async function runCanvasFloorplanVectorizer(
     }
   }
 
-  // Populate Bedroom beds cleanly inside the enclosed Bedroom bays (when showFurniture is toggled on)
-  const bedBays = bays
-    .filter((b) => !usedWetSet.has(b) && b.areaM2 >= 7.5 && b.w >= 2.5 && b.l >= 2.5)
-    .sort((a, b) => b.areaM2 - a.areaM2)
-    .slice(0, 4);
+  // Constraint A: Detect Compact WC / Powder Room Bay (1.35 m² .. 3.50 m²)
+  const wcPowderCandidates = bays
+    .filter(
+      (b) =>
+        !usedWetSet.has(b) &&
+        b.areaM2 >= 1.35 &&
+        b.areaM2 <= 3.50 &&
+        Math.min(b.w, b.l) >= 0.85 &&
+        Math.min(b.w, b.l) <= 1.95 &&
+        b.stairTreads < 5 &&
+        b.fixtureScore >= 0.08
+    )
+    .sort((a, b) => b.fixtureScore - a.fixtureScore);
 
-  const bedLabels: Array<"Master Bed" | "Bed 2" | "Bed 3" | "Bed 4"> = [
-    "Master Bed",
-    "Bed 2",
-    "Bed 3",
-    "Bed 4",
-  ];
-  for (let i = 0; i < bedBays.length; i++) {
-    const bb = bedBays[i];
-    const rName = bedLabels[i] || "Bed 2";
-    const isMaster = i === 0;
+  if (wcPowderCandidates.length > 0) {
+    const wcBay = wcPowderCandidates[0];
+    usedWetSet.add(wcBay);
+    const wcRoomName: "Powder" | "WC" = !isUpperFloorScan && isDoubleStoreyPlan ? "Powder" : "WC";
+    rooms.push({
+      id: "r_wc_powder_auto",
+      name: wcRoomName,
+      customLabel: wcRoomName === "Powder" ? "Ground Floor Powder Room" : "Separate WC",
+      polygon: [
+        [wcBay.minX, wcBay.minZ],
+        [wcBay.maxX, wcBay.minZ],
+        [wcBay.maxX, wcBay.maxZ],
+        [wcBay.minX, wcBay.maxZ],
+      ],
+      areaM2: wcBay.areaM2,
+      floorFinish: "tiles",
+      center: [wcBay.cx, wcBay.cz],
+    });
     fixtures.push({
-      id: `fx_bed_${i + 1}`,
-      type: isMaster ? "bed_queen" : "bed_double",
-      roomName: rName,
-      position: [bb.cx, isMaster ? 0.35 : 0.32, bb.cz],
-      rotationY: bb.w >= bb.l ? Math.PI / 2 : 0,
-      width: isMaster ? 1.65 : 1.40,
-      depth: isMaster ? 2.00 : 1.90,
-      height: isMaster ? 0.68 : 0.62,
-      label: isMaster ? "Master Queen Bed & Side Tables" : `${rName} Double Bed`,
+      id: "fx_wc_toilet",
+      type: "toilet",
+      roomName: wcRoomName,
+      position: [wcBay.cx, 0.41, +(wcBay.minZ + 0.36).toFixed(2)],
+      rotationY: 0,
+      width: 0.44,
+      depth: 0.65,
+      height: 0.82,
+      label: `${wcRoomName} Close-Coupled Toilet Suite`,
+    });
+    if (wcBay.areaM2 >= 1.75) {
+      fixtures.push({
+        id: "fx_wc_basin",
+        type: "vanity_single",
+        roomName: wcRoomName,
+        position: [+(wcBay.maxX - 0.25).toFixed(2), 0.43, +(wcBay.maxZ - 0.35).toFixed(2)],
+        rotationY: -Math.PI / 2,
+        width: 0.50,
+        depth: 0.38,
+        height: 0.84,
+        label: `${wcRoomName} Wall-Hung Hand Basin & Mirror`,
+      });
+    }
+  }
+
+  // Populate Bedroom beds & Living/Dining/Lounge furniture cleanly inside enclosed bays
+  const largeIndoorBays = bays
+    .filter((b) => !usedWetSet.has(b) && b.areaM2 >= 7.2 && b.w >= 2.4 && b.l >= 2.4 && b.stairTreads < 5)
+    .sort((a, b) => b.areaM2 - a.areaM2);
+
+  if (!isUpperFloorScan && isDoubleStoreyPlan) {
+    // Ground floor of Double Storey: enclosed bays are Media/Lounge, Study/Guest Bed, etc.
+    for (let i = 0; i < Math.min(2, largeIndoorBays.length); i++) {
+      const lb = largeIndoorBays[i];
+      if (i === 0) {
+        fixtures.push({
+          id: "fx_lounge_sofa",
+          type: "sofa_sectional",
+          roomName: "Lounge",
+          position: [lb.cx, 0.42, lb.cz],
+          rotationY: lb.w >= lb.l ? 0 : Math.PI / 2,
+          width: Math.min(2.4, +(lb.w * 0.62).toFixed(2)),
+          depth: 0.95,
+          height: 0.84,
+          label: "Media / Lounge Plush Modular Sofa",
+        });
+      } else {
+        fixtures.push({
+          id: "fx_study_desk",
+          type: "study_desk",
+          roomName: "Study",
+          position: [lb.cx, 0.38, lb.cz],
+          rotationY: 0,
+          width: 1.50,
+          depth: 0.75,
+          height: 0.76,
+          label: "Home Office Timber Study Desk & Chair",
+        });
+      }
+    }
+  } else {
+    const bedBays = largeIndoorBays.slice(0, 4);
+    const bedLabels: Array<"Master Bed" | "Bed 2" | "Bed 3" | "Bed 4"> = [
+      "Master Bed",
+      "Bed 2",
+      "Bed 3",
+      "Bed 4",
+    ];
+    for (let i = 0; i < bedBays.length; i++) {
+      const bb = bedBays[i];
+      const rName = bedLabels[i] || "Bed 2";
+      const isMaster = i === 0;
+      fixtures.push({
+        id: `fx_bed_${i + 1}`,
+        type: isMaster ? "bed_queen" : "bed_double",
+        roomName: rName,
+        position: [bb.cx, isMaster ? 0.35 : 0.32, bb.cz],
+        rotationY: bb.w >= bb.l ? Math.PI / 2 : 0,
+        width: isMaster ? 1.65 : 1.40,
+        depth: isMaster ? 2.00 : 1.90,
+        height: isMaster ? 0.68 : 0.62,
+        label: isMaster ? "Master Queen Bed & Side Tables" : `${rName} Double Bed`,
+      });
+    }
+  }
+
+  // Add Open-Plan Family Room Sofa, Coffee Table, Entertainment Unit & Dining Table on Ground Floor
+  if (!isUpperFloorScan) {
+    const diningX = +(Math.max(1.8, Math.min(widthM - 2.2, sinkXM - 2.8))).toFixed(2);
+    const diningZ = +(Math.max(alfZMax + 1.8, Math.min(lengthM * 0.55, sinkZM))).toFixed(2);
+    fixtures.push({
+      id: "fx_dining_table_main",
+      type: "dining_table",
+      roomName: "Dining",
+      position: [diningX, 0.38, diningZ],
+      rotationY: 0,
+      width: 2.10,
+      depth: 1.05,
+      height: 0.76,
+      label: "8-Seater Solid Oak Dining Table & Chairs",
+    });
+
+    const familyX = +(Math.min(widthM - 2.2, Math.max(2.2, sinkXM + 0.4))).toFixed(2);
+    const familyZ = +(Math.max(1.8, Math.min(sinkZM - 3.1, alfZMax + 2.2))).toFixed(2);
+    fixtures.push({
+      id: "fx_family_sofa_main",
+      type: "sofa_sectional",
+      roomName: "Family",
+      position: [familyX, 0.42, familyZ],
+      rotationY: 0,
+      width: 2.75,
+      depth: 1.65,
+      height: 0.84,
+      label: "Family L-Shape Linen Sectional Sofa",
+    });
+    fixtures.push({
+      id: "fx_family_coffee_table",
+      type: "coffee_table",
+      roomName: "Family",
+      position: [familyX, 0.21, +(Math.max(1.2, familyZ - 1.25)).toFixed(2)],
+      rotationY: 0,
+      width: 1.20,
+      depth: 0.65,
+      height: 0.42,
+      label: "Designer Travertine Coffee Table",
     });
   }
 
@@ -2827,12 +3276,12 @@ async function runCanvasFloorplanVectorizer(
 
   if (!clusterOverride?.skipMultiCluster) {
     const lowerName = `${baseDesign.name || ""} ${baseDesign.variantName || ""}`.toLowerCase();
+    // Strictly classify Split Level only when housingType/schedule/name explicitly indicates Split Level
     const isSplitLevel =
       baseDesign.housingType === "Split Level" ||
       (baseDesign.schedule?.lowerLivingM2 ?? 0) > 0 ||
       lowerName.includes("mauve") ||
-      lowerName.includes("split") ||
-      (detectedSplitY !== null && detectedUpperCluster !== null);
+      lowerName.includes("split");
 
     let splitZ = 0;
     const splitElevM = isSplitLevel ? 0.60 : 0.0;
@@ -3218,14 +3667,37 @@ async function runCanvasFloorplanVectorizer(
           baseDesign.ceilingHeightM + (isSplitLevel ? 0.56 : 0.32)
         ).toFixed(2);
 
-        // Align First Floor onto Ground Floor footprint:
-        // Left exterior wall aligns at x = 0; Z aligns via the sheet's vertical coordinate relative to minY
-        const rawZOffset = +((upperPatch.floorplanCrop.minY - minY) / pxPerM).toFixed(2);
-        const zOffset = Math.max(
+        // Hybrid Structural Registration of First Floor (L2) over Ground Floor (L1):
+        // 1. Sheet vertical alignment baseline (since Ground and First Floor are drawn aligned side-by-side)
+        const rawSheetZOffset = +((upperPatch.floorplanCrop.minY - minY) / pxPerM).toFixed(2);
+        let xOffset = 0;
+        let zOffset = Math.max(
           0,
-          Math.min(+(lengthM - upperPatch.lengthM).toFixed(2), isSplitLevel && splitZ > 0 ? splitZ : rawZOffset)
+          Math.min(+(lengthM - upperPatch.lengthM + 0.60).toFixed(2), isSplitLevel && splitZ > 0 ? splitZ : rawSheetZOffset)
         );
-        const xOffset = 0;
+
+        // 2. If both L1 and L2 detected a Stairwell Shaft, use the Stairwell Shaft outer bounding box corners as primary anchor
+        if (detectedStairwell && upperPatch.stairwellBounds) {
+          const stairDx = +(detectedStairwell.minX - upperPatch.stairwellBounds.minX).toFixed(2);
+          const stairDz = +(detectedStairwell.minZ - upperPatch.stairwellBounds.minZ).toFixed(2);
+          if (Math.abs(stairDx) <= 2.8) {
+            xOffset = stairDx;
+          }
+          if (Math.abs(stairDz - zOffset) <= 2.8) {
+            zOffset = stairDz;
+          }
+        }
+
+        // 3. Snap to Left/Right Load-Bearing Exterior Wall Plumblines within 0.35m tolerance
+        if (Math.abs(xOffset) < 0.35) {
+          xOffset = 0;
+        } else if (Math.abs(xOffset + upperPatch.widthM - widthM) < 0.35) {
+          xOffset = +(widthM - upperPatch.widthM).toFixed(2);
+        }
+
+        // 4. Clamp L2 within L1 structural footprint (+0.60m cantilever tolerance)
+        xOffset = Math.max(-0.40, Math.min(+(widthM - upperPatch.widthM + 0.60).toFixed(2), xOffset));
+        zOffset = Math.max(0, Math.min(+(lengthM - upperPatch.lengthM + 0.60).toFixed(2), zOffset));
 
         // If this was a 2-storey non-split design, ensure Level 0 is in `levels`
         if (levels.length === 0) {
@@ -3248,7 +3720,7 @@ async function runCanvasFloorplanVectorizer(
             : "Level 2: First Floor (Upper Storey Bedrooms & Retreat)",
           shortName: "First Floor",
           elevationOffsetM: firstFloorElevM,
-          ceilingHeightMm: ceilMm,
+          ceilingHeightMm: 2440,
           areaM2: baseDesign.schedule?.firstLivingM2,
           floorplanCrop: upperPatch.floorplanCrop,
           worldBounds: {
@@ -3265,6 +3737,7 @@ async function runCanvasFloorplanVectorizer(
             id: `ff_${w.id}`,
             start: [+(w.start[0] + xOffset).toFixed(3), +(w.start[1] + zOffset).toFixed(3)],
             end: [+(w.end[0] + xOffset).toFixed(3), +(w.end[1] + zOffset).toFixed(3)],
+            height: 2.44,
             level: 2,
             elevationOffsetM: firstFloorElevM,
           });
@@ -3419,7 +3892,7 @@ async function runCanvasFloorplanVectorizer(
           fixtures.push({
             ...f,
             id: `ff_${f.id}`,
-            roomName: `First Floor ${f.roomName}`,
+            roomName: f.roomName,
             position: [
               +(f.position[0] + xOffset).toFixed(2),
               f.position[1],
@@ -3430,19 +3903,63 @@ async function runCanvasFloorplanVectorizer(
           });
         }
 
-        // Add the Main Ground-to-First-Floor 3D Architectural Staircase
+        // Determine exact Stairwell Shaft position from detectedStairwell or upperPatch.stairwellBounds
+        const stairBox = detectedStairwell
+          ? detectedStairwell
+          : upperPatch.stairwellBounds
+          ? {
+              minX: +(upperPatch.stairwellBounds.minX + xOffset).toFixed(2),
+              maxX: +(upperPatch.stairwellBounds.maxX + xOffset).toFixed(2),
+              minZ: +(upperPatch.stairwellBounds.minZ + zOffset).toFixed(2),
+              maxZ: +(upperPatch.stairwellBounds.maxZ + zOffset).toFixed(2),
+              cx: +(upperPatch.stairwellBounds.cx + xOffset).toFixed(2),
+              cz: +(upperPatch.stairwellBounds.cz + zOffset).toFixed(2),
+            }
+          : {
+              minX: 0.25,
+              maxX: 2.30,
+              minZ: +(zOffset + 2.80).toFixed(2),
+              maxZ: +(zOffset + 5.80).toFixed(2),
+              cx: 1.28,
+              cz: +(zOffset + 4.30).toFixed(2),
+            };
+
+        const stairW = Math.max(1.80, Math.min(2.40, +(stairBox.maxX - stairBox.minX).toFixed(2)));
+        const stairD = Math.max(2.40, Math.min(3.40, +(stairBox.maxZ - stairBox.minZ).toFixed(2)));
+
+        // Ensure a matching Stairwell Void polygon exists on Level 2 so the First Floor slab is cut open above the stairs
+        if (!rooms.some((r) => r.level === 2 && r.name === "Void")) {
+          rooms.push({
+            id: "ff_stairwell_void",
+            name: "Void",
+            customLabel: "Stairwell Void",
+            polygon: [
+              [+(stairBox.cx - stairW / 2).toFixed(2), +(stairBox.cz - stairD / 2).toFixed(2)],
+              [+(stairBox.cx + stairW / 2).toFixed(2), +(stairBox.cz - stairD / 2).toFixed(2)],
+              [+(stairBox.cx + stairW / 2).toFixed(2), +(stairBox.cz + stairD / 2).toFixed(2)],
+              [+(stairBox.cx - stairW / 2).toFixed(2), +(stairBox.cz + stairD / 2).toFixed(2)],
+            ],
+            areaM2: +(stairW * stairD).toFixed(2),
+            floorFinish: "timber",
+            center: [stairBox.cx, stairBox.cz],
+            level: 2,
+            elevationOffsetM: firstFloorElevM,
+          });
+        }
+
+        // Add the Main Ground-to-First-Floor 3D Architectural Staircase inside the detected stairwell shaft
         fixtures.push({
           id: "fx_stair_main_upper",
           type: "staircase",
-          roomName: "Gallery",
+          roomName: "Stairs",
           position: [
-            +(Math.min(widthM * 0.36, 4.4)).toFixed(2),
+            stairBox.cx,
             +(firstFloorElevM / 2).toFixed(2),
-            +(zOffset + 1.55).toFixed(2),
+            stairBox.cz,
           ],
           rotationY: 0,
-          width: 2.05,
-          depth: 3.00,
+          width: stairW,
+          depth: stairD,
           height: firstFloorElevM,
           label: "Main U-Turn Timber & Glass Staircase (Ground to First Floor)",
           level: 0,
@@ -3451,6 +3968,19 @@ async function runCanvasFloorplanVectorizer(
       }
     }
   }
+
+  // Stage B & Stage C Final Topological Snapping & Strict Room Containment Guard
+  const snappedGraph = cleanAndSnapWallGraph(cleanWalls, openings, widthM, lengthM);
+  const validatedFixtures = clusterOverride?.skipMultiCluster
+    ? fixtures
+    : validateAndClampFixtures(
+        fixtures,
+        rooms,
+        snappedGraph.walls,
+        widthM,
+        lengthM,
+        levels
+      ).validFixtures;
 
   return {
     floorplanImageUrl: imageUrl,
@@ -3463,11 +3993,12 @@ async function runCanvasFloorplanVectorizer(
     widthM,
     lengthM,
     exactStructuralWalls: true,
+    stairwellBounds: detectedStairwell || undefined,
     levels: levels.length > 0 ? levels : undefined,
-    walls: cleanWalls,
-    openings,
+    walls: snappedGraph.walls,
+    openings: snappedGraph.openings,
     openHampers,
     rooms,
-    fixtures,
+    fixtures: validatedFixtures,
   };
 }

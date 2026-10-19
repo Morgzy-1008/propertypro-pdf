@@ -26,6 +26,8 @@ import {
   Building2,
   Sofa,
   Wrench,
+  Trash2,
+  Move,
   X,
 } from "lucide-react";
 import { HudsonMark } from "@/components/flyer/FlyerTemplates";
@@ -41,6 +43,9 @@ import {
   MaterialPaletteConfig,
   InteriorFitoutConfig,
   CustomFacadeConfig,
+  SceneSelectedElement,
+  SceneAction,
+  Fixture3D,
 } from "@/lib/studio3d/studio3dTypes";
 import {
   get3DDesign,
@@ -53,11 +58,15 @@ import {
   build3DDesignForStandardModel,
   applyPlanModificationsTo3DDesign,
   getTailoredFacadePresetsForDesign,
+  validateAndClampFixtures,
   DEFAULT_FITOUT_CONFIG,
   DEFAULT_CUSTOM_FACADE_CONFIG,
   StandardHudsonDesignOption,
 } from "@/lib/studio3d/floorplanTo3dEngine";
-import { calculateWallNetworkMetrics } from "@/lib/studio3d/wallNetworkEngine";
+import {
+  calculateWallNetworkMetrics,
+  projectOpeningOntoHostWall,
+} from "@/lib/studio3d/wallNetworkEngine";
 import {
   analyzeModifiedFloorplanFile,
   PlanModificationAnalysis,
@@ -88,6 +97,17 @@ export function Studio3dWorkspace() {
   // Active Building Design (defaults to null for clean search/upload landing state)
   const [selectedDesignKey, setSelectedDesignKey] = useState<string>("");
   const [design, setDesign] = useState<BuildingDesign3D | null>(null);
+  const baselineVectorizedDesignRef = useRef<BuildingDesign3D | null>(null);
+
+  // Interactive 3D Element Selection & Calibration State
+  const [selectedElement, setSelectedElement] =
+    useState<SceneSelectedElement | null>(null);
+  const [wallXrayMode, setWallXrayMode] = useState<boolean>(false);
+  const [l2Calibration, setL2Calibration] = useState<{
+    offsetXM: number;
+    offsetZM: number;
+    scaleRatio: number;
+  }>({ offsetXM: 0, offsetZM: 0, scaleRatio: 1 });
 
   // Search state for importing a standard Hudson Homes design
   const [designSearchQuery, setDesignSearchQuery] = useState<string>("");
@@ -176,6 +196,34 @@ export function Studio3dWorkspace() {
     return calculateWallNetworkMetrics(design);
   }, [design]);
 
+  // Active 3D scene context passed to "Talk to the House (AI)"
+  const activeSceneContext = useMemo(() => {
+    if (!design) return undefined;
+    return {
+      selectedElement,
+      fixtures: (design.fixtures || []).map((f) => ({
+        id: f.id,
+        type: f.type,
+        roomName: f.roomName,
+        position: f.position,
+        level: f.level,
+      })),
+      openings: (design.openings || []).map((o) => ({
+        id: o.id,
+        type: o.type,
+        wallId: o.wallId,
+        position: o.position,
+        level: o.level,
+      })),
+      rooms: (design.rooms || []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        category: r.category,
+        level: r.level,
+      })),
+    };
+  }, [design, selectedElement]);
+
   // Initialize or update Three.js scene
   useEffect(() => {
     if (!canvasContainerRef.current) return;
@@ -185,6 +233,7 @@ export function Studio3dWorkspace() {
         container: canvasContainerRef.current,
         design,
         onRoomChange: (rName) => setCurrentRoomName(rName),
+        onElementSelect: (el) => setSelectedElement(el),
         isLight,
       });
       if (design) {
@@ -215,6 +264,9 @@ export function Studio3dWorkspace() {
     vectorizeFloorplanForDesign(design).then((vectorized) => {
       if (cancelled) return;
       if (vectorized.floorplanCrop) {
+        baselineVectorizedDesignRef.current = JSON.parse(
+          JSON.stringify(vectorized)
+        );
         setDesign((prev) => (prev && prev.id === design.id ? vectorized : prev));
       }
     });
@@ -351,6 +403,7 @@ export function Studio3dWorkspace() {
     }
     setSelectedDesignKey(keyOrName);
     setActiveLevelFilter("all");
+    setSelectedElement(null);
     const raw = build3DDesignForStandardModel(keyOrName);
     setLastModAnalysis(null);
     setCeilingPreset(
@@ -368,6 +421,7 @@ export function Studio3dWorkspace() {
     const d = raw.floorplanCrop
       ? raw
       : await vectorizeFloorplanForDesign(raw);
+    baselineVectorizedDesignRef.current = JSON.parse(JSON.stringify(d));
     setDesign(d);
     if (sceneManagerRef.current) {
       sceneManagerRef.current.updateDesign(d);
@@ -391,6 +445,7 @@ export function Studio3dWorkspace() {
   const handleResetToBlank = () => {
     setSelectedDesignKey("");
     setDesign(null);
+    setSelectedElement(null);
     setSelectedStandardOption(null);
     setDesignSearchQuery("");
     setLastModAnalysis(null);
@@ -402,6 +457,256 @@ export function Studio3dWorkspace() {
       sceneManagerRef.current.updateDesign(null);
     }
     toast.info("Returned to 3D Studio plan search & import");
+  };
+
+  // Wall X-Ray (0.65 Opacity) toggle for 1:1 2D Plan Underlay verification
+  const handleToggleWallXray = () => {
+    const next = !wallXrayMode;
+    setWallXrayMode(next);
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.setWallXrayMode(next);
+    }
+    toast.info(
+      next
+        ? "Wall X-Ray (0.65 Opacity) enabled — 2D plan lines visible through 3D walls"
+        : "Wall X-Ray disabled — solid 100% realistic wall materials restored"
+    );
+  };
+
+  // Fine-tune L2-over-L1 alignment offset & scale
+  const handleAdjustL2Calibration = (
+    dxM = 0,
+    dzM = 0,
+    dScale = 0,
+    reset = false
+  ) => {
+    const next = reset
+      ? { offsetXM: 0, offsetZM: 0, scaleRatio: 1 }
+      : {
+          offsetXM: Math.round((l2Calibration.offsetXM + dxM) * 100) / 100,
+          offsetZM: Math.round((l2Calibration.offsetZM + dzM) * 100) / 100,
+          scaleRatio:
+            Math.round(
+              Math.max(0.85, Math.min(1.15, l2Calibration.scaleRatio + dScale)) *
+                1000
+            ) / 1000,
+        };
+    setL2Calibration(next);
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.setL2Calibration(next);
+    }
+    toast.info(
+      reset
+        ? "Reset L2 alignment to automatic stairwell + exterior plumbline registration"
+        : `L2 Calibration: dX=${next.offsetXM >= 0 ? "+" : ""}${next.offsetXM.toFixed(2)}m, dZ=${next.offsetZM >= 0 ? "+" : ""}${next.offsetZM.toFixed(2)}m`
+    );
+  };
+
+  // Reset customized geometry back to original vectorized floorplan
+  const handleResetGeometry = () => {
+    if (!design) return;
+    try {
+      localStorage.removeItem(`studio3d_custom_geom_${design.id}`);
+    } catch {}
+    if (baselineVectorizedDesignRef.current) {
+      const restored: BuildingDesign3D = JSON.parse(
+        JSON.stringify(baselineVectorizedDesignRef.current)
+      );
+      setSelectedElement(null);
+      setDesign(restored);
+      if (sceneManagerRef.current) {
+        sceneManagerRef.current.clearSelectedElement();
+        sceneManagerRef.current.updateDesign(restored);
+      }
+      toast.success("Restored all 3D walls, doors, windows & fixtures to baseline floorplan");
+    }
+  };
+
+  // Execute interactive or AI-driven 3D scene modifications (remove, rotate, move, resize, add, auto_clean_fixtures)
+  const handleExecuteSceneActions = (actions: SceneAction[]) => {
+    if (!design || !actions || actions.length === 0) return;
+
+    let nextDesign: BuildingDesign3D = {
+      ...design,
+      fixtures: [...(design.fixtures || [])],
+      openings: [...(design.openings || [])],
+      walls: [...(design.walls || [])],
+    };
+
+    let removedCount = 0;
+    let modifiedCount = 0;
+
+    for (const act of actions) {
+      if (act.action === "auto_clean_fixtures") {
+        const beforeCount = nextDesign.fixtures.length;
+        nextDesign = validateAndClampFixtures(nextDesign);
+        removedCount += Math.max(0, beforeCount - nextDesign.fixtures.length);
+        modifiedCount++;
+        continue;
+      }
+
+      const targetId =
+        act.targetElementId ||
+        (act.locationFilter === "selected" ? selectedElement?.id : undefined);
+      const targetType = act.targetElementType?.toLowerCase();
+
+      if (act.action === "remove_element") {
+        if (targetId) {
+          const prevFixLen = nextDesign.fixtures.length;
+          const prevOpLen = nextDesign.openings.length;
+          const prevWallLen = nextDesign.walls.length;
+          nextDesign.fixtures = nextDesign.fixtures.filter((f) => f.id !== targetId);
+          nextDesign.openings = nextDesign.openings.filter((o) => o.id !== targetId);
+          nextDesign.walls = nextDesign.walls.filter((w) => w.id !== targetId);
+          if (
+            nextDesign.fixtures.length < prevFixLen ||
+            nextDesign.openings.length < prevOpLen ||
+            nextDesign.walls.length < prevWallLen
+          ) {
+            removedCount++;
+            if (selectedElement?.id === targetId) {
+              setSelectedElement(null);
+              sceneManagerRef.current?.clearSelectedElement();
+            }
+            continue;
+          }
+        }
+
+        if (targetType) {
+          const matching = nextDesign.fixtures.filter(
+            (f) =>
+              f.type.toLowerCase() === targetType ||
+              f.type.toLowerCase().includes(targetType)
+          );
+          if (matching.length > 0) {
+            let idToRemove = matching[0].id;
+            if (act.locationFilter === "near_garage") {
+              const sortedByFront = [...matching].sort(
+                (a, b) => b.position[1] - a.position[1]
+              );
+              idToRemove = sortedByFront[0].id;
+            } else if (act.locationFilter && act.locationFilter !== "all_misplaced") {
+              const roomMatch = matching.find((f) =>
+                (f.roomName || "")
+                  .toLowerCase()
+                  .includes(act.locationFilter!.toLowerCase())
+              );
+              if (roomMatch) idToRemove = roomMatch.id;
+            }
+            nextDesign.fixtures = nextDesign.fixtures.filter(
+              (f) => f.id !== idToRemove
+            );
+            removedCount++;
+          }
+        }
+      } else if (act.action === "rotate_element") {
+        const degDelta = act.newRotationDeg ?? 90;
+        const idToRot = targetId || selectedElement?.id;
+        nextDesign.fixtures = nextDesign.fixtures.map((f) => {
+          if (
+            (idToRot && f.id === idToRot) ||
+            (!idToRot && targetType && f.type.toLowerCase().includes(targetType))
+          ) {
+            modifiedCount++;
+            const nextRot = ((f.rotationDeg || 0) + degDelta) % 360;
+            if (selectedElement?.id === f.id) {
+              setSelectedElement({ ...selectedElement, rotationDeg: nextRot });
+            }
+            return { ...f, rotationDeg: nextRot };
+          }
+          return f;
+        });
+      } else if (act.action === "move_element" && act.newPosition) {
+        const [dx, dz] = act.newPosition;
+        const idToMove = targetId || selectedElement?.id;
+
+        nextDesign.fixtures = nextDesign.fixtures.map((f) => {
+          if (
+            (idToMove && f.id === idToMove) ||
+            (!idToMove && targetType && f.type.toLowerCase().includes(targetType))
+          ) {
+            modifiedCount++;
+            const nextPos: [number, number] = [
+              Math.round((f.position[0] + dx) * 100) / 100,
+              Math.round((f.position[1] + dz) * 100) / 100,
+            ];
+            if (selectedElement?.id === f.id) {
+              setSelectedElement({ ...selectedElement, position: nextPos });
+            }
+            return { ...f, position: nextPos };
+          }
+          return f;
+        });
+
+        nextDesign.openings = nextDesign.openings.map((op) => {
+          if (idToMove && op.id === idToMove) {
+            modifiedCount++;
+            const candidateOp = {
+              ...op,
+              position: [
+                Math.round((op.position[0] + dx) * 100) / 100,
+                Math.round((op.position[1] + dz) * 100) / 100,
+              ] as [number, number],
+            };
+            const projected = projectOpeningOntoHostWall(
+              candidateOp,
+              nextDesign.walls
+            );
+            if (selectedElement?.id === op.id) {
+              setSelectedElement({
+                ...selectedElement,
+                position: projected.position,
+              });
+            }
+            return projected;
+          }
+          return op;
+        });
+      } else if (act.action === "add_element" && targetType) {
+        const newFix: Fixture3D = {
+          id: `fix_custom_${Date.now()}`,
+          type: (targetType as any) || "kitchen_island",
+          position: [
+            Math.round((nextDesign.widthM * 0.5) * 100) / 100,
+            Math.round((nextDesign.lengthM * 0.5) * 100) / 100,
+          ],
+          dimensions:
+            targetType === "kitchen_island"
+              ? [2.4, 0.9, 1.0]
+              : targetType === "vanity"
+                ? [1.2, 0.85, 0.52]
+                : [1.5, 0.8, 0.9],
+          rotationDeg: 0,
+          level: typeof activeLevelFilter === "number" ? activeLevelFilter : 0,
+          roomName: currentRoomName || "Living",
+        };
+        nextDesign.fixtures.push(newFix);
+        modifiedCount++;
+      }
+    }
+
+    try {
+      localStorage.setItem(
+        `studio3d_custom_geom_${nextDesign.id}`,
+        JSON.stringify({
+          fixtures: nextDesign.fixtures,
+          openings: nextDesign.openings,
+        })
+      );
+    } catch {}
+
+    setDesign(nextDesign);
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.updateDesign(nextDesign);
+    }
+
+    if (removedCount > 0) {
+      toast.success(
+        `Removed ${removedCount} element${removedCount === 1 ? "" : "s"} from 3D floorplan`
+      );
+    } else if (modifiedCount > 0) {
+      toast.success("Updated 3D element geometry in real time");
+    }
   };
 
   // Generic Facade switch handler
@@ -1122,6 +1427,8 @@ export function Studio3dWorkspace() {
             designName={design?.name}
             cameraMode={cameraMode}
             currentRoomName={currentRoomName}
+            activeSceneContext={activeSceneContext}
+            onExecuteSceneActions={handleExecuteSceneActions}
             onCaptureViewport={() =>
               sceneManagerRef.current
                 ? sceneManagerRef.current.captureViewportForAiRender()
@@ -1147,6 +1454,26 @@ export function Studio3dWorkspace() {
           >
             <Layers className="h-3.5 w-3.5" />
             <span>2D Plan Underlay: {showBlueprintUnderlay ? "ON" : "OFF"}</span>
+          </button>
+
+          {/* Wall X-Ray (0.65 Opacity) Toggle for 1:1 2D Plan Verification */}
+          <button
+            type="button"
+            disabled={!design}
+            onClick={handleToggleWallXray}
+            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+              wallXrayMode && design
+                ? isLight
+                  ? "bg-cyan-50 text-cyan-700 border-cyan-300"
+                  : "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                : isLight
+                ? "bg-white hover:bg-slate-100 text-slate-600 border-slate-300"
+                : "bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700"
+            }`}
+            title="Set 3D walls to 0.65 semi-transparent X-Ray opacity to inspect 1:1 2D floorplan lines underneath"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            <span>Wall X-Ray (0.65): {wallXrayMode ? "ON" : "OFF"}</span>
           </button>
 
           {/* 1.8m Fencing Toggle */}
@@ -2389,6 +2716,232 @@ export function Studio3dWorkspace() {
                         </span>
                       </button>
                     ))}
+
+                  {/* L2-over-L1 Calibration Fine-Tuning Controls */}
+                  <div className="flex items-center gap-1 pl-2 ml-1 border-l border-slate-500/30">
+                    <span className="text-[10px] font-mono opacity-80">
+                      L2 Align:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustL2Calibration(-0.05, 0)}
+                      className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-amber-500 hover:text-slate-950 font-mono text-[10px] cursor-pointer"
+                      title="Nudge L2 West (-0.05m X)"
+                    >
+                      X-
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustL2Calibration(0.05, 0)}
+                      className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-amber-500 hover:text-slate-950 font-mono text-[10px] cursor-pointer"
+                      title="Nudge L2 East (+0.05m X)"
+                    >
+                      X+
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustL2Calibration(0, -0.05)}
+                      className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-amber-500 hover:text-slate-950 font-mono text-[10px] cursor-pointer"
+                      title="Nudge L2 North (-0.05m Z)"
+                    >
+                      Z-
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAdjustL2Calibration(0, 0.05)}
+                      className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-amber-500 hover:text-slate-950 font-mono text-[10px] cursor-pointer"
+                      title="Nudge L2 South (+0.05m Z)"
+                    >
+                      Z+
+                    </button>
+                    {(l2Calibration.offsetXM !== 0 ||
+                      l2Calibration.offsetZM !== 0 ||
+                      l2Calibration.scaleRatio !== 1) && (
+                      <button
+                        type="button"
+                        onClick={() => handleAdjustL2Calibration(0, 0, 0, true)}
+                        className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-slate-950 font-mono text-[10px] cursor-pointer"
+                        title="Reset L2 Calibration"
+                      >
+                        ↺
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Floating Interactive 3D Element Selection Action Pill */}
+              {selectedElement && (
+                <div
+                  data-testid="selected-element-pill"
+                  className={`p-2.5 rounded-2xl backdrop-blur-md border shadow-2xl flex flex-wrap items-center gap-2 text-xs max-w-2xl animate-in fade-in slide-in-from-top-2 duration-150 ${
+                    isLight
+                      ? "bg-white/95 border-cyan-400 text-slate-900"
+                      : "bg-slate-950/95 border-cyan-500/50 text-slate-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 pr-2 border-r border-slate-500/25">
+                    <span className="h-2.5 w-2.5 rounded-full bg-cyan-500 animate-pulse" />
+                    <div>
+                      <div className="font-extrabold text-xs flex items-center gap-1.5">
+                        <span>{selectedElement.label}</span>
+                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 uppercase">
+                          {selectedElement.kind}
+                        </span>
+                      </div>
+                      <div className="text-[10px] font-mono opacity-75">
+                        {selectedElement.roomName
+                          ? `${selectedElement.roomName} • `
+                          : ""}
+                        Pos: [{selectedElement.position[0].toFixed(2)}m,{" "}
+                        {selectedElement.position[1].toFixed(2)}m]
+                        {selectedElement.rotationDeg !== undefined
+                          ? ` • ${selectedElement.rotationDeg}°`
+                          : ""}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Delete Element Button */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleExecuteSceneActions([
+                        {
+                          action: "remove_element",
+                          targetElementId: selectedElement.id,
+                          targetElementType: selectedElement.type,
+                        },
+                      ])
+                    }
+                    className="px-2.5 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500 text-red-600 dark:text-red-400 hover:text-white border border-red-500/30 font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer"
+                    title="Delete selected 3D element from floorplan"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Delete Element</span>
+                  </button>
+
+                  {/* Rotate 90° Button (for fixtures) */}
+                  {selectedElement.kind === "fixture" && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleExecuteSceneActions([
+                          {
+                            action: "rotate_element",
+                            targetElementId: selectedElement.id,
+                            targetElementType: selectedElement.type,
+                            newRotationDeg: 90,
+                          },
+                        ])
+                      }
+                      className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 text-amber-600 dark:text-amber-400 hover:text-slate-950 border border-amber-500/30 font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer"
+                      title="Rotate selected fixture by 90°"
+                    >
+                      <RotateCw className="h-3.5 w-3.5" />
+                      <span>Rotate 90°</span>
+                    </button>
+                  )}
+
+                  {/* Nudge Position Controls */}
+                  {selectedElement.kind !== "wall" && (
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-xl border border-slate-500/25 bg-slate-500/10">
+                      <Move className="h-3 w-3 text-cyan-500 mr-0.5" />
+                      <span className="text-[10px] font-bold mr-1">Nudge:</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleExecuteSceneActions([
+                            {
+                              action: "move_element",
+                              targetElementId: selectedElement.id,
+                              targetElementType: selectedElement.type,
+                              newPosition: [-0.15, 0],
+                            },
+                          ])
+                        }
+                        className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-cyan-500 hover:text-slate-950 font-mono text-[10px] cursor-pointer"
+                        title="Nudge West (-0.15m X)"
+                      >
+                        ←
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleExecuteSceneActions([
+                            {
+                              action: "move_element",
+                              targetElementId: selectedElement.id,
+                              targetElementType: selectedElement.type,
+                              newPosition: [0, -0.15],
+                            },
+                          ])
+                        }
+                        className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-cyan-500 hover:text-slate-950 font-mono text-[10px] cursor-pointer"
+                        title="Nudge North (-0.15m Z)"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleExecuteSceneActions([
+                            {
+                              action: "move_element",
+                              targetElementId: selectedElement.id,
+                              targetElementType: selectedElement.type,
+                              newPosition: [0, 0.15],
+                            },
+                          ])
+                        }
+                        className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-cyan-500 hover:text-slate-950 font-mono text-[10px] cursor-pointer"
+                        title="Nudge South (+0.15m Z)"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleExecuteSceneActions([
+                            {
+                              action: "move_element",
+                              targetElementId: selectedElement.id,
+                              targetElementType: selectedElement.type,
+                              newPosition: [0.15, 0],
+                            },
+                          ])
+                        }
+                        className="px-1.5 py-0.5 rounded bg-slate-500/20 hover:bg-cyan-500 hover:text-slate-950 font-mono text-[10px] cursor-pointer"
+                        title="Nudge East (+0.15m X)"
+                      >
+                        →
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Reset Geometry Button */}
+                  <button
+                    type="button"
+                    onClick={handleResetGeometry}
+                    className="px-2 py-1.5 rounded-xl border border-slate-500/30 hover:bg-slate-500/15 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    title="Restore all deleted/moved 3D elements to original vectorized floorplan"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Reset Geometry</span>
+                  </button>
+
+                  {/* Deselect Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedElement(null);
+                      sceneManagerRef.current?.clearSelectedElement();
+                    }}
+                    className="p-1 rounded-lg hover:bg-slate-500/20 cursor-pointer"
+                    title="Clear Selection"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               )}
             </div>

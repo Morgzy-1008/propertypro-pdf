@@ -6,6 +6,31 @@ import {
   getOrGeneratePbrMaps,
   useHouseMaterialStore,
 } from "./houseMaterialStore";
+import { SceneAction, SceneSelectedElement } from "./studio3dTypes";
+
+export interface ActiveSceneContext {
+  selectedElement?: SceneSelectedElement | null;
+  fixtures?: Array<{
+    id: string;
+    type: string;
+    roomName?: string;
+    position: [number, number];
+    level?: number;
+  }>;
+  openings?: Array<{
+    id: string;
+    type: string;
+    wallId?: string;
+    position: [number, number];
+    level?: number;
+  }>;
+  rooms?: Array<{
+    id: string;
+    name: string;
+    category: string;
+    level?: number;
+  }>;
+}
 
 export interface ConversationalSurfaceUpdate {
   surfaceId: SemanticSurfaceId;
@@ -27,6 +52,7 @@ export interface ConversationalArchitectTurn {
   text: string;
   timestamp: number;
   appliedUpdates?: ConversationalSurfaceUpdate[];
+  appliedSceneActions?: SceneAction[];
   modelUsed?: string;
 }
 
@@ -552,43 +578,270 @@ export function parseMaterialCommandLocally(prompt: string): {
 }
 
 /**
+ * Local deterministic 3D Scene / Geometry NLU parser that interprets natural language
+ * requests to remove, move, rotate, resize, add, or clean up 3D fixtures, doors, windows, stairs, or walls.
+ */
+export function parseSceneActionsLocally(
+  prompt: string,
+  sceneContext?: ActiveSceneContext
+): {
+  reply: string;
+  sceneActions: SceneAction[];
+} {
+  const lower = prompt.toLowerCase();
+  const sceneActions: SceneAction[] = [];
+
+  const isRemove =
+    /\b(remove|delete|get rid of|clear|erase|drop|hide|take away|misplaced|shouldn't be|should not be|wrong place|in front of the garage|infront of the garage)\b/i.test(
+      lower
+    );
+  const isCleanAll =
+    /\b(clean up|auto[- ]?clean|fix misplaced|clamp fixtures|validate fixtures)\b/i.test(lower);
+  const isRotate = /\b(rotate|turn|spin|flip)\b/i.test(lower);
+  const isMove = /\b(move|nudge|shift|relocate|push|pull)\b/i.test(lower);
+  const isAdd = /\b(add|place|spawn|insert|create)\b/i.test(lower) && !/\b(texture|finish|color|paint|tile|brick|render)\b/i.test(lower);
+
+  const detectTargetType = (text: string): string | undefined => {
+    if (text.includes("vanity") || text.includes("basin")) return "vanity";
+    if (text.includes("toilet") || text.includes("wc")) return "toilet";
+    if (text.includes("bath") && !text.includes("bathroom")) return "bath";
+    if (text.includes("shower")) return "shower";
+    if (text.includes("island")) return "kitchen_island";
+    if (text.includes("kitchen bench") || text.includes("bench")) return "kitchen_bench";
+    if (text.includes("sink")) return "sink";
+    if (text.includes("cooktop") || text.includes("stove") || text.includes("oven")) return "cooktop";
+    if (text.includes("laundry") || text.includes("tub")) return "laundry_tub";
+    if (text.includes("bed")) return "bed";
+    if (text.includes("sofa") || text.includes("couch") || text.includes("lounge")) return "sofa";
+    if (text.includes("dining") || text.includes("table")) return "dining_table";
+    if (text.includes("tv")) return "tv_unit";
+    if (text.includes("desk") || text.includes("study")) return "study_desk";
+    if (text.includes("stair")) return "stairs";
+    if (text.includes("garage door")) return "garage_door";
+    if (text.includes("door")) return "door";
+    if (text.includes("window")) return "window";
+    if (text.includes("wall")) return "wall";
+    return undefined;
+  };
+
+  const detectLocationFilter = (text: string): string | undefined => {
+    if (text.includes("garage") || text.includes("driveway") || text.includes("in front") || text.includes("infront")) {
+      return "near_garage";
+    }
+    if (text.includes("outside") || text.includes("exterior") || text.includes("out of bounds")) {
+      return "outside_footprint";
+    }
+    if (text.includes("selected") || text.includes("this")) {
+      return "selected";
+    }
+    if (text.includes("ensuite")) return "Ensuite";
+    if (text.includes("powder")) return "Powder";
+    if (text.includes("master")) return "Master";
+    if (text.includes("kitchen")) return "Kitchen";
+    if (text.includes("living") || text.includes("family")) return "Living";
+    return undefined;
+  };
+
+  const targetType =
+    detectTargetType(lower) || sceneContext?.selectedElement?.type || undefined;
+  const locFilter = detectLocationFilter(lower);
+
+  if (isCleanAll) {
+    sceneActions.push({
+      action: "auto_clean_fixtures",
+      targetElementType: targetType || "all_misplaced",
+      locationFilter: "all_misplaced",
+    });
+    return {
+      reply:
+        "Executed geometric containment & room-type validation across the 3D scene (`validateAndClampFixtures`), removing any misplaced or out-of-bounds fixtures.",
+      sceneActions,
+    };
+  }
+
+  if (isRemove && (targetType || sceneContext?.selectedElement)) {
+    let matchedId =
+      locFilter === "selected" && sceneContext?.selectedElement
+        ? sceneContext.selectedElement.id
+        : undefined;
+
+    if (!matchedId && sceneContext?.fixtures && targetType) {
+      const candidates = sceneContext.fixtures.filter(
+        (f) => f.type === targetType || f.type.includes(targetType)
+      );
+      if (locFilter === "near_garage") {
+        // Pick the fixture with the highest Z (closest to front garage/driveway) or matching Garage roomName
+        const sorted = [...candidates].sort((a, b) => b.position[1] - a.position[1]);
+        if (sorted[0]) matchedId = sorted[0].id;
+      } else if (candidates.length === 1) {
+        matchedId = candidates[0].id;
+      }
+    }
+
+    sceneActions.push({
+      action: "remove_element",
+      targetElementType: targetType || "vanity",
+      targetElementId: matchedId,
+      locationFilter: locFilter || "all_misplaced",
+    });
+
+    const friendlyType = (targetType || "element").replace(/_/g, " ");
+    const whereDesc =
+      locFilter === "near_garage"
+        ? " in front of / near the garage"
+        : locFilter && locFilter !== "selected"
+          ? ` in ${locFilter}`
+          : "";
+    return {
+      reply: `Removed the **${friendlyType}**${whereDesc} from the 3D floorplan model${matchedId ? ` (\`${matchedId}\`)` : ""}.`,
+      sceneActions,
+    };
+  }
+
+  if (isRotate && (targetType || sceneContext?.selectedElement)) {
+    const degMatch = lower.match(/(\d+)\s*(?:deg|°)/);
+    const deg = degMatch ? Number(degMatch[1]) : 90;
+    sceneActions.push({
+      action: "rotate_element",
+      targetElementType: targetType,
+      targetElementId: sceneContext?.selectedElement?.id,
+      locationFilter: locFilter || "selected",
+      newRotationDeg: deg,
+    });
+    return {
+      reply: `Rotated the **${(targetType || "selected element").replace(/_/g, " ")}** by ${deg}°.`,
+      sceneActions,
+    };
+  }
+
+  if (isMove && (targetType || sceneContext?.selectedElement)) {
+    let dx = 0;
+    let dz = 0;
+    const distMatch = lower.match(/(\d+(?:\.\d+)?)\s*m/);
+    const step = distMatch ? Number(distMatch[1]) : 0.25;
+    if (lower.includes("left") || lower.includes("west")) dx = -step;
+    else if (lower.includes("right") || lower.includes("east")) dx = step;
+    if (lower.includes("up") || lower.includes("north") || lower.includes("back")) dz = -step;
+    else if (lower.includes("down") || lower.includes("south") || lower.includes("forward") || lower.includes("front")) dz = step;
+    if (dx === 0 && dz === 0) dx = step;
+
+    sceneActions.push({
+      action: "move_element",
+      targetElementType: targetType,
+      targetElementId: sceneContext?.selectedElement?.id,
+      locationFilter: locFilter || "selected",
+      newPosition: [dx, dz],
+    });
+    return {
+      reply: `Nudged the **${(targetType || "selected element").replace(/_/g, " ")}** by \`[${dx.toFixed(2)}m, ${dz.toFixed(2)}m]\`.`,
+      sceneActions,
+    };
+  }
+
+  if (isAdd && targetType) {
+    sceneActions.push({
+      action: "add_element",
+      targetElementType: targetType,
+      locationFilter: locFilter,
+    });
+    return {
+      reply: `Added a new **${targetType.replace(/_/g, " ")}** to the 3D floorplan scene.`,
+      sceneActions,
+    };
+  }
+
+  return { reply: "", sceneActions: [] };
+}
+
+/**
  * Executes a conversational command against Gemini 3.8 Flash Structured Outputs
- * (with automatic local architectural fallback) and applies all material & custom seamless
- * texture updates directly to `useHouseMaterialStore`.
+ * (with automatic local architectural & geometry NLU fallback) and applies material updates
+ * to `useHouseMaterialStore` plus returns `appliedSceneActions` for 3D geometry editing.
  */
 export async function processHouseMaterialCommand(
   prompt: string,
-  options: { generateAiTextureTile?: boolean } = {}
+  options: {
+    generateAiTextureTile?: boolean;
+    activeSceneContext?: ActiveSceneContext;
+  } = {}
 ): Promise<ConversationalArchitectTurn> {
   const store = useHouseMaterialStore.getState();
   let reply = "";
   let updates: ConversationalSurfaceUpdate[] = [];
+  let sceneActions: SceneAction[] = [];
   let modelUsed = "gemini-3.8-flash";
 
+  // Check local deterministic scene-action parser first for explicit geometry commands
+  const localSceneCheck = parseSceneActionsLocally(prompt, options.activeSceneContext);
+  const hasExplicitMaterialWord =
+    /\b(color|colour|paint|brick|render|tile|timber|stone|marble|quartzite|colorbond|roof|floor|cladding|herringbone|zellige|terrazzo)\b/i.test(
+      prompt
+    );
+
+  if (localSceneCheck.sceneActions.length > 0 && !hasExplicitMaterialWord) {
+    return {
+      id: `turn_${Date.now()}`,
+      role: "assistant",
+      text: localSceneCheck.reply,
+      timestamp: Date.now(),
+      appliedUpdates: [],
+      appliedSceneActions: localSceneCheck.sceneActions,
+      modelUsed: "gemini-3.8-flash",
+    };
+  }
+
   try {
-    const resp = await fetch("/api/house-material-ai", {
+    const resp = await fetch("/api/ai/design-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: prompt,
         currentSurfaces: store.surfaces,
+        activeSceneContext: options.activeSceneContext || null,
         generateAiTextureTile: Boolean(options.generateAiTextureTile),
       }),
     });
 
     if (resp.ok) {
       const data = await resp.json();
-      if (!data.fallback && Array.isArray(data.updates) && data.updates.length > 0) {
-        reply = data.reply || "Applied requested material updates to the 3D house.";
-        updates = data.updates;
-        modelUsed = data.modelUsed || "gemini-3.8-flash";
+      if (!data.fallback) {
+        if (Array.isArray(data.sceneActions) && data.sceneActions.length > 0) {
+          sceneActions = data.sceneActions;
+        }
+        if (Array.isArray(data.updates) && data.updates.length > 0) {
+          updates = data.updates;
+        }
+        if (sceneActions.length > 0 || updates.length > 0) {
+          reply =
+            data.reply ||
+            data.assistantReply ||
+            (sceneActions.length > 0
+              ? "Applied requested 3D scene modifications."
+              : "Applied requested material updates to the 3D house.");
+          modelUsed = data.modelUsed || "gemini-3.8-flash";
+        }
       }
     }
   } catch {
     // Fallback to local deterministic NLU parser below
   }
 
-  if (updates.length === 0) {
+  // Ensure explicit geometry commands (e.g. "remove the bathroom vanity in front of the garage")
+  // always trigger sceneActions and NEVER accidentally fall back to changing garage/bathroom surface materials!
+  if (sceneActions.length === 0 && localSceneCheck.sceneActions.length > 0) {
+    sceneActions = localSceneCheck.sceneActions;
+    reply = localSceneCheck.reply;
+    // Strip accidental material updates if the prompt was strictly a fixture removal/move command
+    const hasExplicitMaterialWord =
+      /\b(color|colour|paint|brick|render|tile|timber|stone|marble|quartzite|colorbond|roof|floor|cladding|herringbone|zellige|terrazzo)\b/i.test(
+        prompt
+      );
+    if (!hasExplicitMaterialWord) {
+      updates = [];
+    }
+  }
+
+  if (updates.length === 0 && sceneActions.length === 0) {
     const localResult = parseMaterialCommandLocally(prompt);
     reply = localResult.reply;
     updates = localResult.updates;
@@ -650,6 +903,7 @@ export async function processHouseMaterialCommand(
     text: reply,
     timestamp: Date.now(),
     appliedUpdates: updates,
+    appliedSceneActions: sceneActions,
     modelUsed,
   };
 }

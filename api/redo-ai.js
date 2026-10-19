@@ -31,11 +31,12 @@ const HOUSE_MATERIAL_RESPONSE_SCHEMA = {
     reply: {
       type: "STRING",
       description:
-        "Concise, helpful architectural explanation of the material, color, and finish updates applied to the 3D house.",
+        "Concise, helpful architectural explanation of the material updates and/or 3D scene geometry/fixture actions applied to the house.",
     },
     updates: {
       type: "ARRAY",
-      description: "List of semantic 3D house surfaces to update in real time.",
+      description:
+        "List of semantic 3D house surfaces to update in real time. Leave EMPTY ([]) if the user is only asking to remove, move, rotate, resize, or add a physical fixture/door/window/stair!",
       items: {
         type: "OBJECT",
         properties: {
@@ -75,8 +76,61 @@ const HOUSE_MATERIAL_RESPONSE_SCHEMA = {
         ],
       },
     },
+    sceneActions: {
+      type: "ARRAY",
+      description:
+        "List of 3D geometry/fixture modifications when the user asks to remove, delete, move, rotate, resize, add, or clean up fixtures, doors, windows, stairs, or walls.",
+      items: {
+        type: "OBJECT",
+        properties: {
+          action: {
+            type: "STRING",
+            enum: [
+              "remove_element",
+              "add_element",
+              "move_element",
+              "rotate_element",
+              "resize_element",
+              "toggle_visibility",
+              "auto_clean_fixtures",
+            ],
+          },
+          targetElementType: {
+            type: "STRING",
+            description:
+              "vanity, toilet, bath, shower, kitchen_island, kitchen_bench, sink, cooktop, laundry_tub, bed, sofa, dining_table, tv_unit, study_desk, stairs, door, window, garage_door, wall, pillar, fence, or all_misplaced",
+          },
+          targetElementId: {
+            type: "STRING",
+            description: "Exact element id from activeSceneContext if matched (e.g. fix_vanity_1)",
+          },
+          locationFilter: {
+            type: "STRING",
+            description:
+              "near_garage, outside_footprint, room_name, front_of_house, selected, or all_misplaced",
+          },
+          newPosition: {
+            type: "ARRAY",
+            items: { type: "NUMBER" },
+            description: "[xMeters, zMeters] target coordinates or [dxMeters, dzMeters] offset",
+          },
+          newRotationDeg: {
+            type: "NUMBER",
+          },
+          newDimensions: {
+            type: "ARRAY",
+            items: { type: "NUMBER" },
+            description: "[widthMeters, depthMeters]",
+          },
+          level: {
+            type: "NUMBER",
+          },
+        },
+        required: ["action"],
+      },
+    },
   },
-  required: ["reply", "updates"],
+  required: ["reply", "updates", "sceneActions"],
 };
 
 async function readEnvKey(names) {
@@ -100,7 +154,12 @@ async function readEnvKey(names) {
 }
 
 async function handleHouseMaterialAi(req, res) {
-  const { message = "", currentSurfaces = {}, generateAiTextureTile = false } = req.body || {};
+  const {
+    message = "",
+    currentSurfaces = {},
+    activeSceneContext = null,
+    generateAiTextureTile = false,
+  } = req.body || {};
   if (!message || typeof message !== "string") {
     return res.status(400).json({ error: "Missing message in request body." });
   }
@@ -115,11 +174,22 @@ async function handleHouseMaterialAi(req, res) {
     });
   }
 
+  const sceneSummaryJson = activeSceneContext
+    ? JSON.stringify({
+        selectedElement: activeSceneContext.selectedElement || null,
+        fixtures: (activeSceneContext.fixtures || []).slice(0, 60),
+        openings: (activeSceneContext.openings || []).slice(0, 50),
+        rooms: (activeSceneContext.rooms || []).slice(0, 40),
+      })
+    : "No scene elements provided.";
+
   const systemInstruction = `You are the "Talk to the House" Conversational AI Architect for a photorealistic 3D Home Design Studio.
-The user will ask in natural language (text or voice) to change exterior or interior materials, colors, finishes, or textures on their 3D house.
-Map their request to one or more of the 20 semantic surfaceIds:
-- Exterior: exterior_wall_main, exterior_cladding_feature, portico_facade, roof_main, roof_fascia_gutter, garage_door, window_frames, front_entry_door, driveway_paving
-- Interior: interior_walls_main, interior_feature_wall, interior_floor_living, interior_floor_bedrooms, interior_floor_wet_areas, interior_ceiling, interior_skirting_architraves, kitchen_cabinetry_lower, kitchen_cabinetry_upper, kitchen_benchtop, kitchen_splashback
+The user will ask in natural language (text or voice) to EITHER:
+(A) Remove, move, rotate, resize, add, or clean up 3D fixtures, doors, windows, stairs, or walls (via \`sceneActions\`), OR
+(B) Change exterior or interior surface materials, colors, finishes, or textures on their 3D house (via \`updates\`).
+
+Active 3D Scene Elements (fixtures, openings, rooms, and currently selected element):
+${sceneSummaryJson}
 
 Current surface states:
 ${JSON.stringify(
@@ -131,10 +201,15 @@ ${JSON.stringify(
   )
 )}
 
-Rules:
-1. Always output valid JSON adhering strictly to the responseSchema.
-2. Choose realistic Australian architectural hex colors, roughness (0.08 for polished stone/tiles, 0.35 for satin timber/metal, 0.85 for brick/render), metalness (0.0 for masonry/timber/stone, 0.45-0.80 for Colorbond/aluminium), and physical textureScaleMeters (0.8m-2.5m).
-3. If the user asks for a bespoke/custom material, set isCustomTexture: true and provide a clear customTexturePrompt.`;
+CRITICAL RULES:
+1. If the user asks to remove, delete, hide, move, rotate, resize, or add a physical fixture/door/window/stair (for example: "there seems to be a bathroom vanity in front of the garage? remove this", "remove the selected vanity", "rotate the kitchen island 90 degrees", "clean up misplaced fixtures"):
+   - Populate \`sceneActions\` with the matching action (\`remove_element\`, \`move_element\`, \`rotate_element\`, \`resize_element\`, \`add_element\`, or \`auto_clean_fixtures\`).
+   - Match \`targetElementId\` to the exact fixture/opening ID in \`Active 3D Scene Elements\` if possible, and set \`targetElementType\` (e.g. "vanity", "kitchen_island", "stairs") and \`locationFilter\` (e.g. "near_garage", "outside_footprint", "selected", or room name).
+   - Leave \`updates: []\` EMPTY unless the user ALSO explicitly asked to change a surface material or color! NEVER change \`garage_door\` or \`interior_floor_wet_areas\` materials when the user is asking to remove a misplaced vanity near the garage!
+2. If the user asks to change materials, colors, or finishes, map their request to one or more of the 20 semantic surfaceIds in \`updates\`:
+   - Exterior: exterior_wall_main, exterior_cladding_feature, portico_facade, roof_main, roof_fascia_gutter, garage_door, window_frames, front_entry_door, driveway_paving
+   - Interior: interior_walls_main, interior_feature_wall, interior_floor_living, interior_floor_bedrooms, interior_floor_wet_areas, interior_ceiling, interior_skirting_architraves, kitchen_cabinetry_lower, kitchen_cabinetry_upper, kitchen_benchtop, kitchen_splashback
+3. Choose realistic Australian architectural hex colors, roughness (0.08 for polished stone/tiles, 0.35 for satin timber/metal, 0.85 for brick/render), metalness (0.0 for masonry/timber/stone, 0.45-0.80 for Colorbond/aluminium), and physical textureScaleMeters (0.8m-2.5m).`;
 
   const models = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"];
   let parsedResult = null;
@@ -150,7 +225,7 @@ Rules:
           systemInstruction: { parts: [{ text: systemInstruction }] },
           contents: [{ role: "user", parts: [{ text: message }] }],
           generationConfig: {
-            temperature: 0.2,
+            temperature: 0.15,
             responseMimeType: "application/json",
             responseSchema: HOUSE_MATERIAL_RESPONSE_SCHEMA,
           },
@@ -209,11 +284,22 @@ Rules:
     }
   }
 
+  const updates = Array.isArray(parsedResult.updates) ? parsedResult.updates : [];
+  const sceneActions = Array.isArray(parsedResult.sceneActions) ? parsedResult.sceneActions : [];
+  const replyText =
+    parsedResult.reply ||
+    (sceneActions.length > 0
+      ? "Applied requested 3D scene geometry modifications."
+      : "Updated 3D house materials.");
+
   return res.status(200).json({
     ok: true,
     modelUsed,
-    reply: parsedResult.reply || "Updated 3D house materials.",
-    updates: Array.isArray(parsedResult.updates) ? parsedResult.updates : [],
+    reply: replyText,
+    assistantReply: replyText,
+    updates,
+    materialUpdates: updates,
+    sceneActions,
   });
 }
 

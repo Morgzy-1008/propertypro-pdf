@@ -20,6 +20,7 @@ export type RoomCategory =
   | "Bath"
   | "Ensuite"
   | "WC"
+  | "Powder"
   | "Laundry"
   | "Cinema"
   | "Mud Nook"
@@ -29,6 +30,8 @@ export type RoomCategory =
   | "Gallery"
   | "Balcony"
   | "Stairs"
+  | "Void"
+  | "Robe"
   | "Store"
   | "WIR"
   | "Alfresco"
@@ -99,6 +102,9 @@ export interface OpenHamperSegment {
 
 export interface Opening3D {
   id: string;
+  wallId?: string;         // Hosted parent WallSegment ID
+  positionAlongWallRatio?: number; // 0.0 to 1.0 offset along parent wall segment
+  swingDirection?: "left" | "right";
   type: OpeningType;
   code: string;            // e.g. 'W01', 'SW 12.21', 'EXT 1020', 'STACKER 21.30', 'BARN 1200'
   label: string;
@@ -411,3 +417,37 @@ export interface ElevationProjection {
   }[];
   svgContent: string;
 }
+
+export interface SceneSelectedElement {
+  id: string;
+  kind: "fixture" | "opening" | "wall";
+  elementType: string;
+  label: string;
+  roomName?: string;
+  level: number;
+  position: [number, number]; // [x, z] in meters
+  rotationDeg: number;
+  screenX?: number;
+  screenY?: number;
+}
+
+export type SceneActionType =
+  | "remove_element"
+  | "add_element"
+  | "move_element"
+  | "rotate_element"
+  | "resize_element"
+  | "toggle_visibility"
+  | "auto_clean_fixtures";
+
+export interface SceneAction {
+  action: SceneActionType;
+  targetElementType?: string;
+  targetElementId?: string;
+  locationFilter?: string;
+  newPosition?: [number, number];
+  newRotationDeg?: number;
+  newWidth?: number;
+  newDepth?: number;
+}
+
