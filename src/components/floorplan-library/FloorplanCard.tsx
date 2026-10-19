@@ -109,7 +109,10 @@ export function FloorplanCard({
   // Standard catalog reference max house length = 26.0 meters
   const MAX_REF_LENGTH = 26.0;
   const houseLength = activeVariant.lengthM || 22.0;
-  const architecturalScale = Math.min(1.0, Math.max(0.38, houseLength / MAX_REF_LENGTH));
+  const architecturalScale =
+    item.housingType === "Granny Flat"
+      ? 0.88
+      : Math.min(1.0, Math.max(0.38, houseLength / MAX_REF_LENGTH));
 
   const handleLaunchQuoting = () => {
     try {
@@ -173,6 +176,14 @@ export function FloorplanCard({
                 <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-slate-400">
                   {item.housingType}
                 </span>
+                {activeVariant.isBtbReady && (
+                  <span
+                    className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/50 text-amber-400 text-[10px] font-black font-mono tracking-wider"
+                    title={activeVariant.btbDescription || "Engineered BTB garage step-out design"}
+                  >
+                    BTB
+                  </span>
+                )}
                 {isMirrored && (
                   <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 text-[10px] font-bold font-mono">
                     Mirrored (LH/RH)

@@ -124,6 +124,8 @@ export interface FloorplanFiltersState {
   minPrice: number;
   maxPrice: number;
   pricePreset: string; // "all", "under-350", "350-450", "450-550", "550-plus"
+  exactMaxWidth?: string;
+  exactMaxLength?: string;
   sortBy: SortOption;
 }
 
@@ -156,13 +158,72 @@ function buildPriceMap(priceRows: PriceRow[]): Map<string, PriceRow> {
 }
 
 /**
+ * Complete audited registry of Hudson Homes design families where ALL variants
+ * feature an engineered BTB (Build-to-Boundary / Zero-Lot) garage step-out wall.
+ */
+const BTB_ALL_VARIANTS_FAMILIES = new Set([
+  // Single Storey & Split Level BTB Step-Out Families
+  "jasper",
+  "onyx",
+  "charcoal",
+  "hazel",
+  "coral",
+  "carolina",
+  "lime",
+  "mint",
+  "ruby",
+  "quartz",
+  "ivory",
+  "cedar",
+  "olive",
+  "kobi",
+  "sage",
+  "eton",
+  "celeste",
+  "auburn",
+  "cerise",
+  // Double Storey, Split Level & Dual Living BTB Step-Out Families
+  "marigold",
+  "maroon",
+  "turquoise",
+  "sabel",
+  "sable",
+  "orchid",
+  "viridian",
+  "rosewood",
+  "cinnamon",
+  "tangerine",
+  "violet",
+  "burgundy",
+  "mauve",
+  "rose",
+  "raven",
+  "amaranth",
+]);
+
+/**
+ * Specific size variants with an engineered BTB garage step-out wall in families
+ * where other variants have a flush garage wall (e.g. Iris 21, Emerald 39+, Terracotta 23).
+ */
+const BTB_SPECIFIC_VARIANTS = new Set([
+  "iris 15",
+  "iris 17",
+  "iris 18",
+  "emerald 28",
+  "terracotta 25",
+  "terracotta 30",
+  "terracotta 36",
+]);
+
+/**
  * Check if design is compatible with Built-to-Boundary (BTB).
- * Strictly requires an engineered garage step-out wall (e.g. Jasper)
+ * Strictly requires an engineered garage step-out wall (audited across all Hudson Homes floorplans)
  * or explicit BTB architectural classification.
  */
 export function isFloorplanBtb(plan: FloorplanRecord): { isBtb: boolean; reason?: string } {
-  const normLabel = plan.label.toLowerCase();
-  const normDesign = plan.design.toLowerCase();
+  const normLabel = plan.label.toLowerCase().trim();
+  const normDesign = plan.design.toLowerCase().replace(/\s*\([^)]*\)/g, "").trim();
+  const canonicalKey = planKey(plan.label);
 
   // 1. Explicit BTB naming in plan or brochure
   if (
@@ -174,13 +235,23 @@ export function isFloorplanBtb(plan: FloorplanRecord): { isBtb: boolean; reason?
     return { isBtb: true, reason: "Engineered BTB Zero-Lot Design with Stepped Garage" };
   }
 
-  // 2. Hudson Homes designs with engineered garage step-out wall
-  // The Jasper design family is Hudson Homes' primary architectural plan engineered with a 600mm garage step-out.
-  if (normDesign === "jasper" || normLabel.startsWith("jasper")) {
-    return { isBtb: true, reason: "Engineered 600mm garage step-out for zero-lot boundary wall" };
+  // 2. Variant-specific BTB step-out designs (Iris 15/17/18, Emerald 28, Terracotta 25/30/36)
+  if (BTB_SPECIFIC_VARIANTS.has(canonicalKey) || BTB_SPECIFIC_VARIANTS.has(normLabel)) {
+    return { isBtb: true, reason: "Engineered BTB garage step-out for zero-lot boundary wall" };
+  }
+  if (normDesign === "iris" || normDesign === "emerald" || normDesign === "terracotta") {
+    return { isBtb: false };
   }
 
-  // 3. Check CAD registry for positive garageStepOutM
+  // 3. Audited Hudson Homes design families with engineered BTB garage step-out
+  if (
+    BTB_ALL_VARIANTS_FAMILIES.has(normDesign) ||
+    Array.from(BTB_ALL_VARIANTS_FAMILIES).some((fam) => normLabel.startsWith(fam + " "))
+  ) {
+    return { isBtb: true, reason: "Engineered BTB garage step-out for zero-lot boundary wall" };
+  }
+
+  // 4. Check CAD registry for positive garageStepOutM
   const cad = HUDSON_CAD_REGISTRY[plan.label];
   if (cad && cad.garageStepOutM > 0) {
     return {
@@ -286,12 +357,15 @@ export function loadAllFloorplanLibraryItems(division: "QLD" | "NSW" = "QLD"): F
 
       if (priceRow) {
         matchedPriceName = priceRow.name;
+        const baseH1 = priceRow.h1 || priceRow.hbs || 0;
+        const baseH2 = priceRow.h2 || baseH1;
+        const baseH3 = priceRow.h3 || baseH2;
         prices = {
-          h1: priceRow.h1 || 0,
-          h2: priceRow.h2 || 0,
-          h3: priceRow.h3 || 0,
-          hbs: priceRow.hbs || priceRow.h1 || 0,
-          ss: priceRow.ss || priceRow.h1 || 0,
+          h1: baseH1,
+          h2: baseH2,
+          h3: baseH3,
+          hbs: priceRow.hbs || baseH1,
+          ss: priceRow.ss || baseH1,
         };
       } else {
         const lowerLabel = rawLabel.toLowerCase();
@@ -339,10 +413,10 @@ export function loadAllFloorplanLibraryItems(division: "QLD" | "NSW" = "QLD"): F
       };
     });
 
-  // 2. Group into standard design plans
+  // 2. Group into standard design plans (keep Aqua 1..5 as 5 distinct floorplans)
   const designGroups = new Map<string, typeof rawVariants>();
   for (const v of rawVariants) {
-    const d = v.designName;
+    const d = v.designName.toLowerCase() === "aqua" ? v.label : v.designName;
     if (!designGroups.has(d)) {
       designGroups.set(d, []);
     }
@@ -412,7 +486,7 @@ export function loadAllFloorplanLibraryItems(division: "QLD" | "NSW" = "QLD"): F
       pdfUrl: def.pdfUrl,
       cropBoxes: def.cropBoxes,
       isBtbReady: variants.some((v) => v.isBtbReady),
-      btbDescription: def.btbDescription,
+      btbDescription: def.btbDescription || variants.find((v) => v.isBtbReady)?.btbDescription,
       facadeUrl: def.facadeUrl,
       prices: def.prices,
       matchedPriceName: def.matchedPriceName,
@@ -451,6 +525,10 @@ export function filterAndSortFloorplans(
   filters: FloorplanFiltersState
 ): FloorplanLibraryItem[] {
   const query = filters.searchQuery.trim().toLowerCase();
+  const parsedExactMaxW = parseFloat(String(filters.exactMaxWidth || "").trim());
+  const hasExactMaxW = !Number.isNaN(parsedExactMaxW) && parsedExactMaxW > 0;
+  const parsedExactMaxL = parseFloat(String(filters.exactMaxLength || "").trim());
+  const hasExactMaxL = !Number.isNaN(parsedExactMaxL) && parsedExactMaxL > 0;
 
   const filtered: FloorplanLibraryItem[] = (items
     .map((item) => {
@@ -557,6 +635,18 @@ export function filterAndSortFloorplans(
           }
         }
 
+        // 9b. Exact Size Filter (Max Width & Max Length)
+        if (hasExactMaxW) {
+          if (!v.widthM || v.widthM > parsedExactMaxW) {
+            matches = false;
+          }
+        }
+        if (hasExactMaxL) {
+          if (!v.lengthM || v.lengthM > parsedExactMaxL) {
+            matches = false;
+          }
+        }
+
         // 10. Price Range for Selected Inclusion Tier
         const currentPrice = getActiveTierPrice(v, filters.inclusionsTier);
         if (currentPrice > 0) {
@@ -595,6 +685,9 @@ export function filterAndSortFloorplans(
           frontageM: bestVariant.frontageM,
           url: bestVariant.url,
           pdfUrl: bestVariant.pdfUrl,
+          isBtbReady: bestVariant.isBtbReady,
+          btbDescription: bestVariant.btbDescription,
+          facadeUrl: bestVariant.facadeUrl,
           prices: bestVariant.prices,
           matchedPriceName: bestVariant.matchedPriceName,
         };
@@ -647,7 +740,7 @@ export function getFilterBounds(items: FloorplanLibraryItem[]) {
     if (item.minM2 > 0 && item.minM2 < minS) minS = item.minM2;
     if (item.maxM2 > maxS) maxS = item.maxM2;
 
-    const p = item.prices.h2;
+    const p = item.prices.h2 || item.prices.h1 || item.prices.hbs;
     if (p > 0) {
       if (p < minP) minP = p;
       if (p > maxP) maxP = p;
@@ -655,13 +748,14 @@ export function getFilterBounds(items: FloorplanLibraryItem[]) {
   }
 
   return {
-    minWidth: Math.floor(minW) || 6,
+    minWidth: Math.floor(minW) || 5,
     maxWidth: Math.ceil(maxW) || 30,
-    minLength: Math.floor(minL) || 6,
+    minLength: Math.floor(minL) || 5,
     maxLength: Math.ceil(maxL) || 35,
     minSize: Math.floor(minS) || 50,
     maxSize: Math.ceil(maxS) || 590,
-    minPrice: Math.floor(minP / 10000) * 10000 || 150000,
-    maxPrice: Math.ceil(maxP / 10000) * 10000 || 960000,
+    minPrice: 0,
+    maxPrice: Math.ceil(maxP / 10000) * 10000 || 1200000,
   };
 }
+

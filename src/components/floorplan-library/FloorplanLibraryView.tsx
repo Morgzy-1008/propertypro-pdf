@@ -66,6 +66,8 @@ export function FloorplanLibraryView() {
     minPrice: bounds.minPrice,
     maxPrice: bounds.maxPrice,
     pricePreset: "all",
+    exactMaxWidth: "",
+    exactMaxLength: "",
     sortBy: "size-desc",
   }));
 
@@ -113,6 +115,8 @@ export function FloorplanLibraryView() {
       minPrice: bounds.minPrice,
       maxPrice: bounds.maxPrice,
       pricePreset: "all",
+      exactMaxWidth: "",
+      exactMaxLength: "",
       sortBy: "size-desc",
     });
   };
