@@ -1905,7 +1905,7 @@ export function QuoteDesignStep({
                                       {z.deltaM2.toFixed(2)} m²
                                     </span>
                                   ) : (
-                                    <span className={`text-[11px] font-mono ${isLight ? "text-slate-500 font-medium" : "text-slate-400"}`}>
+                                    <span className={`text-[11px] font-mono font-bold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                                       0.00 m²
                                     </span>
                                   )}
@@ -1922,7 +1922,7 @@ export function QuoteDesignStep({
                                       -{formatAud(Math.abs(z.costAdjustment))}
                                     </span>
                                   ) : (
-                                    <span className={`font-mono font-medium ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                                    <span className={`font-mono font-bold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                                       $0
                                     </span>
                                   )}
@@ -1970,7 +1970,7 @@ export function QuoteDesignStep({
                                   {modCalc.netDeltaM2.toFixed(2)} m²
                                 </span>
                               ) : (
-                                <span className={`font-medium ${isLight ? "text-slate-600" : "text-slate-400"}`}>0.00 m²</span>
+                                <span className={`font-bold ${isLight ? "text-slate-800" : "text-slate-200"}`}>0.00 m²</span>
                               )}
                             </td>
                             <td className="py-3 px-3 text-right font-mono text-sm font-extrabold">
@@ -1988,7 +1988,7 @@ export function QuoteDesignStep({
                                   -{formatAud(Math.abs(modCalc.totalCostAdjustment))}
                                 </span>
                               ) : (
-                                <span className={isLight ? "text-slate-600 font-medium" : "text-slate-400 font-medium"}>$0</span>
+                                <span className={isLight ? "text-slate-800 font-bold" : "text-slate-200 font-bold"}>$0</span>
                               )}
                             </td>
                           </tr>

@@ -192,7 +192,7 @@ export function QuoteEstimatesDialog({
   const isLight = mode === "normal";
   const [searchQuery, setSearchQuery] = useState("");
   const [activeStaff, setActiveStaff] = useState<StaffProfile | null>(() => getActiveStaffUser());
-  const [scopeFilter, setScopeFilter] = useState<"mine" | "all">("mine");
+  const [scopeFilter, setScopeFilter] = useState<"mine" | "all">("all");
   const [selectedQuoteIds, setSelectedQuoteIds] = useState<Set<string>>(new Set());
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [pdfRenderQuote, setPdfRenderQuote] = useState<FullQuote | null>(null);

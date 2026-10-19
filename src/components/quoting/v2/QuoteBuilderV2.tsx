@@ -237,6 +237,8 @@ export function QuoteBuilderV2({
                 design={quote.design}
                 division={(quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD"}
                 clientState={quote.client?.state}
+                siteAddress={quote.client?.siteAddress}
+                suburb={quote.client?.suburb}
                 onChange={handleDesignChange}
                 onClientStateChange={(newState) => {
                   handleClientChange({ state: newState });

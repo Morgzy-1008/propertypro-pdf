@@ -1118,13 +1118,16 @@ header.concept-editor-header button.btn-tender-action:hover,
 .normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-slate-950"],
 .normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-slate-900"],
 .normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-slate-800"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-slate-700"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-slate-600"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-700"],
 .normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-zinc-950"],
 .normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-zinc-900"],
 .normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-black"],
 .normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span.hub-display-pill {
   background-color: #f1f5f9 !important;
   border-color: #cbd5e1 !important;
-  color: #475569 !important;
+  color: #1e293b !important;
 }
 
 /* 9. Themed Alert & Note Banners in Normal Mode (Zero Dark Muddy Boxes) */
@@ -1528,8 +1531,77 @@ header.concept-editor-header button.btn-tender-action:hover,
   color: #fbbf24 !important;
 }
 
-/* Explicit protection for nested light surfaces/cards/modals/badges:
-   Dark text inside a light surface must NEVER be forced to light/white! */
+/* Explicit protection for nested AND same-element light surfaces/cards/modals/badges/inputs:
+   Dark text on or inside a light surface must NEVER be forced to light/white! */
+:is(.dark, .night-mode, [data-theme="night"], .normal-mode, body) :is(
+  .bg-white,
+  [class*="bg-white"],
+  .bg-slate-50,
+  [class*="bg-slate-50"],
+  .bg-slate-100,
+  [class*="bg-slate-100"],
+  .bg-slate-200,
+  [class*="bg-slate-200"],
+  .bg-amber-50,
+  .bg-amber-100,
+  .bg-amber-200,
+  .bg-amber-300,
+  .bg-amber-400,
+  .bg-amber-500,
+  .bg-yellow-100,
+  .bg-yellow-200,
+  .bg-yellow-300,
+  .bg-yellow-400,
+  .bg-emerald-100,
+  .bg-emerald-200,
+  .bg-emerald-300,
+  .bg-emerald-400,
+  .bg-emerald-500,
+  .bg-emerald-50,
+  .bg-green-100,
+  .bg-sky-100,
+  .bg-cyan-100,
+  .bg-cyan-400,
+  .bg-cyan-500,
+  [class*="bg-amber-100"],
+  [class*="bg-emerald-100"]
+):is(.text-slate-900, .text-zinc-900, .text-gray-900, .text-neutral-900, .text-slate-950, .text-black, .text-emerald-950, .text-emerald-900, .text-amber-950, .text-amber-900),
+:is(.dark, .night-mode, [data-theme="night"], .normal-mode, body) :is(
+  .bg-white,
+  [class*="bg-white"],
+  .bg-slate-50,
+  [class*="bg-slate-50"],
+  .bg-slate-100,
+  [class*="bg-slate-100"],
+  .bg-slate-200,
+  [class*="bg-slate-200"],
+  .bg-amber-50,
+  .bg-amber-100,
+  .bg-amber-200,
+  .bg-amber-300,
+  .bg-amber-400,
+  .bg-amber-500,
+  .bg-yellow-100,
+  .bg-yellow-200,
+  .bg-yellow-300,
+  .bg-yellow-400,
+  .bg-emerald-100,
+  .bg-emerald-200,
+  .bg-emerald-300,
+  .bg-emerald-400,
+  .bg-emerald-500,
+  .bg-emerald-50,
+  .bg-green-100,
+  .bg-sky-100,
+  .bg-cyan-100,
+  .bg-cyan-400,
+  .bg-cyan-500,
+  [class*="bg-amber-100"],
+  [class*="bg-emerald-100"]
+) :is(.text-slate-900, .text-zinc-900, .text-gray-900, .text-neutral-900, .text-slate-950, .text-black, .text-emerald-950, .text-emerald-900, .text-amber-950, .text-amber-900) {
+  color: #0f172a !important;
+}
+
 :is(.dark, .night-mode, [data-theme="night"], .normal-mode, body) :is(
   .bg-white,
   [class*="bg-white"],
@@ -1560,10 +1632,7 @@ header.concept-editor-header button.btn-tender-action:hover,
   .bg-cyan-100,
   [class*="bg-amber-100"],
   [class*="bg-emerald-100"]
-) :is(.text-slate-900, .text-zinc-900, .text-gray-900, .text-neutral-900, .text-slate-950, .text-black) {
-  color: #0f172a !important;
-}
-
+):is(.text-slate-800, .text-zinc-800, .text-gray-800, .text-neutral-800, .text-emerald-800, .text-amber-800),
 :is(.dark, .night-mode, [data-theme="night"], .normal-mode, body) :is(
   .bg-white,
   [class*="bg-white"],
@@ -1628,8 +1697,49 @@ header.concept-editor-header button.btn-tender-action:hover,
   .bg-cyan-100,
   [class*="bg-amber-100"],
   [class*="bg-emerald-100"]
+):is(.text-slate-700, .text-zinc-700, .text-gray-700, .text-neutral-700),
+:is(.dark, .night-mode, [data-theme="night"], .normal-mode, body) :is(
+  .bg-white,
+  [class*="bg-white"],
+  .bg-slate-50,
+  [class*="bg-slate-50"],
+  .bg-slate-100,
+  [class*="bg-slate-100"],
+  .bg-slate-200,
+  [class*="bg-slate-200"],
+  .bg-amber-50,
+  .bg-amber-100,
+  .bg-amber-200,
+  .bg-amber-300,
+  .bg-amber-400,
+  .bg-amber-500,
+  .bg-yellow-100,
+  .bg-yellow-200,
+  .bg-yellow-300,
+  .bg-yellow-400,
+  .bg-emerald-100,
+  .bg-emerald-200,
+  .bg-emerald-300,
+  .bg-emerald-400,
+  .bg-emerald-500,
+  .bg-emerald-50,
+  .bg-green-100,
+  .bg-sky-100,
+  .bg-cyan-100,
+  [class*="bg-amber-100"],
+  [class*="bg-emerald-100"]
 ) :is(.text-slate-700, .text-zinc-700, .text-gray-700, .text-neutral-700) {
   color: #334155 !important;
+}
+
+/* Guarantee dark-mode form inputs always have high-contrast text on dark surface */
+:is(.dark, .night-mode, [data-theme="night"]) :is(input, textarea, select):not([type="checkbox"]):not([type="radio"]):not([class*="bg-white"]):not([class*="bg-slate-50"]):not([class*="bg-slate-100"]):not([class*="bg-emerald-50"]):not([class*="bg-amber-50"]) {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+:is(.dark, .night-mode, [data-theme="night"]) :is(input, textarea, select):not([type="checkbox"]):not([type="radio"]):focus {
+  border-color: #10b981 !important;
 }
 
 /* --- C. NORMAL MODE LIGHT SURFACES --- */

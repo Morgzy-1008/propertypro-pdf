@@ -704,76 +704,297 @@ export function ModifiedFloorplanModal({
     }
   };
 
-
-  const handleAutoCrop = () => {
+  const runSmartExteriorWallAutoCrop = React.useCallback((silent = false) => {
     const baseCanvas = baseCanvasRef.current;
     if (!baseCanvas) return;
 
     const w = baseCanvas.width;
     const h = baseCanvas.height;
+    if (w < 40 || h < 40) return;
     const ctx = baseCanvas.getContext("2d");
     if (!ctx) return;
 
     const imgData = ctx.getImageData(0, 0, w, h);
     const data = imgData.data;
 
-    // Disregard outer 4% margins where border boxes, headers, or edge lines sit
-    const marginX = Math.round(w * 0.04);
-    const marginY = Math.round(h * 0.04);
-
-    // Divide canvas into 40x40 analysis grid to detect continuous floorplan linework
-    const GRID_X = 40;
-    const GRID_Y = 40;
+    // 1. Detect and strip sheet border frames, header bars, right-hand titleblock columns, and bottom titleblock strips.
+    // Standard CAD sheets have border lines within the outer 7% and titleblocks on right (x > 0.76) or bottom (y > 0.82).
+    const GRID_X = 80;
+    const GRID_Y = 80;
     const cellW = w / GRID_X;
     const cellH = h / GRID_Y;
-    const densityGrid: number[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(0));
 
-    const threshold = 220;
-    // Step by 3 pixels for speed and high precision
-    for (let y = marginY; y < h - marginY; y += 3) {
+    // Measure structural wall ink density (requiring local 2px+ wall continuity to ignore tiny text/ticks)
+    const wallScore: number[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(0));
+    const rawInk: number[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(0));
+
+    const marginX = Math.round(w * 0.055);
+    const marginY = Math.round(h * 0.055);
+    const step = Math.max(2, Math.round(Math.min(w, h) / 600));
+
+    const isDarkPixel = (px: number, py: number): boolean => {
+      if (px < 0 || py < 0 || px >= w || py >= h) return false;
+      const idx = (py * w + px) * 4;
+      if (data[idx + 3] < 90) return false;
+      const lum = (data[idx] * 299 + data[idx + 1] * 587 + data[idx + 2] * 114) / 1000;
+      return lum < 195;
+    };
+
+    for (let y = marginY; y < h - marginY; y += step) {
       const gy = Math.min(GRID_Y - 1, Math.floor(y / cellH));
-      for (let x = marginX; x < w - marginX; x += 3) {
+      for (let x = marginX; x < w - marginX; x += step) {
+        if (!isDarkPixel(x, y)) continue;
         const gx = Math.min(GRID_X - 1, Math.floor(x / cellW));
-        const idx = (y * w + x) * 4;
-        const alpha = data[idx + 3];
-        const r = data[idx];
-        const g = data[idx + 1];
-        const b = data[idx + 2];
-        if (alpha > 80 && (r < threshold || g < threshold || b < threshold)) {
-          densityGrid[gy][gx]++;
+        rawInk[gy][gx]++;
+
+        // Check structural wall thickness / orthogonal run (walls have thick strokes + orthogonal continuity)
+        const hasHorizRun = isDarkPixel(x + step, y) && isDarkPixel(x - step, y);
+        const hasVertRun = isDarkPixel(x, y + step) && isDarkPixel(x, y - step);
+        const hasThickStroke =
+          (isDarkPixel(x + 1, y) && isDarkPixel(x, y + 1)) ||
+          (hasHorizRun && (isDarkPixel(x, y + 1) || isDarkPixel(x, y - 1))) ||
+          (hasVertRun && (isDarkPixel(x + 1, y) || isDarkPixel(x - 1, y)));
+
+        if (hasThickStroke) {
+          wallScore[gy][gx] += 3;
+        } else if (hasHorizRun || hasVertRun) {
+          wallScore[gy][gx] += 1;
         }
       }
     }
 
-    // A cell has active linework if it contains >= 8 dark pixels
-    const activeThreshold = 8;
-    // Exclude title block zone (bottom-right 28% width, bottom 20% height where title blocks live)
-    let minGX = GRID_X, maxGX = 0, minGY = GRID_Y, maxGY = 0;
-
-    for (let gy = 1; gy < GRID_Y - 1; gy++) {
-      for (let gx = 1; gx < GRID_X - 1; gx++) {
-        const isTitleBlockZone = gx >= Math.floor(GRID_X * 0.68) && gy >= Math.floor(GRID_Y * 0.80);
-        if (isTitleBlockZone) continue;
-
-        if (densityGrid[gy][gx] >= activeThreshold) {
-          if (gx < minGX) minGX = gx;
-          if (gx > maxGX) maxGX = gx;
-          if (gy < minGY) minGY = gy;
-          if (gy > maxGY) maxGY = gy;
+    // 2. Suppress long sheet-spanning border lines or divider rules (any row or col where >65% of cells have ink near edges)
+    for (let gy = 0; gy < GRID_Y; gy++) {
+      if (gy < 7 || gy > GRID_Y - 8) {
+        let activeCols = 0;
+        for (let gx = 0; gx < GRID_X; gx++) {
+          if (rawInk[gy][gx] > 2) activeCols++;
+        }
+        if (activeCols > GRID_X * 0.52) {
+          for (let gx = 0; gx < GRID_X; gx++) wallScore[gy][gx] = 0;
+        }
+      }
+    }
+    for (let gx = 0; gx < GRID_X; gx++) {
+      if (gx < 7 || gx > GRID_X - 18) {
+        let activeRows = 0;
+        for (let gy = 0; gy < GRID_Y; gy++) {
+          if (rawInk[gy][gx] > 2) activeRows++;
+        }
+        if (activeRows > GRID_Y * 0.52) {
+          for (let gy = 0; gy < GRID_Y; gy++) wallScore[gy][gx] = 0;
         }
       }
     }
 
-    if (minGX >= maxGX || minGY >= maxGY) {
-      toast.error("Could not auto-detect floorplan boundaries. Please click manually on the page.");
+    // 3. Mask out standard CAD titleblock & schedule zones:
+    // - Bottom-right title block / area schedule (gx >= 62% & gy >= 74%)
+    // - Right-hand title strip if separated (gx >= 82%)
+    // - Bottom title strip (gy >= 86%)
+    // - Top sheet header bar (gy <= 6%)
+    for (let gy = 0; gy < GRID_Y; gy++) {
+      for (let gx = 0; gx < GRID_X; gx++) {
+        const isBottomRightSchedule = gx >= Math.floor(GRID_X * 0.64) && gy >= Math.floor(GRID_Y * 0.74);
+        const isTopRightNotes = gx >= Math.floor(GRID_X * 0.74) && gy <= Math.floor(GRID_Y * 0.24);
+        const isRightTitleStrip = gx >= Math.floor(GRID_X * 0.84);
+        const isBottomTitleStrip = gy >= Math.floor(GRID_Y * 0.86);
+        const isTopHeaderStrip = gy <= Math.floor(GRID_Y * 0.06);
+        if (
+          isBottomRightSchedule ||
+          isTopRightNotes ||
+          isRightTitleStrip ||
+          isBottomTitleStrip ||
+          isTopHeaderStrip
+        ) {
+          wallScore[gy][gx] = 0;
+        }
+      }
+    }
+
+    // 4. Determine adaptive wall cell threshold and perform morphological closing (1-cell bridge across room interiors)
+    const nonZeroScores: number[] = [];
+    for (let gy = 4; gy < GRID_Y - 4; gy++) {
+      for (let gx = 4; gx < GRID_X - 4; gx++) {
+        if (wallScore[gy][gx] > 0) nonZeroScores.push(wallScore[gy][gx]);
+      }
+    }
+    nonZeroScores.sort((a, b) => a - b);
+    const adaptiveThresh = nonZeroScores.length > 20
+      ? Math.max(8, nonZeroScores[Math.floor(nonZeroScores.length * 0.35)])
+      : 8;
+
+    const activeMask: boolean[][] = Array.from({ length: GRID_Y }, (_, gy) =>
+      Array.from({ length: GRID_X }, (_, gx) => wallScore[gy][gx] >= adaptiveThresh)
+    );
+
+    // Bridge 1-cell gaps inside rooms/corridors so a single floorplan forms one cohesive structural cluster,
+    // without bridging across the wide gap between Ground Floor and First Floor plans or isolated text tables.
+    const bridgedMask: boolean[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(false));
+    for (let gy = 3; gy < GRID_Y - 3; gy++) {
+      for (let gx = 3; gx < GRID_X - 3; gx++) {
+        if (activeMask[gy][gx]) {
+          bridgedMask[gy][gx] = true;
+          continue;
+        }
+        let neighborCount = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (activeMask[gy + dy]?.[gx + dx]) neighborCount++;
+          }
+        }
+        if (neighborCount >= 3) {
+          bridgedMask[gy][gx] = true;
+        }
+      }
+    }
+
+    // 5. Connected-Component Clustering to isolate the actual Building Exterior Wall Footprint(s)
+    interface FootprintCluster {
+      cells: Array<{ gx: number; gy: number; weight: number }>;
+      totalWeight: number;
+      minGX: number;
+      maxGX: number;
+      minGY: number;
+      maxGY: number;
+      centroidX: number;
+      centroidY: number;
+      score: number;
+    }
+
+    const visited: boolean[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(false));
+    const clusters: FootprintCluster[] = [];
+
+    for (let gy = 3; gy < GRID_Y - 3; gy++) {
+      for (let gx = 3; gx < GRID_X - 3; gx++) {
+        if (!bridgedMask[gy][gx] || visited[gy][gx]) continue;
+        const queue: Array<{ gx: number; gy: number }> = [{ gx, gy }];
+        visited[gy][gx] = true;
+        const cells: Array<{ gx: number; gy: number; weight: number }> = [];
+        let totalWeight = 0;
+        let minGX = gx, maxGX = gx, minGY = gy, maxGY = gy;
+        let sumX = 0, sumY = 0;
+
+        while (queue.length > 0) {
+          const curr = queue.pop()!;
+          const wt = Math.max(1, wallScore[curr.gy][curr.gx]);
+          if (activeMask[curr.gy][curr.gx]) {
+            cells.push({ gx: curr.gx, gy: curr.gy, weight: wt });
+            totalWeight += wt;
+            if (curr.gx < minGX) minGX = curr.gx;
+            if (curr.gx > maxGX) maxGX = curr.gx;
+            if (curr.gy < minGY) minGY = curr.gy;
+            if (curr.gy > maxGY) maxGY = curr.gy;
+            sumX += curr.gx * wt;
+            sumY += curr.gy * wt;
+          }
+          for (let dy = -2; dy <= 2; dy++) {
+            for (let dx = -2; dx <= 2; dx++) {
+              const nx = curr.gx + dx;
+              const ny = curr.gy + dy;
+              if (nx >= 3 && nx < GRID_X - 3 && ny >= 3 && ny < GRID_Y - 3 && !visited[ny][nx] && bridgedMask[ny][nx]) {
+                visited[ny][nx] = true;
+                queue.push({ gx: nx, gy: ny });
+              }
+            }
+          }
+        }
+
+        const spanW = maxGX - minGX + 1;
+        const spanH = maxGY - minGY + 1;
+        const aspect = Math.max(spanW / Math.max(1, spanH), spanH / Math.max(1, spanW));
+        const fillDensity = cells.length / Math.max(1, spanW * spanH);
+
+        // Filter out thin 1D lines (aspect > 6.5) or tiny text labels (< 10 active wall cells)
+        if (cells.length >= 10 && spanW >= 5 && spanH >= 5 && aspect < 6.0 && fillDensity > 0.12) {
+          // Prefer compact 2D architectural footprints near the main drawing canvas
+          const centralityBonus = 1.0 - 0.25 * Math.hypot((sumX / totalWeight) / GRID_X - 0.45, (sumY / totalWeight) / GRID_Y - 0.48);
+          clusters.push({
+            cells,
+            totalWeight,
+            minGX,
+            maxGX,
+            minGY,
+            maxGY,
+            centroidX: sumX / totalWeight,
+            centroidY: sumY / totalWeight,
+            score: totalWeight * Math.max(0.5, centralityBonus),
+          });
+        }
+      }
+    }
+
+    clusters.sort((a, b) => b.score - a.score);
+
+    let targetCluster: FootprintCluster | null = clusters[0] || null;
+
+    // 6. Double Storey Ground Floor vs First Floor Smart Cluster Selection:
+    // If two substantial floorplan footprints exist on the same sheet (e.g., GF on left, FF on right, or stacked),
+    // automatically target the Ground Floor footprint when stage === "crop_gf" and First Floor when stage === "crop_ff"!
+    if (clusters.length >= 2 && (stage === "crop_gf" || stage === "crop_ff")) {
+      const c1 = clusters[0];
+      const c2 = clusters[1];
+      if (c2.score >= c1.score * 0.26) {
+        const horizSeparated = Math.abs(c1.centroidX - c2.centroidX) >= Math.abs(c1.centroidY - c2.centroidY);
+        const sortedByOrder = horizSeparated
+          ? [c1, c2].sort((a, b) => a.centroidX - b.centroidX)
+          : [c1, c2].sort((a, b) => a.centroidY - b.centroidY);
+        targetCluster = stage === "crop_gf" ? sortedByOrder[0] : sortedByOrder[1];
+      }
+    }
+
+    if (!targetCluster) {
+      if (!silent) {
+        toast.error("Could not auto-detect exterior walls. Please click around the floorplan manually.");
+      }
       return;
     }
 
-    // Expand bounding box by 1 cell buffer for clean wall margins and dimensions
-    const pMinX = Math.max(0.02, ((minGX - 0.5) * cellW) / w);
-    const pMaxX = Math.min(0.98, ((maxGX + 1.5) * cellW) / w);
-    const pMinY = Math.max(0.02, ((minGY - 0.5) * cellH) / h);
-    const pMaxY = Math.min(0.98, ((maxGY + 1.5) * cellH) / h);
+    // 7. Trim stray outer dimension leader ticks from the cluster using 96% interior core wall mass
+    const colWeights = new Array(GRID_X).fill(0);
+    const rowWeights = new Array(GRID_Y).fill(0);
+    for (const c of targetCluster.cells) {
+      colWeights[c.gx] += c.weight;
+      rowWeights[c.gy] += c.weight;
+    }
+
+    const trimPercentile = (weights: number[], minIdx: number, maxIdx: number, cutRatio: number): [number, number] => {
+      const sliceTotal = weights.slice(minIdx, maxIdx + 1).reduce((s, v) => s + v, 0);
+      const cutAmt = sliceTotal * cutRatio;
+      let accLeft = 0;
+      let tightMin = minIdx;
+      for (let i = minIdx; i <= maxIdx; i++) {
+        accLeft += weights[i];
+        if (accLeft >= cutAmt) {
+          tightMin = i;
+          break;
+        }
+      }
+      let accRight = 0;
+      let tightMax = maxIdx;
+      for (let i = maxIdx; i >= tightMin; i--) {
+        accRight += weights[i];
+        if (accRight >= cutAmt) {
+          tightMax = i;
+          break;
+        }
+      }
+      return [tightMin, tightMax];
+    };
+
+    const [coreMinGX, coreMaxGX] = trimPercentile(colWeights, targetCluster.minGX, targetCluster.maxGX, 0.02);
+    const [coreMinGY, coreMaxGY] = trimPercentile(rowWeights, targetCluster.minGY, targetCluster.maxGY, 0.02);
+
+    // 8. Calculate exact ~500mm safety buffer around the detected exterior wall points:
+    // A typical residential home footprint is ~14m–20m wide/long, so 500mm (0.5m) is ~3.0% of the building footprint span.
+    const footprintNormW = ((coreMaxGX - coreMinGX + 1) * cellW) / w;
+    const footprintNormH = ((coreMaxGY - coreMinGY + 1) * cellH) / h;
+    const buffer500mmX = Math.max(0.015, Math.min(0.035, footprintNormW * 0.032));
+    const buffer500mmY = Math.max(0.015, Math.min(0.035, footprintNormH * 0.032));
+
+    const pMinX = Math.max(0.02, (coreMinGX * cellW) / w - buffer500mmX);
+    const pMaxX = Math.min(0.98, ((coreMaxGX + 1) * cellW) / w + buffer500mmX);
+    const pMinY = Math.max(0.02, (coreMinGY * cellH) / h - buffer500mmY);
+    const pMaxY = Math.min(0.98, ((coreMaxGY + 1) * cellH) / h + buffer500mmY);
 
     const autoPoints: Point[] = [
       { x: pMinX, y: pMinY },
@@ -784,8 +1005,30 @@ export function ModifiedFloorplanModal({
 
     setActivePoints(autoPoints);
     setIsClosed(true);
-    toast.success("✨ Floorplan auto-cropped (excluding title blocks & borders)! Adjust points as needed.");
+    if (!silent) {
+      const floorLabel =
+        stage === "crop_gf"
+          ? "Ground Floor"
+          : stage === "crop_ff"
+          ? "First Floor"
+          : "Exterior Wall Footprint";
+      toast.success(`✨ Auto-detected ${floorLabel} exterior walls (+500mm safety buffer)!`);
+    }
+  }, [stage]);
+
+  const handleAutoCrop = () => {
+    runSmartExteriorWallAutoCrop(false);
   };
+
+  // Automatically snap crop to exterior walls (+500mm buffer) when a drawing page loads or stage switches
+  useEffect(() => {
+    if (docLoaded && stage !== "upload" && activePoints.length === 0) {
+      const timer = setTimeout(() => {
+        runSmartExteriorWallAutoCrop(true);
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [docLoaded, stage, selectedPageIndex, activePoints.length, runSmartExteriorWallAutoCrop]);
 
   const handleResetPoints = () => {
     setActivePoints([]);

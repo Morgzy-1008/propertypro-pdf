@@ -46,6 +46,12 @@ import {
 import type { FullQuote, SiteConditions, SoilClass, WindRating, DepositType } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
 import { getActiveDivision } from "@/lib/divisionContext";
+import {
+  runVerifiedPropertyOverlayCheck,
+  getCachedPropertyOverlayReport,
+  saveCachedPropertyOverlayReport,
+  type PropertyOverlayCheckReport,
+} from "@/lib/quoting/autoQuoteEngine";
 
 interface V2StepSiteCostsProps {
   quote: FullQuote;
@@ -547,6 +553,102 @@ export function V2StepSiteCosts({
     }
   };
 
+  // Deterministic Zero-Hallucination Government GIS Property Overlay Check
+  const fullAddressQuery = useMemo(() => {
+    const parts = [quote.client?.siteAddress, quote.client?.suburb].filter(Boolean);
+    return parts.join(", ").trim();
+  }, [quote.client?.siteAddress, quote.client?.suburb]);
+
+  const [overlayReport, setOverlayReport] = useState<PropertyOverlayCheckReport | null>(() =>
+    fullAddressQuery ? getCachedPropertyOverlayReport(fullAddressQuery) : null
+  );
+  const [isScanningOverlays, setIsScanningOverlays] = useState(false);
+
+  useEffect(() => {
+    if (!fullAddressQuery || fullAddressQuery.length < 5) return;
+    const cached = getCachedPropertyOverlayReport(fullAddressQuery);
+    if (cached) {
+      setOverlayReport(cached);
+      return;
+    }
+    let cancelled = false;
+    setIsScanningOverlays(true);
+    runVerifiedPropertyOverlayCheck(fullAddressQuery, isNsw ? "NSW" : "QLD")
+      .then((res) => {
+        if (!cancelled) {
+          setOverlayReport(res);
+          saveCachedPropertyOverlayReport(res);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsScanningOverlays(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fullAddressQuery, isNsw]);
+
+  const overlayItems = overlayReport?.overlays || [];
+  const hasFlaggedOverlay = overlayItems.some((f) => f.status === "verified_hit");
+
+  const handleRefreshOverlayCheck = async () => {
+    if (!fullAddressQuery) return;
+    setIsScanningOverlays(true);
+    try {
+      const res = await runVerifiedPropertyOverlayCheck(fullAddressQuery, isNsw ? "NSW" : "QLD");
+      setOverlayReport(res);
+      saveCachedPropertyOverlayReport(res);
+      const flagged = (res.overlays || []).filter((f) => f.status === "verified_hit");
+      toast.success(
+        flagged.length > 0
+          ? `GIS Overlay Check: ${flagged.length} property overlay(s) flagged.`
+          : "GIS Overlay Check complete: Zero spatial overlays intersected."
+      );
+    } finally {
+      setIsScanningOverlays(false);
+    }
+  };
+
+  const handleApplyFlaggedOverlaysToSite = () => {
+    if (!overlayReport) return;
+    const patch: Partial<SiteConditions> = { siteCostsRevealedStage: 7 };
+    let appliedCount = 0;
+
+    for (const flag of overlayItems) {
+      if (flag.status !== "verified_hit") continue;
+      if (flag.category === "bushfire" || flag.id.includes("bushfire")) {
+        patch.bushfireRequired = true;
+        if (!site.balRating || site.balRating === "None" || site.balRating === "BAL-LOW") {
+          patch.balRating = "BAL-12.5";
+          patch.bushfireCost = 5500;
+        }
+        appliedCount++;
+      } else if (flag.category === "flood" || flag.id.includes("flood")) {
+        patch.floodOverlayRequired = true;
+        if (!site.floodCost || site.floodCost <= 0) {
+          patch.floodCost = 3500;
+        }
+        appliedCount++;
+      } else if (flag.category === "acoustic" || flag.id.includes("acoustic")) {
+        patch.acousticRequired = true;
+        if (!site.acousticCategory || site.acousticCategory === "None") {
+          patch.acousticCategory = "Category 1";
+          patch.acousticCost = 3800;
+        }
+        appliedCount++;
+      }
+    }
+
+    setRevealedStage(7);
+    onChange(patch);
+    toast.success(
+      appliedCount > 0
+        ? `Activated ${appliedCount} flagged GIS overlay allowance(s) in Site Costs.`
+        : "Opened Overlays section for review."
+    );
+    setTimeout(() => scrollToStage(6), 120);
+  };
+
   return (
     <div className="space-y-8 max-w-7xl 2xl:max-w-[1550px] mx-auto px-2 sm:px-4">
       {/* Header Prompt */}
@@ -589,6 +691,126 @@ export function V2StepSiteCosts({
           </div>
         </div>
       </div>
+
+      {/* Zero-Hallucination Government GIS Property Overlay Compliance Banner */}
+      {(fullAddressQuery.length >= 5 || overlayItems.length > 0) && (
+        <div
+          data-testid="site-costs-gis-overlay-banner"
+          className={`p-5 rounded-2xl border space-y-3.5 transition-all ${
+            hasFlaggedOverlay
+              ? isLight
+                ? "bg-amber-50/90 border-amber-400 shadow-xs"
+                : "bg-amber-950/25 border-amber-500/50"
+              : isLight
+              ? "bg-slate-50 border-slate-200"
+              : "bg-slate-950/60 border-slate-800"
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <Shield className={`w-5 h-5 mt-0.5 flex-none ${hasFlaggedOverlay ? "text-amber-500" : "text-emerald-500"}`} />
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-sm font-black uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"}`}>
+                    Verified Government GIS Property Overlay Compliance Check
+                  </span>
+                  <Badge className="bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 text-[10px] font-bold">
+                    Zero-Hallucination GIS
+                  </Badge>
+                </div>
+                <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                  Site: <strong>{overlayReport?.geocodedDisplayName || fullAddressQuery}</strong>
+                  {typeof overlayReport?.lat === "number" && typeof overlayReport?.lng === "number"
+                    ? ` (${overlayReport.lat.toFixed(5)}, ${overlayReport.lng.toFixed(5)})`
+                    : ""}
+                  {overlayReport?.lotPlanParcel ? ` • ${overlayReport.lotPlanParcel}` : ""}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {hasFlaggedOverlay && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleApplyFlaggedOverlaysToSite}
+                  className="rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs h-9 px-3.5 cursor-pointer"
+                >
+                  Apply Flagged Overlays to Site Costs
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isScanningOverlays}
+                onClick={handleRefreshOverlayCheck}
+                className="rounded-xl text-xs font-bold h-9 px-3 cursor-pointer"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 mr-1.5 ${isScanningOverlays ? "animate-spin" : ""}`} />
+                {isScanningOverlays ? "Querying State GIS..." : "Re-Verify GIS"}
+              </Button>
+            </div>
+          </div>
+
+          {overlayItems.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+              {overlayItems.map((flag) => {
+                const isFlagged = flag.status === "verified_hit";
+                const isClear = flag.status === "verified_clear";
+                return (
+                  <div
+                    key={flag.id}
+                    className={`p-3 rounded-xl border text-xs flex flex-col justify-between gap-1.5 ${
+                      isFlagged
+                        ? isLight
+                          ? "bg-white border-amber-400 text-slate-900"
+                          : "bg-slate-900/90 border-amber-500/50 text-white"
+                        : isClear
+                        ? isLight
+                          ? "bg-white border-emerald-200 text-slate-800"
+                          : "bg-slate-900/60 border-emerald-500/25 text-slate-200"
+                        : isLight
+                        ? "bg-white border-slate-200 text-slate-700"
+                        : "bg-slate-900/60 border-slate-800 text-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold truncate">{flag.name}</span>
+                      <Badge
+                        className={`text-[10px] font-mono font-bold px-2 py-0.5 ${
+                          isFlagged
+                            ? "bg-rose-600 text-white"
+                            : isClear
+                            ? "bg-emerald-600 text-white"
+                            : "bg-amber-500 text-slate-950"
+                        }`}
+                      >
+                        {isFlagged
+                          ? "⚠️ VERIFIED HIT"
+                          : isClear
+                          ? "✓ VERIFIED CLEAR"
+                          : "COUNCIL CERT REQ"}
+                      </Badge>
+                    </div>
+                    <p className={`text-[11px] leading-snug ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                      {flag.detail}
+                    </p>
+                    {flag.siteCostFlag && (
+                      <p className="text-[11px] font-bold text-rose-500 leading-snug">
+                        {flag.siteCostFlag}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800 text-[10px] font-mono text-slate-400">
+                      <span className="truncate">{flag.authoritySource}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Interactive Progressive Stage Stepper / Breadcrumbs */}
       <div

@@ -131,9 +131,9 @@ export function QuoteBuilder() {
   };
 
   const [quote, setQuote] = useState<FullQuote>(() => {
-    // Ensure any prior draft with data is safely stored in Saved Estimates
+    // Ensure any prior draft with real data is safely stored in Saved Estimates
     const draft = loadActiveDraftQuote();
-    if (draft && (draft.client.clientName?.trim() || draft.design.designName?.trim() || (draft.pricing?.grossEstimatedInvestment || 0) > 0)) {
+    if (draft && (draft.client.clientName?.trim() || draft.design.designName?.trim() || (draft.design.basePrice || 0) > 0)) {
       try {
         saveQuote(draft);
         saveQuoteToIdb(draft).catch(() => {});
@@ -867,7 +867,7 @@ export function QuoteBuilder() {
   // Auto-save unsaved estimate to Saved Estimates on unload/close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (quote && (quote.client.clientName?.trim() || quote.design.designName?.trim() || (quote.pricing?.grossEstimatedInvestment || 0) > 0)) {
+      if (quote && (quote.client.clientName?.trim() || quote.design.designName?.trim() || (quote.design.basePrice || 0) > 0)) {
         try {
           saveQuote(quote);
           saveQuoteToIdb(quote).catch(() => {});
@@ -884,6 +884,11 @@ export function QuoteBuilder() {
   const handleDownloadPdf = async () => {
     setDownloading(true);
     try {
+      if (quote && (quote.client.clientName?.trim() || quote.design.designName?.trim() || (quote.design.basePrice || 0) > 0)) {
+        saveQuoteAsync(quote)
+          .then(() => refreshSavedQuotes())
+          .catch(() => {});
+      }
       if (typeof document !== "undefined" && document.fonts) {
         try {
           await Promise.allSettled([
@@ -913,7 +918,7 @@ export function QuoteBuilder() {
       const filename = formatEstimateFileName(quote);
 
       await downloadA4Pdf(exportHost, filename);
-      toast.success("Builders Estimate PDF downloaded successfully");
+      toast.success("Builders Estimate PDF downloaded & saved to Team Estimates");
     } catch (err) {
       console.error("PDF Export error:", err);
       toast.error("Failed to generate PDF. Please try again.");

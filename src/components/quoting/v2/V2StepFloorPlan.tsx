@@ -97,11 +97,16 @@ import { DivisionSwitcher } from "@/components/auth/DivisionSwitcher";
 import { BaseDesignConfirmationModal } from "@/components/quoting/BaseDesignConfirmationModal";
 import { DesignFacadeLibraryModal, type DesignFacadeOption } from "@/components/floorplan-library/DesignFacadeLibraryModal";
 import { QuoteFacadeEnlargeModal } from "@/components/quoting/QuoteFacadeRenderPreview";
+import { getActiveStaffUser, onStaffUserChanged } from "@/lib/authSession";
+import { canAccessAutoQuote } from "@/lib/access";
+import { AutoQuoteWorkshopPanel } from "@/components/quoting/AutoQuoteWorkshopPanel";
 
 interface V2StepFloorPlanProps {
   design: QuoteDesignSelection;
   division?: Division;
   clientState?: "QLD" | "NSW";
+  siteAddress?: string;
+  suburb?: string;
   onChange: (patch: Partial<QuoteDesignSelection>) => void;
   onClientStateChange?: (state: "QLD" | "NSW") => void;
   onAddInclusionLineItems?: (items: QuoteSelectedLineItem[]) => void;
@@ -197,6 +202,8 @@ export function V2StepFloorPlan({
   design,
   division: propDivision,
   clientState,
+  siteAddress,
+  suburb,
   onChange,
   onClientStateChange,
   onAddInclusionLineItems,
@@ -208,6 +215,12 @@ export function V2StepFloorPlan({
   const [division, setDivision] = useState<Division>(() => {
     return (clientState || propDivision || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
   });
+
+  const [activeStaff, setActiveStaff] = useState(() => getActiveStaffUser());
+  useEffect(() => {
+    return onStaffUserChanged((u) => setActiveStaff(u));
+  }, []);
+  const showAutoQuote = canAccessAutoQuote(activeStaff);
 
   useEffect(() => {
     if (clientState) {
@@ -223,12 +236,13 @@ export function V2StepFloorPlan({
     });
   }, []);
 
-  // Mode: standard, modified, custom
-  const [designMode, setDesignMode] = useState<"standard" | "modified" | "custom">(() => {
+  // Mode: standard, modified, custom, auto_quote
+  const [designMode, setDesignMode] = useState<"standard" | "modified" | "custom" | "auto_quote">(() => {
     if (design.mode === "custom_floorplan") return "custom";
     if (design.isModifiedFloorplan) return "modified";
     return "standard";
   });
+  const [extractedDimensionSchedule, setExtractedDimensionSchedule] = useState<ExtractedAreaSchedule | null>(null);
 
   const [houseType, setHouseType] = useState<HousingTypeTab>(() => {
     const raw = design.housingType || "Single Storey";
@@ -1427,6 +1441,7 @@ export function V2StepFloorPlan({
 
   const handleApplyExtractedAreas = (extracted: ExtractedAreaSchedule) => {
     if (!extracted) return;
+    setExtractedDimensionSchedule(extracted);
     const hasDimensions = Boolean(
       extracted.totalM2 ||
       extracted.livingM2 ||
@@ -1520,7 +1535,7 @@ export function V2StepFloorPlan({
 
     setScanMessage({
       type: "success",
-      text: `Dimension table detected! Updated modified schedule of areas (Total: ${newTotal} m²).`,
+      text: `Dimension table detected (Read-Only SQM Extraction)! Populated schedule of areas (Total: ${newTotal} m²).`,
     });
     toast.success(`Dimension table detected! Updated areas: Total ${newTotal} m²`);
   };
@@ -1537,7 +1552,7 @@ export function V2StepFloorPlan({
         design.designName.trim().length > 0
       );
     }
-    // custom
+    // custom or auto_quote
     return Boolean(
       design.designName &&
       design.designName.trim().length > 0 &&
@@ -1587,7 +1602,7 @@ export function V2StepFloorPlan({
         )}
       </div>
 
-      {/* Mode Switcher Tabs: Standard Catalogue vs Modified vs Custom */}
+      {/* Mode Switcher Tabs: Standard Catalogue vs Modified vs Custom vs Auto-Quote (Morgan Only) */}
       <div className="flex flex-wrap items-center gap-2.5 border-b border-slate-700/40 pb-4">
         <button
           type="button"
@@ -1681,9 +1696,48 @@ export function V2StepFloorPlan({
         >
           🏛️ Custom Bespoke Design
         </button>
+
+        {showAutoQuote && (
+          <button
+            type="button"
+            data-testid="tab-btn-auto-quote"
+            onClick={() => setDesignMode("auto_quote")}
+            className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-extrabold transition-all border flex items-center gap-2 cursor-pointer ${
+              designMode === "auto_quote"
+                ? "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 border-amber-400 shadow-md"
+                : isLight
+                ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+                : "bg-amber-950/40 text-amber-300 border-amber-500/40 hover:bg-amber-950/60"
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Auto-Quote</span>
+            <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-950/20">
+              Morgan Only
+            </span>
+          </button>
+        )}
       </div>
 
+      {designMode === "auto_quote" && showAutoQuote && (
+        <AutoQuoteWorkshopPanel
+          design={design}
+          division={division}
+          siteAddress={siteAddress}
+          suburb={suburb}
+          isLight={isLight}
+          allModels={allModels}
+          onChangeDesign={onChange}
+          onAddInclusionLineItems={onAddInclusionLineItems}
+          onOpenCropper={(file) => {
+            setCropFile(file);
+            setIsCropperOpen(true);
+          }}
+        />
+      )}
+
       {/* BOX 1 & BOX 2: HOUSE TYPE & SEARCHABLE FLOORPLAN DROPDOWN */}
+      {designMode !== "auto_quote" && (
       <div
         className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
           isLight
@@ -2415,7 +2469,9 @@ export function V2StepFloorPlan({
                             ? "bg-emerald-500 text-slate-950"
                             : totalVariance < 0
                             ? "bg-rose-500 text-white"
-                            : "bg-slate-700 text-white"
+                            : isLight
+                            ? "bg-slate-200 text-slate-900 border border-slate-300"
+                            : "bg-slate-800 text-white border border-slate-600"
                         }`}
                       >
                         Modified: {currentTotal > 0 ? `${currentTotal} m²` : "0.00 m²"}
@@ -2558,15 +2614,21 @@ export function V2StepFloorPlan({
                         <div
                           key={zone.key}
                           className={`p-4 rounded-2xl border transition-all ${
-                            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                            hasVariance
+                              ? isLight
+                                ? "bg-emerald-50/70 border-emerald-400 shadow-xs"
+                                : "bg-emerald-950/25 border-emerald-500/40"
+                              : isLight
+                              ? "bg-slate-50 border-slate-200"
+                              : "bg-slate-950/60 border-slate-800"
                           }`}
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                               {zone.label}
                             </Label>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[11px] font-mono text-slate-400">
+                              <span className={`text-[11px] font-mono font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                                 Std: {zone.std > 0 ? `${zone.std} m²` : "—"}
                               </span>
                               {(zone as any).isRemovable && (
@@ -2593,7 +2655,15 @@ export function V2StepFloorPlan({
                               placeholder={zone.std > 0 ? String(zone.std) : "0.00"}
                               value={zone.val > 0 ? zone.val : ""}
                               onChange={(e) => handleModifiedAreaChange(zone.key, e.target.value)}
-                              className="h-12 text-lg font-mono font-bold rounded-xl"
+                              className={`h-12 text-lg font-mono font-bold rounded-xl ${
+                                hasVariance
+                                  ? isLight
+                                    ? "bg-white border-emerald-500 text-emerald-950 ring-1 ring-emerald-500/20"
+                                    : "bg-slate-900 border-emerald-500/60 text-emerald-300"
+                                  : isLight
+                                  ? "bg-white border-slate-300 text-slate-950"
+                                  : "bg-slate-900 border-slate-700 text-white"
+                              }`}
                             />
 
                             {/* Steppers & Reset */}
@@ -2630,13 +2700,19 @@ export function V2StepFloorPlan({
                           {/* Variance & Total Price Breakdown */}
                           <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1">
                             <div className="flex items-center justify-between text-xs font-mono">
-                              <span className="text-slate-400">Variance:</span>
+                              <span className={isLight ? "text-slate-600" : "text-slate-400"}>Variance:</span>
                               <span
                                 className={`font-bold ${
                                   !hasVariance
-                                    ? "text-slate-400"
+                                    ? isLight
+                                      ? "text-slate-800"
+                                      : "text-slate-300"
                                     : delta >= 0
-                                    ? "text-emerald-500"
+                                    ? isLight
+                                      ? "text-emerald-700"
+                                      : "text-emerald-400"
+                                    : isLight
+                                    ? "text-rose-700"
                                     : "text-rose-400"
                                 }`}
                               >
@@ -2648,8 +2724,8 @@ export function V2StepFloorPlan({
 
                             {hasVariance && (
                               <div className="flex items-center justify-between text-[11px] font-mono">
-                                <span className="text-slate-400">Total Price:</span>
-                                <span className={cost > 0 ? "text-emerald-500 font-bold" : cost < 0 ? "text-rose-400 font-bold" : "text-emerald-400 font-bold"}>
+                                <span className={isLight ? "text-slate-600" : "text-slate-400"}>Total Price:</span>
+                                <span className={cost > 0 ? (isLight ? "text-emerald-700 font-bold" : "text-emerald-400 font-bold") : cost < 0 ? (isLight ? "text-rose-700 font-bold" : "text-rose-400 font-bold") : (isLight ? "text-emerald-700 font-bold" : "text-emerald-400 font-bold")}>
                                   {cost > 0 ? `+${formatAud(cost)}` : cost < 0 ? `${formatAud(cost)} (80% credit)` : "$0 (Std 5.7×6.0m)"}
                                 </span>
                               </div>
@@ -3142,7 +3218,7 @@ export function V2StepFloorPlan({
                       </span>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-400 flex items-center justify-between">
+                          <Label className={`text-xs font-bold flex items-center justify-between ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                             <span>Ground Living (m²)</span>
                             <span className="text-[10px] text-emerald-500 font-semibold">Ground Floor</span>
                           </Label>
@@ -3152,12 +3228,12 @@ export function V2StepFloorPlan({
                             value={customSpecObj.groundLivingM2 || ""}
                             placeholder="140"
                             onChange={(e) => handleCustomSpecChange("groundLivingM2", parseFloat(e.target.value) || 0)}
-                            className="h-12 text-base font-mono font-bold rounded-xl"
+                            className={`h-12 text-base font-mono font-bold rounded-xl ${isLight ? "bg-white border-slate-300 text-slate-950" : "bg-slate-900 border-slate-700 text-white"}`}
                           />
                         </div>
 
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-400 flex items-center justify-between">
+                          <Label className={`text-xs font-bold flex items-center justify-between ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                             <span>Upper Floor Living (m²)</span>
                             <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">Upper Level</span>
                           </Label>
@@ -3167,12 +3243,12 @@ export function V2StepFloorPlan({
                             value={customSpecObj.firstLivingM2 || ""}
                             placeholder="110"
                             onChange={(e) => handleCustomSpecChange("firstLivingM2", parseFloat(e.target.value) || 0)}
-                            className="h-12 text-base font-mono font-bold rounded-xl border-cyan-500/40 focus:border-cyan-400"
+                            className={`h-12 text-base font-mono font-bold rounded-xl border-cyan-500/40 focus:border-cyan-400 ${isLight ? "bg-white text-slate-950" : "bg-slate-900 text-white"}`}
                           />
                         </div>
 
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-400 flex items-center justify-between">
+                          <Label className={`text-xs font-bold flex items-center justify-between ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                             <span>Balcony (m²)</span>
                             <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Upper Level</span>
                           </Label>
@@ -3182,7 +3258,7 @@ export function V2StepFloorPlan({
                             value={customSpecObj.balconyM2 || ""}
                             placeholder="10"
                             onChange={(e) => handleCustomSpecChange("balconyM2", parseFloat(e.target.value) || 0)}
-                            className="h-12 text-base font-mono font-bold rounded-xl border-amber-500/40 focus:border-amber-400"
+                            className={`h-12 text-base font-mono font-bold rounded-xl border-amber-500/40 focus:border-amber-400 ${isLight ? "bg-white text-slate-950" : "bg-slate-900 text-white"}`}
                           />
                         </div>
                       </div>
@@ -3195,38 +3271,38 @@ export function V2StepFloorPlan({
                       </span>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-400">Garage (m²)</Label>
+                          <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Garage (m²)</Label>
                           <Input
                             type="number"
                             step="0.1"
                             value={customSpecObj.garageM2 || ""}
                             placeholder="36"
                             onChange={(e) => handleCustomSpecChange("garageM2", parseFloat(e.target.value) || 0)}
-                            className="h-12 text-base font-mono font-bold rounded-xl"
+                            className={`h-12 text-base font-mono font-bold rounded-xl ${isLight ? "bg-white border-slate-300 text-slate-950" : "bg-slate-900 border-slate-700 text-white"}`}
                           />
                         </div>
 
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-400">Alfresco (m²)</Label>
+                          <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Alfresco (m²)</Label>
                           <Input
                             type="number"
                             step="0.1"
                             value={customSpecObj.alfrescoM2 || ""}
                             placeholder="15"
                             onChange={(e) => handleCustomSpecChange("alfrescoM2", parseFloat(e.target.value) || 0)}
-                            className="h-12 text-base font-mono font-bold rounded-xl"
+                            className={`h-12 text-base font-mono font-bold rounded-xl ${isLight ? "bg-white border-slate-300 text-slate-950" : "bg-slate-900 border-slate-700 text-white"}`}
                           />
                         </div>
 
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-slate-400">Porch (m²)</Label>
+                          <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Porch (m²)</Label>
                           <Input
                             type="number"
                             step="0.1"
                             value={customSpecObj.porchM2 || ""}
                             placeholder="4"
                             onChange={(e) => handleCustomSpecChange("porchM2", parseFloat(e.target.value) || 0)}
-                            className="h-12 text-base font-mono font-bold rounded-xl"
+                            className={`h-12 text-base font-mono font-bold rounded-xl ${isLight ? "bg-white border-slate-300 text-slate-950" : "bg-slate-900 border-slate-700 text-white"}`}
                           />
                         </div>
                       </div>
@@ -3235,50 +3311,50 @@ export function V2StepFloorPlan({
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-400">Ground Living (m²)</Label>
+                      <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Ground Living (m²)</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={customSpecObj.groundLivingM2 || ""}
                         placeholder="140"
                         onChange={(e) => handleCustomSpecChange("groundLivingM2", parseFloat(e.target.value) || 0)}
-                        className="h-12 text-base font-mono font-bold rounded-xl"
+                        className={`h-12 text-base font-mono font-bold rounded-xl ${isLight ? "bg-white border-slate-300 text-slate-950" : "bg-slate-900 border-slate-700 text-white"}`}
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-400">Garage (m²)</Label>
+                      <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Garage (m²)</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={customSpecObj.garageM2 || ""}
                         placeholder="36"
                         onChange={(e) => handleCustomSpecChange("garageM2", parseFloat(e.target.value) || 0)}
-                        className="h-12 text-base font-mono font-bold rounded-xl"
+                        className={`h-12 text-base font-mono font-bold rounded-xl ${isLight ? "bg-white border-slate-300 text-slate-950" : "bg-slate-900 border-slate-700 text-white"}`}
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-400">Alfresco (m²)</Label>
+                      <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Alfresco (m²)</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={customSpecObj.alfrescoM2 || ""}
                         placeholder="15"
                         onChange={(e) => handleCustomSpecChange("alfrescoM2", parseFloat(e.target.value) || 0)}
-                        className="h-12 text-base font-mono font-bold rounded-xl"
+                        className={`h-12 text-base font-mono font-bold rounded-xl ${isLight ? "bg-white border-slate-300 text-slate-950" : "bg-slate-900 border-slate-700 text-white"}`}
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-slate-400">Porch (m²)</Label>
+                      <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Porch (m²)</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={customSpecObj.porchM2 || ""}
                         placeholder="4"
                         onChange={(e) => handleCustomSpecChange("porchM2", parseFloat(e.target.value) || 0)}
-                        className="h-12 text-base font-mono font-bold rounded-xl"
+                        className={`h-12 text-base font-mono font-bold rounded-xl ${isLight ? "bg-white border-slate-300 text-slate-950" : "bg-slate-900 border-slate-700 text-white"}`}
                       />
                     </div>
                   </div>
@@ -3362,6 +3438,7 @@ export function V2StepFloorPlan({
           </div>
         )}
       </div>
+      )}
 
       {/* 2ND DWELLING CONFIGURATION CARD (SMOOTHLY APPEARS WHEN ADD 2ND DWELLING IS CLICKED) */}
       {hasFloorPlanSelected && isSecondDwellingActive && (
