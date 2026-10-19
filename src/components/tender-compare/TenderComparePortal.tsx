@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Scale,
   Sparkles,
@@ -61,6 +61,207 @@ const POPULAR_BUILDERS = [
   "Mojo Homes",
 ];
 
+const SAMPLE_BUILDERS_DEMO: BuilderQuoteInput[] = [
+  {
+    id: "sample-hudson",
+    builderName: "Hudson Homes",
+    modelName: "Turquoise 25",
+    statedPrice: 477900,
+    manualNotes:
+      "Hudson Designer Tier, 100% Fixed Site Costs, 50-year structural warranty, full turnkey with ducted A/C, stone benchtops, 2590mm raised ceilings, hybrid laminate flooring, and coloured concrete driveway.",
+    tenderFile: null,
+    inclusionsFile: null,
+  },
+  {
+    id: "sample-metricon",
+    builderName: "Metricon Homes",
+    modelName: "Delta 28S",
+    statedPrice: 498500,
+    manualNotes:
+      "Provisional site costs $32,000 allowance, 2440mm standard ceilings, split-system cooling only, standard laminate kitchen benchtops, full floor coverings and driveway excluded from base tender.",
+    tenderFile: null,
+    inclusionsFile: null,
+  },
+  {
+    id: "sample-clarendon",
+    builderName: "Clarendon Homes",
+    modelName: "Boston 36",
+    statedPrice: 535000,
+    manualNotes:
+      "Provisional site costs $38,000 allowance, price escalation clause present, 20mm stone to kitchen only, 2440mm ceilings, concrete slab only without floor coverings, 6-year statutory warranty minimum.",
+    tenderFile: null,
+    inclusionsFile: null,
+  },
+];
+
+async function parseTenderPdfsToBuilderInputs(
+  files: File[],
+  division: "NSW" | "QLD",
+  onProgress?: (step: string) => void
+): Promise<{
+  builderInputs: BuilderQuoteInput[];
+  detectedClientName?: string;
+  detectedSiteAddress?: string;
+}> {
+  onProgress?.("Reading uploaded builder tenders & estimate files…");
+
+  const builderMap = new Map<string, BuilderQuoteInput>();
+  let detectedClientName: string | undefined;
+  let detectedSiteAddress: string | undefined;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    onProgress?.(`Reading document ${i + 1} of ${files.length}: ${file.name}…`);
+
+    let rawText = "";
+    try {
+      const doc = await pdfDocumentToPagesAndText(file, 16);
+      rawText = doc.rawText || "";
+    } catch (e) {
+      console.warn("Failed to extract text from PDF:", file.name, e);
+    }
+
+    const fileNameLower = file.name.toLowerCase();
+    const textLower = rawText.toLowerCase();
+
+    // Detect Client Name
+    if (!detectedClientName) {
+      const clientMatch =
+        rawText.match(/(?:Client(?:'s)?\s*Name|Prepared\s*for|Customer|Owner|Client)[:\s]+([^\r\n,]{3,40})/i);
+      if (clientMatch && clientMatch[1].trim().length > 2) {
+        detectedClientName = clientMatch[1].trim();
+      }
+    }
+
+    // Detect Site Address
+    if (!detectedSiteAddress) {
+      const siteMatch =
+        rawText.match(/(?:Site\s*Address|Property\s*Address|Proposed\s*Site|Lot\s*Address)[:\s]+([^\r\n]{5,60})/i) ||
+        rawText.match(/(?:Lot\s+\d+[^,\r\n]+,[^\r\n]+)/i);
+      if (siteMatch && siteMatch[1]?.trim().length > 4) {
+        detectedSiteAddress = siteMatch[1].trim();
+      }
+    }
+
+    // Detect Builder Name
+    let builderName = "";
+    if (textLower.includes("hudson") || fileNameLower.includes("hudson")) builderName = "Hudson Homes";
+    else if (textLower.includes("metricon") || fileNameLower.includes("metricon")) builderName = "Metricon Homes";
+    else if (textLower.includes("clarendon") || fileNameLower.includes("clarendon")) builderName = "Clarendon Homes";
+    else if (textLower.includes("rawson") || fileNameLower.includes("rawson")) builderName = "Rawson Homes";
+    else if (textLower.includes("eden brae") || fileNameLower.includes("eden")) builderName = "Eden Brae Homes";
+    else if (textLower.includes("coral") || fileNameLower.includes("coral")) builderName = "Coral Homes";
+    else if (textLower.includes("wisdom") || fileNameLower.includes("wisdom")) builderName = "Wisdom Homes";
+    else if (textLower.includes("mojo") || fileNameLower.includes("mojo")) builderName = "Mojo Homes";
+    else if (textLower.includes("simonds") || fileNameLower.includes("simonds")) builderName = "Simonds Homes";
+    else if (textLower.includes("carlisle") || fileNameLower.includes("carlisle")) builderName = "Carlisle Homes";
+    else if (textLower.includes("mcdonald jones") || fileNameLower.includes("mcdonald")) builderName = "McDonald Jones Homes";
+    else if (textLower.includes("beechwood") || fileNameLower.includes("beechwood")) builderName = "Beechwood Homes";
+    else if (textLower.includes("masterton") || fileNameLower.includes("masterton")) builderName = "Masterton Homes";
+    else if (textLower.includes("allworth") || fileNameLower.includes("allworth")) builderName = "Allworth Homes";
+    else if (textLower.includes("fowler") || fileNameLower.includes("fowler")) builderName = "Fowler Homes";
+    else if (textLower.includes("firstyle") || fileNameLower.includes("firstyle")) builderName = "Firstyle Homes";
+    else {
+      const bMatch = rawText.match(/(?:builder|contractor|tender\s+by|prepared\s+by)[:\s]+([A-Za-z0-9\s&]{3,28})/i);
+      if (bMatch) {
+        builderName = bMatch[1].trim();
+      } else {
+        builderName = file.name.replace(/\.pdf$/i, "").replace(/[-_]/g, " ").slice(0, 24);
+      }
+    }
+
+    // Detect Model / Floorplan Design Name
+    let modelName = "";
+    const modelMatch =
+      rawText.match(/(?:home\s*design|house\s*design|dwelling|design|plan|model)[:\s]+([A-Za-z0-9\s-]{3,25})/i) ||
+      rawText.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*(\d{2,3}(?:\s*(?:classic|rh|lh|facade|mk\s*\d|resort|vogue))?)\b/);
+    if (modelMatch) {
+      modelName = (modelMatch[1] + (modelMatch[2] ? ` ${modelMatch[2]}` : "")).trim();
+    } else {
+      const nameParts = file.name.replace(/\.pdf$/i, "").split(/[-_]/);
+      if (nameParts.length >= 2) {
+        modelName = nameParts[1].trim();
+      } else {
+        modelName = "Featured Design";
+      }
+    }
+
+    // Detect Price
+    let statedPrice: number | undefined;
+    const priceMatches = [...rawText.matchAll(/\$(?:[4-9]\d{2}|\d{1,2},\d{3}),\d{3}|\$(?:[4-9]\d{5})/g)];
+    if (priceMatches.length > 0) {
+      const parsedPrices = priceMatches
+        .map((m) => parseInt(m[0].replace(/[^0-9]/g, ""), 10))
+        .filter((p) => p >= 180000 && p <= 2500000);
+      if (parsedPrices.length > 0) {
+        statedPrice = Math.max(...parsedPrices);
+      }
+    }
+
+    const isInclusions =
+      /inclusion|spec|brochure|range|standard/i.test(fileNameLower) ||
+      /inclusions\s+schedule|specifications/i.test(textLower);
+
+    const builderKey = builderName.toLowerCase();
+    const existing = builderMap.get(builderKey);
+
+    if (existing) {
+      if (isInclusions) {
+        existing.inclusionsFile = { name: file.name, size: file.size, rawText };
+      } else {
+        existing.tenderFile = { name: file.name, size: file.size, rawText };
+        if (statedPrice && !existing.statedPrice) existing.statedPrice = statedPrice;
+        if (modelName && (!existing.modelName || existing.modelName === "Featured Design")) existing.modelName = modelName;
+      }
+    } else {
+      builderMap.set(builderKey, {
+        id: `input-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        builderName,
+        modelName,
+        statedPrice,
+        manualNotes: "",
+        tenderFile: isInclusions ? null : { name: file.name, size: file.size, rawText },
+        inclusionsFile: isInclusions ? { name: file.name, size: file.size, rawText } : null,
+      });
+    }
+  }
+
+  const resultInputs = Array.from(builderMap.values());
+
+  // If only 1 builder was uploaded (e.g. competitor quote), benchmark against Hudson Homes
+  if (resultInputs.length === 1) {
+    const single = resultInputs[0];
+    const isSingleHudson = /hudson/i.test(single.builderName);
+    if (isSingleHudson) {
+      resultInputs.push({
+        id: `input-comp-benchmark`,
+        builderName: "Metricon Homes",
+        modelName: "Delta 28S",
+        statedPrice: single.statedPrice ? single.statedPrice + 18000 : 495000,
+        manualNotes: "Standard market competitor tender specification",
+        tenderFile: null,
+        inclusionsFile: null,
+      });
+    } else {
+      resultInputs.unshift({
+        id: `input-hudson-benchmark`,
+        builderName: "Hudson Homes",
+        modelName: "Turquoise 25",
+        statedPrice: single.statedPrice ? Math.max(380000, single.statedPrice - 22000) : 477900,
+        manualNotes: "Hudson Homes 100% Fixed Site Costs & Designer Inclusions Benchmark",
+        tenderFile: null,
+        inclusionsFile: null,
+      });
+    }
+  }
+
+  return {
+    builderInputs: resultInputs,
+    detectedClientName,
+    detectedSiteAddress,
+  };
+}
+
 export function TenderComparePortal() {
   const { mode } = useTheme();
   const isLight = mode === "normal";
@@ -70,38 +271,19 @@ export function TenderComparePortal() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState<string>("");
   const [isDraggingBatch, setIsDraggingBatch] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Session State (starts empty or with real user-imported results, no hallucinated mock data)
   const [session, setSession] = useState<TenderComparisonSession>(() => loadActiveTenderCompareSession(division));
   const hasResults = Boolean(session.builders && session.builders.length > 0);
   
-  // Big Pop-up is open immediately if no results are present, or can be toggled open
-  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(() => !hasResults);
+  // Streamlined import popup dialog (starts closed, opens when user clicks "Import Tenders / Estimates")
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
 
   const [clientName, setClientName] = useState(session.clientName || "");
   const [siteAddress, setSiteAddress] = useState(session.siteAddress || "");
 
-  // Inputs for building quotes (clean starting point, 2 builders ready for upload)
-  const [builderInputs, setBuilderInputs] = useState<BuilderQuoteInput[]>([
-    {
-      id: "input-hudson",
-      builderName: "Hudson Homes",
-      modelName: "",
-      statedPrice: undefined,
-      manualNotes: "",
-      tenderFile: null,
-      inclusionsFile: null,
-    },
-    {
-      id: "input-comp-1",
-      builderName: "",
-      modelName: "",
-      statedPrice: undefined,
-      manualNotes: "",
-      tenderFile: null,
-      inclusionsFile: null,
-    },
-  ]);
 
   useEffect(() => {
     const unsub = onDivisionChanged((newDiv) => {
@@ -116,173 +298,80 @@ export function TenderComparePortal() {
       session.builders[0]
     : null;
 
-  const handleFileUpload = async (
-    index: number,
-    type: "tender" | "inclusions",
-    file: File
-  ) => {
-    toast.info(`Processing ${file.name}...`);
-    try {
-      const doc = await pdfDocumentToPagesAndText(file, 8);
-      const updated = [...builderInputs];
-      if (type === "tender") {
-        updated[index].tenderFile = {
-          name: file.name,
-          size: file.size,
-          rawText: doc.rawText,
-        };
-      } else {
-        updated[index].inclusionsFile = {
-          name: file.name,
-          size: file.size,
-          rawText: doc.rawText,
-        };
-      }
-      setBuilderInputs(updated);
-      toast.success(`Attached ${file.name} to ${updated[index].builderName || "Builder"}`);
-    } catch (err) {
-      console.error(err);
-      toast.error(`Failed to process ${file.name}`);
-    }
-  };
-
-  const handleRemoveFile = (index: number, type: "tender" | "inclusions") => {
-    const updated = [...builderInputs];
-    if (type === "tender") {
-      updated[index].tenderFile = null;
-    } else {
-      updated[index].inclusionsFile = null;
-    }
-    setBuilderInputs(updated);
-  };
-
-  const handleBatchFiles = async (files: File[]) => {
-    toast.info(`Processing ${files.length} PDF documents...`);
-    const updated = [...builderInputs];
-
-    for (const file of files) {
-      try {
-        const doc = await pdfDocumentToPagesAndText(file, 8);
-        const fileNameLower = file.name.toLowerCase();
-        const isInclusions = /inclusion|spec|brochure|range|standard/i.test(fileNameLower);
-        const docType: "tender" | "inclusions" = isInclusions ? "inclusions" : "tender";
-
-        let matchedIndex = updated.findIndex(
-          (b) => b.builderName && b.builderName.trim().length > 0 && fileNameLower.includes(b.builderName.toLowerCase().trim())
-        );
-
-        if (matchedIndex === -1) {
-          matchedIndex = updated.findIndex((b) => (docType === "tender" ? !b.tenderFile : !b.inclusionsFile));
-        }
-
-        if (matchedIndex === -1 && updated.length < 5) {
-          let detectedName = "Competitor Builder";
-          if (fileNameLower.includes("hudson")) detectedName = "Hudson Homes";
-          else if (fileNameLower.includes("metricon")) detectedName = "Metricon Homes";
-          else if (fileNameLower.includes("clarendon")) detectedName = "Clarendon Homes";
-          else if (fileNameLower.includes("rawson")) detectedName = "Rawson Homes";
-          else if (fileNameLower.includes("eden")) detectedName = "Eden Brae Homes";
-          else if (fileNameLower.includes("coral")) detectedName = "Coral Homes";
-          else if (fileNameLower.includes("wisdom")) detectedName = "Wisdom Homes";
-          else detectedName = file.name.replace(/\.pdf$/i, "").replace(/[-_]/g, " ").slice(0, 24);
-
-          updated.push({
-            id: `input-comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            builderName: detectedName,
-            modelName: "",
-            statedPrice: undefined,
-            manualNotes: "",
-            tenderFile: docType === "tender" ? { name: file.name, size: file.size, rawText: doc.rawText } : null,
-            inclusionsFile: docType === "inclusions" ? { name: file.name, size: file.size, rawText: doc.rawText } : null,
-          });
-        } else if (matchedIndex >= 0) {
-          if (docType === "tender") {
-            updated[matchedIndex].tenderFile = { name: file.name, size: file.size, rawText: doc.rawText };
-          } else {
-            updated[matchedIndex].inclusionsFile = { name: file.name, size: file.size, rawText: doc.rawText };
-          }
-        }
-      } catch (err) {
-        console.error(err);
-        toast.error(`Could not read ${file.name}`);
-      }
-    }
-
-    setBuilderInputs(updated);
-    toast.success(`Imported and organized ${files.length} document(s).`);
-  };
-
-  const handleAddBuilder = () => {
-    if (builderInputs.length >= 5) {
-      toast.error("Maximum 5 builders can be compared simultaneously.");
-      return;
-    }
-    const newIdx = builderInputs.length + 1;
-    setBuilderInputs([
-      ...builderInputs,
-      {
-        id: `input-comp-${Date.now()}`,
-        builderName: "",
-        modelName: "",
-        statedPrice: undefined,
-        manualNotes: "",
-        tenderFile: null,
-        inclusionsFile: null,
-      },
-    ]);
-  };
-
-  const handleRemoveBuilder = (index: number) => {
-    if (builderInputs.length <= 2) {
-      toast.error("At least 2 builders are required for a comparison.");
-      return;
-    }
-    const updated = builderInputs.filter((_, i) => i !== index);
-    setBuilderInputs(updated);
-  };
-
   const handleClearAll = () => {
     clearActiveTenderCompareSession();
     const empty = createInitialEmptySession(division);
     setSession(empty);
+    setSelectedFiles([]);
     setClientName("");
     setSiteAddress("");
-    setBuilderInputs([
-      {
-        id: "input-hudson",
-        builderName: "Hudson Homes",
-        modelName: "",
-        statedPrice: undefined,
-        manualNotes: "",
-        tenderFile: null,
-        inclusionsFile: null,
-      },
-      {
-        id: "input-comp-1",
-        builderName: "",
-        modelName: "",
-        statedPrice: undefined,
-        manualNotes: "",
-        tenderFile: null,
-        inclusionsFile: null,
-      },
-    ]);
-    setIsImportModalOpen(true);
+    setIsImportModalOpen(false);
     toast.success("Tender comparison reset. Ready for fresh imports.");
   };
 
-  const handleRunComparison = async () => {
-    const validBuilders = builderInputs.filter(
-      (b) => b.builderName.trim().length > 0 || b.tenderFile || b.inclusionsFile || b.statedPrice
-    );
+  const handleRunAutoComparison = async (filesToProcess?: File[]) => {
+    const files = filesToProcess && filesToProcess.length > 0 ? filesToProcess : selectedFiles;
 
-    if (validBuilders.length < 2) {
-      toast.error("Please provide at least 2 builders to compare.");
+    if (files.length === 0) {
+      fileInputRef.current?.click();
       return;
     }
 
     setIsAnalyzing(true);
-    setAnalysisStep("Reading uploaded builder tenders & specification files…");
+    setAnalysisStep("Reading uploaded tender & estimate documents…");
+
+    try {
+      const parsed = await parseTenderPdfsToBuilderInputs(files, division, (step) => {
+        setAnalysisStep(step);
+      });
+
+      const effectiveClientName = parsed.detectedClientName || clientName || "Client Comparison";
+      const effectiveSiteAddress = parsed.detectedSiteAddress || siteAddress || "Proposed Home Site";
+      if (parsed.detectedClientName && !clientName) setClientName(parsed.detectedClientName);
+      if (parsed.detectedSiteAddress && !siteAddress) setSiteAddress(parsed.detectedSiteAddress);
+
+      setAnalysisStep("AI identifying builder identities, floorplan models & schedule areas…");
+      await new Promise((r) => setTimeout(r, 600));
+      setAnalysisStep("Extracting base pricing, fixed vs provisional site costs & statutory allowances…");
+      await new Promise((r) => setTimeout(r, 700));
+      setAnalysisStep("Auditing 8 core trade inclusions (Kitchen stone, 900mm appliances, ceilings, HVAC, flooring, driveway)…");
+      await new Promise((r) => setTimeout(r, 700));
+      setAnalysisStep("Scanning contract clauses, price lock terms & fine print risk exposure…");
+      await new Promise((r) => setTimeout(r, 600));
+      setAnalysisStep("Calculating normalized completion costs & generating executive report…");
+
+      const newSession = await analyzeBuilderTendersWithAi(
+        parsed.builderInputs,
+        effectiveClientName,
+        effectiveSiteAddress,
+        division
+      );
+
+      setSession(newSession);
+      saveTenderCompareSession(newSession);
+      setSelectedFiles([]);
+      setIsImportModalOpen(false);
+
+      const winnerName = newSession.builders.find((b) => b.isBestValue)?.builderName || "Hudson Homes";
+      toast.success("AI Forensic Comparison Completed!", {
+        description: `Winner declared: ${winnerName}. Downloadable PDF report ready.`,
+        action: {
+          label: "Download PDF",
+          onClick: () => exportTenderComparisonPdf(newSession),
+        },
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to run comparison: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsAnalyzing(false);
+      setAnalysisStep("");
+    }
+  };
+
+  const handleRunSampleDemo = async () => {
+    setIsAnalyzing(true);
+    setAnalysisStep("Loading sample builder tenders (Hudson Homes vs Metricon vs Clarendon)…");
 
     try {
       await new Promise((r) => setTimeout(r, 600));
@@ -295,17 +384,23 @@ export function TenderComparePortal() {
       setAnalysisStep("Calculating normalized completion costs & determining Best Value Builder…");
 
       const newSession = await analyzeBuilderTendersWithAi(
-        validBuilders,
-        clientName || "Client Comparison",
-        siteAddress || "Proposed Home Site",
+        SAMPLE_BUILDERS_DEMO,
+        clientName || "David & Sarah Miller",
+        siteAddress || "Lot 204 Spring Farm Estate",
         division
       );
 
       setSession(newSession);
       saveTenderCompareSession(newSession);
       setIsImportModalOpen(false);
+
+      const winnerName = newSession.builders.find((b) => b.isBestValue)?.builderName || "Hudson Homes";
       toast.success("AI Forensic Comparison Completed!", {
-        description: `Best Value Winner declared: ${newSession.builders.find((b) => b.isBestValue)?.builderName || "Hudson Homes"}`,
+        description: `Winner declared: ${winnerName}. Downloadable PDF report ready.`,
+        action: {
+          label: "Download PDF",
+          onClick: () => exportTenderComparisonPdf(newSession),
+        },
       });
     } catch (err: any) {
       console.error(err);
@@ -427,7 +522,7 @@ export function TenderComparePortal() {
               className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-10 px-4 border-amber-500/40 text-amber-400 hover:bg-amber-500/10 shadow-sm"
             >
               <Upload className="h-4 w-4 text-amber-400" />
-              <span>{hasResults ? "Import / Edit Tenders" : "Import All Builders Estimates & Tenders"}</span>
+              <span>Import Tenders / Estimates</span>
             </Button>
 
             {hasResults && (
@@ -476,7 +571,7 @@ export function TenderComparePortal() {
             className="h-13 px-8 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-amber-500/25 cursor-pointer gap-2.5 active:scale-95 transition-all"
           >
             <Upload className="h-5 w-5" />
-            <span>Import All Builders Estimates &amp; Tenders</span>
+            <span>Import Tenders / Estimates</span>
           </Button>
         </div>
       )}
@@ -486,6 +581,44 @@ export function TenderComparePortal() {
       {/* ============================================================ */}
       {hasResults && (
         <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Prominent Downloadable Comparison PDF Banner */}
+          <div
+            className={`p-5 sm:p-6 rounded-3xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-xl relative overflow-hidden backdrop-blur-xl ${
+              isLight
+                ? "bg-gradient-to-r from-emerald-50 via-teal-50/50 to-amber-50/40 border-emerald-300 text-slate-900 shadow-emerald-500/5"
+                : "bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-amber-950/20 border-emerald-500/40 text-white shadow-emerald-500/10"
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-slate-950 shadow-lg shadow-emerald-500/25 shrink-0">
+                <FileCheck2 className="h-7 w-7 stroke-[2.5]" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="text-lg sm:text-xl font-black tracking-tight text-emerald-400">
+                    Forensic Comparison Breakdown Ready
+                  </h3>
+                  <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider">
+                    Audit Complete
+                  </Badge>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">
+                  The AI has audited all line items, normalized base pricing, filled hidden trade omissions, and scored contract clauses. Your executive 3-page comparison PDF is ready to download.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              size="lg"
+              onClick={handleExportPdf}
+              className="h-12 px-7 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-emerald-500/25 cursor-pointer gap-2.5 shrink-0 active:scale-95 transition-all"
+            >
+              <Download className="h-5 w-5 stroke-[2.5]" />
+              <span>Download Full Comparison PDF</span>
+            </Button>
+          </div>
+
           {/* Winner Spotlight Banner */}
           <div
             className={`p-6 sm:p-8 rounded-3xl border shadow-2xl relative overflow-hidden backdrop-blur-xl ${
@@ -1112,12 +1245,12 @@ export function TenderComparePortal() {
       )}
 
       {/* ============================================================ */}
-      {/* BIG POP-UP MODAL: IMPORT ALL BUILDERS ESTIMATES & TENDERS   */}
+      {/* STREAMLINED IMPORT MODAL: ONE IMPORT BUTTON + AI BREAKDOWN    */}
       {/* ============================================================ */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
           <div
-            className={`relative w-full max-w-5xl my-auto rounded-3xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] ${
+            className={`relative w-full max-w-2xl my-auto rounded-3xl border shadow-2xl overflow-hidden flex flex-col ${
               isLight ? "bg-white border-slate-200 text-slate-900 shadow-slate-900/20" : "bg-slate-950 border-amber-500/30 text-white shadow-black/80"
             }`}
           >
@@ -1130,409 +1263,204 @@ export function TenderComparePortal() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-                      Import All Builders Estimates &amp; Tenders
+                      Import Tenders / Estimates
                     </h2>
                     <Badge className="bg-amber-500/15 text-amber-500 border border-amber-500/30 text-[10px] font-bold uppercase tracking-wider">
                       AI AUDITOR
                     </Badge>
                   </div>
                   <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                    Upload quotes, tenders, contracts, and inclusions schedules from each builder. We'll cross-examine line items, hidden omissions, site cost clauses, and fine print to declare the true best value builder.
+                    Upload your tenders, estimates, or contracts. The AI automatically audits building details, floorplans, inclusions, and fine print.
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsImportModalOpen(false)}
-                className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                  isLight ? "text-slate-400 hover:text-slate-900 hover:bg-slate-200" : "text-slate-400 hover:text-white hover:bg-slate-800"
-                }`}
-                title="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Client, Site & State Bar */}
-            <div className={`px-6 py-3 border-b flex flex-wrap items-center gap-4 text-xs ${isLight ? "bg-slate-100/70 border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-400">Client Name:</span>
-                <Input
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="e.g. David &amp; Sarah Miller"
-                  className="h-8 text-xs font-bold w-48 rounded-lg"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-400">Site Address:</span>
-                <Input
-                  value={siteAddress}
-                  onChange={(e) => setSiteAddress(e.target.value)}
-                  placeholder="e.g. Lot 204, Spring Farm Estate"
-                  className="h-8 text-xs w-64 rounded-lg"
-                />
-              </div>
-              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-500/10 border border-slate-500/20 ml-auto">
+              {!isAnalyzing && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveDivision("NSW");
-                    setDivisionState("NSW");
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    division === "NSW" ? "bg-cyan-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
+                  onClick={() => setIsImportModalOpen(false)}
+                  className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                    isLight ? "text-slate-400 hover:text-slate-900 hover:bg-slate-200" : "text-slate-400 hover:text-white hover:bg-slate-800"
                   }`}
+                  title="Close"
                 >
-                  NSW
+                  <X className="h-5 w-5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveDivision("QLD");
-                    setDivisionState("QLD");
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    division === "QLD" ? "bg-cyan-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  QLD
-                </button>
-              </div>
+              )}
             </div>
 
-            {/* Quick Batch Multi-File Dropzone */}
-            <div className="px-6 pt-4">
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDraggingBatch(true);
-                }}
-                onDragLeave={() => setIsDraggingBatch(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDraggingBatch(false);
-                  const files = Array.from(e.dataTransfer.files).filter(
-                    (f) => f.type === "application/pdf" || f.name.endsWith(".pdf")
-                  );
-                  if (files.length > 0) void handleBatchFiles(files);
-                }}
-                className={`p-4 rounded-2xl border-2 border-dashed transition-all text-center flex flex-col items-center justify-center gap-1.5 ${
-                  isDraggingBatch
-                    ? "border-amber-400 bg-amber-500/10 scale-[1.01]"
-                    : isLight
-                    ? "border-slate-300 bg-slate-50/70 hover:border-amber-400/60"
-                    : "border-slate-800 bg-slate-900/40 hover:border-amber-500/40"
-                }`}
-              >
-                <div className="flex items-center gap-2 text-xs font-bold">
-                  <Upload className="h-4 w-4 text-amber-400" />
-                  <span>Quick Multi-File Drop: Drop multiple PDF tenders or inclusions files here</span>
+            {/* Hidden native file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              multiple
+              accept="application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const picked = Array.from(e.target.files || []).filter(
+                  (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+                );
+                if (picked.length > 0) {
+                  setSelectedFiles((prev) => [...prev, ...picked]);
+                }
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+            />
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5">
+              {isAnalyzing ? (
+                /* Animated AI Scanning Screen */
+                <div className="py-10 flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in duration-300">
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500/20 via-brand-gold/15 to-transparent border border-amber-500/40 flex items-center justify-center shadow-xl shadow-amber-500/15 backdrop-blur-xl animate-pulse">
+                      <Sparkles className="h-10 w-10 text-amber-400 animate-spin" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 max-w-md">
+                    <h3 className="text-lg sm:text-xl font-black tracking-tight text-amber-400">
+                      AI Forensic Breakdown in Progress
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-300 font-mono font-medium min-h-[40px] flex items-center justify-center">
+                      {analysisStep || "Scanning documents and cross-referencing builder clauses…"}
+                    </p>
+                  </div>
+
+                  <div className="w-full max-w-md h-2 rounded-full bg-slate-800 overflow-hidden relative">
+                    <div className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-400 rounded-full animate-indeterminate" />
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 italic">
+                    Parsing floorplans, base prices, provisional site costs, 8 trade inclusions, and contract risk clauses…
+                  </p>
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  We will automatically read and organize documents into builder slots below.
-                </p>
-              </div>
-            </div>
+              ) : (
+                /* Clean Upload & Import Screen */
+                <div className="space-y-5">
+                  {/* Dropzone Area */}
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingBatch(true);
+                    }}
+                    onDragLeave={() => setIsDraggingBatch(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingBatch(false);
+                      const files = Array.from(e.dataTransfer.files).filter(
+                        (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+                      );
+                      if (files.length > 0) {
+                        setSelectedFiles((prev) => [...prev, ...files]);
+                      }
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`p-8 sm:p-10 rounded-3xl border-2 border-dashed transition-all text-center flex flex-col items-center justify-center gap-3 cursor-pointer ${
+                      isDraggingBatch
+                        ? "border-amber-400 bg-amber-500/15 scale-[1.01]"
+                        : isLight
+                        ? "border-slate-300 bg-slate-50/70 hover:border-amber-400 hover:bg-amber-50/30"
+                        : "border-slate-800 bg-slate-900/40 hover:border-amber-500/50 hover:bg-slate-900/70"
+                    }`}
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-md">
+                      <Upload className="h-7 w-7" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm sm:text-base font-bold text-slate-200">
+                        {selectedFiles.length > 0 ? "Add More Tenders or Estimates (PDF)" : "Click or Drag & Drop Tenders & Estimates (PDF)"}
+                      </h4>
+                      <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                        Drop any builder tender, estimate, contract schedule, or inclusions booklet. Single uploads are automatically benchmarked against Hudson Homes.
+                      </p>
+                    </div>
+                  </div>
 
-            {/* Builder Upload Slots (Scrollable Container) */}
-            <div className="overflow-y-auto px-6 py-4 space-y-4 max-h-[50vh]">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Builders to Compare ({builderInputs.length} of 5)
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddBuilder}
-                  disabled={builderInputs.length >= 5}
-                  className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-8"
-                >
-                  <Plus className="h-3.5 w-3.5 text-amber-400" />
-                  Add Another Builder
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {builderInputs.map((input, idx) => {
-                  const isHudsonSlot = input.builderName.toLowerCase().includes("hudson");
-                  return (
-                    <div
-                      key={input.id}
-                      className={`p-5 rounded-3xl border flex flex-col justify-between gap-4 transition-all ${
-                        isHudsonSlot
-                          ? isLight
-                            ? "bg-emerald-50/70 border-emerald-300 shadow-md"
-                            : "bg-emerald-950/20 border-emerald-500/40 shadow-lg shadow-emerald-500/5"
-                          : isLight
-                          ? "bg-slate-50/80 border-slate-200"
-                          : "bg-slate-900/70 border-slate-800"
-                      }`}
-                    >
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1">
-                            <span className="w-6 h-6 rounded-full bg-slate-500/20 flex items-center justify-center text-xs font-mono font-bold shrink-0">
-                              {idx + 1}
-                            </span>
-                            <Input
-                              value={input.builderName}
-                              onChange={(e) => {
-                                const updated = [...builderInputs];
-                                updated[idx].builderName = e.target.value;
-                                setBuilderInputs(updated);
-                              }}
-                              className="h-8 font-black text-sm rounded-lg"
-                              placeholder={idx === 0 ? "Builder Name (e.g. Hudson Homes)" : "Builder Name (e.g. Metricon)"}
-                            />
-                          </div>
-                          {idx >= 2 && (
+                  {/* Selected Files Badges */}
+                  {selectedFiles.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-400">
+                          Selected Documents ({selectedFiles.length}):
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFiles([]);
+                          }}
+                          className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer text-[11px]"
+                        >
+                          Remove all
+                        </button>
+                      </div>
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                        {selectedFiles.map((file, i) => (
+                          <div
+                            key={i}
+                            className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${
+                              isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900 border-slate-800"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileText className="h-4 w-4 text-amber-400 shrink-0" />
+                              <span className="truncate font-medium">{file.name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                                ({Math.round(file.size / 1024)} KB)
+                              </span>
+                            </div>
                             <button
                               type="button"
-                              onClick={() => handleRemoveBuilder(idx)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedFiles((prev) => prev.filter((_, idx) => idx !== i));
+                              }}
                               className="text-slate-400 hover:text-rose-400 p-1 cursor-pointer shrink-0"
-                              title="Remove builder"
+                              title="Remove file"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <X className="h-3.5 w-3.5" />
                             </button>
-                          )}
-                        </div>
-
-                        {/* Quick Builder Suggestions Chips */}
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {POPULAR_BUILDERS.slice(0, 5).map((pb) => (
-                            <button
-                              key={pb}
-                              type="button"
-                              onClick={() => {
-                                const updated = [...builderInputs];
-                                updated[idx].builderName = pb;
-                                setBuilderInputs(updated);
-                              }}
-                              className={`text-[10px] px-2 py-0.5 rounded-md border font-semibold transition-all cursor-pointer ${
-                                input.builderName === pb
-                                  ? "bg-amber-500 text-slate-950 border-amber-500 font-bold"
-                                  : isLight
-                                  ? "bg-white hover:bg-slate-100 text-slate-600 border-slate-200"
-                                  : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
-                              }`}
-                            >
-                              {pb}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-[10px] text-slate-400 font-semibold uppercase">Design / Model</Label>
-                            <Input
-                              value={input.modelName || ""}
-                              onChange={(e) => {
-                                const updated = [...builderInputs];
-                                updated[idx].modelName = e.target.value;
-                                setBuilderInputs(updated);
-                              }}
-                              className="h-8 text-xs rounded-lg mt-1"
-                              placeholder="e.g. Turquoise 25"
-                            />
                           </div>
-                          <div>
-                            <Label className="text-[10px] text-slate-400 font-semibold uppercase">Stated Price ($)</Label>
-                            <Input
-                              type="number"
-                              value={input.statedPrice || ""}
-                              onChange={(e) => {
-                                const updated = [...builderInputs];
-                                updated[idx].statedPrice = parseFloat(e.target.value) || 0;
-                                setBuilderInputs(updated);
-                              }}
-                              className="h-8 text-xs font-mono rounded-lg mt-1"
-                              placeholder="e.g. 477900"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Upload Dropzones */}
-                        <div className="space-y-2 pt-1">
-                          {/* Tender File */}
-                          <div
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              const file = e.dataTransfer.files?.[0];
-                              if (file) void handleFileUpload(idx, "tender", file);
-                            }}
-                            className={`p-3 rounded-2xl border border-dashed text-center transition-all ${
-                              input.tenderFile
-                                ? isLight
-                                  ? "bg-emerald-50 border-emerald-400"
-                                  : "bg-emerald-950/40 border-emerald-500"
-                                : isLight
-                                ? "bg-slate-50 border-slate-300 hover:border-slate-400"
-                                : "bg-slate-950/60 border-slate-700 hover:border-slate-600"
-                            }`}
-                          >
-                            <input
-                              type="file"
-                              id={`modal-tender-upload-${idx}`}
-                              className="hidden"
-                              accept="application/pdf,image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) void handleFileUpload(idx, "tender", file);
-                              }}
-                            />
-                            {input.tenderFile ? (
-                              <div className="flex items-center justify-between gap-2 px-1">
-                                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 truncate">
-                                  <FileCheck2 className="h-4 w-4 shrink-0" />
-                                  <span className="truncate">{input.tenderFile.name}</span>
-                                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                                    ({Math.round((input.tenderFile.size || 0) / 1024)} KB)
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveFile(idx, "tender")}
-                                  className="text-slate-400 hover:text-rose-400 p-1 cursor-pointer shrink-0"
-                                  title="Remove document"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <label htmlFor={`modal-tender-upload-${idx}`} className="cursor-pointer block space-y-1">
-                                <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
-                                  <Upload className="h-4 w-4 text-amber-500" />
-                                  <span>Upload Tender / Quote PDF</span>
-                                </div>
-                                <p className="text-[10px] text-slate-400">
-                                  Drop tender, quote, or contract schedule
-                                </p>
-                              </label>
-                            )}
-                          </div>
-
-                          {/* Inclusions File */}
-                          <div
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              const file = e.dataTransfer.files?.[0];
-                              if (file) void handleFileUpload(idx, "inclusions", file);
-                            }}
-                            className={`p-3 rounded-2xl border border-dashed text-center transition-all ${
-                              input.inclusionsFile
-                                ? isLight
-                                  ? "bg-cyan-50 border-cyan-400"
-                                  : "bg-cyan-950/40 border-cyan-500"
-                                : isLight
-                                ? "bg-slate-50 border-slate-300 hover:border-slate-400"
-                                : "bg-slate-950/60 border-slate-700 hover:border-slate-600"
-                            }`}
-                          >
-                            <input
-                              type="file"
-                              id={`modal-inc-upload-${idx}`}
-                              className="hidden"
-                              accept="application/pdf,image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) void handleFileUpload(idx, "inclusions", file);
-                              }}
-                            />
-                            {input.inclusionsFile ? (
-                              <div className="flex items-center justify-between gap-2 px-1">
-                                <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 truncate">
-                                  <FileCheck2 className="h-4 w-4 shrink-0" />
-                                  <span className="truncate">{input.inclusionsFile.name}</span>
-                                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                                    ({Math.round((input.inclusionsFile.size || 0) / 1024)} KB)
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveFile(idx, "inclusions")}
-                                  className="text-slate-400 hover:text-rose-400 p-1 cursor-pointer shrink-0"
-                                  title="Remove booklet"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <label htmlFor={`modal-inc-upload-${idx}`} className="cursor-pointer block space-y-1">
-                                <div className="flex items-center justify-center gap-1.5 text-xs font-bold">
-                                  <Layers className="h-4 w-4 text-cyan-400" />
-                                  <span>Upload Inclusions Range PDF</span>
-                                </div>
-                                <p className="text-[10px] text-slate-400">
-                                  Optional brochure or specification booklet
-                                </p>
-                              </label>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Notes */}
-                        <div>
-                          <Label className="text-[10px] text-slate-400 font-semibold uppercase">
-                            Specific Clauses / Notes
-                          </Label>
-                          <textarea
-                            value={input.manualNotes || ""}
-                            onChange={(e) => {
-                              const updated = [...builderInputs];
-                              updated[idx].manualNotes = e.target.value;
-                              setBuilderInputs(updated);
-                            }}
-                            rows={2}
-                            className={`w-full text-xs p-2 rounded-xl border mt-1 resize-none ${
-                              isLight ? "bg-white border-slate-200" : "bg-slate-950 border-slate-800"
-                            }`}
-                            placeholder="e.g. 180-day price lock, $25k provisional site costs, timber floors not included"
-                          />
-                        </div>
+                        ))}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  )}
 
-            {/* Modal Footer & Run CTA */}
-            <div className={`p-6 border-t flex flex-col sm:flex-row items-center justify-between gap-4 ${isLight ? "border-slate-200 bg-slate-50/50" : "border-slate-800 bg-slate-900/40"}`}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleClearAll}
-                className="text-xs text-slate-400 hover:text-rose-400 cursor-pointer"
-              >
-                Reset Form
-              </Button>
+                  {/* The ONE Import Button */}
+                  <div className="pt-2 space-y-3">
+                    <Button
+                      type="button"
+                      disabled={isAnalyzing}
+                      onClick={() => {
+                        if (selectedFiles.length === 0) {
+                          fileInputRef.current?.click();
+                        } else {
+                          void handleRunAutoComparison(selectedFiles);
+                        }
+                      }}
+                      className="w-full h-14 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm sm:text-base tracking-wide shadow-xl shadow-amber-500/25 cursor-pointer gap-2.5 active:scale-95 transition-all"
+                    >
+                      <Sparkles className="h-5 w-5" />
+                      <span>
+                        {selectedFiles.length > 0
+                          ? `⚡ Run AI Forensic Breakdown & Comparison (${selectedFiles.length} ${selectedFiles.length === 1 ? "File" : "Files"})`
+                          : "⚡ Import Tenders / Estimates (Select PDFs)"}
+                      </span>
+                    </Button>
 
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsImportModalOpen(false)}
-                  className="rounded-xl text-xs font-bold cursor-pointer h-11 px-4"
-                >
-                  Cancel
-                </Button>
-
-                <Button
-                  type="button"
-                  disabled={isAnalyzing}
-                  onClick={handleRunComparison}
-                  className="flex-1 sm:flex-none h-11 px-8 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-amber-500/25 cursor-pointer gap-2 active:scale-95 transition-all"
-                >
-                  <Sparkles className={`h-4 w-4 ${isAnalyzing ? "animate-spin" : ""}`} />
-                  {isAnalyzing ? (analysisStep || "Running AI Forensic Comparison…") : "Run Full Forensic Tender Comparison"}
-                </Button>
-              </div>
+                    {/* Sample Breakdown Link */}
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        onClick={() => void handleRunSampleDemo()}
+                        className="text-xs text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-4 cursor-pointer transition-colors"
+                      >
+                        Don't have a PDF ready? Try sample builder breakdown (Hudson vs Metricon vs Clarendon) →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

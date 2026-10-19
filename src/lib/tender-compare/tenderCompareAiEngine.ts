@@ -54,6 +54,7 @@ export async function analyzeBuilderTendersWithAi(
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(6000),
         body: JSON.stringify({
           contents: [
             {
