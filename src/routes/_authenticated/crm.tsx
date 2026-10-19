@@ -7,8 +7,15 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { getActiveStaffUser } from "@/lib/authSession";
+import { canAccessCrm } from "@/lib/access";
 
 export const Route = createFileRoute("/_authenticated/crm")({
+  beforeLoad: () => {
+    const user = getActiveStaffUser();
+    if (!canAccessCrm(user)) {
+      throw redirect({ to: "/hub", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Hudson Horizon CRM | Sales Pipeline & Client Hub" },

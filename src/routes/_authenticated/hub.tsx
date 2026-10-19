@@ -81,6 +81,8 @@ interface PortalCardProps {
   badgeStyle?: string;
   isLight: boolean;
   isComingSoon?: boolean;
+  comingSoonLabel?: string;
+  devBadgeLabel?: string;
   children?: React.ReactNode;
 }
 
@@ -95,6 +97,8 @@ function PortalCard({
   iconBg = "from-amber-500/20 to-yellow-500/10 border-brand-gold/30",
   isLight,
   isComingSoon = false,
+  comingSoonLabel = "Under Development... Coming Soon",
+  devBadgeLabel,
   children,
 }: PortalCardProps) {
   const cardContent = (
@@ -129,21 +133,28 @@ function PortalCard({
               </div>
             )}
 
-            {/* Top-Right Indicator: Coming Soon or Hover Arrow */}
+            {/* Top-Right Indicator: Coming Soon or Dev Badge + Hover Arrow */}
             {isComingSoon ? (
-              <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full border flex items-center gap-1 shadow-xs text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono">
-                <Clock className="h-3 w-3 text-amber-400 shrink-0" />
-                Coming Soon
+              <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full border flex items-center gap-1 shadow-xs text-amber-500 bg-amber-500/15 border-amber-500/35 font-mono">
+                <Clock className="h-3 w-3 text-amber-500 shrink-0" />
+                {comingSoonLabel}
               </span>
             ) : !children ? (
-              <div
-                className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isLight
-                    ? "text-slate-400 group-hover:text-slate-900 group-hover:bg-slate-200/60"
-                    : "text-slate-500 group-hover:text-white group-hover:bg-slate-800/80"
-                }`}
-              >
-                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+              <div className="flex items-center gap-2">
+                {devBadgeLabel && (
+                  <span className="text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full border text-amber-400 bg-amber-500/15 border-amber-500/35 font-mono">
+                    {devBadgeLabel}
+                  </span>
+                )}
+                <div
+                  className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    isLight
+                      ? "text-slate-400 group-hover:text-slate-900 group-hover:bg-slate-200/60"
+                      : "text-slate-500 group-hover:text-white group-hover:bg-slate-800/80"
+                  }`}
+                >
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </div>
               </div>
             ) : null}
           </div>
@@ -154,7 +165,7 @@ function PortalCard({
               className={`text-base sm:text-lg font-extrabold tracking-tight transition-colors duration-200 leading-snug ${
                 isLight
                   ? isComingSoon
-                    ? "text-slate-700"
+                    ? "text-slate-600"
                     : "text-slate-900 group-hover:text-amber-700"
                   : isComingSoon
                   ? "text-slate-300"
@@ -163,6 +174,11 @@ function PortalCard({
             >
               {title}
             </h2>
+            {isComingSoon && (
+              <p className="text-[11px] text-amber-500/80 font-mono mt-1">
+                🔒 Locked — {comingSoonLabel}
+              </p>
+            )}
           </div>
         </div>
 
@@ -213,10 +229,11 @@ function PortalCard({
               ? (e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  toast.info(`${title} is currently Under Development... Coming Soon.`);
                 }
               : undefined
           }
-          className={`${cardClasses} ${isComingSoon ? "cursor-default" : ""}`}
+          className={`${cardClasses} ${isComingSoon ? "cursor-not-allowed" : ""}`}
         >
           {cardContent}
         </div>
@@ -513,20 +530,21 @@ function WelcomeHubPage() {
             isLight={isLight}
           />
 
-          {/* Portal 01b: Tender Compare (Forensic Builder & Contract Auditor) - Strictly restricted to Morgan Hales for fine-tuning */}
-          {isMorgan && (
-            <PortalCard
-              to="/tender-compare"
-              title="Tender Compare"
-              icon={Scale}
-              glowGradient="from-amber-400 via-orange-500 to-yellow-500"
-              lightBeam="from-transparent via-amber-400 to-transparent"
-              innerGlow="from-amber-500/25 to-transparent"
-              iconColor="text-amber-400"
-              iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
-              isLight={isLight}
-            />
-          )}
+          {/* Portal 01b: Tender Compare (Locked for everyone except Morgan Hales as "Under Development... Coming Soon") */}
+          <PortalCard
+            to="/tender-compare"
+            title="Tender Compare"
+            icon={Scale}
+            glowGradient="from-amber-400 via-orange-500 to-yellow-500"
+            lightBeam="from-transparent via-amber-400 to-transparent"
+            innerGlow="from-amber-500/25 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
+            isLight={isLight}
+            isComingSoon={!isMorgan}
+            comingSoonLabel="Under Development... Coming Soon"
+            devBadgeLabel="Morgan Dev Only"
+          />
 
           {/* Portal 02: Floorplan Library (Accessible to all logins) */}
           <PortalCard
@@ -611,20 +629,21 @@ function WelcomeHubPage() {
             isComingSoon={false}
           />
 
-          {/* Portal 06: 3D Studio & Architectural Elevations (Strictly restricted to Morgan Hales until public deployment) */}
-          {canAccess3dStudio(staffUser) && (
-            <PortalCard
-              to="/3d-studio"
-              title="3D Studio & Architectural Elevations"
-              icon={Box}
-              glowGradient="from-amber-500 via-orange-500 to-yellow-400"
-              lightBeam="from-transparent via-amber-400 to-transparent"
-              innerGlow="from-amber-500/25 to-transparent"
-              iconColor="text-amber-400"
-              iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
-              isLight={isLight}
-            />
-          )}
+          {/* Portal 06: 3D Studio & Architectural Elevations (Locked for everyone except Morgan Hales as "Under Development... Coming Soon") */}
+          <PortalCard
+            to="/3d-studio"
+            title="3D Studio & Architectural Elevations"
+            icon={Box}
+            glowGradient="from-amber-500 via-orange-500 to-yellow-400"
+            lightBeam="from-transparent via-amber-400 to-transparent"
+            innerGlow="from-amber-500/25 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
+            isLight={isLight}
+            isComingSoon={!canAccess3dStudio(staffUser)}
+            comingSoonLabel="Under Development... Coming Soon"
+            devBadgeLabel="Morgan Dev Only"
+          />
 
           {/* Portal 07: Submit Your Tender Request (Only accessible by Morgan Hales; Coming Soon for others) */}
           <PortalCard
@@ -638,9 +657,11 @@ function WelcomeHubPage() {
             iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
             isLight={isLight}
             isComingSoon={!isMorgan}
+            comingSoonLabel="Under Development... Coming Soon"
+            devBadgeLabel="Morgan Dev Only"
           />
 
-          {/* Portal 08: Hudson Horizon CRM (Accessible to all Hudson Staff for Shared Team Tasks & Pipeline) */}
+          {/* Portal 08: Hudson Horizon CRM (Locked for everyone except Morgan Hales as "Under Development... Coming Soon") */}
           <PortalCard
             to="/crm"
             title="Hudson Horizon CRM"
@@ -651,6 +672,9 @@ function WelcomeHubPage() {
             iconColor="text-purple-400"
             iconBg="from-purple-500/20 to-fuchsia-500/10 border-purple-500/30"
             isLight={isLight}
+            isComingSoon={!isMorgan}
+            comingSoonLabel="Under Development... Coming Soon"
+            devBadgeLabel="Morgan Dev Only"
           />
         </div>
       </main>
