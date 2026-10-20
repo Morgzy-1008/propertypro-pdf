@@ -127,16 +127,52 @@ export function recordDeletedPkgIds(ids: string[]): void {
 
 export const DB_SYNC_CHANNEL_NAME = "hudson_qld_database_sync";
 
-export function broadcastDatabaseChange(action: string, payload?: unknown): void {
+export const CLIENT_INSTANCE_ID =
+  typeof window !== "undefined"
+    ? Math.random().toString(36).substring(2, 9)
+    : "server";
+
+let broadcastDebounceTimer: any = null;
+const pendingActions = new Set<string>();
+
+export function broadcastDatabaseChange(
+  action: string,
+  payload?: unknown,
+  options?: { immediate?: boolean }
+): void {
   if (typeof window === "undefined") return;
-  try {
-    const channel = new BroadcastChannel(DB_SYNC_CHANNEL_NAME);
-    channel.postMessage({ action, payload, timestamp: Date.now() });
-    channel.close();
-  } catch {}
-  try {
-    window.dispatchEvent(new CustomEvent("hudson_database_change", { detail: { action, payload } }));
-  } catch {}
+  pendingActions.add(action);
+
+  const emit = () => {
+    try {
+      const actionsList = Array.from(pendingActions);
+      pendingActions.clear();
+      const channel = new BroadcastChannel(DB_SYNC_CHANNEL_NAME);
+      channel.postMessage({
+        action: actionsList.join(","),
+        payload,
+        senderId: CLIENT_INSTANCE_ID,
+        timestamp: Date.now(),
+      });
+      channel.close();
+    } catch {}
+    try {
+      window.dispatchEvent(
+        new CustomEvent("hudson_database_change", {
+          detail: { action, payload, senderId: CLIENT_INSTANCE_ID },
+        })
+      );
+    } catch {}
+  };
+
+  if (options?.immediate) {
+    if (broadcastDebounceTimer) clearTimeout(broadcastDebounceTimer);
+    emit();
+    return;
+  }
+
+  if (broadcastDebounceTimer) clearTimeout(broadcastDebounceTimer);
+  broadcastDebounceTimer = setTimeout(emit, 250);
 }
 
 export function getLotState(lot: { state?: "QLD" | "NSW"; suburb?: string | null; address?: string | null; estate?: string | null }): "QLD" | "NSW" {
@@ -562,11 +598,11 @@ export function getLocalLots(): Lot[] {
   const cleanSeed = seed.lots.filter((l) => !deletedIds.has(l.id));
   const { lots: finalSeedLots } = autoArchiveStaleLots(cleanSeed);
   inMemoryLots = finalSeedLots;
-  saveLocalLots(finalSeedLots);
+  saveLocalLots(finalSeedLots, { silent: true });
   return finalSeedLots;
 }
 
-export function saveLocalLots(lots: Lot[]): void {
+export function saveLocalLots(lots: Lot[], options?: { silent?: boolean }): void {
   const deletedIds = getDeletedLotIds();
   const cleanLots = lots
     .filter((l) => l && l.id && !deletedIds.has(l.id))
@@ -583,7 +619,9 @@ export function saveLocalLots(lots: Lot[]): void {
   } catch (e) {
     console.warn("[databaseStorage] saveLocalLots write notice:", e);
   }
-  broadcastDatabaseChange("lots_updated", { count: cleanLots.length });
+  if (!options?.silent) {
+    broadcastDatabaseChange("lots_updated", { count: cleanLots.length });
+  }
 }
 
 export function getLocalPackages(): Pkg[] {
@@ -638,11 +676,11 @@ export function getLocalPackages(): Pkg[] {
   const cleanSeed = seed.packages.filter((p) => !deletedIds.has(p.id));
   const { packages: finalSeedPkgs } = autoArchiveStalePackages(cleanSeed);
   inMemoryPackages = finalSeedPkgs;
-  saveLocalPackages(finalSeedPkgs);
+  saveLocalPackages(finalSeedPkgs, { silent: true });
   return finalSeedPkgs;
 }
 
-export function saveLocalPackages(packages: Pkg[]): void {
+export function saveLocalPackages(packages: Pkg[], options?: { silent?: boolean }): void {
   const deletedIds = getDeletedPkgIds();
   const cleanPackages = packages
     .filter((p) => p && p.id && !deletedIds.has(p.id))
@@ -656,7 +694,9 @@ export function saveLocalPackages(packages: Pkg[]): void {
   } catch (e) {
     console.warn("[databaseStorage] saveLocalPackages storage notice (in-memory preserved):", e);
   }
-  broadcastDatabaseChange("packages_updated", { count: cleanPackages.length });
+  if (!options?.silent) {
+    broadcastDatabaseChange("packages_updated", { count: cleanPackages.length });
+  }
 }
 
 export function upsertLocalLot(lot: Lot): Lot[] {

@@ -726,6 +726,24 @@ export const HUDSON_DIMENSIONS_REGISTRY: Record<string, HudsonDimensionRecord> =
     "totalM2": 293.23,
     "cars": 2
   },
+  "Eton 15": {
+    "label": "Eton 15",
+    "design": "Eton",
+    "width": 8.5,
+    "length": 18.9,
+    "minLotWidth": 10.0,
+    "totalM2": 143.23,
+    "cars": 1
+  },
+  "Eton 17": {
+    "label": "Eton 17",
+    "design": "Eton",
+    "width": 8.5,
+    "length": 20.8,
+    "minLotWidth": 10.0,
+    "totalM2": 159.49,
+    "cars": 1
+  },
   "Emerald 28": {
     "label": "Emerald 28",
     "design": "Emerald",

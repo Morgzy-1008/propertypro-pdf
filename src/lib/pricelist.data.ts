@@ -321,6 +321,24 @@ export const SINGLE_STOREY_PRICES: PriceRow[] = [
     h3: 534900
   },
   {
+    name: "Eton 15",
+    m2: 143.23,
+    hbs: 238900,
+    ss: 269900,
+    h1: 292900,
+    h2: 320900,
+    h3: 353900,
+  },
+  {
+    name: "Eton 17",
+    m2: 159.49,
+    hbs: 247900,
+    ss: 278900,
+    h1: 301900,
+    h2: 329900,
+    h3: 362900,
+  },
+  {
     name: "Hazel 14 (s/g)",
     m2: 125.8,
     hbs: 234900,

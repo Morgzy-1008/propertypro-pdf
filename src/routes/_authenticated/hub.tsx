@@ -38,6 +38,7 @@ import { ProfileSwitcherModal } from "@/components/auth/ProfileSwitcherModal";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
 import { canAccessFloorplanEditor, isMorganHales, canAccess3dStudio } from "@/lib/access";
 import { HubAiAssistant } from "@/components/hub/HubAiAssistant";
+import { InstallDesktopAppButton } from "@/components/common/InstallDesktopAppButton";
 import { isLocalhost } from "@/lib/isLocalhost";
 
 export const Route = createFileRoute("/_authenticated/hub")({
@@ -416,6 +417,9 @@ function WelcomeHubPage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* Install Windows Desktop App Button */}
+            <InstallDesktopAppButton isLight={isLight} />
+
             <ThemeToggle />
 
             {/* NHC Active Profile Pill (with Website Admin button for Admins) */}

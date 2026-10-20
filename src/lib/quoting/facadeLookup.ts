@@ -41,7 +41,8 @@ export function isSingleGarageDesign(designName?: string, housingType?: string):
     lower.startsWith("hazel") ||
     lower.startsWith("canary") ||
     lower.startsWith("indigo") ||
-    lower.startsWith("iris")
+    lower.startsWith("iris") ||
+    lower.startsWith("eton")
   ) {
     return true;
   }

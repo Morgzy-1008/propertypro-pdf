@@ -2,6 +2,35 @@ import { HudsonDesignPreset } from "@/components/site-studio/siteStudioTypes";
 
 export const HUDSON_DESIGNS_CATALOG: HudsonDesignPreset[] = [
   {
+    id: "eton-15",
+    name: "Eton 15 (Single Garage)",
+    category: "single-storey",
+    bedrooms: 3,
+    bathrooms: 2,
+    cars: 1,
+    totalM2: 143.23,
+    widthM: 8.50,
+    lengthM: 18.90,
+    minLotFrontageM: 10.0,
+    garageSide: "left",
+    hasBtbOption: true,
+  },
+  {
+    id: "eton-17",
+    name: "Eton 17 (Single Garage)",
+    category: "single-storey",
+    bedrooms: 3,
+    bathrooms: 2,
+    cars: 1,
+    totalM2: 159.49,
+    widthM: 8.50,
+    lengthM: 20.80,
+    minLotFrontageM: 10.0,
+    garageSide: "right",
+    hasBtbOption: true,
+  },
+
+  {
     id: "amber-21",
     name: "Amber 21",
     category: "single-storey",

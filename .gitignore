@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dev-dist
 .output
 .vinxi
 .tanstack/**
@@ -39,8 +40,10 @@ dist-ssr
 *.png
 *.jpg
 !public/facades/*
+!public/floorplans/*
 !public/assets/*
 !public/brand/*
+!public/pwa-*.png
 !public/extracted_pdf_image.jpg
 *.pdf
 *.traineddata

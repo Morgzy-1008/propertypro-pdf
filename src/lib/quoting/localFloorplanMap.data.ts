@@ -73,6 +73,8 @@ export const LOCAL_FLOORPLAN_MAP: Record<string, string> = {
   "crimson 33": "/floorplans/CRIMSON 33.png",
   "ebony 24": "/floorplans/EBONY 24.png",
   "ebony 27": "/floorplans/EBONY 27.png",
+    "eton 15": "/floorplans/ETON 15.png",
+  "eton 17": "/floorplans/ETON 17.png",
   "ebony 29": "/floorplans/EBONY 29_CLASSIC_BROCHURE_RH_17.01.18.png",
   "ebony 29 classic brochure rh 17 01 18": "/floorplans/EBONY 29_CLASSIC_BROCHURE_RH_17.01.18.png",
   "ebony 32": "/floorplans/EBONY 32.png",

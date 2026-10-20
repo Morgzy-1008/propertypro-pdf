@@ -27,6 +27,8 @@ export const SPECIAL_LOCAL_FLOORPLANS: Record<string, string> = {
   "carolina 29": "/floorplans/CAROLINA 29_CLASSIC_RH_15.05.2023.png",
   "cayenne 42": "/floorplans/CAYENNE 42_CLASSIC_BROCHURE_02.05.25.png",
   "cayenne 47": "/floorplans/CAYENNE 47_CLASSIC_BROCHURE_02.05.25.png",
+    "eton 15": "/floorplans/ETON 15.png",
+  "eton 17": "/floorplans/ETON 17.png",
   "ebony 29": "/floorplans/EBONY 29_CLASSIC_BROCHURE_RH_17.01.18.png",
   "lime 19": "/floorplans/LIME 19_CLASSIC_RH_02.05.2023.png",
   "lime 21": "/floorplans/LIME 21_CLASSIC_RH_02.05.2023.png",

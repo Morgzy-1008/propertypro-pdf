@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
+import { VitePWA } from "vite-plugin-pwa";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -512,6 +513,96 @@ export default defineConfig({
     react(),
     apiDevPlugin(),
     versionPlugin(),
+    VitePWA({
+      registerType: "autoUpdate",
+      injectRegister: "auto",
+      devOptions: {
+        enabled: true,
+      },
+      manifest: {
+        name: "Hudson Homes Digital Builder OS",
+        short_name: "Hudson OS",
+        description: "Hudson Homes Estimating, Quoting, Floorplans & Tender Compare OS",
+        theme_color: "#0f172a",
+        background_color: "#0f172a",
+        display: "standalone",
+        start_url: "/",
+        scope: "/",
+        icons: [
+          {
+            src: "/pwa-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+          {
+            src: "/pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+        ],
+      },
+      workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,json,woff2}"],
+        navigateFallbackDenylist: [/^\/api\//, /^\/version\.json/],
+        runtimeCaching: [
+          // 1. STRICT EXCLUSION (NetworkOnly): AI endpoints, serverless /api/* routes, and external scraping
+          {
+            urlPattern: ({ url, request }) =>
+              request.method === "POST" ||
+              url.pathname.startsWith("/api/") ||
+              url.hostname.includes("generativelanguage.googleapis.com") ||
+              url.hostname.includes("openai.com") ||
+              url.hostname.includes("anthropic.com") ||
+              url.hostname.includes("supabase.co"),
+            handler: "NetworkOnly",
+          },
+          // 2. Heavy Media & Floorplans (CacheFirst - 30 days)
+          {
+            urlPattern: ({ request, url }) =>
+              request.destination === "image" ||
+              request.destination === "font" ||
+              /\.(?:png|jpg|jpeg|svg|webp|woff2|ico)$/i.test(url.pathname) ||
+              url.pathname.startsWith("/facades/") ||
+              url.pathname.startsWith("/floorplans/") ||
+              url.pathname.startsWith("/floorplans_master/") ||
+              url.pathname.endsWith(".pdf"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "hudson-media-cache-v1",
+              expiration: {
+                maxEntries: 600,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          // 3. App Data / Specs (StaleWhileRevalidate)
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.endsWith(".json") && !url.pathname.includes("version.json"),
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "hudson-data-cache-v1",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
+      },
+    }),
   ],
   optimizeDeps: {
     include: ["pdfjs-dist", "tesseract.js"],
