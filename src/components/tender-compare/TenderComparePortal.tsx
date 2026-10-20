@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "@/lib/theme";
@@ -43,7 +42,6 @@ import {
   loadActiveTenderCompareSession,
   saveTenderCompareSession,
   createInitialEmptySession,
-  createInitialSampleSession,
   clearActiveTenderCompareSession,
 } from "@/lib/tender-compare/tenderCompareStorage";
 import { analyzeBuilderTendersWithAi } from "@/lib/tender-compare/tenderCompareAiEngine";
@@ -340,42 +338,6 @@ export function TenderComparePortal() {
     }
   };
 
-  const handleLoadFullForensicSample = async () => {
-    setIsAnalyzing(true);
-    setAnalysisProgress(15);
-    setAnalysisStep("Scanning Hudson Homes (Turquoise 25), Metricon (Merricks 26) & Clarendon (Boston 25) tenders...");
-
-    try {
-      await new Promise((r) => setTimeout(r, 350));
-      setAnalysisProgress(45);
-      setAnalysisStep("Auditing builder websites, active promotions, inclusion tiers & fine print traps...");
-      await new Promise((r) => setTimeout(r, 350));
-      setAnalysisProgress(75);
-      setAnalysisStep("Comparing floorplan room dimensions, 32 trade inclusions, contract clauses & build times...");
-      await new Promise((r) => setTimeout(r, 350));
-      setAnalysisProgress(100);
-
-      const sampleSession = createInitialSampleSession(division);
-      if (clientName) sampleSession.clientName = clientName;
-      else setClientName(sampleSession.clientName);
-
-      if (siteAddress) sampleSession.siteAddress = siteAddress;
-      else setSiteAddress(sampleSession.siteAddress);
-
-      setSession(sampleSession);
-      saveTenderCompareSession(sampleSession);
-      setActiveTab("overview");
-
-      toast.success("3-Builder Deep Forensic Comparison Loaded!", {
-        description: "Inspect the Why Winner Wins breakdown, Room Dimensions, Promo Fine Print, and 32-Point Audit.",
-      });
-    } finally {
-      setIsAnalyzing(false);
-      setAnalysisStep("");
-      setAnalysisProgress(0);
-    }
-  };
-
   const handleExportPdf = () => {
     if (!hasResults) return;
     const syncedSession: TenderComparisonSession = {
@@ -488,26 +450,8 @@ export function TenderComparePortal() {
               </div>
             </div>
 
-            {/* Client & Address Info */}
-            <div className="flex items-center gap-4 flex-wrap pt-2">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="font-semibold text-slate-400">Client:</span>
-                <Input
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="h-8 text-xs font-bold w-48 rounded-lg"
-                  placeholder="Client name"
-                />
-              </div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="font-semibold text-slate-400">Site:</span>
-                <Input
-                  value={siteAddress}
-                  onChange={(e) => setSiteAddress(e.target.value)}
-                  className="h-8 text-xs w-72 rounded-lg"
-                  placeholder="Site address"
-                />
-              </div>
+            {/* Division Switcher & Auto-detected Client Info */}
+            <div className="flex items-center gap-3 flex-wrap pt-2">
               <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-500/10 border border-slate-500/20">
                 <button
                   type="button"
@@ -515,7 +459,7 @@ export function TenderComparePortal() {
                     setActiveDivision("NSW");
                     setDivisionState("NSW");
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     division === "NSW" ? "bg-cyan-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
                   }`}
                 >
@@ -527,13 +471,27 @@ export function TenderComparePortal() {
                     setActiveDivision("QLD");
                     setDivisionState("QLD");
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     division === "QLD" ? "bg-cyan-500 text-white shadow-xs" : "text-slate-400 hover:text-white"
                   }`}
                 >
                   QLD
                 </button>
               </div>
+
+              {(clientName || session.clientName) && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-800/60 border border-slate-700 text-xs font-mono text-slate-300">
+                  <span className="text-slate-500 font-sans uppercase text-[10px] font-bold">Client:</span>
+                  <span className="text-amber-400 font-semibold">{clientName || session.clientName}</span>
+                </div>
+              )}
+
+              {(siteAddress || session.siteAddress) && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-800/60 border border-slate-700 text-xs font-mono text-slate-300 max-w-sm truncate">
+                  <span className="text-slate-500 font-sans uppercase text-[10px] font-bold">Site:</span>
+                  <span className="text-cyan-400 font-semibold truncate">{siteAddress || session.siteAddress}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -545,7 +503,7 @@ export function TenderComparePortal() {
                 variant="outline"
                 size="sm"
                 onClick={handleClearAll}
-                className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-10 px-3.5 text-slate-400 hover:text-rose-400"
+                className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-10 px-3.5 text-slate-400 hover:text-rose-400 border-slate-800 hover:border-rose-500/40"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 Clear
@@ -554,13 +512,12 @@ export function TenderComparePortal() {
 
             <Button
               type="button"
-              variant="outline"
               size="sm"
               onClick={handleTriggerDirectFolderImport}
               disabled={isAnalyzing}
-              className="rounded-xl text-xs font-bold gap-1.5 cursor-pointer h-10 px-4 border-amber-500/40 text-amber-400 hover:bg-amber-500/10 shadow-sm"
+              className="rounded-xl text-xs font-black gap-2 cursor-pointer h-10 px-4.5 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
             >
-              <Upload className="h-4 w-4 text-amber-400" />
+              <Upload className="h-4 w-4 text-slate-950 stroke-[2.5]" />
               <span>Import Tenders / Estimates</span>
             </Button>
 
@@ -581,7 +538,7 @@ export function TenderComparePortal() {
                   type="button"
                   size="sm"
                   onClick={handleExportPdf}
-                  className="rounded-xl text-xs font-bold gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black cursor-pointer shadow-lg shadow-emerald-500/20 h-10 px-4"
+                  className="rounded-xl text-xs font-black gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 cursor-pointer shadow-lg shadow-emerald-500/20 h-10 px-4"
                 >
                   <Download className="h-4 w-4" />
                   Download Clean PDF Report
@@ -627,48 +584,84 @@ export function TenderComparePortal() {
       {/* ============================================================ */}
       {!hasResults && !isAnalyzing && (
         <div
-          className={`p-10 sm:p-14 rounded-3xl border-2 border-dashed text-center max-w-4xl mx-auto flex flex-col items-center justify-center space-y-6 shadow-xl backdrop-blur-xl transition-all ${
+          className={`p-10 sm:p-14 rounded-3xl border-2 border-dashed text-center max-w-4xl mx-auto flex flex-col items-center justify-center space-y-7 shadow-2xl backdrop-blur-xl transition-all relative overflow-hidden ${
             isDraggingOverPage
               ? "border-amber-400 bg-amber-500/10 scale-[1.01]"
               : isLight
-                ? "bg-white/85 border-slate-300 text-slate-900"
-                : "bg-slate-950/70 border-slate-800 text-white"
+                ? "bg-white/90 border-slate-300 text-slate-900 shadow-slate-200/50"
+                : "bg-slate-950/80 border-slate-800/80 text-white shadow-black/60"
           }`}
         >
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500/20 via-brand-gold/15 to-transparent border border-amber-500/30 flex items-center justify-center shadow-xl shadow-amber-500/10">
+          {/* Ambient radial lighting */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500/25 via-brand-gold/15 to-transparent border border-amber-500/40 flex items-center justify-center shadow-xl shadow-amber-500/15">
             <Scale className="h-10 w-10 text-amber-400 stroke-[2.2]" />
           </div>
 
-          <div className="space-y-2 max-w-2xl">
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Deep Forensic Builder Tender &amp; Design Comparison
+          <div className="relative z-10 space-y-3 max-w-2xl">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              Forensic Builder Tender &amp; Estimate Auditor
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Click <strong>Import Tenders / Estimates</strong> below to open your folder and select builder PDFs directly (or drag and drop files anywhere on this card). We scan the entire estimate, cross-check the builder's website promotions &amp; standard inclusions, compare floorplan sizes (m²) &amp; bedroom/living dimensions, audit 32 trade inclusions &amp; contract clauses, and review online reputation &amp; build times.
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Import estimates, tenders, or inclusion schedules from any builder (Hudson, Metricon, Clarendon, Rawson, Eden Brae, Coral, Brighton, Wisdom &amp; more). Our forensic engine extracts every line item, uncovers hidden omissions, compares floorplan room dimensions, and normalizes true turnkey costs.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+          {/* Prominent Import CTA */}
+          <div className="relative z-10 pt-1">
             <Button
               type="button"
               size="lg"
               onClick={handleTriggerDirectFolderImport}
-              className="h-13 px-8 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-amber-500/25 cursor-pointer gap-2.5 active:scale-95 transition-all"
+              className="h-14 px-9 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm tracking-wide shadow-xl shadow-amber-500/30 cursor-pointer gap-3 active:scale-95 hover:scale-[1.02] transition-all"
             >
-              <Upload className="h-5 w-5" />
-              <span>Import Tenders / Estimates (Open Folder)</span>
+              <Upload className="h-5 w-5 stroke-[2.5]" />
+              <span>Import Tenders / Estimates (Select PDFs)</span>
             </Button>
+          </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              onClick={() => void handleLoadFullForensicSample()}
-              className="h-13 px-6 rounded-2xl border-slate-700 text-xs sm:text-sm font-bold cursor-pointer gap-2 hover:border-amber-500/50 hover:text-amber-400"
-            >
-              <Sparkles className="h-4 w-4 text-amber-400" />
-              <span>Load 3-Builder Forensic Audit Demo (Hudson vs Metricon vs Clarendon)</span>
-            </Button>
+          {/* 4 Feature capability cards */}
+          <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full pt-4 text-left">
+            <div className={`p-4 rounded-2xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800/80"}`}>
+              <div className="flex items-center gap-2 font-bold text-amber-400 text-xs mb-1">
+                <DollarSign className="h-4 w-4" />
+                <span>Turnkey Normalization</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Apples-to-apples cost adjustments for unincluded finishes &amp; provisional site caps.
+              </p>
+            </div>
+
+            <div className={`p-4 rounded-2xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800/80"}`}>
+              <div className="flex items-center gap-2 font-bold text-purple-400 text-xs mb-1">
+                <Layers className="h-4 w-4" />
+                <span>32-Point Inclusions Matrix</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Trade-by-trade breakdown of appliances, ceiling heights, ducted air &amp; structural slabs.
+              </p>
+            </div>
+
+            <div className={`p-4 rounded-2xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800/80"}`}>
+              <div className="flex items-center gap-2 font-bold text-cyan-400 text-xs mb-1">
+                <Home className="h-4 w-4" />
+                <span>Floorplan &amp; Room Sizes</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Total m² area, bedroom sizes, alfresco dimensions, and living zone comparisons.
+              </p>
+            </div>
+
+            <div className={`p-4 rounded-2xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800/80"}`}>
+              <div className="flex items-center gap-2 font-bold text-rose-400 text-xs mb-1">
+                <ShieldAlert className="h-4 w-4" />
+                <span>Contract &amp; Risk Clauses</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Price lock freeze duration, piering allowances, rock clauses &amp; post-contract markup.
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -682,15 +675,19 @@ export function TenderComparePortal() {
           <div
             className={`p-6 sm:p-8 rounded-3xl border shadow-2xl relative overflow-hidden backdrop-blur-xl ${
               isLight
-                ? "bg-gradient-to-br from-emerald-50 via-white to-amber-50/50 border-emerald-300 text-slate-900"
-                : "bg-gradient-to-br from-emerald-950/35 via-slate-950/90 to-amber-950/25 border-emerald-500/40 text-white"
+                ? "bg-gradient-to-br from-emerald-50 via-white to-amber-50/50 border-emerald-300 text-slate-900 shadow-emerald-500/10"
+                : "bg-gradient-to-br from-emerald-950/40 via-slate-950/95 to-slate-900/80 border-emerald-500/40 text-white shadow-emerald-950/40"
             }`}
           >
+            {/* Ambient radiant backdrops */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
             <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10">
               <div className="space-y-3 max-w-4xl">
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <div className="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md">
-                    <Award className="h-4 w-4" />
+                  <div className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-md shadow-amber-500/20">
+                    <Award className="h-4 w-4 stroke-[2.5]" />
                     <span>EXECUTIVE VALUE VERDICT: BEST OVERALL VALUE WINNER</span>
                   </div>
                   <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-mono font-bold">
@@ -702,10 +699,9 @@ export function TenderComparePortal() {
                 </div>
 
                 <div>
-                  <h2 className="text-2xl sm:text-4xl font-black tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white">
                     {winningBuilder?.builderName}
-                    <span className="text-amber-500 font-bold text-xl sm:text-3xl">
-                      {" "}
+                    <span className="text-amber-400 font-bold text-xl sm:text-2xl lg:text-3xl ml-2">
                       — {winningBuilder?.modelName} ({winningBuilder?.totalAreaM2} m² / {winningBuilder?.totalAreaSquares} sq)
                     </span>
                   </h2>
@@ -719,7 +715,7 @@ export function TenderComparePortal() {
                   {(winningBuilder?.keyAdvantages || []).map((adv, i) => (
                     <div
                       key={i}
-                      className="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5"
+                      className="px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-xs"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5 flex-none text-emerald-400" />
                       <span>{adv}</span>
@@ -730,8 +726,8 @@ export function TenderComparePortal() {
 
               {/* Right Callout Card + PDF Actions */}
               <div
-                className={`p-5 rounded-2xl border flex flex-col justify-between gap-4 xl:min-w-[330px] ${
-                  isLight ? "bg-white/90 border-emerald-200 shadow-sm" : "bg-slate-900/90 border-slate-800"
+                className={`p-5.5 rounded-2xl border flex flex-col justify-between gap-4 xl:min-w-[340px] ${
+                  isLight ? "bg-white/95 border-emerald-200 shadow-md" : "bg-slate-900/90 border-slate-800 shadow-xl"
                 }`}
               >
                 <div className="flex items-center justify-between gap-4">
@@ -739,17 +735,16 @@ export function TenderComparePortal() {
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
                       True Turnkey Completion Cost
                     </span>
-                    <span className="text-3xl font-mono font-black text-emerald-400 block mt-0.5">
+                    <span className="text-3xl sm:text-4xl font-mono font-black text-emerald-400 block mt-1 tracking-tight">
                       ${winningBuilder?.normalizedTruePrice.toLocaleString()}
                     </span>
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      ${winningBuilder?.normalizedPricePerM2.toLocaleString()}/m² • Build Time:{" "}
-                      {winningBuilder?.reputation.averageBuildTimeMonths}m
+                    <span className="text-[11px] text-slate-400 font-mono block mt-1">
+                      ${winningBuilder?.normalizedPricePerM2.toLocaleString()}/m² • {winningBuilder?.reputation.averageBuildTimeMonths}m Build Time
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Omissions</span>
-                    <span className="text-sm font-mono font-black text-emerald-400">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Omissions Cost</span>
+                    <span className="text-sm font-mono font-black text-emerald-400 block mt-0.5">
                       {winningBuilder?.omissionsCost === 0
                         ? "$0 (Turnkey)"
                         : `+$${winningBuilder?.omissionsCost.toLocaleString()}`}
@@ -760,7 +755,7 @@ export function TenderComparePortal() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                <div className="flex items-center gap-2 pt-3 border-t border-slate-800/80">
                   <Button
                     type="button"
                     variant="outline"
@@ -775,7 +770,7 @@ export function TenderComparePortal() {
                     type="button"
                     size="sm"
                     onClick={handleExportPdf}
-                    className="flex-1 h-10 rounded-xl text-xs font-black gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 hover:from-emerald-400 hover:to-teal-300 cursor-pointer shadow-md"
+                    className="flex-1 h-10 rounded-xl text-xs font-black gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 hover:from-emerald-400 hover:to-teal-300 cursor-pointer shadow-lg shadow-emerald-500/20"
                   >
                     <Download className="h-4 w-4" />
                     Download PDF
@@ -787,33 +782,54 @@ export function TenderComparePortal() {
 
           {/* Navigation Tabs Across All 7 Forensic Views */}
           <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="space-y-6">
-            <TabsList className="bg-slate-900/70 border border-slate-800 p-1.5 rounded-2xl flex flex-wrap gap-1 h-auto">
-              <TabsTrigger value="overview" className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3">
-                <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-                1. Verdict &amp; Why Winner Wins
+            <TabsList className="bg-slate-900/80 border border-slate-800/80 p-1.5 rounded-2xl flex flex-wrap gap-1.5 h-auto backdrop-blur-md">
+              <TabsTrigger
+                value="overview"
+                className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3.5 data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 transition-all cursor-pointer"
+              >
+                <DollarSign className="h-3.5 w-3.5" />
+                1. Executive Verdict
               </TabsTrigger>
-              <TabsTrigger value="design_rooms" className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3">
-                <Home className="h-3.5 w-3.5 text-cyan-400" />
-                2. Design, Size (m²) &amp; Room Sizes
+              <TabsTrigger
+                value="design_rooms"
+                className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3.5 data-[state=active]:bg-cyan-500 data-[state=active]:text-slate-950 transition-all cursor-pointer"
+              >
+                <Home className="h-3.5 w-3.5" />
+                2. Design &amp; Room Sizes
               </TabsTrigger>
-              <TabsTrigger value="promotions" className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3">
-                <Globe className="h-3.5 w-3.5 text-amber-400" />
-                3. Website Promotions &amp; Fine Print
+              <TabsTrigger
+                value="promotions"
+                className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3.5 data-[state=active]:bg-purple-500 data-[state=active]:text-white transition-all cursor-pointer"
+              >
+                <Globe className="h-3.5 w-3.5" />
+                3. Promo &amp; Fine Print
               </TabsTrigger>
-              <TabsTrigger value="inclusions" className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3">
-                <Layers className="h-3.5 w-3.5 text-purple-400" />
-                4. 32-Point Inclusions Matrix
+              <TabsTrigger
+                value="inclusions"
+                className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3.5 data-[state=active]:bg-emerald-500 data-[state=active]:text-slate-950 transition-all cursor-pointer"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                4. 32-Point Inclusions
               </TabsTrigger>
-              <TabsTrigger value="fine_print" className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3">
-                <ShieldAlert className="h-3.5 w-3.5 text-rose-400" />
-                5. Contract Clauses &amp; Builder Concerns
+              <TabsTrigger
+                value="fine_print"
+                className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3.5 data-[state=active]:bg-rose-500 data-[state=active]:text-white transition-all cursor-pointer"
+              >
+                <ShieldAlert className="h-3.5 w-3.5" />
+                5. Contract Clauses &amp; Risk
               </TabsTrigger>
-              <TabsTrigger value="reputation" className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3">
-                <Star className="h-3.5 w-3.5 text-yellow-400" />
+              <TabsTrigger
+                value="reputation"
+                className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3.5 data-[state=active]:bg-yellow-500 data-[state=active]:text-slate-950 transition-all cursor-pointer"
+              >
+                <Star className="h-3.5 w-3.5" />
                 6. Reviews &amp; Build Times
               </TabsTrigger>
-              <TabsTrigger value="full_table" className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3">
-                <FileSpreadsheet className="h-3.5 w-3.5 text-teal-400" />
+              <TabsTrigger
+                value="full_table"
+                className="rounded-xl text-xs font-bold gap-1.5 py-2 px-3.5 data-[state=active]:bg-teal-500 data-[state=active]:text-slate-950 transition-all cursor-pointer"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
                 7. Master Sheet
               </TabsTrigger>
             </TabsList>
@@ -834,10 +850,10 @@ export function TenderComparePortal() {
                         isWinner
                           ? isLight
                             ? "bg-emerald-50/70 border-emerald-400 shadow-xl"
-                            : "bg-emerald-950/25 border-emerald-500/50 shadow-2xl shadow-emerald-500/10"
+                            : "bg-gradient-to-b from-emerald-950/30 via-slate-900/90 to-slate-950 border-2 border-emerald-500/60 shadow-2xl shadow-emerald-500/10 ring-1 ring-emerald-500/30"
                           : isLight
                             ? "bg-white border-slate-200"
-                            : "bg-slate-900/75 border-slate-800"
+                            : "bg-slate-900/65 border-slate-800/80 shadow-lg hover:border-slate-700/80"
                       }`}
                     >
                       <div className="space-y-4">
@@ -846,12 +862,12 @@ export function TenderComparePortal() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="text-xl font-black">{builder.builderName}</h3>
                               {isWinner ? (
-                                <Badge className="bg-emerald-500 text-slate-950 font-black text-[10px]">
-                                  BEST VALUE WINNER
+                                <Badge className="bg-emerald-500 text-slate-950 font-black text-[10px] tracking-wide shadow-sm shadow-emerald-500/30">
+                                  👑 BEST VALUE WINNER
                                 </Badge>
                               ) : (
-                                <Badge className="bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold text-[10px]">
-                                  +${diffFromWinner.toLocaleString()} True Cost
+                                <Badge className="bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold text-[10px]">
+                                  +{diffFromWinner > 0 ? `$${diffFromWinner.toLocaleString()}` : "$0"} True Cost
                                 </Badge>
                               )}
                             </div>
@@ -916,13 +932,13 @@ export function TenderComparePortal() {
 
                           <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-sm">
                             <span className="text-slate-300 font-sans font-semibold">Stated Tender Total:</span>
-                            <span className="font-black">
+                            <span className="font-black text-white">
                               ${builder.statedTotalPrice.toLocaleString()} (${builder.statedPricePerM2}/m²)
                             </span>
                           </div>
 
                           {/* Normalization Adjustments */}
-                          <div className="pt-2.5 space-y-1.5 bg-slate-500/10 p-3 rounded-2xl">
+                          <div className="pt-2.5 space-y-1.5 bg-slate-500/10 p-3 rounded-2xl border border-slate-500/15">
                             <span className="text-[10px] text-amber-400 font-sans font-bold uppercase tracking-wider block">
                               Apples-to-Apples Turnkey Normalization:
                             </span>
@@ -980,7 +996,7 @@ export function TenderComparePortal() {
                       {/* Card Bottom Total */}
                       <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase block">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase block tracking-wider">
                             True Turnkey Completion Cost
                           </span>
                           <span className="text-xs text-slate-400 font-mono">
@@ -988,7 +1004,7 @@ export function TenderComparePortal() {
                           </span>
                         </div>
                         <span
-                          className={`text-2xl font-mono font-black ${
+                          className={`text-2xl sm:text-3xl font-mono font-black tracking-tight ${
                             isWinner ? "text-emerald-400" : "text-rose-400"
                           }`}
                         >
@@ -1349,33 +1365,33 @@ export function TenderComparePortal() {
                           return (
                             <td key={b.id} className="py-3.5 px-4 align-top">
                               {item.status === "included" ? (
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                                    <Check className="h-4 w-4 stroke-[3]" />
+                                <div className="space-y-1.5">
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-[11px] shadow-xs">
+                                    <Check className="h-3.5 w-3.5 stroke-[3]" />
                                     <span>INCLUDED ($0 Extra)</span>
                                   </div>
                                   <p className="text-[11px] text-slate-300 leading-snug">{item.specification}</p>
                                 </div>
                               ) : item.status === "provisional_sum" ? (
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1.5 text-amber-400 font-bold">
+                                <div className="space-y-1.5">
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold text-[11px] shadow-xs">
                                     <AlertTriangle className="h-3.5 w-3.5" />
                                     <span>PROVISIONAL (+${item.estimatedOmissionCost.toLocaleString()} Risk)</span>
                                   </div>
                                   <p className="text-[11px] text-slate-300 leading-snug">{item.specification}</p>
                                 </div>
                               ) : item.status === "upgrade_required" ? (
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1.5 text-amber-400 font-bold">
+                                <div className="space-y-1.5">
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold text-[11px] shadow-xs">
                                     <AlertTriangle className="h-3.5 w-3.5" />
                                     <span>UPGRADE EXTRA (+${item.estimatedOmissionCost.toLocaleString()})</span>
                                   </div>
                                   <p className="text-[11px] text-slate-300 leading-snug">{item.specification}</p>
                                 </div>
                               ) : (
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1.5 text-rose-400 font-bold">
-                                    <X className="h-4 w-4 stroke-[3]" />
+                                <div className="space-y-1.5">
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 font-bold text-[11px] shadow-xs">
+                                    <X className="h-3.5 w-3.5 stroke-[3]" />
                                     <span>EXCLUDED (+${item.estimatedOmissionCost.toLocaleString()})</span>
                                   </div>
                                   <p className="text-[11px] text-slate-300 leading-snug">{item.specification}</p>
