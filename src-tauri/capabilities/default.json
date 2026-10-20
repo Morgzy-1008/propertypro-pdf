@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default native desktop capabilities for Hudson Homes Digital Builder OS",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

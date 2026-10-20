@@ -68,6 +68,11 @@ import {
   renderCustomFacadeCanvas,
   processFacadeAiPrompt,
 } from "@/lib/facade-generator/facadeGeneratorAiEngine";
+import {
+  saveFileNativeOrWeb,
+  openInWindowsExplorer,
+  syncWorkspaceToNativeDisk,
+} from "@/lib/tauriNativeBridge";
 
 const HOUSING_CATEGORIES: FacadeHousingCategory[] = [
   "Single Storey",
@@ -357,19 +362,33 @@ export function FacadeGeneratorPortal() {
     }
   };
 
-  const handleDownloadFacadeImage = (record: CustomFacadeRecord = activeFacade) => {
-    const link = document.createElement("a");
+  const handleDownloadFacadeImage = async (record: CustomFacadeRecord = activeFacade) => {
     const safeName = (record.name || "hudson-custom-facade")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-");
     const safeCat = record.housingCategory.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const safeGar = record.garageConfig.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    link.download = `${safeName}-${safeCat}-${safeGar}-2400x937.jpg`;
-    link.href = record.imageUrl;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`Downloaded high-resolution facade render (${record.name})`);
+    const filename = `${safeName}-${safeCat}-${safeGar}-2400x937.jpg`;
+
+    const result = await saveFileNativeOrWeb({
+      filename,
+      dataUrlOrBase64: record.imageUrl,
+      category: "Facades",
+    });
+
+    if (result.savedNatively && result.fullPath) {
+      toast.success(`Saved 4K Facade Render to Windows SSD`, {
+        description: result.fullPath,
+        action: {
+          label: "Open in Explorer",
+          onClick: () => {
+            void openInWindowsExplorer(result.fullPath);
+          },
+        },
+      });
+    } else {
+      toast.success(`Downloaded high-resolution facade render (${record.name || "Custom Facade"})`);
+    }
   };
 
   const handleSaveDraft = () => {
@@ -378,7 +397,9 @@ export function FacadeGeneratorPortal() {
       status: activeFacade.status === "approved" ? "approved" : "draft",
     });
     setActiveFacade(saved);
-    setAllRecords(getAllCustomFacadeRecords());
+    const updatedAll = getAllCustomFacadeRecords();
+    setAllRecords(updatedAll);
+    void syncWorkspaceToNativeDisk("custom-facades-library", updatedAll);
     toast.success(`Saved "${saved.name}" to your custom facade workspace.`);
   };
 
@@ -397,7 +418,9 @@ export function FacadeGeneratorPortal() {
       },
     });
     setActiveFacade(submitted);
-    setAllRecords(getAllCustomFacadeRecords());
+    const updatedAll = getAllCustomFacadeRecords();
+    setAllRecords(updatedAll);
+    void syncWorkspaceToNativeDisk("custom-facades-library", updatedAll);
     toast.success(`Submitted "${submitted.name}" for Admin Review!`, {
       description: `Tagged as ${submitted.housingCategory} • ${submitted.garageConfig}. Morgan Hales will review and approve it for the permanent Facade Library.`,
     });
@@ -420,7 +443,9 @@ export function FacadeGeneratorPortal() {
       if (activeFacade.id === approved.id) {
         setActiveFacade(approved);
       }
-      setAllRecords(getAllCustomFacadeRecords());
+      const updatedAll = getAllCustomFacadeRecords();
+      setAllRecords(updatedAll);
+      void syncWorkspaceToNativeDisk("custom-facades-library", updatedAll);
       toast.success(`Approved & Published "${approved.name}" to Permanent Facade Library!`, {
         description: `Now live in Quoting Tool V2, Floorplan Library, and House & Land Flyer Studio under ${approved.housingCategory} (${approved.garageConfig}).`,
       });

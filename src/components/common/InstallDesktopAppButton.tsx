@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Download, Monitor, CheckCircle2 } from "lucide-react";
+import { Download, Monitor, CheckCircle2, FolderOpen, Cpu } from "lucide-react";
 import { toast } from "sonner";
+import {
+  isTauriDesktop,
+  getNativeDesktopInfo,
+  openInWindowsExplorer,
+  type DesktopSystemInfo,
+} from "@/lib/tauriNativeBridge";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -21,10 +27,21 @@ export function InstallDesktopAppButton({
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isNativeTauri, setIsNativeTauri] = useState(() => isTauriDesktop());
+  const [nativeInfo, setNativeInfo] = useState<DesktopSystemInfo | null>(null);
 
   useEffect(() => {
-    // 1. Check if running in standalone desktop window
     if (typeof window !== "undefined") {
+      // Check Tauri native runtime
+      const tauriActive = isTauriDesktop();
+      setIsNativeTauri(tauriActive);
+      if (tauriActive) {
+        void getNativeDesktopInfo().then((info) => {
+          if (info) setNativeInfo(info);
+        });
+      }
+
+      // 1. Check if running in standalone desktop window
       const isStandaloneMode =
         window.matchMedia("(display-mode: standalone)").matches ||
         (window.navigator as any).standalone === true ||
@@ -38,7 +55,6 @@ export function InstallDesktopAppButton({
 
       // 2. Listen for Chrome/Edge PWA install prompt
       const handleBeforeInstallPrompt = (e: Event) => {
-        // Prevent default mini-infobar on mobile/desktop
         e.preventDefault();
         setDeferredPrompt(e as BeforeInstallPromptEvent);
       };
@@ -54,12 +70,27 @@ export function InstallDesktopAppButton({
       window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.addEventListener("appinstalled", handleAppInstalled);
 
-      // Dev helper for visual testing
+      // Dev helpers for visual verification
       (window as any).__triggerInstallPromptForTesting = () => {
+        setIsNativeTauri(false);
         setDeferredPrompt({
           prompt: async () => {},
           userChoice: Promise.resolve({ outcome: "accepted", platform: "windows" }),
         } as any);
+      };
+
+      (window as any).__triggerTauriNativeModeForTesting = () => {
+        (window as any).__HUDSON_FORCE_NATIVE_DESKTOP__ = true;
+        setIsNativeTauri(true);
+        setNativeInfo({
+          isNativeDesktop: true,
+          appVersion: "2026.1.0",
+          os: "windows",
+          arch: "x86_64",
+          cpuCores: 16,
+          exportsRootDir: "C:\\Users\\morga\\Documents\\Hudson Homes OS",
+          workspaceBackupDir: "C:\\Users\\morga\\Documents\\Hudson Homes OS\\Workspace",
+        });
       };
 
       return () => {
@@ -69,6 +100,41 @@ export function InstallDesktopAppButton({
       };
     }
   }, []);
+
+  // When running inside the Native Tauri Windows Desktop App, show the Native OS status & Open Exports Folder button
+  if (isNativeTauri) {
+    const handleOpenNativeFolder = async () => {
+      const opened = await openInWindowsExplorer(nativeInfo?.exportsRootDir);
+      if (opened) {
+        toast.success("Opened Hudson Homes OS Folder", {
+          description: nativeInfo?.exportsRootDir || "Documents\\Hudson Homes OS",
+        });
+      } else {
+        toast.info("Hudson Homes Native Desktop OS Active", {
+          description: `Exports directory: ${nativeInfo?.exportsRootDir || "Documents\\Hudson Homes OS"}`,
+        });
+      }
+    };
+
+    return (
+      <button
+        type="button"
+        data-testid="tauri-native-desktop-badge"
+        onClick={handleOpenNativeFolder}
+        title={`Running Hudson Homes Native Windows OS v${nativeInfo?.appVersion || "2026.1"} (${nativeInfo?.cpuCores || 8} CPU cores). Click to open local Documents\\Hudson Homes OS folder in Windows Explorer.`}
+        className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md active:scale-95 border ${
+          isLight
+            ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300"
+            : "bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border-emerald-500/40"
+        } ${className}`}
+      >
+        <Cpu className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+        <span className="font-extrabold tracking-tight">Native Windows OS</span>
+        <span className="hidden md:inline text-[10px] opacity-75 font-mono">• Open Folder</span>
+        <FolderOpen className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+      </button>
+    );
+  }
 
   // Do not show if already running inside the installed standalone desktop app
   if (isStandalone && !forceVisibleForDev) {

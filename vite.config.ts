@@ -493,6 +493,8 @@ function apiDevPlugin() {
 }
 
 export default defineConfig({
+  clearScreen: false,
+  envPrefix: ["VITE_", "TAURI_ENV_*"],
   define: {
     __APP_BUILD_TIME__: APP_BUILD_TIME,
   },

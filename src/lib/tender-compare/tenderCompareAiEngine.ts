@@ -11,6 +11,7 @@ import {
 } from "./tenderCompareTypes";
 import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
 import { getHudsonBenchmarkBuilder } from "./tenderCompareStorage";
+import { fetchExternalUrlNativeOrWeb } from "@/lib/tauriNativeBridge";
 
 export type ForensicProgressCallback = (stepLabel: string, progressPercent: number) => void;
 
@@ -705,15 +706,11 @@ export async function fetchLiveBuilderWebsiteIntel(profile: KnownBuilderIntellig
   if (!targetUrl) return "";
 
   try {
-    const readerUrl = `https://r.jina.ai/${targetUrl}`;
-    const res = await fetch(readerUrl, {
-      method: "GET",
-      headers: { Accept: "text/plain" },
-      signal: AbortSignal.timeout(4500),
+    const text = await fetchExternalUrlNativeOrWeb(targetUrl, {
+      timeoutMs: 4500,
+      useJinaOnWeb: true,
     });
-    if (!res.ok) return "";
-    const text = await res.text();
-    return text.slice(0, 6000);
+    return (text || "").slice(0, 6000);
   } catch {
     return "";
   }

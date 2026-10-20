@@ -7,6 +7,12 @@ import {
   type FacadeItem,
 } from "@/components/flyer/facadeLibrary";
 import { isNarrowDoubleStorey, isSingleGarageDesign } from "@/lib/quoting/facadeLookup";
+import {
+  isTauriDesktop,
+  saveFileNativeOrWeb,
+  syncWorkspaceToNativeDisk,
+  loadWorkspaceFromNativeDisk,
+} from "@/lib/tauriNativeBridge";
 import type {
   CustomFacadeRecord,
   FacadeGarageConfig,
@@ -157,16 +163,37 @@ export function getAllCustomFacadeRecords(): CustomFacadeRecord[] {
 
 function persistCustomFacadeRecords(records: CustomFacadeRecord[]): void {
   if (typeof window === "undefined") return;
+  if (isTauriDesktop()) {
+    void syncWorkspaceToNativeDisk("custom-facades-library", records);
+  }
   try {
     window.localStorage.setItem(STORAGE_CUSTOM_FACADES, JSON.stringify(records));
   } catch {
-    // If localStorage hits quota due to large data URLs, keep last 12 full records
+    // If localStorage hits quota due to large data URLs, keep last 12 full records in browser localStorage
+    // while full unlimited history remains safely stored on the native Windows SSD
     try {
       const trimmed = records.slice(0, 12);
       window.localStorage.setItem(STORAGE_CUSTOM_FACADES, JSON.stringify(trimmed));
     } catch {}
   }
   notifyListeners();
+}
+
+// Hydrate unlimited custom facade records from Windows SSD on startup when running in Tauri Desktop
+if (typeof window !== "undefined" && isTauriDesktop()) {
+  void loadWorkspaceFromNativeDisk<CustomFacadeRecord[]>("custom-facades-library").then(
+    (diskRecords) => {
+      if (Array.isArray(diskRecords) && diskRecords.length > 0) {
+        try {
+          window.localStorage.setItem(
+            STORAGE_CUSTOM_FACADES,
+            JSON.stringify(diskRecords.slice(0, 12))
+          );
+        } catch {}
+        notifyListeners();
+      }
+    }
+  );
 }
 
 export function saveCustomFacadeRecord(record: CustomFacadeRecord): CustomFacadeRecord {
@@ -227,10 +254,17 @@ export function approveCustomFacadeByAdmin(
   persistCustomFacadeRecords(next);
   syncApprovedFacadesToGlobalLibrary(next);
 
-  // Persist to public/facades via API when running in dev/node server
+  // Persist to public/facades via API when running in dev/node server, and to local Windows SSD in Tauri
   try {
     if (approved.imageUrl && approved.imageUrl.startsWith("data:image/")) {
       const safeSlug = approved.id.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      if (isTauriDesktop()) {
+        void saveFileNativeOrWeb({
+          filename: `${safeSlug}-approved-2400x937.jpg`,
+          dataUrlOrBase64: approved.imageUrl,
+          category: "Facades",
+        });
+      }
       void fetch("/api/save-facade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

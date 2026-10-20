@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
+import { toast } from "sonner";
 import { type TenderComparisonSession, type BuilderExtractedData } from "./tenderCompareTypes";
+import { isTauriDesktop, saveFileNativeOrWeb, openInWindowsExplorer } from "@/lib/tauriNativeBridge";
 
 /**
  * Sanitizes any string for jsPDF standard Helvetica font so Unicode symbols,
@@ -774,5 +776,30 @@ export function exportTenderComparisonPdf(session: TenderComparisonSession): voi
   const pdf = buildTenderComparisonJsPdf(session);
   const safeClient = cleanPdfText(session.clientName || "Client-Report").replace(/[^a-zA-Z0-9]+/g, "-");
   const fileName = `Hudson-Tender-Comparison-${safeClient}-${session.division}.pdf`;
+
+  if (isTauriDesktop()) {
+    const dataUri = pdf.output("datauristring");
+    void saveFileNativeOrWeb({
+      filename: fileName,
+      dataUrlOrBase64: dataUri,
+      category: "Tender Audits",
+    }).then((res) => {
+      if (res.savedNatively && res.fullPath) {
+        toast.success("Saved Forensic Tender Audit to Windows SSD", {
+          description: res.fullPath,
+          action: {
+            label: "Open in Explorer",
+            onClick: () => {
+              void openInWindowsExplorer(res.fullPath);
+            },
+          },
+        });
+      } else {
+        pdf.save(fileName);
+      }
+    });
+    return;
+  }
+
   pdf.save(fileName);
 }

@@ -45,9 +45,16 @@ dev-dist
 !public/brand/*
 !public/pwa-*.png
 !public/extracted_pdf_image.jpg
+!src-tauri/icons/**
 *.pdf
 *.traineddata
 scripts/
 supabase/.temp/
 scratch/
 drive_catalog.json
+
+# Tauri / Rust native build artifacts
+src-tauri/target/
+src-tauri/WixTools/
+*.msi
+*.exe
