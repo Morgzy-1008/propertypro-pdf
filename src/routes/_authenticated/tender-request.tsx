@@ -7,15 +7,12 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { getActiveStaffUser } from "@/lib/authSession";
+import { canAccessTenderRequest } from "@/lib/access";
 
 export const Route = createFileRoute("/_authenticated/tender-request")({
   beforeLoad: async () => {
     const staffUser = getActiveStaffUser();
-    const isMorgan =
-      staffUser?.id === "morgan-hales" ||
-      staffUser?.email?.toLowerCase() === "morgan.hales@hudsonhomes.com.au" ||
-      staffUser?.role === "admin";
-    if (!isMorgan) {
+    if (!canAccessTenderRequest(staffUser)) {
       throw redirect({ to: "/hub", replace: true });
     }
   },

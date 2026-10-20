@@ -1,7 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { FacadeGeneratorPortal } from "@/components/facade-generator/FacadeGeneratorPortal";
+import { getActiveStaffUser } from "@/lib/authSession";
+import { canAccessFacadeGenerator } from "@/lib/access";
 
 export const Route = createFileRoute("/_authenticated/facade-generator")({
+  beforeLoad: () => {
+    const user = getActiveStaffUser();
+    if (!canAccessFacadeGenerator(user)) {
+      throw redirect({ to: "/hub", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Facade Generator | Hudson Homes Digital Builder OS" },

@@ -268,6 +268,32 @@ export function canAccessCrm(staffUser?: {
 }
 
 /**
+ * Facade Generator Portal access.
+ * Restricted strictly to Morgan Hales ("Under Development... Coming Soon" for other staff).
+ */
+export function canAccessFacadeGenerator(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  return isMorganHales(staffUser);
+}
+
+/**
+ * Submit Your Tender Request Portal access.
+ * Restricted strictly to Morgan Hales ("Under Development... Coming Soon" for other staff).
+ */
+export function canAccessTenderRequest(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  return isMorganHales(staffUser);
+}
+
+/**
  * Checks if a staff user is Alyssa Hales (Sales Assistant / NHC).
  */
 export function isAlyssaHales(staffUser?: {
