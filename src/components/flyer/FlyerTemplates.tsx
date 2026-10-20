@@ -6,6 +6,7 @@ import { consultantVCard } from "./consultants";
 import { QrCode } from "./QrCode";
 import { formatPrice, parseAud } from "@/lib/pricing";
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
+import { isSingleGarageDesign } from "./facadePricing";
 
 /**
  * Authentic Hudson Homes house mark emblem.
@@ -527,7 +528,8 @@ function getFlyerStoreyAndGarage(d: FlyerData) {
     designLower.includes("single garage") ||
     designLower.includes("terracotta 23") ||
     facadeLower.includes("single garage") ||
-    facadeLower.includes("single-garage")
+    facadeLower.includes("single-garage") ||
+    isSingleGarageDesign(d.designName, d.housingType)
   );
 
   return { isDouble, isSingleGarage };
