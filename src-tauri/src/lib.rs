@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
+use tauri::Manager;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -105,6 +106,50 @@ fn get_native_desktop_info() -> Result<DesktopSystemInfo, String> {
     exports_root_dir: root.to_string_lossy().to_string(),
     workspace_backup_dir: workspace_dir.to_string_lossy().to_string(),
   })
+}
+
+#[tauri::command]
+fn native_toggle_fullscreen(app: tauri::AppHandle) -> Result<bool, String> {
+  if let Some(window) = app.get_webview_window("main") {
+    let is_fs = window.is_fullscreen().map_err(|e| e.to_string())?;
+    let target = !is_fs;
+    window.set_fullscreen(target).map_err(|e| e.to_string())?;
+    Ok(target)
+  } else {
+    Err("Main desktop window not found".to_string())
+  }
+}
+
+#[tauri::command]
+fn native_is_fullscreen(app: tauri::AppHandle) -> Result<bool, String> {
+  if let Some(window) = app.get_webview_window("main") {
+    window.is_fullscreen().map_err(|e| e.to_string())
+  } else {
+    Ok(false)
+  }
+}
+
+#[tauri::command]
+fn native_send_notification(title: String, body: String) -> Result<(), String> {
+  #[cfg(target_os = "windows")]
+  {
+    let ps_script = format!(
+      "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; \
+       $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); \
+       $textNodes = $template.GetElementsByTagName('text'); \
+       $textNodes.Item(0).AppendChild($template.CreateTextNode('{}')) > $null; \
+       $textNodes.Item(1).AppendChild($template.CreateTextNode('{}')) > $null; \
+       $toast = [Windows.UI.Notifications.ToastNotification]::new($template); \
+       [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Hudson Homes Digital Builder OS').Show($toast);",
+      title.replace('\'', "''"),
+      body.replace('\'', "''")
+    );
+
+    let _ = Command::new("powershell")
+      .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
+      .spawn();
+  }
+  Ok(())
 }
 
 #[tauri::command]
@@ -234,6 +279,28 @@ fn native_http_fetch(url: String, timeout_ms: Option<u64>) -> Result<NativeHttpR
 }
 
 #[tauri::command]
+fn native_scrape_builder_website(url: String, timeout_ms: Option<u64>) -> Result<String, String> {
+  let resp = native_http_fetch(url, timeout_ms)?;
+  if !resp.ok {
+    return Err(format!("HTTP Error {}", resp.status));
+  }
+
+  // Strip script, style, and HTML tags to extract clean text stream for AI forensic analysis
+  let html = resp.body_text;
+  let re_script = regex::Regex::new(r"(?is)<script.*?>.*?</script>").map_err(|e| e.to_string())?;
+  let re_style = regex::Regex::new(r"(?is)<style.*?>.*?</style>").map_err(|e| e.to_string())?;
+  let re_tags = regex::Regex::new(r"<[^>]+>").map_err(|e| e.to_string())?;
+  let re_spaces = regex::Regex::new(r"\s+").map_err(|e| e.to_string())?;
+
+  let no_script = re_script.replace_all(&html, " ");
+  let no_style = re_style.replace_all(&no_script, " ");
+  let text = re_tags.replace_all(&no_style, " ");
+  let cleaned = re_spaces.replace_all(&text, " ");
+
+  Ok(cleaned.chars().take(25000).collect())
+}
+
+#[tauri::command]
 fn native_save_json_workspace(key: String, json_payload: String) -> Result<String, String> {
   let root = resolve_hudson_root_dir()?;
   let mut workspace_dir = root;
@@ -287,9 +354,13 @@ pub fn run() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
       get_native_desktop_info,
+      native_toggle_fullscreen,
+      native_is_fullscreen,
+      native_send_notification,
       native_save_export,
       native_open_in_explorer,
       native_http_fetch,
+      native_scrape_builder_website,
       native_save_json_workspace,
       native_load_json_workspace,
     ])

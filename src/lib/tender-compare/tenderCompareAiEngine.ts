@@ -11,7 +11,7 @@ import {
 } from "./tenderCompareTypes";
 import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
 import { getHudsonBenchmarkBuilder } from "./tenderCompareStorage";
-import { fetchExternalUrlNativeOrWeb } from "@/lib/tauriNativeBridge";
+import { fetchExternalUrlNativeOrWeb, sendDesktopNotification } from "@/lib/tauriNativeBridge";
 
 export type ForensicProgressCallback = (stepLabel: string, progressPercent: number) => void;
 
@@ -835,6 +835,11 @@ export async function analyzeBuilderTendersWithAi(
   }
 
   onProgress?.("Finalizing forensic comparison & executive value verdict...", 100);
+  const winning = deterministicBaseline.builders.find((b) => b.isBestValue) || deterministicBaseline.builders[0];
+  void sendDesktopNotification({
+    title: "⚖️ Forensic Tender Audit Complete",
+    body: `Audit ready: ${winning?.builderName || "Hudson Homes"} identified as best value winner.`,
+  });
   return deterministicBaseline;
 }
 

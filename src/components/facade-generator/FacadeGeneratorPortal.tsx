@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { FullscreenToggleButton } from "@/components/common/FullscreenToggleButton";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { useTheme } from "@/lib/theme";
 import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
@@ -72,6 +73,7 @@ import {
   saveFileNativeOrWeb,
   openInWindowsExplorer,
   syncWorkspaceToNativeDisk,
+  sendDesktopNotification,
 } from "@/lib/tauriNativeBridge";
 
 const HOUSING_CATEGORIES: FacadeHousingCategory[] = [
@@ -297,6 +299,10 @@ export function FacadeGeneratorPortal() {
         renderSnapshotUrl: result.updatedRecord.imageUrl,
       };
       setMessages((prev) => [...prev, aiMsg]);
+      void sendDesktopNotification({
+        title: "🎨 New Facade Render Ready!",
+        body: `New ${result.updatedRecord.name || "Custom Facade"} render synthesized and deployed on your canvas.`,
+      });
     } catch (err) {
       console.error("[FacadeGenerator AI error]", err);
       toast.error("Could not process facade prompt. Please try again.");
@@ -449,6 +455,10 @@ export function FacadeGeneratorPortal() {
       toast.success(`Approved & Published "${approved.name}" to Permanent Facade Library!`, {
         description: `Now live in Quoting Tool V2, Floorplan Library, and House & Land Flyer Studio under ${approved.housingCategory} (${approved.garageConfig}).`,
       });
+      void sendDesktopNotification({
+        title: "✓ Facade Approved to Permanent Library",
+        body: `"${approved.name}" (${approved.housingCategory}) is now live across Quoting, Floorplans, and Packages.`,
+      });
     }
   };
 
@@ -590,6 +600,7 @@ export function FacadeGeneratorPortal() {
               ))}
             </div>
 
+            <FullscreenToggleButton isLight={isLight} />
             <ThemeToggle />
             <StaffHeaderProfile isLight={isLight} />
           </div>

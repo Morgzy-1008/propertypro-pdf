@@ -4,6 +4,7 @@ import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { Home, Layers, Database, FileText, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { FullscreenToggleButton } from "@/components/common/FullscreenToggleButton";
 import { useTheme } from "@/lib/theme";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { getActiveStaffUser } from "@/lib/authSession";
@@ -68,6 +69,7 @@ function TenderComparePage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <FullscreenToggleButton isLight={isLight} />
             <ThemeToggle />
 
             <Link to="/hub">

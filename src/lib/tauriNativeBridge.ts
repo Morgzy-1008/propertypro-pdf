@@ -67,6 +67,77 @@ export async function getNativeDesktopInfo(): Promise<DesktopSystemInfo | null> 
 }
 
 /**
+ * Toggles immersive Fullscreen mode. When running in the Tauri Windows Desktop app,
+ * it toggles the native window fullscreen state (eliminating titlebars/tabs).
+ * On web/PWA browsers, it toggles standard HTML5 Fullscreen.
+ */
+export async function toggleFullscreenNativeOrWeb(): Promise<boolean> {
+  if (isTauriDesktop()) {
+    try {
+      return await invoke<boolean>("native_toggle_fullscreen");
+    } catch (err) {
+      console.warn("[TauriNativeBridge] native_toggle_fullscreen fallback:", err);
+    }
+  }
+
+  if (typeof document !== "undefined") {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return false;
+    } else {
+      await document.documentElement.requestFullscreen();
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Checks whether the app is currently in Fullscreen mode.
+ */
+export async function isFullscreenNativeOrWeb(): Promise<boolean> {
+  if (isTauriDesktop()) {
+    try {
+      return await invoke<boolean>("native_is_fullscreen");
+    } catch {
+      // fallback to document
+    }
+  }
+  return typeof document !== "undefined" && Boolean(document.fullscreenElement);
+}
+
+/**
+ * Dispatches a native Windows Action Center Toast Notification (or HTML5 Web Notification)
+ * when an AI render completes, an Admin approves a facade, or a tender audit finishes.
+ */
+export async function sendDesktopNotification(options: {
+  title: string;
+  body: string;
+}): Promise<void> {
+  const { title, body } = options;
+  if (isTauriDesktop()) {
+    try {
+      await invoke("native_send_notification", { title, body });
+      return;
+    } catch (err) {
+      console.warn("[TauriNativeBridge] native_send_notification fallback:", err);
+    }
+  }
+
+  if (typeof window !== "undefined" && "Notification" in window) {
+    if (Notification.permission === "granted") {
+      new Notification(title, { body, icon: "/pwa-192x192.png" });
+    } else if (Notification.permission !== "denied") {
+      void Notification.requestPermission().then((perm) => {
+        if (perm === "granted") {
+          new Notification(title, { body, icon: "/pwa-192x192.png" });
+        }
+      });
+    }
+  }
+}
+
+/**
  * Converts an image URL or Blob URL into a Base64 data URL if it isn't one already.
  */
 async function ensureBase64DataUrl(inputUrlOrBase64: string): Promise<string> {
@@ -90,9 +161,8 @@ async function ensureBase64DataUrl(inputUrlOrBase64: string): Promise<string> {
 }
 
 /**
- * Saves a file (4K facade render, PDF flyer, quote, or tender audit) directly to
- * `Documents\Hudson Homes OS\<category>\<filename>` when running in the native Windows app,
- * or falls back to a standard browser download on the web.
+ * Saves a file directly to `Documents\Hudson Homes OS\<category>\<filename>` when
+ * running in the native Windows app, or falls back to a standard browser download on the web.
  */
 export async function saveFileNativeOrWeb(options: {
   filename: string;
@@ -144,8 +214,7 @@ export async function saveFileNativeOrWeb(options: {
 }
 
 /**
- * Opens Windows Explorer directly to the specified file or folder (or the root
- * `Documents\Hudson Homes OS` folder if omitted).
+ * Opens Windows Explorer directly to the specified file or folder.
  */
 export async function openInWindowsExplorer(path?: string): Promise<boolean> {
   if (!isTauriDesktop()) return false;
@@ -162,14 +231,13 @@ export async function openInWindowsExplorer(path?: string): Promise<boolean> {
 
 /**
  * Performs a CORS-free native HTTP GET request via the Rust backend when running
- * inside the Windows Desktop App, with automatic fallback to Jina Reader / Web Fetch
- * when running in a standard web browser.
+ * inside the Windows Desktop App, with automatic fallback to Jina Reader on web.
  */
 export async function fetchExternalUrlNativeOrWeb(
   url: string,
   options?: { timeoutMs?: number; useJinaOnWeb?: boolean }
 ): Promise<string> {
-  const timeoutMs = options?.timeoutMs ?? 6000;
+  const timeoutMs = options?.timeoutMs ?? 7000;
   const useJinaOnWeb = options?.useJinaOnWeb ?? true;
 
   if (isTauriDesktop()) {
@@ -201,8 +269,25 @@ export async function fetchExternalUrlNativeOrWeb(
 }
 
 /**
- * Persists a workspace dataset (e.g. custom facades or tender audits) to the local
- * Windows SSD (`Documents\Hudson Homes OS\Workspace\<key>.json`) when in native desktop mode.
+ * Directly scrapes and extracts clean readable text from a competitor builder website
+ * with zero CORS restrictions via the Rust backend.
+ */
+export async function scrapeBuilderWebsiteNativeOrWeb(url: string): Promise<string> {
+  if (isTauriDesktop()) {
+    try {
+      const text = await invoke<string>("native_scrape_builder_website", { url });
+      if (text && text.trim().length > 0) {
+        return text;
+      }
+    } catch (err) {
+      console.warn("[TauriNativeBridge] native_scrape_builder_website error:", err);
+    }
+  }
+  return fetchExternalUrlNativeOrWeb(url, { timeoutMs: 6000, useJinaOnWeb: true });
+}
+
+/**
+ * Persists a workspace dataset to the local Windows SSD (`Documents\Hudson Homes OS\Workspace\<key>.json`).
  */
 export async function syncWorkspaceToNativeDisk(key: string, data: unknown): Promise<string | null> {
   if (!isTauriDesktop()) return null;
@@ -218,7 +303,7 @@ export async function syncWorkspaceToNativeDisk(key: string, data: unknown): Pro
 }
 
 /**
- * Loads a workspace dataset from the local Windows SSD when in native desktop mode.
+ * Loads a workspace dataset from the local Windows SSD.
  */
 export async function loadWorkspaceFromNativeDisk<T>(key: string): Promise<T | null> {
   if (!isTauriDesktop()) return null;

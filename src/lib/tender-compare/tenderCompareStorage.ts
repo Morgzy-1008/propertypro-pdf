@@ -3,6 +3,11 @@ import {
   type TenderComparisonSession,
   type InclusionComparisonItem,
 } from "./tenderCompareTypes";
+import {
+  isTauriDesktop,
+  syncWorkspaceToNativeDisk,
+  loadWorkspaceFromNativeDisk,
+} from "@/lib/tauriNativeBridge";
 
 const STORAGE_KEY_SESSIONS = "hudson_tender_compare_sessions_v1";
 const STORAGE_KEY_ACTIVE = "hudson_tender_compare_active_session_v1";
@@ -1149,9 +1154,31 @@ export function saveTenderCompareSession(session: TenderComparisonSession): void
     }
     localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(all));
     localStorage.setItem(STORAGE_KEY_ACTIVE, JSON.stringify(session));
+
+    // Mirror to native Windows SSD for unlimited backup
+    if (isTauriDesktop()) {
+      void syncWorkspaceToNativeDisk("tender-compare-sessions", all);
+      void syncWorkspaceToNativeDisk("tender-compare-active-session", session);
+    }
   } catch (err) {
     console.error("Failed to save tender comparison session:", err);
   }
+}
+
+// Hydrate saved tender comparisons from native Windows SSD on startup
+if (typeof window !== "undefined" && isTauriDesktop()) {
+  void loadWorkspaceFromNativeDisk<TenderComparisonSession[]>("tender-compare-sessions").then(
+    (diskSessions) => {
+      if (Array.isArray(diskSessions) && diskSessions.length > 0) {
+        try {
+          const current = localStorage.getItem(STORAGE_KEY_SESSIONS);
+          if (!current || current === "[]") {
+            localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(diskSessions));
+          }
+        } catch {}
+      }
+    }
+  );
 }
 
 export function loadActiveTenderCompareSession(division: "NSW" | "QLD" = "NSW"): TenderComparisonSession {
