@@ -177,7 +177,7 @@ function createInitialBlankFacade(staffUser: StaffProfile | null, division: Divi
   const preset = STYLE_PRESETS["Modern Coastal"];
   return {
     id: `custom-facade-${Date.now()}`,
-    name: "Custom Coastal Series",
+    name: "",
     housingCategory: "Single Storey",
     garageConfig: "Double Garage",
     minLotWidthM: 12.5,
@@ -185,13 +185,13 @@ function createInitialBlankFacade(staffUser: StaffProfile | null, division: Divi
     roofStyle: preset.roofStyle,
     materials: { ...preset.materials },
     compatibleFamilies: getDefaultCompatibleFamilies("Single Storey", "Double Garage"),
-    targetDesignName: "Amber 23",
+    targetDesignName: "",
     qldUplift: preset.baseQldUplift,
     nswUplift: preset.baseNswUplift,
     promptHistory: [],
-    description: preset.summary,
-    imageUrl: "/facades/coastal-single-storey.png",
-    baseReferenceUrl: "/facades/coastal-single-storey.png",
+    description: "",
+    imageUrl: "",
+    baseReferenceUrl: "",
     status: "draft",
     createdBy: {
       id: staffUser?.id || "staff-user",
@@ -231,14 +231,8 @@ export function FacadeGeneratorPortal() {
     {
       id: "welcome-msg",
       role: "assistant",
-      text: "Welcome to the **Hudson Homes AI Facade Generator**. I am trained on every Hudson Homes floorplan, house width, lot frontage requirement, and our 4K architectural facade render library.\n\nTell me (by text or voice) what facade style, colour palette, roof pitch, lighting mood, or design filter (e.g. *Single Storey Double Garage* or *Narrow Double Storey Single Garage for Ruby 21*) you want to build!",
+      text: "Welcome to the **Hudson Homes AI Facade Generator**.\n\nDescribe the facade you would like to create—such as your lot frontage, single or double storey, style preference, and colour scheme—and I will generate a brand-new architectural render for you.",
       timestamp: new Date().toISOString(),
-      suggestedPrompts: [
-        "Make a Narrow Double Storey Single Garage facade for Ruby 21 in Contemporary Box style with Monument cladding & twilight lighting",
-        "Design a Single Storey Double Garage Modern Coastal facade with Surfmist roof, Scyon Linea weatherboard & Byron limestone pier",
-        "Restyle as Hamptons Double Storey with Shale Grey gable roof, Chillingham White brick & Shaker garage door",
-        "Which Hudson designs fit a 10m narrow block with a single garage?",
-      ],
     },
   ]);
 
@@ -257,20 +251,6 @@ export function FacadeGeneratorPortal() {
     };
   }, []);
 
-  // Render initial canvas once mounted
-  useEffect(() => {
-    let cancelled = false;
-    renderCustomFacadeCanvas(activeFacade).then((url) => {
-      if (!cancelled && url) {
-        setActiveFacade((prev) => ({ ...prev, imageUrl: url }));
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const pendingReviewRecords = useMemo(
     () => allRecords.filter((r) => r.status === "pending_review"),
     [allRecords]
@@ -280,57 +260,6 @@ export function FacadeGeneratorPortal() {
     () => allRecords.filter((r) => r.status === "approved"),
     [allRecords]
   );
-
-  const allDesignOptions = useMemo(() => {
-    return Object.values(HUDSON_DIMENSIONS_REGISTRY).sort((a, b) =>
-      a.label.localeCompare(b.label)
-    );
-  }, []);
-
-  const applyManualUpdate = async (patch: Partial<CustomFacadeRecord>) => {
-    setIsRendering(true);
-    const merged: CustomFacadeRecord = {
-      ...activeFacade,
-      ...patch,
-      materials: patch.materials
-        ? { ...activeFacade.materials, ...patch.materials }
-        : activeFacade.materials,
-    };
-
-    if (patch.housingCategory || patch.garageConfig || patch.style) {
-      merged.baseReferenceUrl = selectBaseReferenceElevation(
-        merged.housingCategory,
-        merged.garageConfig,
-        merged.style
-      );
-      merged.compatibleFamilies = getDefaultCompatibleFamilies(
-        merged.housingCategory,
-        merged.garageConfig
-      );
-    }
-
-    const renderedUrl = await renderCustomFacadeCanvas(merged);
-    merged.imageUrl = renderedUrl;
-    setActiveFacade(merged);
-    setIsRendering(false);
-  };
-
-  const handleSelectStylePreset = async (style: FacadeArchitecturalStyle) => {
-    const preset = STYLE_PRESETS[style];
-    const isDouble = activeFacade.housingCategory.includes("Double");
-    await applyManualUpdate({
-      style,
-      roofStyle: preset.roofStyle,
-      materials: {
-        ...preset.materials,
-        lightingMood: activeFacade.materials.lightingMood,
-      },
-      qldUplift: preset.baseQldUplift + (isDouble ? 9500 : 0),
-      nswUplift: preset.baseNswUplift + (isDouble ? 9200 : 0),
-      description: preset.summary,
-    });
-    toast.success(`Applied ${style} architectural preset`);
-  };
 
   const handleSendChatPrompt = async (customText?: string) => {
     const promptText = (customText ?? chatInput).trim();
@@ -733,12 +662,12 @@ export function FacadeGeneratorPortal() {
         </div>
 
         {/* =====================================================================
-            TAB 1: AI FACADE STUDIO & GENERATOR
+            TAB 1: AI FACADE STUDIO & GENERATOR (CLEAN 2-COLUMN SPLIT)
            ===================================================================== */}
         {activeTab === "studio" && (
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-            {/* LEFT 7 COLUMNS: High-Res Render Stage + Back-End Filters + Material Controls */}
-            <div className="xl:col-span-7 flex flex-col gap-5">
+            {/* LEFT 7 COLUMNS: High-Res Render Viewport & Action Controls */}
+            <div className="xl:col-span-7 flex flex-col gap-4">
               {/* HERO WIDESCREEN FACADE RENDER CARD */}
               <div
                 className={`rounded-3xl border overflow-hidden shadow-xl ${
@@ -749,97 +678,126 @@ export function FacadeGeneratorPortal() {
               >
                 {/* Render Viewport (2400x937 / 210:82 Hudson Aspect Ratio) */}
                 <div className="relative w-full aspect-[210/82] bg-slate-950 overflow-hidden group">
-                  <img
-                    src={activeFacade.imageUrl}
-                    alt={`${activeFacade.name} Custom Facade Render`}
-                    fetchPriority="high"
-                    width={2400}
-                    height={937}
-                    className={`w-full h-full object-cover object-center transition-all duration-300 ${
-                      isRendering ? "opacity-60 scale-[1.01] blur-[1px]" : "opacity-100 scale-100"
-                    }`}
-                  />
+                  {activeFacade.imageUrl ? (
+                    <img
+                      src={activeFacade.imageUrl}
+                      alt={`${activeFacade.name || "Custom Facade"} Render`}
+                      fetchPriority="high"
+                      width={2400}
+                      height={937}
+                      className={`w-full h-full object-cover object-center transition-all duration-300 ${
+                        isRendering || isAiThinking ? "opacity-60 scale-[1.01] blur-[1px]" : "opacity-100 scale-100"
+                      }`}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+                      <div className="relative mb-3">
+                        <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
+                          <Building2 className="h-8 w-8 sm:h-10 sm:w-10 opacity-80" />
+                        </div>
+                        <Sparkles className="h-5 w-5 text-amber-400 absolute -top-1 -right-1 animate-pulse" />
+                      </div>
+                      <h3 className="text-base sm:text-lg font-black tracking-tight text-white mb-1">
+                        Facade Render Canvas Ready
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-400 max-w-md leading-relaxed px-4">
+                        Describe the facade you'd like to create in the chat on the right. Your new custom render will be generated and deployed here.
+                      </p>
+                      <div className="mt-3 px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/60 text-[10px] sm:text-[11px] font-mono text-amber-300/90">
+                        AI &amp; API 4K Render Engine • Awaiting Prompt
+                      </div>
+                    </div>
+                  )}
 
-                  {isRendering && (
-                    <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-20">
-                      <Sparkles className="h-8 w-8 text-amber-400 animate-spin" />
-                      <span className="text-xs font-extrabold uppercase tracking-widest text-white font-mono">
-                        Synthesizing 2400×937 Studio Facade Render...
+                  {(isRendering || isAiThinking) && (
+                    <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center gap-2 z-20">
+                      <Sparkles className="h-9 w-9 text-amber-400 animate-spin" />
+                      <span className="text-xs sm:text-sm font-black uppercase tracking-widest text-white font-mono">
+                        Creating New Facade Render...
+                      </span>
+                      <span className="text-[11px] text-amber-400/90 font-mono">
+                        Synthesizing genuine architectural elevation via AI &amp; API
                       </span>
                     </div>
                   )}
 
-                  {/* Top-Left Back-End Filter & Style Badges */}
-                  <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-10">
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-slate-950/85 text-amber-400 border border-amber-500/40 backdrop-blur-md font-mono">
-                      {activeFacade.housingCategory} • {activeFacade.garageConfig}
-                    </span>
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-950/80 text-white border border-slate-700 backdrop-blur-md">
-                      {activeFacade.style} ({activeFacade.roofStyle})
-                    </span>
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/90 text-slate-950">
-                      Min {activeFacade.minLotWidthM}m Lot
-                    </span>
-                  </div>
-
-                  {/* Top-Right Status & Enlarge Button */}
-                  <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-black uppercase tracking-wider ${
-                        activeFacade.status === "approved"
-                          ? "bg-emerald-500 text-slate-950"
-                          : activeFacade.status === "pending_review"
-                          ? "bg-amber-500 text-slate-950"
-                          : "bg-slate-900/85 text-slate-200 border border-slate-700"
-                      }`}
-                    >
-                      {activeFacade.status === "approved"
-                        ? "✓ Approved in Library"
-                        : activeFacade.status === "pending_review"
-                        ? "⏳ Pending Admin Review"
-                        : "Draft Workspace"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setEnlargedPreviewUrl(activeFacade.imageUrl)}
-                      className="p-2 rounded-full bg-slate-950/80 hover:bg-slate-900 text-white border border-slate-700 cursor-pointer transition-all"
-                      title="Inspect Fullscreen 2400×937 Render"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {/* Bottom Material & Lighting Overlay Strip */}
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950/95 via-slate-950/65 to-transparent px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-white">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="flex items-center gap-1.5 font-semibold">
-                        <span
-                          className="h-3 w-3 rounded-full border border-white/40 inline-block"
-                          style={{ backgroundColor: activeFacade.materials.roofColorHex }}
-                        />
-                        Roof: {activeFacade.materials.roofColorName}
+                  {/* Top-Left Back-End Filter & Style Badges (only when image is rendered) */}
+                  {activeFacade.imageUrl && (
+                    <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-10">
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-slate-950/85 text-amber-400 border border-amber-500/40 backdrop-blur-md font-mono">
+                        {activeFacade.housingCategory} • {activeFacade.garageConfig}
                       </span>
-                      <span className="opacity-40">•</span>
-                      <span className="flex items-center gap-1.5 font-semibold">
-                        <span
-                          className="h-3 w-3 rounded-full border border-white/40 inline-block"
-                          style={{ backgroundColor: activeFacade.materials.wallRenderHex }}
-                        />
-                        Wall: {activeFacade.materials.wallRenderName}
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-950/80 text-white border border-slate-700 backdrop-blur-md">
+                        {activeFacade.style}
                       </span>
-                      <span className="opacity-40">•</span>
-                      <span className="flex items-center gap-1.5 font-semibold">
-                        <span
-                          className="h-3 w-3 rounded-full border border-white/40 inline-block"
-                          style={{ backgroundColor: activeFacade.materials.brickworkHex }}
-                        />
-                        Brick: {activeFacade.materials.brickworkName}
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/90 text-slate-950">
+                        Min {activeFacade.minLotWidthM}m Lot
                       </span>
                     </div>
-                    <span className="font-mono text-[11px] text-amber-300 font-bold">
-                      {activeFacade.materials.lightingMood}
-                    </span>
-                  </div>
+                  )}
+
+                  {/* Top-Right Status & Enlarge Button */}
+                  {activeFacade.imageUrl && (
+                    <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-black uppercase tracking-wider ${
+                          activeFacade.status === "approved"
+                            ? "bg-emerald-500 text-slate-950"
+                            : activeFacade.status === "pending_review"
+                            ? "bg-amber-500 text-slate-950"
+                            : "bg-slate-900/85 text-slate-200 border border-slate-700"
+                        }`}
+                      >
+                        {activeFacade.status === "approved"
+                          ? "✓ Approved in Library"
+                          : activeFacade.status === "pending_review"
+                          ? "⏳ Pending Admin Review"
+                          : "Draft Workspace"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEnlargedPreviewUrl(activeFacade.imageUrl)}
+                        className="p-2 rounded-full bg-slate-950/80 hover:bg-slate-900 text-white border border-slate-700 cursor-pointer transition-all"
+                        title="Inspect Fullscreen 2400×937 Render"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Bottom Material & Lighting Overlay Strip (only when image is rendered) */}
+                  {activeFacade.imageUrl && (
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950/95 via-slate-950/65 to-transparent px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-white">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="flex items-center gap-1.5 font-semibold">
+                          <span
+                            className="h-3 w-3 rounded-full border border-white/40 inline-block"
+                            style={{ backgroundColor: activeFacade.materials.roofColorHex }}
+                          />
+                          Roof: {activeFacade.materials.roofColorName}
+                        </span>
+                        <span className="opacity-40">•</span>
+                        <span className="flex items-center gap-1.5 font-semibold">
+                          <span
+                            className="h-3 w-3 rounded-full border border-white/40 inline-block"
+                            style={{ backgroundColor: activeFacade.materials.wallRenderHex }}
+                          />
+                          Wall: {activeFacade.materials.wallRenderName}
+                        </span>
+                        <span className="opacity-40">•</span>
+                        <span className="flex items-center gap-1.5 font-semibold">
+                          <span
+                            className="h-3 w-3 rounded-full border border-white/40 inline-block"
+                            style={{ backgroundColor: activeFacade.materials.brickworkHex }}
+                          />
+                          Brick: {activeFacade.materials.brickworkName}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[11px] text-amber-300 font-bold">
+                        {activeFacade.materials.lightingMood}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Action Bar: Name Input, Download Render, Save Draft, Add for Review by Admin */}
@@ -860,7 +818,7 @@ export function FacadeGeneratorPortal() {
                         onChange={(e) =>
                           setActiveFacade((prev) => ({ ...prev, name: e.target.value }))
                         }
-                        placeholder="e.g. Noosa Coastal 26 or Manhattan Narrow SG"
+                        placeholder="e.g. Modern Horizon 12.5"
                         className={`w-full px-3.5 py-2 rounded-xl border text-sm font-extrabold focus:outline-none focus:ring-2 focus:ring-amber-500 ${
                           isLight
                             ? "bg-white border-slate-300 text-slate-900"
@@ -873,10 +831,7 @@ export function FacadeGeneratorPortal() {
                       onClick={() => {
                         const fresh = createInitialBlankFacade(staffUser, division);
                         setActiveFacade(fresh);
-                        void renderCustomFacadeCanvas(fresh).then((url) =>
-                          setActiveFacade((p) => ({ ...p, imageUrl: url }))
-                        );
-                        toast.info("Started a fresh custom facade workspace.");
+                        toast.info("Started a fresh blank custom facade workspace.");
                       }}
                       className={`mt-5 px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
                         isLight
@@ -894,11 +849,14 @@ export function FacadeGeneratorPortal() {
                     <button
                       type="button"
                       data-testid="download-facade-render-btn"
+                      disabled={!activeFacade.imageUrl}
                       onClick={() => handleDownloadFacadeImage(activeFacade)}
-                      className={`px-3.5 py-2.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all ${
-                        isLight
-                          ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-xs"
-                          : "bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-100"
+                      className={`px-3.5 py-2.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 transition-all ${
+                        !activeFacade.imageUrl
+                          ? "opacity-40 cursor-not-allowed border-slate-700 text-slate-500"
+                          : isLight
+                          ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-xs cursor-pointer"
+                          : "bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-100 cursor-pointer"
                       }`}
                     >
                       <Download className="h-4 w-4 text-cyan-500" />
@@ -907,11 +865,14 @@ export function FacadeGeneratorPortal() {
 
                     <button
                       type="button"
+                      disabled={!activeFacade.imageUrl}
                       onClick={handleSaveDraft}
-                      className={`px-3.5 py-2.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all ${
-                        isLight
-                          ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800"
-                          : "bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200"
+                      className={`px-3.5 py-2.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 transition-all ${
+                        !activeFacade.imageUrl
+                          ? "opacity-40 cursor-not-allowed border-slate-700 text-slate-500"
+                          : isLight
+                          ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 cursor-pointer"
+                          : "bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200 cursor-pointer"
                       }`}
                     >
                       <Check className="h-4 w-4 text-emerald-500" />
@@ -921,14 +882,19 @@ export function FacadeGeneratorPortal() {
                     <button
                       type="button"
                       data-testid="submit-admin-review-btn"
+                      disabled={!activeFacade.imageUrl}
                       onClick={handleSubmitForAdminReview}
-                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer transition-all active:scale-95"
+                      className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition-all ${
+                        !activeFacade.imageUrl
+                          ? "opacity-40 cursor-not-allowed bg-slate-800 text-slate-500"
+                          : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 cursor-pointer active:scale-95"
+                      }`}
                     >
                       <ShieldCheck className="h-4 w-4" />
                       <span>Add for Review by Admin</span>
                     </button>
 
-                    {isAdmin && activeFacade.status !== "approved" && (
+                    {isAdmin && activeFacade.imageUrl && activeFacade.status !== "approved" && (
                       <button
                         type="button"
                         data-testid="instant-admin-approve-btn"
@@ -943,412 +909,6 @@ export function FacadeGeneratorPortal() {
                         <span>Approve to Library</span>
                       </button>
                     )}
-                  </div>
-                </div>
-              </div>
-
-              {/* BACK-END FILTER & DESIGN COMPATIBILITY CONFIGURATION PANEL */}
-              <div
-                className={`rounded-3xl p-5 border ${
-                  isLight
-                    ? "bg-white border-slate-200 shadow-xs"
-                    : "bg-slate-900/90 border-slate-800"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <Sliders className="h-4 w-4 text-amber-500" />
-                    <h2 className="text-sm font-black uppercase tracking-wider">
-                      Back-End Filter &amp; Design Compatibility Tagging
-                    </h2>
-                  </div>
-                  <span className="text-[11px] font-mono text-emerald-500 font-bold">
-                    Controls Quoting &amp; Package Library Filtering
-                  </span>
-                </div>
-
-                {/* 1-Click Quick Filter Combos (Single Storey Double Garage, Narrow Double Storey Single Garage, etc.) */}
-                <div className="mb-4">
-                  <span className="block text-[11px] font-bold text-slate-400 mb-1.5">
-                    Quick Back-End Filter Presets:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUICK_FILTER_COMBOS.map((combo) => {
-                      const isSelected =
-                        activeFacade.housingCategory === combo.housingCategory &&
-                        activeFacade.garageConfig === combo.garageConfig;
-                      return (
-                        <button
-                          key={combo.label}
-                          type="button"
-                          onClick={() =>
-                            void applyManualUpdate({
-                              housingCategory: combo.housingCategory,
-                              garageConfig: combo.garageConfig,
-                              minLotWidthM: combo.minLotWidthM,
-                              targetDesignName: combo.targetDesignName,
-                            })
-                          }
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                            isSelected
-                              ? "bg-amber-500 text-slate-950 border-amber-400 font-black shadow-xs"
-                              : isLight
-                              ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700"
-                              : "bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-300"
-                          }`}
-                        >
-                          {combo.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* Storey / Design Category Filter */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 mb-1">
-                      Storey / Design Category
-                    </label>
-                    <select
-                      data-testid="filter-housing-category"
-                      value={activeFacade.housingCategory}
-                      onChange={(e) =>
-                        void applyManualUpdate({
-                          housingCategory: e.target.value as FacadeHousingCategory,
-                        })
-                      }
-                      className={`w-full px-3 py-2 rounded-xl border text-xs font-bold ${
-                        isLight
-                          ? "bg-slate-50 border-slate-300 text-slate-900"
-                          : "bg-slate-950 border-slate-700 text-white"
-                      }`}
-                    >
-                      {HOUSING_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Garage Configuration Filter */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 mb-1">
-                      Garage Filter
-                    </label>
-                    <select
-                      data-testid="filter-garage-config"
-                      value={activeFacade.garageConfig}
-                      onChange={(e) =>
-                        void applyManualUpdate({
-                          garageConfig: e.target.value as FacadeGarageConfig,
-                        })
-                      }
-                      className={`w-full px-3 py-2 rounded-xl border text-xs font-bold ${
-                        isLight
-                          ? "bg-slate-50 border-slate-300 text-slate-900"
-                          : "bg-slate-950 border-slate-700 text-white"
-                      }`}
-                    >
-                      {GARAGE_CONFIGS.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Minimum Lot Width */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 mb-1">
-                      Min Lot Frontage (m)
-                    </label>
-                    <select
-                      value={String(activeFacade.minLotWidthM)}
-                      onChange={(e) =>
-                        void applyManualUpdate({ minLotWidthM: parseFloat(e.target.value) })
-                      }
-                      className={`w-full px-3 py-2 rounded-xl border text-xs font-bold ${
-                        isLight
-                          ? "bg-slate-50 border-slate-300 text-slate-900"
-                          : "bg-slate-950 border-slate-700 text-white"
-                      }`}
-                    >
-                      {[8.5, 10, 11, 12.5, 14, 15, 16, 18, 20].map((w) => (
-                        <option key={w} value={String(w)}>
-                          {w}m+ Frontage
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Reference Hudson Design Calibration */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 mb-1">
-                      Target Hudson Floorplan
-                    </label>
-                    <select
-                      value={activeFacade.targetDesignName || "Amber 23"}
-                      onChange={(e) => {
-                        const rec = HUDSON_DIMENSIONS_REGISTRY[e.target.value];
-                        void applyManualUpdate({
-                          targetDesignName: e.target.value,
-                          minLotWidthM: rec?.minLotWidth || activeFacade.minLotWidthM,
-                        });
-                      }}
-                      className={`w-full px-3 py-2 rounded-xl border text-xs font-bold ${
-                        isLight
-                          ? "bg-slate-50 border-slate-300 text-slate-900"
-                          : "bg-slate-950 border-slate-700 text-white"
-                      }`}
-                    >
-                      {allDesignOptions.map((d) => (
-                        <option key={d.label} value={d.label}>
-                          {d.label} ({d.width}m W • {d.cars} Car)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Compatible Design Families Summary Bar */}
-                <div
-                  className={`mt-3 p-3 rounded-2xl border flex flex-wrap items-center justify-between gap-2 text-xs ${
-                    isLight
-                      ? "bg-slate-50 border-slate-200 text-slate-700"
-                      : "bg-slate-950/70 border-slate-800 text-slate-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-amber-500 font-mono uppercase text-[11px]">
-                      Auto-Matched Families:
-                    </span>
-                    {activeFacade.compatibleFamilies.map((fam) => (
-                      <span
-                        key={fam}
-                        className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${
-                          isLight
-                            ? "bg-white border-slate-200 text-slate-800"
-                            : "bg-slate-900 border-slate-700 text-slate-200"
-                        }`}
-                      >
-                        {fam}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-3 font-mono text-xs font-bold">
-                    <span>
-                      QLD Uplift: <strong className="text-emerald-500">+${activeFacade.qldUplift.toLocaleString()}</strong>
-                    </span>
-                    <span>
-                      NSW Uplift: <strong className="text-cyan-400">+${activeFacade.nswUplift.toLocaleString()}</strong>
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ARCHITECTURAL STYLE, COLOUR SWATCHES & PHOTOMETRIC LIGHTING PANEL */}
-              <div
-                className={`rounded-3xl p-5 border ${
-                  isLight
-                    ? "bg-white border-slate-200 shadow-xs"
-                    : "bg-slate-900/90 border-slate-800"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <Palette className="h-4 w-4 text-amber-500" />
-                  <h2 className="text-sm font-black uppercase tracking-wider">
-                    Architectural Style, Material Palette &amp; Realism Controls
-                  </h2>
-                </div>
-
-                {/* 8 Architectural Style Presets */}
-                <div className="mb-4">
-                  <label className="block text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 mb-1.5">
-                    1. Architectural Style Preset
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {ARCHITECTURAL_STYLES.map((style) => {
-                      const active = activeFacade.style === style;
-                      return (
-                        <button
-                          key={style}
-                          type="button"
-                          onClick={() => void handleSelectStylePreset(style)}
-                          className={`px-3 py-2 rounded-xl text-xs font-bold border text-left transition-all cursor-pointer ${
-                            active
-                              ? "bg-amber-500/20 border-amber-500 text-amber-400 font-black shadow-xs"
-                              : isLight
-                              ? "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700"
-                              : "bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-300"
-                          }`}
-                        >
-                          {style}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Swatch Selectors Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Colorbond Roof Palette */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 mb-1.5">
-                      2. Colorbond® Roof Colour ({activeFacade.materials.roofColorName})
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {COLORBOND_ROOF_PALETTE.map((sw) => {
-                        const selected = activeFacade.materials.roofColorName === sw.name;
-                        return (
-                          <button
-                            key={sw.name}
-                            type="button"
-                            onClick={() =>
-                              void applyManualUpdate({
-                                materials: {
-                                  ...activeFacade.materials,
-                                  roofColorName: sw.name,
-                                  roofColorHex: sw.hex,
-                                },
-                              })
-                            }
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
-                              selected
-                                ? "border-amber-500 bg-amber-500/15 text-amber-400"
-                                : isLight
-                                ? "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                                : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800"
-                            }`}
-                          >
-                            <span
-                              className="h-3 w-3 rounded-full border border-white/30 shrink-0"
-                              style={{ backgroundColor: sw.hex }}
-                            />
-                            <span>{sw.name.replace("Colorbond ", "")}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Main Wall Render Palette */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 mb-1.5">
-                      3. Wall Render &amp; Cladding Tone ({activeFacade.materials.wallRenderName})
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {RENDER_WALL_PALETTE.map((sw) => {
-                        const selected = activeFacade.materials.wallRenderName === sw.name;
-                        return (
-                          <button
-                            key={sw.name}
-                            type="button"
-                            onClick={() =>
-                              void applyManualUpdate({
-                                materials: {
-                                  ...activeFacade.materials,
-                                  wallRenderName: sw.name,
-                                  wallRenderHex: sw.hex,
-                                  claddingColorName: sw.name,
-                                  claddingColorHex: sw.hex,
-                                },
-                              })
-                            }
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
-                              selected
-                                ? "border-amber-500 bg-amber-500/15 text-amber-400"
-                                : isLight
-                                ? "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                                : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800"
-                            }`}
-                          >
-                            <span
-                              className="h-3 w-3 rounded-full border border-slate-400/40 shrink-0"
-                              style={{ backgroundColor: sw.hex }}
-                            />
-                            <span>{sw.name.replace("Dulux ", "")}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Brickwork Palette */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 mb-1.5">
-                      4. Face Brickwork ({activeFacade.materials.brickworkName})
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {BRICKWORK_PALETTE.map((sw) => {
-                        const selected = activeFacade.materials.brickworkName === sw.name;
-                        return (
-                          <button
-                            key={sw.name}
-                            type="button"
-                            onClick={() =>
-                              void applyManualUpdate({
-                                materials: {
-                                  ...activeFacade.materials,
-                                  brickworkName: sw.name,
-                                  brickworkHex: sw.hex,
-                                },
-                              })
-                            }
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
-                              selected
-                                ? "border-amber-500 bg-amber-500/15 text-amber-400"
-                                : isLight
-                                ? "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                                : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800"
-                            }`}
-                          >
-                            <span
-                              className="h-3 w-3 rounded-full border border-white/30 shrink-0"
-                              style={{ backgroundColor: sw.hex }}
-                            />
-                            <span>{sw.name.replace(/Austral |PGH /g, "")}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Lighting Mood & Feature Pier */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 mb-1.5">
-                      5. Studio Lighting &amp; Atmosphere
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {LIGHTING_MOODS.map((mood) => {
-                        const selected = activeFacade.materials.lightingMood === mood;
-                        return (
-                          <button
-                            key={mood}
-                            type="button"
-                            onClick={() =>
-                              void applyManualUpdate({
-                                materials: {
-                                  ...activeFacade.materials,
-                                  lightingMood: mood,
-                                },
-                              })
-                            }
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
-                              selected
-                                ? "border-amber-500 bg-amber-500/15 text-amber-400"
-                                : isLight
-                                ? "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                                : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800"
-                            }`}
-                          >
-                            <Sun className="h-3 w-3 text-amber-400" />
-                            <span>{mood.replace(" (11am)", "")}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1451,30 +1011,6 @@ export function FacadeGeneratorPortal() {
                           </div>
                         )}
 
-                        {/* Suggested Follow-up Prompts */}
-                        {msg.suggestedPrompts && msg.suggestedPrompts.length > 0 && (
-                          <div className="mt-3 pt-2.5 border-t border-slate-700/20">
-                            <span className="block text-[10px] font-mono uppercase tracking-wider text-amber-500 font-bold mb-1.5">
-                              Try Asking or Prompting:
-                            </span>
-                            <div className="flex flex-col gap-1.5">
-                              {msg.suggestedPrompts.map((sug, i) => (
-                                <button
-                                  key={i}
-                                  type="button"
-                                  onClick={() => void handleSendChatPrompt(sug)}
-                                  className={`text-left px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer ${
-                                    isLight
-                                      ? "bg-white hover:bg-amber-50 border-slate-200 text-slate-700"
-                                      : "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-amber-300"
-                                  }`}
-                                >
-                                  “{sug}”
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -1518,7 +1054,7 @@ export function FacadeGeneratorPortal() {
                     data-testid="facade-chat-input"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Ask for any facade style, colour, roof, lighting, or Hudson design filter..."
+                    placeholder="e.g. Create a new facade render for a 12.5m frontage lot, single storey, with light colours and modern style"
                     className={`flex-1 px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 ${
                       isLight
                         ? "bg-white border-slate-300 text-slate-900"
