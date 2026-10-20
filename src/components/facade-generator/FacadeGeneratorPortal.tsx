@@ -574,32 +574,6 @@ export function FacadeGeneratorPortal() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* State Division Switcher */}
-            <div
-              className={`inline-flex rounded-full p-0.5 border text-xs font-bold ${
-                isLight
-                  ? "bg-slate-100 border-slate-200"
-                  : "bg-slate-900 border-slate-800"
-              }`}
-            >
-              {(["QLD", "NSW"] as Division[]).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setActiveDivision(d)}
-                  className={`px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                    division === d
-                      ? "bg-amber-500 text-slate-950 font-black shadow-xs"
-                      : isLight
-                      ? "text-slate-600 hover:text-slate-900"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-
             <FullscreenToggleButton isLight={isLight} />
             <ThemeToggle />
             <StaffHeaderProfile isLight={isLight} />

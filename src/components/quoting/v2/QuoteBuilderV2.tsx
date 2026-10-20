@@ -213,9 +213,9 @@ export function QuoteBuilderV2({
 
       {/* Active Question / Step Content Box with Live RHS Financial Overview */}
       {activeStep !== "review" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="flex flex-col lg:flex-row items-start gap-6 w-full">
           <div
-            className={`lg:col-span-8 xl:col-span-8 2xl:col-span-9 rounded-3xl border p-6 sm:p-8 shadow-2xl transition-all ${
+            className={`flex-1 min-w-0 rounded-3xl border p-6 sm:p-8 shadow-2xl transition-all ${
               isLight
                 ? "border-slate-200 bg-white shadow-slate-900/5"
                 : "border-slate-800/80 bg-slate-900/70 backdrop-blur-xl"
@@ -276,7 +276,7 @@ export function QuoteBuilderV2({
             )}
           </div>
 
-          <div className="lg:col-span-4 xl:col-span-4 2xl:col-span-3 lg:sticky lg:top-36 space-y-4">
+          <div className="w-full lg:w-84 xl:w-92 2xl:w-[380px] shrink-0 lg:sticky lg:top-36 space-y-4">
             <QuoteSummarySidebar
               quote={quote}
               onSave={onSaveQuote}

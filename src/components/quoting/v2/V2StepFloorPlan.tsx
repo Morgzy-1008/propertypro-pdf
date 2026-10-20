@@ -98,6 +98,7 @@ import { DivisionSwitcher } from "@/components/auth/DivisionSwitcher";
 import { BaseDesignConfirmationModal } from "@/components/quoting/BaseDesignConfirmationModal";
 import { DesignFacadeLibraryModal, type DesignFacadeOption } from "@/components/floorplan-library/DesignFacadeLibraryModal";
 import { QuoteFacadeEnlargeModal } from "@/components/quoting/QuoteFacadeRenderPreview";
+import { QuoteInclusionsScheduleModal } from "@/components/quoting/QuoteInclusionsScheduleModal";
 import { getActiveStaffUser, onStaffUserChanged } from "@/lib/authSession";
 import { canAccessAutoQuote } from "@/lib/access";
 import { AutoQuoteWorkshopPanel } from "@/components/quoting/AutoQuoteWorkshopPanel";
@@ -261,6 +262,8 @@ export function V2StepFloorPlan({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isFacadeLibraryOpen, setIsFacadeLibraryOpen] = useState(false);
   const [isEnlargeModalOpen, setIsEnlargeModalOpen] = useState(false);
+  const [isInclusionsModalOpen, setIsInclusionsModalOpen] = useState(false);
+  const [modalActiveTier, setModalActiveTier] = useState<string>("all");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Modified floor plan search & dropdown states
@@ -3750,15 +3753,35 @@ export function V2StepFloorPlan({
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div>
               <Label className={`text-sm sm:text-base font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
                 3. Select Inclusion Specification Tier
               </Label>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Choose construction standard for this build. Base price reflects chosen level of finish.
+              </p>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setModalActiveTier("all");
+                setIsInclusionsModalOpen(true);
+              }}
+              className={`h-9 px-3.5 text-xs font-bold gap-2 rounded-xl transition-all shadow-xs cursor-pointer ${
+                isLight
+                  ? "bg-white hover:bg-emerald-50 text-emerald-700 border-emerald-300 hover:border-emerald-400"
+                  : "bg-emerald-950/30 hover:bg-emerald-950/50 text-emerald-300 border-emerald-500/40 hover:border-emerald-400"
+              }`}
+            >
+              <FileText className="h-4 w-4 text-emerald-500" />
+              <span>View & Print Full Inclusions Schedule</span>
+            </Button>
           </div>
 
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
             {availableTiers.map((tierDef) => {
               const isSelected = selectedTierCode === tierDef.shortCode;
               const isFhbOrIp = tierDef.shortCode === "IP" || tierDef.shortCode === "FHB";
@@ -3775,71 +3798,103 @@ export function V2StepFloorPlan({
                   key={tierDef.shortCode}
                   data-testid={`tier-card-${tierDef.shortCode.toLowerCase()}`}
                   onClick={() => !isTierDisabled && handleSelectTier(tierDef)}
-                  className={`p-5 sm:p-6 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+                  className={`p-4 sm:p-5 rounded-2xl border text-left transition-all relative flex flex-col justify-between group ${
                     isTierDisabled
                       ? isLight
                         ? "bg-slate-100/70 border-slate-200 opacity-60 cursor-not-allowed"
                         : "bg-slate-950/40 border-slate-900 opacity-50 cursor-not-allowed"
                       : isSelected
                       ? isLight
-                        ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20 cursor-pointer hover:scale-[1.01]"
-                        : "bg-emerald-950/30 border-emerald-400 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400 cursor-pointer hover:scale-[1.01]"
+                        ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/25 cursor-pointer"
+                        : "bg-emerald-950/35 border-emerald-400 shadow-lg shadow-emerald-500/10 ring-2 ring-emerald-400/50 cursor-pointer"
                       : isLight
-                      ? "bg-slate-50 border-slate-200 hover:border-slate-300 cursor-pointer hover:scale-[1.01]"
-                      : "bg-slate-950/60 border-slate-800 hover:border-slate-700 cursor-pointer hover:scale-[1.01]"
+                      ? "bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 shadow-xs cursor-pointer hover:scale-[1.01]"
+                      : "bg-slate-950/60 hover:bg-slate-900/60 border-slate-800 hover:border-slate-700 cursor-pointer hover:scale-[1.01]"
                   }`}
                 >
+                  {/* Badge */}
                   {isTierDisabled ? (
-                    <span className="absolute -top-3 right-4 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full shadow-xs bg-amber-500/20 text-amber-500 border border-amber-500/30">
-                      {isNsw ? "76 NSW Models Only" : "22 QLD Models Only"}
+                    <span className="absolute -top-2.5 right-3 text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full shadow-xs bg-amber-500/20 text-amber-500 border border-amber-500/30">
+                      {isNsw ? "76 NSW Models" : "22 QLD Models"}
                     </span>
                   ) : tierDef.badge ? (
                     <span
-                      className={`absolute -top-3 right-4 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full shadow-xs ${tierDef.badgeColor}`}
+                      className={`absolute -top-2.5 right-3 text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full shadow-xs ${tierDef.badgeColor}`}
                     >
                       {tierDef.badge}
                     </span>
                   ) : null}
 
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs sm:text-sm font-extrabold text-emerald-400 uppercase tracking-wider">
-                        {tierDef.shortCode}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-xs font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md font-mono ${
+                        tierDef.shortCode === "H2"
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : tierDef.shortCode === "H3"
+                          ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          : tierDef.shortCode === "IP"
+                          ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                          : tierDef.shortCode === "FHB"
+                          ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                          : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                      }`}>
+                        {tierDef.shortCode} Tier
                       </span>
-                      {isSelected && <Check className="h-5 w-5 text-emerald-500 stroke-[3]" />}
+                      {isSelected ? (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-500">
+                          <CheckCircle2 className="h-4 w-4 stroke-[2.5]" />
+                          <span>Active</span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-medium text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                          Select
+                        </span>
+                      )}
                     </div>
 
-                    <h4 className={`text-lg sm:text-xl font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
+                    <h4 className={`text-base sm:text-lg font-extrabold leading-tight ${isLight ? "text-slate-900" : "text-white"}`}>
                       {tierDef.title}
                     </h4>
-                    <p className="text-xs sm:text-sm text-slate-400 mb-2">{tierDef.tagline}</p>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-1">{tierDef.tagline}</p>
+                  </div>
 
-                    {/* Direct Pricing Display on Card */}
-                    <div className="mb-3">
-                      {isTierDisabled ? (
-                        <span className="text-[11px] text-amber-500/90 font-semibold block leading-tight">
-                          Only available on {isNsw ? "76 NSW" : "22 QLD"} certified FHB/Investor designs
-                        </span>
-                      ) : cardPrice ? (
+                  {/* Direct Base Price Display */}
+                  <div className="pt-3 mt-3 border-t border-slate-200 dark:border-slate-800/80">
+                    {isTierDisabled ? (
+                      <span className="text-[11px] text-amber-500/90 font-semibold block leading-tight">
+                        Design not eligible for FHB/IP package
+                      </span>
+                    ) : cardPrice ? (
+                      <div>
                         <div className="flex items-baseline gap-1.5">
-                          <span className="text-xl sm:text-2xl font-mono font-black text-emerald-500">
+                          <span className={`text-xl sm:text-2xl font-mono font-black ${
+                            isSelected ? "text-emerald-500" : isLight ? "text-slate-900" : "text-slate-100"
+                          }`}>
                             {formatAud(cardPrice)}
                           </span>
                           <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
                             Base
                           </span>
                         </div>
-                      ) : null}
-                    </div>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">
+                          Inc. GST & Standard Siting
+                        </span>
+                      </div>
+                    ) : null}
 
-                    <ul className="space-y-2 text-xs sm:text-sm text-slate-400 border-t border-slate-700/40 pt-3">
-                      {tierDef.features.map((f, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <Check className="h-4 w-4 text-emerald-500 flex-none mt-0.5" />
-                          <span className="leading-snug">{f}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {/* Quick link to view specifications modal */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setModalActiveTier(tierDef.shortCode);
+                        setIsInclusionsModalOpen(true);
+                      }}
+                      className="text-[11px] font-semibold text-emerald-500 hover:text-emerald-400 mt-2 flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <span>View specifications</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </button>
                   </div>
                 </div>
               );
@@ -4291,6 +4346,15 @@ export function V2StepFloorPlan({
         housingType={design.housingType || houseType}
         designName={design.designName}
         facadePrice={design.facadePrice}
+      />
+
+      {/* Full Inclusions Specification Schedule Modal */}
+      <QuoteInclusionsScheduleModal
+        isOpen={isInclusionsModalOpen}
+        onClose={() => setIsInclusionsModalOpen(false)}
+        activeTier={modalActiveTier}
+        designName={design.designName}
+        division={division}
       />
     </div>
   );

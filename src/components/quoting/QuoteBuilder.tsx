@@ -1014,11 +1014,11 @@ export function QuoteBuilder() {
   };
 
   return (
-    <div className="space-y-6 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 pb-20">
+    <div className="space-y-6 w-full pb-20">
       {/* Top Header Bar with Live Estimate ID, Status & Primary Actions (Sticky underneath main navigation header) */}
       <div className={`sticky top-16 z-30 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b ${
         isLight ? "border-slate-200/90 bg-white/95" : "border-slate-800/90 bg-slate-950/95"
-      } backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 2xl:-mx-12 2xl:px-12 shadow-xs transition-all`}>
+      } backdrop-blur-md py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10 shadow-xs transition-all`}>
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
