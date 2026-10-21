@@ -77,8 +77,6 @@ const WIND_RATING_OPTIONS: { id: WindRating; label: string; desc: string; cost: 
   { id: "N2", label: "N1 / N2 (Std)", desc: "Standard Wind Classification (Included)", cost: 0 },
   { id: "N3", label: "N3 Wind", desc: "N3 Non-Cyclonic High Wind Tie-Downs", cost: 4000 },
   { id: "N4", label: "N4 Wind", desc: "N4 Exposed / Hilltop Wind Tie-Downs", cost: 7500 },
-  { id: "C1", label: "C1 Cyclonic", desc: "C1 Cyclonic Wind Rating Engineering", cost: 11000 },
-  { id: "C2", label: "C2 Cyclonic", desc: "C2 Severe Cyclonic Structural Framing", cost: 15500 },
 ];
 
 const QLD_COUNCIL_REGIONS: { name: string; fee: number }[] = [
@@ -1350,7 +1348,7 @@ export function V2StepSiteCosts({
                   </div>
 
                   {/* Quick Wind Rating Selector Pills */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
                     {WIND_RATING_OPTIONS.map((opt) => {
                       const activeRating = site.windRating || "N2";
                       const isSelected =
@@ -1367,7 +1365,7 @@ export function V2StepSiteCosts({
                               windRatingCost: opt.cost,
                             })
                           }
-                          className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                             isSelected
                               ? isLight
                                 ? "bg-emerald-50 border-emerald-500 text-slate-900 shadow-sm ring-1 ring-emerald-500"
@@ -1393,7 +1391,7 @@ export function V2StepSiteCosts({
                 <div className="text-xs text-slate-400 pt-2.5 flex items-center gap-2">
                   <HelpCircle className="h-4 w-4 text-emerald-500 flex-none" />
                   <span>
-                    Standard N1/N2 included ($0). N3: $4,000 · N4: $7,500 · C1: $11,000 · C2: $15,500 (editable).
+                    Standard N1/N2 included ($0). N3: $4,000 · N4: $7,500 (editable).
                   </span>
                 </div>
               </div>

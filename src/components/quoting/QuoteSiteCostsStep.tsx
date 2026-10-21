@@ -669,7 +669,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                 Site Wind Rating (AS 4055)
               </Label>
               <span className={`text-[11px] block mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
-                Standard N1/N2 included ($0). Select N3 ($4,000), N4 ($7,500), C1 ($11,000), or C2 ($15,500).
+                Standard N1/N2 included ($0). Select N3 ($4,000) or N4 ($7,500).
               </span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -677,8 +677,6 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                 { id: "N2", label: "N1/N2 ($0)", cost: 0 },
                 { id: "N3", label: "N3 (+$4,000)", cost: 4000 },
                 { id: "N4", label: "N4 (+$7,500)", cost: 7500 },
-                { id: "C1", label: "C1 (+$11,000)", cost: 11000 },
-                { id: "C2", label: "C2 (+$15,500)", cost: 15500 },
               ].map((opt) => {
                 const active = (site.windRating || "N2") === opt.id || (opt.id === "N2" && site.windRating === "N1");
                 return (
