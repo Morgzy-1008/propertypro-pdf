@@ -333,7 +333,7 @@ export function ProfileSwitcherModal({
                         </span>
                       ) : profile.role === "marketing" ? (
                         <span className="text-fuchsia-400 flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" /> Package Studio &amp; Marketing Renders
+                          <Sparkles className="h-3 w-3" /> Flyers • Database • Facade Generator
                         </span>
                       ) : (
                         <span className="text-slate-400 flex items-center gap-1">

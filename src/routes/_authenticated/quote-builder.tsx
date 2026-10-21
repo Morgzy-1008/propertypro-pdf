@@ -1,5 +1,5 @@
 import React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { QuoteBuilder } from "@/components/quoting/QuoteBuilder";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { FileText, Database, Home } from "lucide-react";
@@ -7,8 +7,16 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { getActiveStaffUser } from "@/lib/authSession";
+import { canAccessQuoting } from "@/lib/access";
 
 export const Route = createFileRoute("/_authenticated/quote-builder")({
+  beforeLoad: () => {
+    const user = getActiveStaffUser();
+    if (!canAccessQuoting(user)) {
+      throw redirect({ to: "/hub", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Hudson Quoting System | Technical House & Land Quoting" },

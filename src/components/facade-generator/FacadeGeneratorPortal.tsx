@@ -29,6 +29,7 @@ import {
   LayoutGrid,
   Plus,
   BookmarkCheck,
+  Database,
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -215,6 +216,7 @@ export function FacadeGeneratorPortal() {
   const isLight = mode === "normal";
 
   const [staffUser, setStaffUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
+  const isMarketing = staffUser?.role === "marketing";
   const [division, setDivision] = useState<Division>(() => getActiveDivision());
   const [activeTab, setActiveTab] = useState<"studio" | "admin_queue" | "library">("studio");
   const [allRecords, setAllRecords] = useState<CustomFacadeRecord[]>(() => getAllCustomFacadeRecords());
@@ -538,28 +540,32 @@ export function FacadeGeneratorPortal() {
               <Home className="h-3.5 w-3.5 text-amber-500" />
               <span>Hub</span>
             </Link>
-            <Link
-              to="/quote-builder"
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
-                isLight
-                  ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700"
-                  : "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300"
-              }`}
-            >
-              <Layers className="h-3.5 w-3.5 text-emerald-500" />
-              <span>Quoting Tool</span>
-            </Link>
-            <Link
-              to="/floorplan-library"
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
-                isLight
-                  ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700"
-                  : "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300"
-              }`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5 text-indigo-500" />
-              <span>Floorplans</span>
-            </Link>
+            {!isMarketing && (
+              <>
+                <Link
+                  to="/quote-builder"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    isLight
+                      ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700"
+                      : "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300"
+                  }`}
+                >
+                  <Layers className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Quoting Tool</span>
+                </Link>
+                <Link
+                  to="/floorplan-library"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    isLight
+                      ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700"
+                      : "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300"
+                  }`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>Floorplans</span>
+                </Link>
+              </>
+            )}
             <Link
               to="/flyer"
               className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
@@ -570,6 +576,17 @@ export function FacadeGeneratorPortal() {
             >
               <FileText className="h-3.5 w-3.5 text-amber-500" />
               <span>Package Flyers</span>
+            </Link>
+            <Link
+              to="/database"
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                isLight
+                  ? "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700"
+                  : "bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300"
+              }`}
+            >
+              <Database className="h-3.5 w-3.5 text-cyan-500" />
+              <span>Lot Database</span>
             </Link>
           </div>
 

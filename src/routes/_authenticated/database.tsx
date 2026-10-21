@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -1648,6 +1649,11 @@ function DatabasePage() {
   const { mode } = useTheme();
   const isLight = mode === "normal";
   const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
+  useEffect(() => {
+    return onStaffUserChanged((u) => setCurrentUser(u));
+  }, []);
+  const isMarketing = currentUser?.role === "marketing";
   const [tab, setTab] = useState<"lots" | "packages">("lots");
   const [stateFilter, setStateFilter] = useState<"ALL" | "QLD" | "NSW">("ALL");
   const [lots, setLots] = useState<Lot[]>([]);
@@ -2533,12 +2539,21 @@ function DatabasePage() {
                 Flyer builder
               </Button>
             </Link>
-            <Link to="/land-scout">
-              <Button variant="outline" size="sm" className={`text-xs ${isLight ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 shadow-xs" : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"}`}>
-                <Compass className="h-3.5 w-3.5 mr-1" />
-                Land Scout
-              </Button>
-            </Link>
+            {!isMarketing ? (
+              <Link to="/land-scout">
+                <Button variant="outline" size="sm" className={`text-xs ${isLight ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 shadow-xs" : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"}`}>
+                  <Compass className="h-3.5 w-3.5 mr-1" />
+                  Land Scout
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/facade-generator">
+                <Button variant="outline" size="sm" className={`text-xs ${isLight ? "border-fuchsia-300 bg-fuchsia-50 text-fuchsia-900 hover:bg-fuchsia-100 shadow-xs" : "border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300 hover:bg-fuchsia-500/20 hover:text-white"}`}>
+                  <Sparkles className="h-3.5 w-3.5 mr-1 text-fuchsia-400" />
+                  Facade Generator
+                </Button>
+              </Link>
+            )}
             {/* NHC Active Profile */}
             <StaffHeaderProfile isLight={isLight} />
           </div>

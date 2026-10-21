@@ -36,7 +36,7 @@ import { getPendingAccessRequests, getUnreadAlertCount, onAdminAlertsChanged } f
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { ProfileSwitcherModal } from "@/components/auth/ProfileSwitcherModal";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
-import { canAccessFloorplanEditor, isMorganHales, canAccess3dStudio } from "@/lib/access";
+import { canAccessFloorplanEditor, isMorganHales, canAccess3dStudio, canAccessFacadeGenerator } from "@/lib/access";
 import { HubAiAssistant } from "@/components/hub/HubAiAssistant";
 import { InstallDesktopAppButton } from "@/components/common/InstallDesktopAppButton";
 import { FullscreenToggleButton } from "@/components/common/FullscreenToggleButton";
@@ -307,7 +307,7 @@ function WelcomeHubPage() {
     };
   }, []);
 
-  const displayName = staffUser ? staffUser.name.split(" ")[0] : "there";
+  const displayName = staffUser ? (staffUser.role === "marketing" ? staffUser.name : staffUser.name.split(" ")[0]) : "there";
   const isLight = mode === "normal";
   const isAdmin = staffUser?.role === "admin" || staffUser?.id === "morgan-hales";
   const isMarketing = staffUser?.role === "marketing";
@@ -491,7 +491,9 @@ function WelcomeHubPage() {
             </span>.
           </h1>
           <p className={`text-sm sm:text-base font-medium max-w-xl mx-auto mt-1 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
-            Select a Hudson workspace portal or query the intelligence copilot below.
+            {isMarketing
+              ? "Select your marketing workspace portal below to build flyers, manage releases, or generate custom renders."
+              : "Select a Hudson workspace portal or query the intelligence copilot below."}
           </p>
 
           {/* Quick Profile Switcher for Morgan Hales / Admin */}
@@ -523,7 +525,50 @@ function WelcomeHubPage() {
           <HubAiAssistant isLight={isLight} staffUser={staffUser} />
         </div>
 
-        {/* Portals Grid with Futuristic Gradient Glows */}
+        {/* Portals Grid with Futuristic Radiant Glows */}
+        {isMarketing ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto w-full">
+            {/* Portal 01: House & Land Flyer Builder */}
+            <PortalCard
+              to="/flyer"
+              title="House & Land Flyer Builder"
+              icon={FileText}
+              glowGradient="from-amber-500 via-orange-400 to-amber-600"
+              lightBeam="from-transparent via-amber-400 to-transparent"
+              innerGlow="from-amber-500/25 to-transparent"
+              iconColor="text-amber-400"
+              iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
+              isLight={isLight}
+            />
+
+            {/* Portal 02: House & Land Lot Database */}
+            <PortalCard
+              to="/database"
+              title="House & Land Lot Database"
+              icon={Database}
+              glowGradient="from-cyan-400 via-teal-400 to-blue-500"
+              lightBeam="from-transparent via-cyan-400 to-transparent"
+              innerGlow="from-cyan-500/25 to-transparent"
+              iconColor="text-cyan-400"
+              iconBg="from-cyan-500/20 to-blue-500/10 border-cyan-500/30"
+              isLight={isLight}
+            />
+
+            {/* Portal 03: Facade Generator */}
+            <PortalCard
+              to="/facade-generator"
+              title="Facade Generator"
+              icon={Sparkles}
+              glowGradient="from-fuchsia-400 via-pink-400 to-purple-500"
+              lightBeam="from-transparent via-fuchsia-400 to-transparent"
+              innerGlow="from-fuchsia-500/25 via-pink-500/15 to-transparent"
+              iconColor="text-fuchsia-400"
+              iconBg="from-fuchsia-500/20 to-pink-500/15 border-fuchsia-500/35"
+              isLight={isLight}
+              isComingSoon={false}
+            />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl mx-auto w-full">
           {/* Portal 01: Hudson Quoting System (Accessible to all logins) */}
           <PortalCard
@@ -637,7 +682,7 @@ function WelcomeHubPage() {
             isComingSoon={false}
           />
 
-          {/* Portal 05b: Facade Generator (Locked for everyone except Morgan Hales as "Under Development... Coming Soon") */}
+          {/* Portal 05b: Facade Generator */}
           <PortalCard
             to="/facade-generator"
             title="Facade Generator"
@@ -648,9 +693,9 @@ function WelcomeHubPage() {
             iconColor="text-cyan-400"
             iconBg="from-cyan-500/20 to-amber-500/15 border-cyan-500/35"
             isLight={isLight}
-            isComingSoon={!isMorgan}
+            isComingSoon={!canAccessFacadeGenerator(staffUser)}
             comingSoonLabel="Under Development... Coming Soon"
-            devBadgeLabel="Morgan Dev Only"
+            devBadgeLabel={isMorgan ? "Morgan Dev Only" : undefined}
           />
 
           {/* Portal 06: 3D Studio & Architectural Elevations (Locked for everyone except Morgan Hales as "Under Development... Coming Soon") */}
@@ -701,6 +746,7 @@ function WelcomeHubPage() {
             devBadgeLabel="Morgan Dev Only"
           />
         </div>
+        )}
       </main>
 
       {/* Website Admin Modal */}

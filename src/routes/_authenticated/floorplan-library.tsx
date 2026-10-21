@@ -1,7 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { FloorplanLibraryView } from "@/components/floorplan-library/FloorplanLibraryView";
+import { getActiveStaffUser } from "@/lib/authSession";
+import { canAccessFloorplanLibrary } from "@/lib/access";
 
 export const Route = createFileRoute("/_authenticated/floorplan-library")({
+  beforeLoad: () => {
+    const user = getActiveStaffUser();
+    if (!canAccessFloorplanLibrary(user)) {
+      throw redirect({ to: "/hub", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Floorplan Library | Hudson Homes Digital Builder OS" },

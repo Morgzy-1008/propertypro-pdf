@@ -107,21 +107,11 @@ export const ALL_STAFF_CONSULTANTS: Consultant[] = [
     state: "QLD",
   },
   {
-    id: "cheryl-rong",
-    name: "Cheryl Rong",
-    phone: "0400 000 000",
-    email: "Cheryl.Rong@hudsonhomes.com.au",
-    title: "Marketing Coordinator",
-    displayCentre: "Marketing Department",
-    division: "NSW",
-    state: "NSW",
-  },
-  {
-    id: "zoe-hogbin",
-    name: "Zoe Hogbin",
-    phone: "0400 000 000",
-    email: "Zoe.Hogbin@hudsonhomes.com.au",
-    title: "Marketing Manager",
+    id: "marketing-team",
+    name: "Marketing Team",
+    phone: "1300 246 700",
+    email: "marketing@hudsonhomes.com.au",
+    title: "Marketing & Creative Studio",
     displayCentre: "Marketing Department",
     division: "NSW",
     state: "NSW",
@@ -129,7 +119,12 @@ export const ALL_STAFF_CONSULTANTS: Consultant[] = [
 ];
 
 export function findConsultant(id: string) {
-  const targetId = id === "steve-silsar" ? "steve-slisar" : id;
+  const targetId =
+    id === "steve-silsar"
+      ? "steve-slisar"
+      : id === "cheryl-rong" || id === "zoe-hogbin"
+      ? "marketing-team"
+      : id;
   return CONSULTANTS.find((c) => c.id === targetId) || ALL_STAFF_CONSULTANTS.find((c) => c.id === targetId);
 }
 

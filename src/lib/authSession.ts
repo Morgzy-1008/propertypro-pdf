@@ -134,30 +134,17 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     accentColor: "from-amber-500 to-yellow-600",
   },
   {
-    id: "cheryl-rong",
-    name: "Cheryl Rong",
-    email: "cheryl.rong@hudsonhomes.com.au",
-    phone: "0400 000 000",
-    title: "Marketing Coordinator",
+    id: "marketing-team",
+    name: "Marketing Team",
+    email: "marketing@hudsonhomes.com.au",
+    phone: "1300 246 700",
+    title: "Marketing & Creative Studio",
     displayCentre: "Marketing Department",
     division: "NSW",
     state: "NSW",
     role: "marketing",
-    avatarInitials: "CR",
+    avatarInitials: "MT",
     accentColor: "from-fuchsia-500 to-pink-600",
-  },
-  {
-    id: "zoe-hogbin",
-    name: "Zoe Hogbin",
-    email: "zoe.hogbin@hudsonhomes.com.au",
-    phone: "0400 000 000",
-    title: "Marketing Manager",
-    displayCentre: "Marketing Department",
-    division: "NSW",
-    state: "NSW",
-    role: "marketing",
-    avatarInitials: "ZH",
-    accentColor: "from-purple-500 to-indigo-600",
   },
 ];
 
@@ -538,8 +525,12 @@ export function switchActiveStaffProfile(profile: StaffProfile): void {
       path.includes("tender") ||
       path.includes("site-studio") ||
       path.includes("floorplan-editor") ||
+      path.includes("floorplan-library") ||
+      path.includes("floorplans") ||
+      path.includes("land-scout") ||
       path.includes("3d-studio") ||
-      path.includes("elevations-3d");
+      path.includes("elevations-3d") ||
+      path.includes("braindump");
 
     let targetPath = path;
     if (path === "/auth" || path === "/" || (profile.role === "marketing" && isRestrictedForMarketing)) {

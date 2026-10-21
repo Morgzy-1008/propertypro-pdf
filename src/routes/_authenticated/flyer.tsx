@@ -96,6 +96,11 @@ function Index() {
   const { mode } = useTheme();
   const isLight = mode === "normal";
   const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
+  useEffect(() => {
+    return onStaffUserChanged((u) => setCurrentUser(u));
+  }, []);
+  const isMarketing = currentUser?.role === "marketing";
 
   const set = useCallback(
     <K extends keyof FlyerData>(key: K, value: FlyerData[K]) =>
@@ -579,16 +584,29 @@ function Index() {
                 </Button>
               </Link>
 
-              <Link to="/land-scout">
-                <Button variant="outline" size="sm" title="Land Scout" className={`text-xs gap-1.5 px-2.5 ${
-                  isLight
-                    ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
-                    : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"
-                }`}>
-                  <Compass className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
-                  <span className="hidden 2xl:inline">Land Scout</span>
-                </Button>
-              </Link>
+              {!isMarketing ? (
+                <Link to="/land-scout">
+                  <Button variant="outline" size="sm" title="Land Scout" className={`text-xs gap-1.5 px-2.5 ${
+                    isLight
+                      ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                      : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"
+                  }`}>
+                    <Compass className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
+                    <span className="hidden 2xl:inline">Land Scout</span>
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/facade-generator">
+                  <Button variant="outline" size="sm" title="Facade Generator" className={`text-xs gap-1.5 px-2.5 ${
+                    isLight
+                      ? "border-fuchsia-300 bg-fuchsia-50 text-fuchsia-900 hover:bg-fuchsia-100"
+                      : "border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-300 hover:bg-fuchsia-500/20 hover:text-white"
+                  }`}>
+                    <Sparkles className={`h-3.5 w-3.5 ${isLight ? "text-fuchsia-600" : "text-fuchsia-400"}`} />
+                    <span className="hidden 2xl:inline">Facade Generator</span>
+                  </Button>
+                </Link>
+              )}
 
               <Button
                 variant="outline"

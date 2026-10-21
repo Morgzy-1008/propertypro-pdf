@@ -17,8 +17,7 @@ export const DEFAULT_ALLOWED_EMAILS = [
   "steve.slisar@hudsonhomes.com.au",
   "steve.silsar@hudsonhomes.com.au",
   "aaron.martin@hudsonhomes.com.au",
-  "cheryl.rong@hudsonhomes.com.au",
-  "zoe.hogbin@hudsonhomes.com.au",
+  "marketing@hudsonhomes.com.au",
 ];
 
 const LOCAL_APPROVED_EMAILS_KEY = "hudson_approved_staff_emails_v1";
@@ -26,16 +25,22 @@ const TRUSTED_2FA_PREFIX = "hudson_2fa_trust_";
 const PENDING_PASSWORD_SETUP_KEY = "hudson_pending_password_setup_users";
 
 export function getApprovedStaffEmails(): string[] {
+  const obsolete = new Set(["cheryl.rong@hudsonhomes.com.au", "zoe.hogbin@hudsonhomes.com.au"]);
   try {
     const stored = localStorage.getItem(LOCAL_APPROVED_EMAILS_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return Array.from(new Set([...DEFAULT_ALLOWED_EMAILS, ...parsed.map((e: string) => e.trim().toLowerCase())]));
+        return Array.from(
+          new Set(
+            [...DEFAULT_ALLOWED_EMAILS, ...parsed.map((e: string) => e.trim().toLowerCase())]
+              .filter((e) => !obsolete.has(e))
+          )
+        );
       }
     }
   } catch {}
-  return [...DEFAULT_ALLOWED_EMAILS];
+  return DEFAULT_ALLOWED_EMAILS.filter((e) => !obsolete.has(e));
 }
 
 export function approveStaffEmail(email: string): void {
@@ -174,7 +179,27 @@ export function canAccessFloorplanEditor(staffUser?: {
   name?: string | null;
   role?: string | null;
 } | null): boolean {
-  // All authenticated logins now have access to Concept Floorplan Editor
+  if (staffUser?.role === "marketing") return false;
+  return !!staffUser;
+}
+
+export function canAccessQuoting(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  if (staffUser?.role === "marketing") return false;
+  return !!staffUser;
+}
+
+export function canAccessFloorplanLibrary(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  if (staffUser?.role === "marketing") return false;
   return !!staffUser;
 }
 
@@ -225,6 +250,7 @@ export function canAccessLandScout(staffUser?: {
   email?: string | null;
   role?: string | null;
 } | null): boolean {
+  if (staffUser?.role === "marketing") return false;
   return !!staffUser;
 }
 
@@ -269,7 +295,8 @@ export function canAccessCrm(staffUser?: {
 
 /**
  * Facade Generator Portal access.
- * Restricted strictly to Morgan Hales ("Under Development... Coming Soon" for other staff).
+ * Accessible to Morgan Hales (System Admin) and the Marketing Team.
+ * ("Under Development... Coming Soon" for other staff).
  */
 export function canAccessFacadeGenerator(staffUser?: {
   id?: string | null;
@@ -277,7 +304,8 @@ export function canAccessFacadeGenerator(staffUser?: {
   email?: string | null;
   role?: string | null;
 } | null): boolean {
-  return isMorganHales(staffUser);
+  if (!staffUser) return false;
+  return isMorganHales(staffUser) || staffUser.role === "marketing" || (staffUser.email || "").toLowerCase() === "marketing@hudsonhomes.com.au";
 }
 
 /**
