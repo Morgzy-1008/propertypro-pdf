@@ -170,6 +170,14 @@ const MODEL_ALIASES: Record<string, string> = {
   "mauve 28 (qld)": "Maroon 28",
   "alabaster 31": "Alabaster 31 - TD",
   "alabaster 31 classic (cdc)": "Alabaster 31 - TD",
+  "cayenne 42": "Cayenne 42 - TD",
+  "cayenne 45": "Cayenne 45 - TD",
+  "cayenne 47": "Cayenne 47 - TD",
+  "cayenne 56": "Cayenne 56 - TD",
+  "cayene 42": "Cayenne 42 - TD",
+  "cayene 45": "Cayenne 45 - TD",
+  "cayene 47": "Cayenne 47 - TD",
+  "cayene 56": "Cayenne 56 - TD",
 };
 
 const NSW_PRIORITY_PRICE_ROWS: { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat" }[] = [

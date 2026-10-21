@@ -96,6 +96,7 @@ export function determineHousingType(designName: string, explicitType?: string |
     d.includes("twin") ||
     d.includes("unity") ||
     d.includes("alabaster") ||
+    d.includes("cayenne") ||
     d.includes("cayene") ||
     d.includes("magnolia") ||
     d.includes("maize") ||

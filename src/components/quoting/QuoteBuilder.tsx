@@ -82,6 +82,7 @@ import { QuoteAdminCatalogue } from "./QuoteAdminCatalogue";
 import { QuotePdfDocument } from "./QuotePdfDocument";
 import { QuoteEstimatesDialog } from "./QuoteEstimatesDialog";
 import { QuoteBuilderV2 } from "./v2/QuoteBuilderV2";
+import type { V2StepId } from "./v2/V2Types";
 import { isLocalhost } from "@/lib/isLocalhost";
 import { useTheme } from "@/lib/theme";
 
@@ -152,6 +153,7 @@ export function QuoteBuilder() {
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [coverVersion] = useState<"v1">("v1");
+  const [v2Step, setV2Step] = useState<V2StepId | undefined>(undefined);
 
   // Sync with IndexedDB & localStorage on mount
   useEffect(() => {
@@ -452,6 +454,7 @@ export function QuoteBuilder() {
           });
 
           setActiveTab("design");
+          setV2Step("floorplan");
           if (isHudson && hasDifferentSqmValues) {
             toast.success(
               `✨ Recognized Hudson Design: ${canonicalName} (Modified Floorplan: ${incomingTotalM2} m² • Custom Pricing Applied)!`
@@ -1160,6 +1163,7 @@ export function QuoteBuilder() {
 
       <QuoteBuilderV2
         quote={quote}
+        initialStep={v2Step}
         onUpdateQuote={updateQuote}
         onAddInclusionLineItems={handleAddInclusionLineItems}
         onSaveQuote={handleSaveQuote}

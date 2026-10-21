@@ -1812,7 +1812,7 @@ export const DUAL_OC_PRICES: PriceRow[] = [
     h3: 737900
   },
   {
-    name: "Cayene 42 - TD",
+    name: "Cayenne 42 - TD",
     m2: 389.36,
     hbs: 630900,
     ss: 684900,
@@ -1821,7 +1821,7 @@ export const DUAL_OC_PRICES: PriceRow[] = [
     h3: 890900
   },
   {
-    name: "Cayene 45 - TD",
+    name: "Cayenne 45 - TD",
     m2: 420.28,
     hbs: 660900,
     ss: 716900,
@@ -1830,7 +1830,7 @@ export const DUAL_OC_PRICES: PriceRow[] = [
     h3: 922900
   },
   {
-    name: "Cayene 47 - TD",
+    name: "Cayenne 47 - TD",
     m2: 436.94,
     hbs: 667900,
     ss: 723900,
@@ -1839,7 +1839,7 @@ export const DUAL_OC_PRICES: PriceRow[] = [
     h3: 928900
   },
   {
-    name: "Cayene 56 - TD",
+    name: "Cayenne 56 - TD",
     m2: 523.26,
     hbs: 771900,
     ss: 836900,

@@ -156,6 +156,7 @@ export const ALL_FHB_PRICES: FhbPriceRow[] = [
 export function cleanDesignNameForFhb(str: string): string {
   return str
     .toLowerCase()
+    .replace(/\bcayene\b/gi, "cayenne")
     .replace(/\s*\((?:single|two|double)\s*stor(?:y|ey)[^)]*\)/gi, "")
     .replace(/\bmk\s*(?:2|ii)\b|\bmk2\b|\bmkii\b/gi, "")
     .replace(/\bdet+ached\b/gi, "detached")

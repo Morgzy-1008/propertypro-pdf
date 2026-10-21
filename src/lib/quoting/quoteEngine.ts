@@ -1198,6 +1198,8 @@ export function calculateModifiedFloorplanPricing(
 export function cleanDesignName(name?: string): string {
   if (!name) return "";
   let clean = name;
+  // Normalize spelling of Cayenne (convert legacy Cayene -> Cayenne)
+  clean = clean.replace(/\bCayene\b/gi, "Cayenne");
   // Remove parenthetical internal design markers e.g. (Old Design), (New Design), (Updated Design)
   clean = clean.replace(/\s*\((?:Old|New|Updated)\s+Design\)/gi, "");
   // Remove technical TD / SD / Duplex markers

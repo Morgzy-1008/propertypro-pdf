@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   User,
   Home,
@@ -38,6 +38,7 @@ import { getActiveDivision, setActiveDivision } from "@/lib/divisionContext";
 
 interface QuoteBuilderV2Props {
   quote: FullQuote;
+  initialStep?: V2StepId;
   onUpdateQuote: (patch: Partial<FullQuote>) => void;
   onAddInclusionLineItems?: (items: any[]) => void;
   onSaveQuote: () => Promise<void>;
@@ -53,6 +54,7 @@ interface QuoteBuilderV2Props {
 
 export function QuoteBuilderV2({
   quote,
+  initialStep,
   onUpdateQuote,
   onAddInclusionLineItems,
   onSaveQuote,
@@ -68,8 +70,14 @@ export function QuoteBuilderV2({
   const { mode } = useTheme();
   const isLight = mode === "normal";
 
-  const [activeStep, setActiveStep] = useState<V2StepId>("client");
+  const [activeStep, setActiveStep] = useState<V2StepId>(initialStep || "client");
   const stepContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialStep) {
+      setActiveStep(initialStep);
+    }
+  }, [initialStep]);
 
   const currentStepConfig = V2_STEPS.find((s) => s.id === activeStep) || V2_STEPS[0];
   const currentStepIndex = V2_STEPS.findIndex((s) => s.id === activeStep);
