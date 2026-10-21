@@ -1162,20 +1162,20 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
   return (
     <div className="space-y-7 relative">
       {/* Sticky Quick-Jump Navigation Bar */}
-      <div className="sticky -top-5 z-20 -mx-5 -mt-5 mb-3 border-b border-slate-800/80 bg-slate-900/95 px-4 py-2.5 backdrop-blur-xl shadow-md">
-        <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-0.5 text-[11px]">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      <div className="sticky -top-5 z-20 -mx-5 -mt-5 mb-3 border-b border-slate-800/80 bg-slate-900/95 px-3 sm:px-4 py-2 backdrop-blur-xl shadow-md">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 py-0.5 text-[11px]">
+          <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0 pr-1">
             <button
               type="button"
               onClick={() => scrollToSection("section-location")}
-              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+              className="px-2 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px] shrink-0"
             >
               Location
             </button>
             <button
               type="button"
               onClick={() => scrollToSection("section-partner")}
-              className={`px-2.5 py-1 rounded-md transition-colors whitespace-nowrap font-medium text-[11px] ${
+              className={`px-2 py-1 rounded-md transition-colors whitespace-nowrap font-medium text-[11px] shrink-0 ${
                 data.partnerEnabled
                   ? "bg-amber-500/25 text-amber-300 border border-amber-500/40 font-semibold shadow-xs"
                   : "bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300"
@@ -1186,28 +1186,28 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
             <button
               type="button"
               onClick={() => scrollToSection("section-package")}
-              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+              className="px-2 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px] shrink-0"
             >
               Package
             </button>
             <button
               type="button"
               onClick={() => scrollToSection("section-facade")}
-              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+              className="px-2 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px] shrink-0"
             >
               Facade
             </button>
             <button
               type="button"
               onClick={() => scrollToSection("section-costs")}
-              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+              className="px-2 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px] shrink-0"
             >
               Costs
             </button>
             <button
               type="button"
               onClick={() => scrollToSection("section-consultant")}
-              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+              className="px-2 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px] shrink-0"
             >
               Consultant
             </button>
@@ -1215,15 +1215,15 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               <button
                 type="button"
                 onClick={() => scrollToSection("section-siting")}
-                className="px-2.5 py-1 rounded-md bg-amber-500/25 text-amber-300 border border-amber-500/40 hover:bg-amber-500/35 transition-colors whitespace-nowrap font-semibold text-[11px] shadow-sm"
+                className="px-2 py-1 rounded-md bg-amber-500/25 text-amber-300 border border-amber-500/40 hover:bg-amber-500/35 transition-colors whitespace-nowrap font-semibold text-[11px] shadow-sm shrink-0"
               >
-                Siting & Setbacks
+                Siting
               </button>
             )}
             <button
               type="button"
               onClick={() => scrollToSection("section-terms")}
-              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+              className="px-2 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px] shrink-0"
             >
               Terms
             </button>
@@ -1232,7 +1232,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
             <button
               type="button"
               onClick={() => scrollToSection("section-package")}
-              className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-r from-amber-500/25 to-brand-gold/25 border border-brand-gold/50 text-brand-gold font-bold text-xs shadow-sm hover:brightness-110 transition-all cursor-pointer"
+              className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-r from-amber-500/25 to-brand-gold/25 border border-brand-gold/50 text-brand-gold font-bold text-xs shadow-sm hover:brightness-110 transition-all cursor-pointer"
               title="Auto-calculated package total. Click to jump to Package section"
             >
               <span className="text-[10px] text-amber-300/80 uppercase font-medium">Total:</span>

@@ -50,7 +50,7 @@ function QuoteBuilderPage() {
                 <Logo light={!isLight} size={11} />
               </div>
             </Link>
-            <div className={`hidden xl:block border-l ${isLight ? "border-slate-300" : "border-slate-800"} pl-4 flex-none`}>
+            <div className={`hidden 2xl:block border-l ${isLight ? "border-slate-300" : "border-slate-800"} pl-4 flex-none`}>
               <span className={`text-xs font-bold tracking-widest ${isLight ? "text-slate-800" : "text-white"} uppercase`}>
                 Hudson Quoting System
               </span>
@@ -61,17 +61,17 @@ function QuoteBuilderPage() {
           </div>
 
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemeToggle />
 
             <Link to="/hub">
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-900 gap-1.5"
+                className="text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-900 gap-1.5 px-2 sm:px-3"
               >
                 <Home className="h-3.5 w-3.5" />
-                Hub
+                <span className="hidden sm:inline">Hub</span>
               </Button>
             </Link>
 
@@ -79,10 +79,11 @@ function QuoteBuilderPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
+                className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5 px-2 sm:px-3"
               >
                 <FileText className="h-3.5 w-3.5 text-amber-400" />
-                Flyer Builder
+                <span className="hidden xl:inline">Flyer Builder</span>
+                <span className="xl:hidden hidden sm:inline">Flyer</span>
               </Button>
             </Link>
 
@@ -90,15 +91,15 @@ function QuoteBuilderPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
+                className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5 px-2 sm:px-3"
               >
                 <Database className="h-3.5 w-3.5 text-cyan-400" />
-                Database
+                <span className="hidden sm:inline">Database</span>
               </Button>
             </Link>
 
             {/* NHC Active Profile */}
-            <StaffHeaderProfile isLight={isLight} hideDivisionSwitcher={false} />
+            <StaffHeaderProfile isLight={isLight} hideDivisionSwitcher={true} />
           </div>
         </div>
       </header>

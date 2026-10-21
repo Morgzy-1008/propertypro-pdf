@@ -1036,7 +1036,7 @@ export function QuoteBuilder() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-start md:justify-end gap-1.5 sm:gap-2">
           {/* Import PDF Direct Button */}
           <label className="cursor-pointer">
             <input
@@ -1046,13 +1046,14 @@ export function QuoteBuilder() {
               disabled={importingPdf}
               className="hidden"
             />
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors shadow-xs ${
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors shadow-xs ${
               isLight
                 ? "border-cyan-300 bg-cyan-50 hover:bg-cyan-100 text-cyan-900"
                 : "border-cyan-500/50 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-200"
             }`}>
               <FileText className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
-              {importingPdf ? "Restoring PDF…" : "Import Estimate PDF"}
+              <span className="hidden 2xl:inline">{importingPdf ? "Restoring PDF…" : "Import Estimate PDF"}</span>
+              <span className="2xl:hidden">{importingPdf ? "Restoring…" : "Import PDF"}</span>
             </span>
           </label>
 
@@ -1065,14 +1066,15 @@ export function QuoteBuilder() {
               setIsEstimatesDialogOpen(true);
               refreshSavedQuotes();
             }}
-            className={`text-xs gap-1.5 font-bold ${
+            className={`text-xs gap-1.5 font-bold px-2.5 py-1.5 ${
               isLight
                 ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs"
                 : "border-slate-800 bg-slate-900/90 text-slate-200 hover:bg-slate-800 hover:text-white"
             }`}
           >
             <FolderOpen className={`h-3.5 w-3.5 ${isLight ? "text-amber-700" : "text-amber-400"}`} />
-            Saved Estimates
+            <span className="hidden 2xl:inline">Saved Estimates</span>
+            <span className="2xl:hidden">Saved</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold border ${
               isLight
                 ? "bg-amber-100 text-amber-900 border-amber-300"
@@ -1087,40 +1089,45 @@ export function QuoteBuilder() {
             variant="outline"
             size="sm"
             onClick={() => setIsAdminOpen(true)}
-            className={`text-xs gap-1.5 font-bold ${
+            className={`text-xs gap-1.5 font-bold px-2.5 py-1.5 ${
               isLight
                 ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs"
                 : "border-slate-800 bg-slate-900/90 text-slate-200 hover:bg-slate-800 hover:text-white"
             }`}
           >
             <Database className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
-            Databuild &amp; Rates
+            <span className="hidden 2xl:inline">Databuild &amp; Rates</span>
+            <span className="2xl:hidden">Rates</span>
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             onClick={handleNewQuote}
-            className={`text-xs gap-1.5 ${
+            className={`text-xs gap-1.5 px-2.5 py-1.5 ${
               isLight
                 ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs"
                 : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
             }`}
           >
-            <RotateCcw className="h-3.5 w-3.5" /> New Estimate
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span className="hidden 2xl:inline">New Estimate</span>
+            <span className="2xl:hidden">New</span>
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsShareOpen(true)}
-            className={`text-xs gap-1.5 ${
+            className={`text-xs gap-1.5 px-2.5 py-1.5 ${
               isLight
                 ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs"
                 : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
             }`}
           >
-            <Share2 className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} /> Share Client Link
+            <Share2 className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
+            <span className="hidden 2xl:inline">Share Client Link</span>
+            <span className="2xl:hidden">Share</span>
           </Button>
 
           <Button
@@ -1128,21 +1135,22 @@ export function QuoteBuilder() {
             size="sm"
             onClick={handleSaveQuote}
             disabled={saving}
-            className={`text-xs gap-1.5 ${
+            className={`text-xs gap-1.5 px-2.5 py-1.5 ${
               isLight
                 ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs"
                 : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
             }`}
           >
             <Save className={`h-3.5 w-3.5 ${isLight ? "text-amber-700" : "text-amber-400"}`} />
-            {saving ? "Saving…" : "Save Estimate"}
+            <span className="hidden 2xl:inline">{saving ? "Saving…" : "Save Estimate"}</span>
+            <span className="2xl:hidden">{saving ? "Saving…" : "Save"}</span>
           </Button>
 
           <Button
             size="sm"
             onClick={handleDownloadPdf}
             disabled={downloading}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold hover:from-emerald-400 text-xs gap-1.5 shadow-md shadow-emerald-500/20"
+            className="bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold hover:from-emerald-400 text-xs gap-1.5 shadow-md shadow-emerald-500/20 px-3 py-1.5"
           >
             <Download className="h-3.5 w-3.5" />
             {downloading ? "Creating PDF…" : "Download PDF"}

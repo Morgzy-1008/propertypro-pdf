@@ -110,21 +110,26 @@ export function StaffHeaderProfile({
   return (
     <div className="flex items-center gap-2">
       {/* Top Bar State Switcher (QLD ⇄ NSW) - hidden in quoting tool */}
-      {!compact && !hideDivisionSwitcher && <DivisionSwitcher isLight={isLight} size="sm" />}
+      {!compact && !hideDivisionSwitcher && (
+        <div className="hidden 2xl:block">
+          <DivisionSwitcher isLight={isLight} size="sm" />
+        </div>
+      )}
       {/* Website Admin Button for Morgan Hales */}
       {!compact && isAdmin && (
         <button
           type="button"
           onClick={() => setIsAdminModalOpen(true)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-xs font-bold shadow-md ${
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border transition-all text-xs font-bold shadow-md shrink-0 ${
             isLight
               ? "bg-amber-100/90 border-amber-300 text-amber-900 hover:bg-amber-200"
               : "bg-amber-950/50 border-amber-500/50 text-amber-300 hover:bg-amber-900/60 hover:border-amber-400"
           }`}
           title="Open Website Admin & Security Approvals"
         >
-          <Shield className="h-3.5 w-3.5 text-amber-400" />
-          <span className="hidden sm:inline">Website Admin</span>
+          <Shield className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+          <span className="hidden 2xl:inline">Website Admin</span>
+          <span className="2xl:hidden hidden sm:inline">Admin</span>
           {unreadAlerts > 0 && (
             <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-mono text-[9px] font-bold animate-pulse">
               {unreadAlerts}
@@ -135,28 +140,28 @@ export function StaffHeaderProfile({
 
       {/* Staff Profile Dropdown */}
       {activeUser ? (
-        <div className="relative">
+        <div className="relative shrink-0">
           <button
             type="button"
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className={`flex items-center gap-2.5 px-3 py-1.5 rounded-full border transition-all text-xs font-semibold ${
+            className={`flex items-center gap-2 sm:gap-2.5 px-2.5 sm:px-3 py-1.5 rounded-full border transition-all text-xs font-semibold ${
               isLight
                 ? "bg-slate-100/90 border-slate-300 text-slate-800 hover:bg-slate-200/80 shadow-xs"
                 : "bg-slate-900/90 border-slate-700/80 text-slate-200 hover:bg-slate-800 hover:border-slate-600 shadow-md"
             }`}
           >
             <div
-              className={`h-6 w-6 rounded-full bg-gradient-to-br ${activeUser.accentColor || "from-amber-500 to-orange-600"} flex items-center justify-center text-white text-[10px] font-black shadow-xs`}
+              className={`h-6 w-6 rounded-full bg-gradient-to-br ${activeUser.accentColor || "from-amber-500 to-orange-600"} flex items-center justify-center text-white text-[10px] font-black shadow-xs shrink-0`}
             >
               {activeUser.avatarInitials || "NHC"}
             </div>
-            <div className={`text-left ${compact ? "hidden 2xl:block" : "hidden sm:block"}`}>
+            <div className={`text-left ${compact ? "hidden 2xl:block" : "hidden xl:block"}`}>
               <span className={`block leading-tight font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{activeUser.name}</span>
               <span className={`block text-[9.5px] font-semibold leading-none truncate max-w-[130px] ${isLight ? "text-amber-800" : "text-amber-400"}`}>
                 {activeUser.displayCentre.replace(" Display Home", "")}
               </span>
             </div>
-            <ChevronDown className={`h-3 w-3 ml-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`} />
+            <ChevronDown className={`h-3 w-3 ml-0.5 shrink-0 ${isLight ? "text-slate-600" : "text-slate-400"}`} />
           </button>
 
           {isDropdownOpen && (

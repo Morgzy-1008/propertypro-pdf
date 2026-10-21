@@ -1764,7 +1764,7 @@ export function V2StepFloorPlan({
               <DivisionSwitcher isLight={isLight} size="sm" />
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
             {(["Single Storey", "Double Storey", "Dual Living", "Split Level", "Granny Flat"] as HousingTypeTab[]).map(
               (type) => (
                 <button
@@ -3497,7 +3497,7 @@ export function V2StepFloorPlan({
               <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 2nd Dwelling Type
               </Label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
                 {(["Granny Flat", "Single Storey", "Double Storey", "Dual Living", "Split Level"] as HousingTypeTab[]).map(
                   (type) => (
                     <button
@@ -3781,7 +3781,7 @@ export function V2StepFloorPlan({
             </Button>
           </div>
 
-          <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+          <div className="pt-2.5 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
             {availableTiers.map((tierDef) => {
               const isSelected = selectedTierCode === tierDef.shortCode;
               const isFhbOrIp = tierDef.shortCode === "IP" || tierDef.shortCode === "FHB";
