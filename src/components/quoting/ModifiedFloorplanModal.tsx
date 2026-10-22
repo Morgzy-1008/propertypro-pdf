@@ -282,8 +282,10 @@ export function ModifiedFloorplanModal({
   const [zoom, setZoom] = useState(1.0);
   const [detectedAreas, setDetectedAreas] = useState<ExtractedAreaSchedule | null>(null);
 
-  // Multi-step double storey workflow
+  // Multi-step double storey / multi-level workflow
   const [stage, setStage] = useState<"upload" | "crop_gf" | "crop_ff" | "crop_single">("upload");
+  const [isMultiLevelPlan, setIsMultiLevelPlan] = useState<boolean>(isDoubleStorey);
+  const [multiLevelAutoDetected, setMultiLevelAutoDetected] = useState<boolean>(false);
   const [gfCroppedUrl, setGfCroppedUrl] = useState<string | null>(null);
   const [ffCroppedUrl, setFfCroppedUrl] = useState<string | null>(null);
 
@@ -292,16 +294,24 @@ export function ModifiedFloorplanModal({
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const viewportContainerRef = useRef<HTMLDivElement>(null);
   const loadedImageRef = useRef<HTMLImageElement | null>(null);
+  const pendingVisualLevelCheckRef = useRef<boolean>(false);
 
   // Polygon cropping state (normalized coordinates 0 to 1)
   const [activePoints, setActivePoints] = useState<Point[]>([]);
   const [isClosed, setIsClosed] = useState(false);
   const [mousePos, setMousePos] = useState<Point | null>(null);
   const [isNearStart, setIsNearStart] = useState(false);
+  const [draggingPointIdx, setDraggingPointIdx] = useState<number | null>(null);
+  const [hoveredPointIdx, setHoveredPointIdx] = useState<number | null>(null);
+  const didDragRef = useRef<boolean>(false);
 
   // Base rendered image dimensions & fitted display dimensions
   const [imageSize, setImageSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [baseDisplaySize, setBaseDisplaySize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+
+  useEffect(() => {
+    setIsMultiLevelPlan(isDoubleStorey);
+  }, [isDoubleStorey]);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -312,24 +322,31 @@ export function ModifiedFloorplanModal({
       setZoom(1.0);
       setDetectedAreas(null);
       setStage("upload");
+      setIsMultiLevelPlan(isDoubleStorey);
+      setMultiLevelAutoDetected(false);
       setGfCroppedUrl(null);
       setFfCroppedUrl(null);
       setActivePoints([]);
       setIsClosed(false);
+      setDraggingPointIdx(null);
+      setHoveredPointIdx(null);
       setImageSize({ w: 0, h: 0 });
       setBaseDisplaySize({ w: 0, h: 0 });
       loadedImageRef.current = null;
+      pendingVisualLevelCheckRef.current = false;
     }
-  }, [isOpen]);
+  }, [isOpen, isDoubleStorey]);
 
   useEffect(() => {
     if (isOpen && initialFile && !docLoaded && pdfPages.length === 0) {
       handleFileUpload(initialFile);
     } else if (isOpen && initialImageUrl && !docLoaded && pdfPages.length === 0) {
+      pendingVisualLevelCheckRef.current = true;
       setPdfPages([initialImageUrl]);
       setSelectedPageIndex(0);
       setDocLoaded(true);
       if (isDoubleStorey) {
+        setIsMultiLevelPlan(true);
         setStage("crop_gf");
       } else {
         setStage("crop_single");
@@ -437,25 +454,28 @@ export function ModifiedFloorplanModal({
       ctx.lineWidth = strokeWidth;
       ctx.stroke();
 
-      // Draw vertex nodes
+      // Draw vertex nodes (draggable handles)
       for (let i = 0; i < activePoints.length; i++) {
         const p = activePoints[i];
+        const isActiveHandle = draggingPointIdx === i || hoveredPointIdx === i;
+        const r = isActiveHandle ? Math.round(nodeRadius * 1.45) : Math.round(nodeRadius * 1.15);
         ctx.beginPath();
-        ctx.arc(p.x * w, p.y * h, nodeRadius, 0, Math.PI * 2);
-        ctx.fillStyle = "#10b981";
+        ctx.arc(p.x * w, p.y * h, r, 0, Math.PI * 2);
+        ctx.fillStyle = isActiveHandle ? "#f59e0b" : "#10b981";
         ctx.fill();
         ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = Math.max(2, strokeWidth * 0.6);
+        ctx.lineWidth = Math.max(2.5, strokeWidth * 0.75);
         ctx.stroke();
       }
 
-      // Center confirmation badge
+      // Subtle instruction label near top-center of polygon
+      const minY = Math.min(...activePoints.map((p) => p.y)) * h;
       const cx = (activePoints.reduce((s, p) => s + p.x, 0) / activePoints.length) * w;
-      const cy = (activePoints.reduce((s, p) => s + p.y, 0) / activePoints.length) * h;
-      ctx.font = `bold ${Math.max(18, Math.round(w / 50))}px sans-serif`;
-      ctx.fillStyle = "#065f46";
+      const labelY = Math.max(28, minY - 12);
+      ctx.font = `bold ${Math.max(13, Math.round(w / 75))}px sans-serif`;
+      ctx.fillStyle = "#10b981";
       ctx.textAlign = "center";
-      ctx.fillText("✓ Floorplan Boundary Closed", cx, cy);
+      ctx.fillText("✓ Boundary Closed (Drag any corner point to adjust)", cx, labelY);
 
       return;
     }
@@ -468,7 +488,7 @@ export function ModifiedFloorplanModal({
     }
 
     // Rubber-band line to current mouse position
-    if (mousePos && !isClosed) {
+    if (mousePos && !isClosed && draggingPointIdx === null) {
       ctx.lineTo(mousePos.x * w, mousePos.y * h);
     }
 
@@ -479,7 +499,7 @@ export function ModifiedFloorplanModal({
     ctx.setLineDash([]);
 
     // Semi-transparent polygon preview
-    if (activePoints.length >= 2 && mousePos && !isClosed) {
+    if (activePoints.length >= 2 && mousePos && !isClosed && draggingPointIdx === null) {
       ctx.beginPath();
       ctx.moveTo(activePoints[0].x * w, activePoints[0].y * h);
       for (let i = 1; i < activePoints.length; i++) {
@@ -495,9 +515,11 @@ export function ModifiedFloorplanModal({
     for (let i = 0; i < activePoints.length; i++) {
       const p = activePoints[i];
       const isStart = i === 0;
+      const isActiveHandle = draggingPointIdx === i || hoveredPointIdx === i;
+      const baseR = isStart ? startNodeRadius : nodeRadius;
       ctx.beginPath();
-      ctx.arc(p.x * w, p.y * h, isStart ? startNodeRadius : nodeRadius, 0, Math.PI * 2);
-      ctx.fillStyle = isStart ? "#f59e0b" : "#06b6d4"; // Start is amber
+      ctx.arc(p.x * w, p.y * h, isActiveHandle ? Math.round(baseR * 1.35) : baseR, 0, Math.PI * 2);
+      ctx.fillStyle = isStart ? "#f59e0b" : isActiveHandle ? "#22d3ee" : "#06b6d4"; // Start is amber
       ctx.fill();
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = Math.max(2, strokeWidth * 0.6);
@@ -518,7 +540,225 @@ export function ModifiedFloorplanModal({
       ctx.textAlign = "center";
       ctx.fillText("Click to Close Polygon", startP.x * w, startP.y * h - 22);
     }
-  }, [activePoints, isClosed, mousePos, isNearStart]);
+  }, [activePoints, isClosed, mousePos, isNearStart, draggingPointIdx, hoveredPointIdx]);
+
+  // Shared helper to detect architectural building wall footprint clusters on the rendered canvas
+  const analyzeFloorplanClusters = useCallback((baseCanvas: HTMLCanvasElement) => {
+    const w = baseCanvas.width;
+    const h = baseCanvas.height;
+    if (w < 40 || h < 40) return { clusters: [], cellW: 1, cellH: 1, gridX: 80, gridY: 80 };
+    const ctx = baseCanvas.getContext("2d");
+    if (!ctx) return { clusters: [], cellW: 1, cellH: 1, gridX: 80, gridY: 80 };
+
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    const GRID_X = 80;
+    const GRID_Y = 80;
+    const cellW = w / GRID_X;
+    const cellH = h / GRID_Y;
+
+    const wallScore: number[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(0));
+    const rawInk: number[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(0));
+
+    const marginX = Math.round(w * 0.055);
+    const marginY = Math.round(h * 0.055);
+    const step = Math.max(2, Math.round(Math.min(w, h) / 600));
+
+    const isDarkPixel = (px: number, py: number): boolean => {
+      if (px < 0 || py < 0 || px >= w || py >= h) return false;
+      const idx = (py * w + px) * 4;
+      if (data[idx + 3] < 90) return false;
+      const lum = (data[idx] * 299 + data[idx + 1] * 587 + data[idx + 2] * 114) / 1000;
+      return lum < 195;
+    };
+
+    for (let y = marginY; y < h - marginY; y += step) {
+      const gy = Math.min(GRID_Y - 1, Math.floor(y / cellH));
+      for (let x = marginX; x < w - marginX; x += step) {
+        if (!isDarkPixel(x, y)) continue;
+        const gx = Math.min(GRID_X - 1, Math.floor(x / cellW));
+        rawInk[gy][gx]++;
+
+        const hasHorizRun = isDarkPixel(x + step, y) && isDarkPixel(x - step, y);
+        const hasVertRun = isDarkPixel(x, y + step) && isDarkPixel(x, y - step);
+        const hasThickStroke =
+          (isDarkPixel(x + 1, y) && isDarkPixel(x, y + 1)) ||
+          (hasHorizRun && (isDarkPixel(x, y + 1) || isDarkPixel(x, y - 1))) ||
+          (hasVertRun && (isDarkPixel(x + 1, y) || isDarkPixel(x - 1, y)));
+
+        if (hasThickStroke) {
+          wallScore[gy][gx] += 3;
+        } else if (hasHorizRun || hasVertRun) {
+          wallScore[gy][gx] += 1;
+        }
+      }
+    }
+
+    for (let gy = 0; gy < GRID_Y; gy++) {
+      if (gy < 7 || gy > GRID_Y - 8) {
+        let activeCols = 0;
+        for (let gx = 0; gx < GRID_X; gx++) {
+          if (rawInk[gy][gx] > 2) activeCols++;
+        }
+        if (activeCols > GRID_X * 0.52) {
+          for (let gx = 0; gx < GRID_X; gx++) wallScore[gy][gx] = 0;
+        }
+      }
+    }
+    for (let gx = 0; gx < GRID_X; gx++) {
+      if (gx < 7 || gx > GRID_X - 18) {
+        let activeRows = 0;
+        for (let gy = 0; gy < GRID_Y; gy++) {
+          if (rawInk[gy][gx] > 2) activeRows++;
+        }
+        if (activeRows > GRID_Y * 0.52) {
+          for (let gy = 0; gy < GRID_Y; gy++) wallScore[gy][gx] = 0;
+        }
+      }
+    }
+
+    for (let gy = 0; gy < GRID_Y; gy++) {
+      for (let gx = 0; gx < GRID_X; gx++) {
+        const isBottomRightSchedule = gx >= Math.floor(GRID_X * 0.78) && gy >= Math.floor(GRID_Y * 0.80);
+        const isTopRightNotes = gx >= Math.floor(GRID_X * 0.84) && gy <= Math.floor(GRID_Y * 0.18);
+        const isRightTitleStrip = gx >= Math.floor(GRID_X * 0.92);
+        const isBottomTitleStrip = gy >= Math.floor(GRID_Y * 0.90);
+        const isTopHeaderStrip = gy <= Math.floor(GRID_Y * 0.05);
+        if (
+          isBottomRightSchedule ||
+          isTopRightNotes ||
+          isRightTitleStrip ||
+          isBottomTitleStrip ||
+          isTopHeaderStrip
+        ) {
+          wallScore[gy][gx] = 0;
+        }
+      }
+    }
+
+    const nonZeroScores: number[] = [];
+    for (let gy = 4; gy < GRID_Y - 4; gy++) {
+      for (let gx = 4; gx < GRID_X - 4; gx++) {
+        if (wallScore[gy][gx] > 0) nonZeroScores.push(wallScore[gy][gx]);
+      }
+    }
+    nonZeroScores.sort((a, b) => a - b);
+    const adaptiveThresh =
+      nonZeroScores.length > 20 ? Math.max(2, nonZeroScores[Math.floor(nonZeroScores.length * 0.35)]) : 2;
+
+    const activeMask: boolean[][] = Array.from({ length: GRID_Y }, (_, gy) =>
+      Array.from({ length: GRID_X }, (_, gx) => wallScore[gy][gx] >= adaptiveThresh)
+    );
+
+    const bridgedMask: boolean[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(false));
+    for (let gy = 3; gy < GRID_Y - 3; gy++) {
+      for (let gx = 3; gx < GRID_X - 3; gx++) {
+        if (activeMask[gy][gx]) {
+          bridgedMask[gy][gx] = true;
+          continue;
+        }
+        let neighborCount = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (activeMask[gy + dy]?.[gx + dx]) neighborCount++;
+          }
+        }
+        if (neighborCount >= 2) {
+          bridgedMask[gy][gx] = true;
+        }
+      }
+    }
+
+    interface FootprintCluster {
+      cells: Array<{ gx: number; gy: number; weight: number }>;
+      totalWeight: number;
+      minGX: number;
+      maxGX: number;
+      minGY: number;
+      maxGY: number;
+      centroidX: number;
+      centroidY: number;
+      score: number;
+    }
+
+    const visited: boolean[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(false));
+    const clusters: FootprintCluster[] = [];
+
+    for (let gy = 3; gy < GRID_Y - 3; gy++) {
+      for (let gx = 3; gx < GRID_X - 3; gx++) {
+        if (!bridgedMask[gy][gx] || visited[gy][gx]) continue;
+        const queue: Array<{ gx: number; gy: number }> = [{ gx, gy }];
+        visited[gy][gx] = true;
+        const cells: Array<{ gx: number; gy: number; weight: number }> = [];
+        let totalWeight = 0;
+        let minGX = gx,
+          maxGX = gx,
+          minGY = gy,
+          maxGY = gy;
+        let sumX = 0,
+          sumY = 0;
+
+        while (queue.length > 0) {
+          const curr = queue.pop()!;
+          const wt = Math.max(1, wallScore[curr.gy][curr.gx]);
+          if (activeMask[curr.gy][curr.gx]) {
+            cells.push({ gx: curr.gx, gy: curr.gy, weight: wt });
+            totalWeight += wt;
+            if (curr.gx < minGX) minGX = curr.gx;
+            if (curr.gx > maxGX) maxGX = curr.gx;
+            if (curr.gy < minGY) minGY = curr.gy;
+            if (curr.gy > maxGY) maxGY = curr.gy;
+            sumX += curr.gx * wt;
+            sumY += curr.gy * wt;
+          }
+          for (let dy = -2; dy <= 2; dy++) {
+            for (let dx = -2; dx <= 2; dx++) {
+              const nx = curr.gx + dx;
+              const ny = curr.gy + dy;
+              if (
+                nx >= 3 &&
+                nx < GRID_X - 3 &&
+                ny >= 3 &&
+                ny < GRID_Y - 3 &&
+                !visited[ny][nx] &&
+                bridgedMask[ny][nx]
+              ) {
+                visited[ny][nx] = true;
+                queue.push({ gx: nx, gy: ny });
+              }
+            }
+          }
+        }
+
+        const spanW = maxGX - minGX + 1;
+        const spanH = maxGY - minGY + 1;
+        const aspect = Math.max(spanW / Math.max(1, spanH), spanH / Math.max(1, spanW));
+        const fillDensity = cells.length / Math.max(1, spanW * spanH);
+
+        if (cells.length >= 8 && spanW >= 5 && spanH >= 5 && aspect < 6.0 && fillDensity > 0.03) {
+          const centralityBonus =
+            1.0 -
+            0.25 *
+              Math.hypot(sumX / totalWeight / GRID_X - 0.45, sumY / totalWeight / GRID_Y - 0.48);
+          clusters.push({
+            cells,
+            totalWeight,
+            minGX,
+            maxGX,
+            minGY,
+            maxGY,
+            centroidX: sumX / totalWeight,
+            centroidY: sumY / totalWeight,
+            score: totalWeight * Math.max(0.5, centralityBonus),
+          });
+        }
+      }
+    }
+
+    clusters.sort((a, b) => b.score - a.score);
+    return { clusters, cellW, cellH, gridX: GRID_X, gridY: GRID_Y };
+  }, []);
 
   // Re-render when PDF page, stage, or window changes
   useEffect(() => {
@@ -559,11 +799,27 @@ export function ModifiedFloorplanModal({
         ctx.fillRect(0, 0, nw, nh);
         ctx.drawImage(img, 0, 0, nw, nh);
       }
+
+      // Check if sheet visually displays 2+ floorplan sections (e.g. Ground Floor + First Floor / Lower Ground)
+      if (pendingVisualLevelCheckRef.current) {
+        pendingVisualLevelCheckRef.current = false;
+        const { clusters } = analyzeFloorplanClusters(baseCanvas);
+        if (
+          clusters.length >= 2 &&
+          clusters[1].score >= clusters[0].score * 0.28 &&
+          clusters[1].cells.length >= 16
+        ) {
+          setIsMultiLevelPlan(true);
+          setMultiLevelAutoDetected(true);
+          setStage((prev) => (prev === "crop_single" ? "crop_gf" : prev));
+        }
+      }
+
       setDocLoaded(true);
       drawOverlay();
     };
     img.src = pageUrl;
-  }, [pdfPages, selectedPageIndex, stage, drawOverlay]);
+  }, [pdfPages, selectedPageIndex, stage, drawOverlay, analyzeFloorplanClusters]);
 
   useEffect(() => {
     drawOverlay();
@@ -574,7 +830,51 @@ export function ModifiedFloorplanModal({
     setDocLoaded(false);
     setActivePoints([]);
     setIsClosed(false);
+    setDraggingPointIdx(null);
+    setHoveredPointIdx(null);
     try {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (!isPdf && typeof FileReader !== "undefined") {
+        const fastDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        });
+        setPdfPages([fastDataUrl]);
+        setSelectedPageIndex(0);
+        setIsMultiLevelPlan(isDoubleStorey);
+        setMultiLevelAutoDetected(false);
+        pendingVisualLevelCheckRef.current = !isDoubleStorey;
+        setStage(isDoubleStorey ? "crop_gf" : "crop_single");
+        setFileLoading(false);
+
+        // Run OCR / area schedule extraction non-blockingly in the background
+        pdfDocumentToPagesAndText(file, 1)
+          .then((result) => {
+            const extracted = parseAreaScheduleFromText(result.rawText);
+            if (extracted) {
+              setDetectedAreas(extracted);
+              onExtractedAreas?.(extracted);
+            }
+            const hasMultiLevelFromText = Boolean(
+              (extracted?.firstLivingM2 && extracted.firstLivingM2 > 0) ||
+                (extracted?.lowerLivingM2 && extracted.lowerLivingM2 > 0) ||
+                (extracted?.balconyM2 && extracted.balconyM2 > 0) ||
+                /\b(?:FIRST\s+FLOOR|UPPER\s+FLOOR|UPPER\s+LEVEL|LOWER\s+GROUND|SECOND\s+FLOOR|LEVEL\s+2)\b/i.test(
+                  result.rawText || ""
+                )
+            );
+            if (hasMultiLevelFromText) {
+              setIsMultiLevelPlan(true);
+              setMultiLevelAutoDetected(true);
+              setStage((prev) => (prev === "crop_single" ? "crop_gf" : prev));
+            }
+          })
+          .catch(() => {});
+        return;
+      }
+
       const result = await pdfDocumentToPagesAndText(file, 16);
       if (result.pages.length === 0) {
         toast.error("Could not read pages from file. Please ensure it is a valid PDF or Image.");
@@ -588,19 +888,24 @@ export function ModifiedFloorplanModal({
       if (extracted) {
         setDetectedAreas(extracted);
         onExtractedAreas?.(extracted);
-        const livingPart =
-          extracted.livingM2 ||
-          ((extracted.groundLivingM2 || 0) + (extracted.firstLivingM2 || 0));
-        toast.success(
-          `Area Schedule detected & imported: Living ${livingPart ? livingPart + "m²" : ""}${
-            extracted.garageM2 ? ", Garage " + extracted.garageM2 + "m²" : ""
-          }${extracted.alfrescoM2 ? ", Alfresco " + extracted.alfrescoM2 + "m²" : ""}${
-            extracted.porchM2 ? ", Porch " + extracted.porchM2 + "m²" : ""
-          } (Total: ${extracted.totalM2}m²)`
-        );
       }
 
-      if (isDoubleStorey) {
+      // Detect whether the plan has more than 1 level (from extracted areas or PDF text)
+      const hasMultiLevelFromText = Boolean(
+        (extracted?.firstLivingM2 && extracted.firstLivingM2 > 0) ||
+          (extracted?.lowerLivingM2 && extracted.lowerLivingM2 > 0) ||
+          (extracted?.balconyM2 && extracted.balconyM2 > 0) ||
+          /\b(?:FIRST\s+FLOOR|UPPER\s+FLOOR|UPPER\s+LEVEL|LOWER\s+GROUND|SECOND\s+FLOOR|LEVEL\s+2)\b/i.test(
+            result.rawText || ""
+          )
+      );
+
+      const shouldUseMultiLevel = isDoubleStorey || hasMultiLevelFromText;
+      setIsMultiLevelPlan(shouldUseMultiLevel);
+      setMultiLevelAutoDetected(hasMultiLevelFromText);
+      pendingVisualLevelCheckRef.current = !shouldUseMultiLevel;
+
+      if (shouldUseMultiLevel) {
         setStage("crop_gf");
       } else {
         setStage("crop_single");
@@ -623,38 +928,59 @@ export function ModifiedFloorplanModal({
     return { x, y };
   };
 
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isClosed) return;
-
-    const pt = getNormalizedCoords(e);
+  // Find index of an existing vertex near the cursor (within 16px on screen)
+  const findVertexNearPoint = (pt: Point): number | null => {
     const overlay = overlayCanvasRef.current;
-    if (!overlay) return;
-
+    if (!overlay || activePoints.length === 0) return null;
     const rect = overlay.getBoundingClientRect();
-
-    // Check if clicking near start point to close polygon (when >= 3 points)
-    if (activePoints.length >= 3) {
-      const w = rect.width;
-      const h = rect.height;
-      const dx = (pt.x - activePoints[0].x) * w;
-      const dy = (pt.y - activePoints[0].y) * h;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < CLOSE_THRESHOLD_PX) {
-        setIsClosed(true);
-        setIsNearStart(false);
-        toast.success("Floorplan polygon closed! Ready to apply.");
-        return;
+    const w = rect.width;
+    const h = rect.height;
+    let bestIdx: number | null = null;
+    let bestDist = 16; // 16px hit radius
+    for (let i = 0; i < activePoints.length; i++) {
+      const dx = (pt.x - activePoints[i].x) * w;
+      const dy = (pt.y - activePoints[i].y) * h;
+      const dist = Math.hypot(dx, dy);
+      if (dist <= bestDist) {
+        bestDist = dist;
+        bestIdx = i;
       }
     }
+    return bestIdx;
+  };
 
-    // Add new point
-    setActivePoints((prev) => [...prev, pt]);
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (e.button !== 0) return; // left click only
+    const pt = getNormalizedCoords(e);
+    const hitIdx = findVertexNearPoint(pt);
+    // If polygon is closed, or if clicking any existing vertex (except clicking point 0 to close when >= 3 points and !isClosed)
+    if (hitIdx !== null) {
+      if (!isClosed && hitIdx === 0 && activePoints.length >= 3) {
+        // Let handleCanvasClick close the polygon on point 0 click
+        return;
+      }
+      e.preventDefault();
+      setDraggingPointIdx(hitIdx);
+      didDragRef.current = false;
+    }
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isClosed) return;
     const pt = getNormalizedCoords(e);
+
+    // If actively dragging a vertex, update its position in real time
+    if (draggingPointIdx !== null) {
+      didDragRef.current = true;
+      setActivePoints((prev) =>
+        prev.map((p, idx) => (idx === draggingPointIdx ? pt : p))
+      );
+      return;
+    }
+
+    const nearIdx = findVertexNearPoint(pt);
+    setHoveredPointIdx(nearIdx);
+
+    if (isClosed) return;
     setMousePos(pt);
 
     const overlay = overlayCanvasRef.current;
@@ -673,6 +999,82 @@ export function ModifiedFloorplanModal({
     setIsNearStart(dist < CLOSE_THRESHOLD_PX);
   };
 
+  const handleCanvasMouseUp = () => {
+    if (draggingPointIdx !== null) {
+      setDraggingPointIdx(null);
+    }
+  };
+
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (didDragRef.current) {
+      didDragRef.current = false;
+      return;
+    }
+
+    const pt = getNormalizedCoords(e);
+    const overlay = overlayCanvasRef.current;
+    if (!overlay) return;
+
+    const rect = overlay.getBoundingClientRect();
+
+    // If polygon is already closed, allow clicking near an edge segment to insert a new adjustable vertex!
+    if (isClosed) {
+      const hitIdx = findVertexNearPoint(pt);
+      if (hitIdx !== null) return; // clicked an existing vertex without dragging
+
+      const w = rect.width;
+      const h = rect.height;
+      let bestEdgeIdx: number | null = null;
+      let bestEdgeDist = 12; // within 12px of an edge segment
+      for (let i = 0; i < activePoints.length; i++) {
+        const p1 = activePoints[i];
+        const p2 = activePoints[(i + 1) % activePoints.length];
+        const x1 = p1.x * w,
+          y1 = p1.y * h;
+        const x2 = p2.x * w,
+          y2 = p2.y * h;
+        const px = pt.x * w,
+          py = pt.y * h;
+        const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+        if (l2 === 0) continue;
+        const t = Math.max(0, Math.min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2));
+        const projX = x1 + t * (x2 - x1);
+        const projY = y1 + t * (y2 - y1);
+        const dist = Math.hypot(px - projX, py - projY);
+        if (dist <= bestEdgeDist) {
+          bestEdgeDist = dist;
+          bestEdgeIdx = i + 1;
+        }
+      }
+      if (bestEdgeIdx !== null) {
+        setActivePoints((prev) => [
+          ...prev.slice(0, bestEdgeIdx!),
+          pt,
+          ...prev.slice(bestEdgeIdx!),
+        ]);
+      }
+      return;
+    }
+
+    // Check if clicking near start point to close polygon (when >= 3 points)
+    if (activePoints.length >= 3) {
+      const w = rect.width;
+      const h = rect.height;
+      const dx = (pt.x - activePoints[0].x) * w;
+      const dy = (pt.y - activePoints[0].y) * h;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < CLOSE_THRESHOLD_PX) {
+        setIsClosed(true);
+        setIsNearStart(false);
+        return;
+      }
+    }
+
+    // Add new point
+    setActivePoints((prev) => [...prev, pt]);
+  };
+
   const handleRightClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (isClosed) {
@@ -688,7 +1090,6 @@ export function ModifiedFloorplanModal({
     if (activePoints.length >= 3) {
       setIsClosed(true);
       setIsNearStart(false);
-      toast.success("Floorplan polygon closed! Ready to apply.");
     } else {
       toast.error("Please place at least 3 points around the floorplan before closing.");
     }
@@ -704,337 +1105,145 @@ export function ModifiedFloorplanModal({
     }
   };
 
-  const runSmartExteriorWallAutoCrop = React.useCallback((silent = false) => {
-    const baseCanvas = baseCanvasRef.current;
-    if (!baseCanvas) return;
+  const runSmartExteriorWallAutoCrop = React.useCallback(
+    (silent = false) => {
+      const baseCanvas = baseCanvasRef.current;
+      if (!baseCanvas) return;
 
-    const w = baseCanvas.width;
-    const h = baseCanvas.height;
-    if (w < 40 || h < 40) return;
-    const ctx = baseCanvas.getContext("2d");
-    if (!ctx) return;
+      const w = baseCanvas.width;
+      const h = baseCanvas.height;
+      if (w < 40 || h < 40) return;
 
-    const imgData = ctx.getImageData(0, 0, w, h);
-    const data = imgData.data;
+      const { clusters, cellW, cellH, gridX: GRID_X, gridY: GRID_Y } = analyzeFloorplanClusters(baseCanvas);
 
-    // 1. Detect and strip sheet border frames, header bars, right-hand titleblock columns, and bottom titleblock strips.
-    // Standard CAD sheets have border lines within the outer 7% and titleblocks on right (x > 0.76) or bottom (y > 0.82).
-    const GRID_X = 80;
-    const GRID_Y = 80;
-    const cellW = w / GRID_X;
-    const cellH = h / GRID_Y;
+      let targetCluster = clusters[0] || null;
 
-    // Measure structural wall ink density (requiring local 2px+ wall continuity to ignore tiny text/ticks)
-    const wallScore: number[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(0));
-    const rawInk: number[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(0));
-
-    const marginX = Math.round(w * 0.055);
-    const marginY = Math.round(h * 0.055);
-    const step = Math.max(2, Math.round(Math.min(w, h) / 600));
-
-    const isDarkPixel = (px: number, py: number): boolean => {
-      if (px < 0 || py < 0 || px >= w || py >= h) return false;
-      const idx = (py * w + px) * 4;
-      if (data[idx + 3] < 90) return false;
-      const lum = (data[idx] * 299 + data[idx + 1] * 587 + data[idx + 2] * 114) / 1000;
-      return lum < 195;
-    };
-
-    for (let y = marginY; y < h - marginY; y += step) {
-      const gy = Math.min(GRID_Y - 1, Math.floor(y / cellH));
-      for (let x = marginX; x < w - marginX; x += step) {
-        if (!isDarkPixel(x, y)) continue;
-        const gx = Math.min(GRID_X - 1, Math.floor(x / cellW));
-        rawInk[gy][gx]++;
-
-        // Check structural wall thickness / orthogonal run (walls have thick strokes + orthogonal continuity)
-        const hasHorizRun = isDarkPixel(x + step, y) && isDarkPixel(x - step, y);
-        const hasVertRun = isDarkPixel(x, y + step) && isDarkPixel(x, y - step);
-        const hasThickStroke =
-          (isDarkPixel(x + 1, y) && isDarkPixel(x, y + 1)) ||
-          (hasHorizRun && (isDarkPixel(x, y + 1) || isDarkPixel(x, y - 1))) ||
-          (hasVertRun && (isDarkPixel(x + 1, y) || isDarkPixel(x - 1, y)));
-
-        if (hasThickStroke) {
-          wallScore[gy][gx] += 3;
-        } else if (hasHorizRun || hasVertRun) {
-          wallScore[gy][gx] += 1;
+      // Double Storey / Multi-Level Ground Floor vs First Floor Smart Cluster Selection:
+      if (clusters.length >= 2 && (stage === "crop_gf" || stage === "crop_ff")) {
+        const c1 = clusters[0];
+        const c2 = clusters[1];
+        if (c2.score >= c1.score * 0.26) {
+          const horizSeparated = Math.abs(c1.centroidX - c2.centroidX) >= Math.abs(c1.centroidY - c2.centroidY);
+          const sortedByOrder = horizSeparated
+            ? [c1, c2].sort((a, b) => a.centroidX - b.centroidX)
+            : [c1, c2].sort((a, b) => a.centroidY - b.centroidY);
+          targetCluster = stage === "crop_gf" ? sortedByOrder[0] : sortedByOrder[1];
         }
       }
-    }
 
-    // 2. Suppress long sheet-spanning border lines or divider rules (any row or col where >65% of cells have ink near edges)
-    for (let gy = 0; gy < GRID_Y; gy++) {
-      if (gy < 7 || gy > GRID_Y - 8) {
-        let activeCols = 0;
-        for (let gx = 0; gx < GRID_X; gx++) {
-          if (rawInk[gy][gx] > 2) activeCols++;
-        }
-        if (activeCols > GRID_X * 0.52) {
-          for (let gx = 0; gx < GRID_X; gx++) wallScore[gy][gx] = 0;
-        }
+      if (!targetCluster) {
+        const defaultPoints: Point[] =
+          stage === "crop_ff"
+            ? [
+                { x: 0.52, y: 0.14 },
+                { x: 0.88, y: 0.14 },
+                { x: 0.88, y: 0.78 },
+                { x: 0.52, y: 0.78 },
+              ]
+            : stage === "crop_gf"
+              ? [
+                  { x: 0.08, y: 0.14 },
+                  { x: 0.48, y: 0.14 },
+                  { x: 0.48, y: 0.78 },
+                  { x: 0.08, y: 0.78 },
+                ]
+              : [
+                  { x: 0.12, y: 0.14 },
+                  { x: 0.84, y: 0.14 },
+                  { x: 0.84, y: 0.82 },
+                  { x: 0.12, y: 0.82 },
+                ];
+        setActivePoints(defaultPoints);
+        setIsClosed(true);
+        return;
       }
-    }
-    for (let gx = 0; gx < GRID_X; gx++) {
-      if (gx < 7 || gx > GRID_X - 18) {
-        let activeRows = 0;
-        for (let gy = 0; gy < GRID_Y; gy++) {
-          if (rawInk[gy][gx] > 2) activeRows++;
-        }
-        if (activeRows > GRID_Y * 0.52) {
-          for (let gy = 0; gy < GRID_Y; gy++) wallScore[gy][gx] = 0;
-        }
+
+      const colWeights = new Array(GRID_X).fill(0);
+      const rowWeights = new Array(GRID_Y).fill(0);
+      for (const c of targetCluster.cells) {
+        colWeights[c.gx] += c.weight;
+        rowWeights[c.gy] += c.weight;
       }
-    }
 
-    // 3. Mask out standard CAD titleblock & schedule zones:
-    // - Bottom-right title block / area schedule (gx >= 62% & gy >= 74%)
-    // - Right-hand title strip if separated (gx >= 82%)
-    // - Bottom title strip (gy >= 86%)
-    // - Top sheet header bar (gy <= 6%)
-    for (let gy = 0; gy < GRID_Y; gy++) {
-      for (let gx = 0; gx < GRID_X; gx++) {
-        const isBottomRightSchedule = gx >= Math.floor(GRID_X * 0.64) && gy >= Math.floor(GRID_Y * 0.74);
-        const isTopRightNotes = gx >= Math.floor(GRID_X * 0.74) && gy <= Math.floor(GRID_Y * 0.24);
-        const isRightTitleStrip = gx >= Math.floor(GRID_X * 0.84);
-        const isBottomTitleStrip = gy >= Math.floor(GRID_Y * 0.86);
-        const isTopHeaderStrip = gy <= Math.floor(GRID_Y * 0.06);
-        if (
-          isBottomRightSchedule ||
-          isTopRightNotes ||
-          isRightTitleStrip ||
-          isBottomTitleStrip ||
-          isTopHeaderStrip
-        ) {
-          wallScore[gy][gx] = 0;
-        }
-      }
-    }
-
-    // 4. Determine adaptive wall cell threshold and perform morphological closing (1-cell bridge across room interiors)
-    const nonZeroScores: number[] = [];
-    for (let gy = 4; gy < GRID_Y - 4; gy++) {
-      for (let gx = 4; gx < GRID_X - 4; gx++) {
-        if (wallScore[gy][gx] > 0) nonZeroScores.push(wallScore[gy][gx]);
-      }
-    }
-    nonZeroScores.sort((a, b) => a - b);
-    const adaptiveThresh = nonZeroScores.length > 20
-      ? Math.max(8, nonZeroScores[Math.floor(nonZeroScores.length * 0.35)])
-      : 8;
-
-    const activeMask: boolean[][] = Array.from({ length: GRID_Y }, (_, gy) =>
-      Array.from({ length: GRID_X }, (_, gx) => wallScore[gy][gx] >= adaptiveThresh)
-    );
-
-    // Bridge 1-cell gaps inside rooms/corridors so a single floorplan forms one cohesive structural cluster,
-    // without bridging across the wide gap between Ground Floor and First Floor plans or isolated text tables.
-    const bridgedMask: boolean[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(false));
-    for (let gy = 3; gy < GRID_Y - 3; gy++) {
-      for (let gx = 3; gx < GRID_X - 3; gx++) {
-        if (activeMask[gy][gx]) {
-          bridgedMask[gy][gx] = true;
-          continue;
-        }
-        let neighborCount = 0;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (activeMask[gy + dy]?.[gx + dx]) neighborCount++;
+      const trimPercentile = (
+        weights: number[],
+        minIdx: number,
+        maxIdx: number,
+        cutRatio: number
+      ): [number, number] => {
+        const sliceTotal = weights.slice(minIdx, maxIdx + 1).reduce((s, v) => s + v, 0);
+        const cutAmt = sliceTotal * cutRatio;
+        let accLeft = 0;
+        let tightMin = minIdx;
+        for (let i = minIdx; i <= maxIdx; i++) {
+          accLeft += weights[i];
+          if (accLeft >= cutAmt) {
+            tightMin = i;
+            break;
           }
         }
-        if (neighborCount >= 3) {
-          bridgedMask[gy][gx] = true;
-        }
-      }
-    }
-
-    // 5. Connected-Component Clustering to isolate the actual Building Exterior Wall Footprint(s)
-    interface FootprintCluster {
-      cells: Array<{ gx: number; gy: number; weight: number }>;
-      totalWeight: number;
-      minGX: number;
-      maxGX: number;
-      minGY: number;
-      maxGY: number;
-      centroidX: number;
-      centroidY: number;
-      score: number;
-    }
-
-    const visited: boolean[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(false));
-    const clusters: FootprintCluster[] = [];
-
-    for (let gy = 3; gy < GRID_Y - 3; gy++) {
-      for (let gx = 3; gx < GRID_X - 3; gx++) {
-        if (!bridgedMask[gy][gx] || visited[gy][gx]) continue;
-        const queue: Array<{ gx: number; gy: number }> = [{ gx, gy }];
-        visited[gy][gx] = true;
-        const cells: Array<{ gx: number; gy: number; weight: number }> = [];
-        let totalWeight = 0;
-        let minGX = gx, maxGX = gx, minGY = gy, maxGY = gy;
-        let sumX = 0, sumY = 0;
-
-        while (queue.length > 0) {
-          const curr = queue.pop()!;
-          const wt = Math.max(1, wallScore[curr.gy][curr.gx]);
-          if (activeMask[curr.gy][curr.gx]) {
-            cells.push({ gx: curr.gx, gy: curr.gy, weight: wt });
-            totalWeight += wt;
-            if (curr.gx < minGX) minGX = curr.gx;
-            if (curr.gx > maxGX) maxGX = curr.gx;
-            if (curr.gy < minGY) minGY = curr.gy;
-            if (curr.gy > maxGY) maxGY = curr.gy;
-            sumX += curr.gx * wt;
-            sumY += curr.gy * wt;
-          }
-          for (let dy = -2; dy <= 2; dy++) {
-            for (let dx = -2; dx <= 2; dx++) {
-              const nx = curr.gx + dx;
-              const ny = curr.gy + dy;
-              if (nx >= 3 && nx < GRID_X - 3 && ny >= 3 && ny < GRID_Y - 3 && !visited[ny][nx] && bridgedMask[ny][nx]) {
-                visited[ny][nx] = true;
-                queue.push({ gx: nx, gy: ny });
-              }
-            }
+        let accRight = 0;
+        let tightMax = maxIdx;
+        for (let i = maxIdx; i >= tightMin; i--) {
+          accRight += weights[i];
+          if (accRight >= cutAmt) {
+            tightMax = i;
+            break;
           }
         }
+        return [tightMin, tightMax];
+      };
 
-        const spanW = maxGX - minGX + 1;
-        const spanH = maxGY - minGY + 1;
-        const aspect = Math.max(spanW / Math.max(1, spanH), spanH / Math.max(1, spanW));
-        const fillDensity = cells.length / Math.max(1, spanW * spanH);
+      const [coreMinGX, coreMaxGX] = trimPercentile(colWeights, targetCluster.minGX, targetCluster.maxGX, 0.02);
+      const [coreMinGY, coreMaxGY] = trimPercentile(rowWeights, targetCluster.minGY, targetCluster.maxGY, 0.02);
 
-        // Filter out thin 1D lines (aspect > 6.5) or tiny text labels (< 10 active wall cells)
-        if (cells.length >= 10 && spanW >= 5 && spanH >= 5 && aspect < 6.0 && fillDensity > 0.12) {
-          // Prefer compact 2D architectural footprints near the main drawing canvas
-          const centralityBonus = 1.0 - 0.25 * Math.hypot((sumX / totalWeight) / GRID_X - 0.45, (sumY / totalWeight) / GRID_Y - 0.48);
-          clusters.push({
-            cells,
-            totalWeight,
-            minGX,
-            maxGX,
-            minGY,
-            maxGY,
-            centroidX: sumX / totalWeight,
-            centroidY: sumY / totalWeight,
-            score: totalWeight * Math.max(0.5, centralityBonus),
-          });
-        }
-      }
-    }
+      const footprintNormW = ((coreMaxGX - coreMinGX + 1) * cellW) / w;
+      const footprintNormH = ((coreMaxGY - coreMinGY + 1) * cellH) / h;
+      const buffer500mmX = Math.max(0.015, Math.min(0.035, footprintNormW * 0.032));
+      const buffer500mmY = Math.max(0.015, Math.min(0.035, footprintNormH * 0.032));
 
-    clusters.sort((a, b) => b.score - a.score);
+      const pMinX = Math.max(0.02, (coreMinGX * cellW) / w - buffer500mmX);
+      const pMaxX = Math.min(0.98, ((coreMaxGX + 1) * cellW) / w + buffer500mmX);
+      const pMinY = Math.max(0.02, (coreMinGY * cellH) / h - buffer500mmY);
+      const pMaxY = Math.min(0.98, ((coreMaxGY + 1) * cellH) / h + buffer500mmY);
 
-    let targetCluster: FootprintCluster | null = clusters[0] || null;
+      const autoPoints: Point[] = [
+        { x: pMinX, y: pMinY },
+        { x: pMaxX, y: pMinY },
+        { x: pMaxX, y: pMaxY },
+        { x: pMinX, y: pMaxY },
+      ];
 
-    // 6. Double Storey Ground Floor vs First Floor Smart Cluster Selection:
-    // If two substantial floorplan footprints exist on the same sheet (e.g., GF on left, FF on right, or stacked),
-    // automatically target the Ground Floor footprint when stage === "crop_gf" and First Floor when stage === "crop_ff"!
-    if (clusters.length >= 2 && (stage === "crop_gf" || stage === "crop_ff")) {
-      const c1 = clusters[0];
-      const c2 = clusters[1];
-      if (c2.score >= c1.score * 0.26) {
-        const horizSeparated = Math.abs(c1.centroidX - c2.centroidX) >= Math.abs(c1.centroidY - c2.centroidY);
-        const sortedByOrder = horizSeparated
-          ? [c1, c2].sort((a, b) => a.centroidX - b.centroidX)
-          : [c1, c2].sort((a, b) => a.centroidY - b.centroidY);
-        targetCluster = stage === "crop_gf" ? sortedByOrder[0] : sortedByOrder[1];
-      }
-    }
+      setActivePoints(autoPoints);
+      setIsClosed(true);
+    },
+    [stage, analyzeFloorplanClusters]
+  );
 
-    if (!targetCluster) {
-      if (!silent) {
-        toast.error("Could not auto-detect exterior walls. Please click around the floorplan manually.");
-      }
-      return;
-    }
-
-    // 7. Trim stray outer dimension leader ticks from the cluster using 96% interior core wall mass
-    const colWeights = new Array(GRID_X).fill(0);
-    const rowWeights = new Array(GRID_Y).fill(0);
-    for (const c of targetCluster.cells) {
-      colWeights[c.gx] += c.weight;
-      rowWeights[c.gy] += c.weight;
-    }
-
-    const trimPercentile = (weights: number[], minIdx: number, maxIdx: number, cutRatio: number): [number, number] => {
-      const sliceTotal = weights.slice(minIdx, maxIdx + 1).reduce((s, v) => s + v, 0);
-      const cutAmt = sliceTotal * cutRatio;
-      let accLeft = 0;
-      let tightMin = minIdx;
-      for (let i = minIdx; i <= maxIdx; i++) {
-        accLeft += weights[i];
-        if (accLeft >= cutAmt) {
-          tightMin = i;
-          break;
-        }
-      }
-      let accRight = 0;
-      let tightMax = maxIdx;
-      for (let i = maxIdx; i >= tightMin; i--) {
-        accRight += weights[i];
-        if (accRight >= cutAmt) {
-          tightMax = i;
-          break;
-        }
-      }
-      return [tightMin, tightMax];
-    };
-
-    const [coreMinGX, coreMaxGX] = trimPercentile(colWeights, targetCluster.minGX, targetCluster.maxGX, 0.02);
-    const [coreMinGY, coreMaxGY] = trimPercentile(rowWeights, targetCluster.minGY, targetCluster.maxGY, 0.02);
-
-    // 8. Calculate exact ~500mm safety buffer around the detected exterior wall points:
-    // A typical residential home footprint is ~14m–20m wide/long, so 500mm (0.5m) is ~3.0% of the building footprint span.
-    const footprintNormW = ((coreMaxGX - coreMinGX + 1) * cellW) / w;
-    const footprintNormH = ((coreMaxGY - coreMinGY + 1) * cellH) / h;
-    const buffer500mmX = Math.max(0.015, Math.min(0.035, footprintNormW * 0.032));
-    const buffer500mmY = Math.max(0.015, Math.min(0.035, footprintNormH * 0.032));
-
-    const pMinX = Math.max(0.02, (coreMinGX * cellW) / w - buffer500mmX);
-    const pMaxX = Math.min(0.98, ((coreMaxGX + 1) * cellW) / w + buffer500mmX);
-    const pMinY = Math.max(0.02, (coreMinGY * cellH) / h - buffer500mmY);
-    const pMaxY = Math.min(0.98, ((coreMaxGY + 1) * cellH) / h + buffer500mmY);
-
-    const autoPoints: Point[] = [
-      { x: pMinX, y: pMinY },
-      { x: pMaxX, y: pMinY },
-      { x: pMaxX, y: pMaxY },
-      { x: pMinX, y: pMaxY },
-    ];
-
-    setActivePoints(autoPoints);
-    setIsClosed(true);
-    if (!silent) {
-      const floorLabel =
-        stage === "crop_gf"
-          ? "Ground Floor"
-          : stage === "crop_ff"
-          ? "First Floor"
-          : "Exterior Wall Footprint";
-      toast.success(`✨ Auto-detected ${floorLabel} exterior walls (+500mm safety buffer)!`);
-    }
-  }, [stage]);
-
+  // Only trigger Auto-Crop when the user explicitly clicks the Auto-Crop button
   const handleAutoCrop = () => {
     runSmartExteriorWallAutoCrop(false);
   };
-
-  // Automatically snap crop to exterior walls (+500mm buffer) when a drawing page loads or stage switches
-  useEffect(() => {
-    if (docLoaded && stage !== "upload" && activePoints.length === 0) {
-      const timer = setTimeout(() => {
-        runSmartExteriorWallAutoCrop(true);
-      }, 60);
-      return () => clearTimeout(timer);
-    }
-  }, [docLoaded, stage, selectedPageIndex, activePoints.length, runSmartExteriorWallAutoCrop]);
 
   const handleResetPoints = () => {
     setActivePoints([]);
     setIsClosed(false);
     setIsNearStart(false);
-    toast.info("Reverted to full image. Click anywhere to draw custom crop.");
+    setDraggingPointIdx(null);
+    setHoveredPointIdx(null);
+  };
+
+  const handleToggleMultiLevel = (multi: boolean) => {
+    setIsMultiLevelPlan(multi);
+    if (multi) {
+      if (stage === "crop_single") {
+        setStage("crop_gf");
+      }
+    } else {
+      setStage("crop_single");
+      setGfCroppedUrl(null);
+      setFfCroppedUrl(null);
+    }
   };
 
   const handleAssignCategory = (
@@ -1063,19 +1272,6 @@ export function ModifiedFloorplanModal({
 
     setDetectedAreas(updated);
     onExtractedAreas?.(updated);
-    const catLabel =
-      category === "groundLivingM2"
-        ? "Ground Floor Living"
-        : category === "firstLivingM2"
-        ? "First Floor Living"
-        : category === "garageM2"
-        ? "Garage"
-        : category === "alfrescoM2"
-        ? "Alfresco"
-        : category === "balconyM2"
-        ? "Balcony"
-        : "Excluded";
-    toast.success(`Assigned ${targetItem.sqm} m² (${targetItem.label}) to ${catLabel}!`);
   };
 
   const cropPolygonRegion = (): string | null => {
@@ -1181,24 +1377,22 @@ export function ModifiedFloorplanModal({
 
     if (stage === "crop_single") {
       onSave(cropped);
-      toast.success("Modified architectural floorplan applied to estimate!");
       onClose();
     } else if (stage === "crop_gf") {
       setGfCroppedUrl(cropped);
       setStage("crop_ff");
       setActivePoints([]);
       setIsClosed(false);
-      toast.info("Ground Floor saved! Now click around the First Floor (FF) and close the polygon.");
+      setDraggingPointIdx(null);
+      setHoveredPointIdx(null);
     } else if (stage === "crop_ff") {
       setFfCroppedUrl(cropped);
       if (gfCroppedUrl) {
         const combined = await combineDoubleStoreyPlans(gfCroppedUrl, cropped);
         onSave(combined);
-        toast.success("Two-storey modified floorplan combined and attached to estimate!");
         onClose();
       } else {
         onSave(cropped);
-        toast.success("Modified architectural floorplan applied to estimate!");
         onClose();
       }
     }
@@ -1213,44 +1407,89 @@ export function ModifiedFloorplanModal({
       >
         {/* Header */}
         <DialogHeader className="border-b border-slate-800 pb-2.5 flex-none">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <Crop className="h-5 w-5 text-emerald-400" />
-              Update with Modified Design &mdash; Precision Polygon Cropper
-            </DialogTitle>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <Crop className="h-5 w-5 text-emerald-400" />
+                Update with Modified Design &mdash; Precision Polygon Cropper
+              </DialogTitle>
+              <p className="text-xs text-slate-400 mt-1">
+                {designName ? `Target Home Design: ${designName}` : "Custom Architectural Plan"} &middot;{" "}
+                {isMultiLevelPlan ? "Two Level / Multi-Section Plan (2 Crops)" : "Single Level Configuration (1 Crop)"}
+              </p>
+            </div>
+
+            {stage !== "upload" && (
+              <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => handleToggleMultiLevel(false)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    !isMultiLevelPlan
+                      ? "bg-emerald-500 text-slate-950 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  1 Level (Single Crop)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleMultiLevel(true)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 ${
+                    isMultiLevelPlan
+                      ? "bg-emerald-500 text-slate-950 shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  2+ Levels (Crop GF + FF)
+                </button>
+              </div>
+            )}
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            {designName ? `Target Home Design: ${designName}` : "Custom Architectural Plan"} &middot;{" "}
-            {isDoubleStorey ? "Two Storey Configuration" : "Single Storey Configuration"}
-          </p>
         </DialogHeader>
 
-        {/* Step Indicator for Double Storey */}
-        {isDoubleStorey && stage !== "upload" && (
-          <div className="flex items-center justify-between bg-slate-900/90 p-2 rounded-xl border border-slate-800 text-xs flex-none mt-2">
-            <div className="flex items-center gap-3">
-              <span
-                className={`px-2.5 py-1 rounded-md font-bold flex items-center gap-1.5 ${
+        {/* Step Indicator for Multi-Level / Double Storey */}
+        {isMultiLevelPlan && stage !== "upload" && (
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-emerald-500/30 text-xs flex-none mt-2">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {multiLevelAutoDetected && (
+                <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[10.5px] font-bold flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-cyan-400" />
+                  Multi-Level Plan Detected
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (stage === "crop_ff") {
+                    setStage("crop_gf");
+                    setActivePoints([]);
+                    setIsClosed(false);
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-md font-bold flex items-center gap-1.5 transition-all ${
                   stage === "crop_gf"
-                    ? "bg-emerald-500 text-slate-950"
-                    : "bg-emerald-950 text-emerald-300 border border-emerald-700"
+                    ? "bg-emerald-500 text-slate-950 shadow-sm"
+                    : "bg-emerald-950 text-emerald-300 border border-emerald-700 hover:bg-emerald-900"
                 }`}
               >
-                {stage === "crop_ff" && <Check className="h-3.5 w-3.5" />} 1. Ground Floor (GF)
-              </span>
+                {stage === "crop_ff" && <Check className="h-3.5 w-3.5" />} 1. Crop Ground Floor (GF)
+              </button>
               <ArrowRight className="h-4 w-4 text-slate-500" />
               <span
                 className={`px-2.5 py-1 rounded-md font-bold ${
                   stage === "crop_ff"
-                    ? "bg-emerald-500 text-slate-950"
+                    ? "bg-amber-500 text-slate-950 shadow-sm"
                     : "bg-slate-800 text-slate-400"
                 }`}
               >
-                2. First Floor (FF)
+                2. Crop First Floor / Level 2 (FF)
               </span>
             </div>
-            <span className="text-[11px] text-amber-400 font-semibold">
-              {stage === "crop_gf" ? "Click boundary points around Ground Floor" : "Click boundary points around First Floor"}
+            <span className="text-[11px] text-amber-300 font-semibold">
+              {stage === "crop_gf"
+                ? "Step 1 of 2: Place or Auto-Crop boundary around Ground Floor, then click Proceed to Step 2"
+                : "Step 2 of 2: Now place or Auto-Crop boundary around First Floor / Level 2"}
             </span>
           </div>
         )}
@@ -1390,12 +1629,12 @@ export function ModifiedFloorplanModal({
               <Sparkles className="h-3.5 w-3.5" /> ⚡ Auto Crop
             </Button>
             <span className="text-[11px] text-slate-300">
-              Press <strong>Auto Crop</strong> to snap to floorplan bounds, or click boundary points manually.
+              Click boundary points manually around the floorplan (or click <strong>Auto Crop</strong>). Drag any point to adjust, or click <strong>Reset</strong> to start over.
             </span>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-[10px] text-slate-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 font-mono">
             <MousePointer className="h-3 w-3 text-cyan-400" />
-            <span>Wheel to Zoom &bull; Drag / Scroll to Pan</span>
+            <span>Drag Corner Points to Adjust &bull; Wheel to Zoom</span>
           </div>
         </div>
 
@@ -1563,13 +1802,22 @@ export function ModifiedFloorplanModal({
                   className="block w-full h-full bg-white pointer-events-none"
                 />
 
-                {/* Interactive Polygon Click Overlay Canvas */}
+                {/* Interactive Polygon Click & Vertex Drag Overlay Canvas */}
                 <canvas
                   ref={overlayCanvasRef}
-                  onClick={handleCanvasClick}
+                  onMouseDown={handleCanvasMouseDown}
                   onMouseMove={handleCanvasMouseMove}
+                  onMouseUp={handleCanvasMouseUp}
+                  onMouseLeave={handleCanvasMouseUp}
+                  onClick={handleCanvasClick}
                   onContextMenu={handleRightClick}
-                  className="absolute top-0 left-0 w-full h-full cursor-crosshair z-10"
+                  className={`absolute top-0 left-0 w-full h-full z-10 ${
+                    draggingPointIdx !== null
+                      ? "cursor-grabbing"
+                      : hoveredPointIdx !== null
+                      ? "cursor-grab"
+                      : "cursor-crosshair"
+                  }`}
                 />
               </div>
             </div>

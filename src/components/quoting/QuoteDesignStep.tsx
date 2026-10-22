@@ -968,7 +968,6 @@ export function QuoteDesignStep({
         promotionsDiscount: autoDiscount,
         modifiedAreas: undefined,
       });
-      toast.info(`Reverted to standard ${currentModel.name} floorplan sizing.`);
     }
   };
 
@@ -1071,7 +1070,6 @@ export function QuoteDesignStep({
       basePrice: stdPrice,
       promotionsDiscount: getAutomatedPromotionDiscount(pricing.modifiedTotalM2),
     });
-    toast.info("Standard & modified room areas reset to official brochure baseline.");
   };
 
   const handleFacadeSelect = (facadeName: string) => {
@@ -1198,19 +1196,6 @@ export function QuoteDesignStep({
       );
       setPendingAnalysis(analysis);
       setIsReviewModalOpen(true);
-      if (
-        analysis.netDeltaM2 === 0 &&
-        analysis.inclusionUpgrades.length === 0 &&
-        (!analysis.openingReplacements || analysis.openingReplacements.length === 0)
-      ) {
-        toast.success(
-          `✨ Scanned floorplan: verified standard ${analysis.baseDesignName} (0.0 m² delta, $0.00 adjustment).`
-        );
-      } else {
-        toast.success(
-          `✨ Full scan completed for ${analysis.baseDesignName}: matched ${analysis.netDeltaM2 >= 0 ? `+${analysis.netDeltaM2}` : analysis.netDeltaM2} m² net variance with ${analysis.inclusionUpgrades.length + (analysis.openingReplacements?.length || 0)} item modifications.`
-        );
-      }
     } catch (err: any) {
       console.error("Floorplan full scan failed:", err);
       const errMsg = err?.message || "Could not complete full scan of floorplan file.";

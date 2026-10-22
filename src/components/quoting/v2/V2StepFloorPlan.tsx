@@ -242,8 +242,8 @@ export function V2StepFloorPlan({
 
   // Mode: standard, modified, custom, auto_quote
   const [designMode, setDesignMode] = useState<"standard" | "modified" | "custom" | "auto_quote">(() => {
+    if (design.isModifiedFloorplan || design.mode === "modified") return "modified";
     if (design.mode === "custom_floorplan") return "custom";
-    if (design.isModifiedFloorplan) return "modified";
     return "standard";
   });
   const [extractedDimensionSchedule, setExtractedDimensionSchedule] = useState<ExtractedAreaSchedule | null>(null);
@@ -639,7 +639,6 @@ export function V2StepFloorPlan({
     });
     setSecondHouseType("Granny Flat");
     setSecondSearchQuery(defaultModel.name);
-    toast.success("Added 2nd Dwelling (Aqua Granny Flat / Auxiliary Unit)");
   };
 
   const handleRemoveSecondDwelling = () => {
@@ -650,7 +649,6 @@ export function V2StepFloorPlan({
         enabled: false,
       } as any,
     });
-    toast.info("Removed 2nd Dwelling");
   };
 
   const handleSelectSecondHouseType = (type: HousingTypeTab) => {
@@ -721,7 +719,6 @@ export function V2StepFloorPlan({
     });
     setSecondSearchQuery(row.name);
     setIsSecondDropdownOpen(false);
-    toast.success(`Selected 2nd Dwelling: ${row.name} (${row.m2} m²)`);
   };
 
   const handleSelectSecondTier = (tierCode: "H1" | "H2" | "H3") => {
@@ -830,9 +827,6 @@ export function V2StepFloorPlan({
     ) {
       tier = "H2 Design Collection";
       setSelectedTierCode("H2");
-      toast.info(
-        `${row.name} is not in the FHB / Investor turnkey range. Specification reset to H2 Design Collection.`
-      );
     }
 
     const basePrice = getTierPrice(row, tier, type, division);
@@ -849,6 +843,7 @@ export function V2StepFloorPlan({
       modelName: row.name,
       designM2: row.m2,
       standardDesignM2: row.m2,
+      modifiedDesignM2: row.m2,
       housingType: type,
       basePrice,
       standardBasePrice: basePrice,
@@ -859,12 +854,13 @@ export function V2StepFloorPlan({
       garage: planInfo?.cars ? Number(planInfo.cars) : (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1)),
       facadeName: initialFacade.name,
       facadePrice: initialFacade.uplift,
+      standardAreas: stdAreas,
+      modifiedAreas: stdAreas,
       areas: stdAreas,
     });
 
     setSearchQuery(row.name);
     setIsDropdownOpen(false);
-    toast.success(`Selected ${row.name} (${row.m2} m²)`);
   };
 
   // Switch House Type
@@ -872,7 +868,7 @@ export function V2StepFloorPlan({
     setHouseType(type);
     const isDouble = type === "Double Storey" || type === "Split Level";
     let customUpdates: Partial<typeof design> = {};
-    if (designMode === "custom" || design.mode === "custom_floorplan" || design.customSpec) {
+    if (designMode === "custom") {
       const baseSpec = design.customSpec || {
         groundLivingM2: 140,
         firstLivingM2: isDouble ? 100 : 0,
@@ -926,29 +922,26 @@ export function V2StepFloorPlan({
     let nextBasePrice = design.basePrice || 350000;
     let nextStdBasePrice = design.standardBasePrice || nextBasePrice;
 
-    if (designMode === "standard" && currentModel) {
-      nextBasePrice = getTierPrice(currentModel.row, tier, houseType, division);
+    const targetModel =
+      currentModel ||
+      (design.baseDesignCandidate
+        ? allModels.find(
+            (m) => m.row.name.toLowerCase() === design.baseDesignCandidate!.modelName.toLowerCase()
+          )
+        : null);
+
+    if (designMode === "standard" && targetModel) {
+      nextBasePrice = getTierPrice(targetModel.row, tier, targetModel.type || houseType, division);
       nextStdBasePrice = nextBasePrice;
-    } else if (designMode === "modified" && design.baseDesignCandidate) {
-      const candModel = allModels.find(
-        (m) => m.row.name.toLowerCase() === design.baseDesignCandidate!.modelName.toLowerCase()
-      );
-      if (candModel) {
-        const stdBase = getTierPrice(candModel.row, tier, houseType, division);
-        nextStdBasePrice = stdBase;
-        const calc = calculateModifiedFloorplanPricing({
-          ...design,
-          specTier: tier,
-          basePrice: stdBase,
-          standardBasePrice: stdBase,
-        });
-        nextBasePrice = calc.modifiedBasePrice;
-      }
-    } else if (designMode === "modified" && currentModel) {
-      const stdBase = getTierPrice(currentModel.row, tier, houseType, division);
+    } else if (designMode === "modified") {
+      const stdBase = targetModel
+        ? getTierPrice(targetModel.row, tier, targetModel.type || houseType, division)
+        : (design.standardBasePrice || design.basePrice || 0);
       nextStdBasePrice = stdBase;
       const calc = calculateModifiedFloorplanPricing({
         ...design,
+        mode: "modified",
+        isModifiedFloorplan: true,
         specTier: tier,
         basePrice: stdBase,
         standardBasePrice: stdBase,
@@ -961,12 +954,16 @@ export function V2StepFloorPlan({
 
     setSelectedTierCode(tierDef.shortCode);
     onChange({
+      ...(designMode === "modified"
+        ? { mode: "modified" as const, isModifiedFloorplan: true }
+        : designMode === "standard"
+        ? { mode: "standard" as const, isModifiedFloorplan: false }
+        : {}),
       specTier: tier,
       basePrice: nextBasePrice,
       standardBasePrice: nextStdBasePrice,
       hasExplicitlySelectedTier: true,
     });
-    toast.success(`Selected ${tierDef.title} (${tierDef.shortCode})`);
   };
 
   // Handle Façade Selection from Dropdown
@@ -978,7 +975,6 @@ export function V2StepFloorPlan({
       facadePrice: uplift,
       isCustomFacade: false,
     });
-    toast.success(`Selected ${facadeName} Façade (${uplift > 0 ? `+${formatAud(uplift)}` : "Included standard"})`);
   };
 
   const handleSelectFacadeFromLibrary = (facade: DesignFacadeOption) => {
@@ -989,7 +985,6 @@ export function V2StepFloorPlan({
       isCustomFacade: false,
     });
     setIsFacadeLibraryOpen(false);
-    toast.success(`Selected ${facade.name} Façade (${facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"})`);
   };
 
   // Custom Elevation Image Upload
@@ -1003,7 +998,6 @@ export function V2StepFloorPlan({
         isCustomFacade: true,
         facadeImageUrl: dataUrl,
       });
-      toast.success("Uploaded custom façade elevation render!");
     };
     reader.readAsDataURL(file);
   };
@@ -1031,23 +1025,26 @@ export function V2StepFloorPlan({
 
     const isDouble = type === "Double Storey" || type === "Split Level" || isDoubleStoreyDesign(row.name, type);
 
-    // If existing modified areas exist and have positive values, preserve them; otherwise initialize from standard CAD areas
-    const currentModAreas = design.modifiedAreas || design.areas;
+    // If extractedDimensionSchedule was captured from an earlier PDF upload, apply it; otherwise if existing modified areas belong to the same model, preserve them; otherwise initialize from standard CAD areas
+    const isSameModel = design.designName?.toLowerCase() === row.name.toLowerCase();
+    const currentModAreas = isSameModel ? (design.modifiedAreas || design.areas) : undefined;
+    const ext = extractedDimensionSchedule;
+
     const initialModifiedAreas: FloorplanAreaBreakdown = {
       ...(isDouble
         ? {
-            lowerLivingM2: currentModAreas?.lowerLivingM2 && currentModAreas.lowerLivingM2 > 0 ? currentModAreas.lowerLivingM2 : (stdAreas.lowerLivingM2 || 0),
-            groundLivingM2: currentModAreas?.groundLivingM2 && currentModAreas.groundLivingM2 > 0 ? currentModAreas.groundLivingM2 : (stdAreas.groundLivingM2 || 0),
-            firstLivingM2: currentModAreas?.firstLivingM2 && currentModAreas.firstLivingM2 > 0 ? currentModAreas.firstLivingM2 : (stdAreas.firstLivingM2 || 0),
-            balconyM2: currentModAreas?.balconyM2 !== undefined ? currentModAreas.balconyM2 : (stdAreas.balconyM2 || 0),
+            lowerLivingM2: ext?.lowerLivingM2 ?? (currentModAreas?.lowerLivingM2 && currentModAreas.lowerLivingM2 > 0 ? currentModAreas.lowerLivingM2 : (stdAreas.lowerLivingM2 || 0)),
+            groundLivingM2: ext?.groundLivingM2 ?? (ext?.livingM2 ? ext.livingM2 : (currentModAreas?.groundLivingM2 && currentModAreas.groundLivingM2 > 0 ? currentModAreas.groundLivingM2 : (stdAreas.groundLivingM2 || 0))),
+            firstLivingM2: ext?.firstLivingM2 ?? (currentModAreas?.firstLivingM2 && currentModAreas.firstLivingM2 > 0 ? currentModAreas.firstLivingM2 : (stdAreas.firstLivingM2 || 0)),
+            balconyM2: ext?.balconyM2 !== undefined ? ext.balconyM2 : (currentModAreas?.balconyM2 !== undefined ? currentModAreas.balconyM2 : (stdAreas.balconyM2 || 0)),
           }
         : {
-            livingM2: currentModAreas?.livingM2 && currentModAreas.livingM2 > 0 ? currentModAreas.livingM2 : (stdAreas.livingM2 || 0),
-            balconyM2: currentModAreas?.balconyM2 !== undefined ? currentModAreas.balconyM2 : (stdAreas.balconyM2 || 0),
+            livingM2: ext?.livingM2 ?? (currentModAreas?.livingM2 && currentModAreas.livingM2 > 0 ? currentModAreas.livingM2 : (stdAreas.livingM2 || 0)),
+            balconyM2: ext?.balconyM2 !== undefined ? ext.balconyM2 : (currentModAreas?.balconyM2 !== undefined ? currentModAreas.balconyM2 : (stdAreas.balconyM2 || 0)),
           }),
-      garageM2: currentModAreas?.garageM2 && currentModAreas.garageM2 > 0 ? currentModAreas.garageM2 : (stdAreas.garageM2 || 0),
-      alfrescoM2: currentModAreas?.alfrescoM2 && currentModAreas.alfrescoM2 > 0 ? currentModAreas.alfrescoM2 : (stdAreas.alfrescoM2 || 0),
-      porchM2: currentModAreas?.porchM2 && currentModAreas.porchM2 > 0 ? currentModAreas.porchM2 : (stdAreas.porchM2 || 0),
+      garageM2: ext?.garageM2 ?? (currentModAreas?.garageM2 && currentModAreas.garageM2 > 0 ? currentModAreas.garageM2 : (stdAreas.garageM2 || 0)),
+      alfrescoM2: ext?.alfrescoM2 ?? (currentModAreas?.alfrescoM2 && currentModAreas.alfrescoM2 > 0 ? currentModAreas.alfrescoM2 : (stdAreas.alfrescoM2 || 0)),
+      porchM2: ext?.porchM2 ?? (currentModAreas?.porchM2 && currentModAreas.porchM2 > 0 ? currentModAreas.porchM2 : (stdAreas.porchM2 || 0)),
       customAreas: currentModAreas?.customAreas || [],
       totalM2: 0,
     };
@@ -1064,7 +1061,7 @@ export function V2StepFloorPlan({
     ) / 100;
     initialModifiedAreas.totalM2 = calculatedTotal;
 
-    if (stdAreas.balconyM2 && stdAreas.balconyM2 > 0) {
+    if ((initialModifiedAreas.balconyM2 || 0) > 0) {
       setIsBalconyActive(true);
     }
 
@@ -1078,6 +1075,7 @@ export function V2StepFloorPlan({
       designName: row.name,
       modelName: row.name,
       housingType: type,
+      specTier: tier,
       standardDesignM2: row.m2,
       standardBasePrice: stdBasePrice,
       standardAreas: stdAreas,
@@ -1093,6 +1091,7 @@ export function V2StepFloorPlan({
       isModifiedFloorplan: true,
       designName: row.name,
       modelName: row.name,
+      specTier: tier,
       designM2: initialModifiedAreas.totalM2,
       modifiedDesignM2: initialModifiedAreas.totalM2,
       standardDesignM2: row.m2,
@@ -1119,7 +1118,6 @@ export function V2StepFloorPlan({
 
     setModifiedSearchQuery(row.name);
     setIsModifiedDropdownOpen(false);
-    toast.success(`Selected base design: ${row.name} (${row.m2} m²)`);
   };
 
   const handleConfirmDetectedBase = (detected: DetectedFloorplan) => {
@@ -1162,6 +1160,8 @@ export function V2StepFloorPlan({
       }
 
       onChange({
+        mode: "modified",
+        isModifiedFloorplan: true,
         modifiedAreas: newAreas,
         areas: newAreas,
         designM2: newAreas.totalM2,
@@ -1170,7 +1170,6 @@ export function V2StepFloorPlan({
     }
 
     setModifiedSubStep("areas");
-    toast.success(`Confirmed base design: ${detected.matchedDesignName}`);
   };
 
   // Modified Area change handler
@@ -1203,9 +1202,12 @@ export function V2StepFloorPlan({
 
     updatedAreas.totalM2 = updatedTotal;
 
-    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
+    const currentBasePrice = currentModel
+      ? getTierPrice(currentModel.row, design.specTier || "H2 Design Collection", currentModel.type || houseType, division)
+      : (design.standardBasePrice || design.basePrice || 0);
     const calc = calculateModifiedFloorplanPricing({
       ...design,
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
       modifiedAreas: updatedAreas,
@@ -1217,6 +1219,7 @@ export function V2StepFloorPlan({
     });
 
     onChange({
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
       modifiedAreas: updatedAreas,
@@ -1267,9 +1270,12 @@ export function V2StepFloorPlan({
     ) / 100;
 
     updatedAreas.totalM2 = updatedTotal;
-    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
+    const currentBasePrice = currentModel
+      ? getTierPrice(currentModel.row, design.specTier || "H2 Design Collection", currentModel.type || houseType, division)
+      : (design.standardBasePrice || design.basePrice || 0);
     const calc = calculateModifiedFloorplanPricing({
       ...design,
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
       modifiedAreas: updatedAreas,
@@ -1281,6 +1287,7 @@ export function V2StepFloorPlan({
     });
 
     onChange({
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
       modifiedAreas: updatedAreas,
@@ -1295,7 +1302,6 @@ export function V2StepFloorPlan({
     setIsAddingCustomArea(false);
     setNewCustomAreaName("");
     setNewCustomAreaM2("");
-    toast.success(`Added ${newCustomItem.name} (${newCustomItem.m2} m² @ $${newCustomItem.ratePerM2}/m²)`);
   };
 
   // Delete a bespoke / custom floor area
@@ -1328,9 +1334,12 @@ export function V2StepFloorPlan({
     ) / 100;
 
     updatedAreas.totalM2 = updatedTotal;
-    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
+    const currentBasePrice = currentModel
+      ? getTierPrice(currentModel.row, design.specTier || "H2 Design Collection", currentModel.type || houseType, division)
+      : (design.standardBasePrice || design.basePrice || 0);
     const calc = calculateModifiedFloorplanPricing({
       ...design,
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
       modifiedAreas: updatedAreas,
@@ -1342,6 +1351,7 @@ export function V2StepFloorPlan({
     });
 
     onChange({
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
       modifiedAreas: updatedAreas,
@@ -1352,7 +1362,6 @@ export function V2StepFloorPlan({
       standardBasePrice: currentBasePrice,
       basePrice: calc.modifiedBasePrice,
     });
-    toast.info("Custom area removed");
   };
 
   // Update an existing custom floor area
@@ -1394,9 +1403,12 @@ export function V2StepFloorPlan({
     ) / 100;
 
     updatedAreas.totalM2 = updatedTotal;
-    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
+    const currentBasePrice = currentModel
+      ? getTierPrice(currentModel.row, design.specTier || "H2 Design Collection", currentModel.type || houseType, division)
+      : (design.standardBasePrice || design.basePrice || 0);
     const calc = calculateModifiedFloorplanPricing({
       ...design,
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
       modifiedAreas: updatedAreas,
@@ -1408,6 +1420,7 @@ export function V2StepFloorPlan({
     });
 
     onChange({
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
       modifiedAreas: updatedAreas,
@@ -1460,6 +1473,15 @@ export function V2StepFloorPlan({
       extracted.balconyM2
     );
     if (!hasDimensions) return;
+
+    // If no base design has been chosen yet, keep extractedDimensionSchedule in state so it is applied when the base design is selected
+    if (!design.designName && !currentModel) {
+      setScanMessage({
+        type: "success",
+        text: `Dimension table detected! Select your base Hudson design to compare against standard CAD areas.`,
+      });
+      return;
+    }
 
     const isDouble = isDoubleOrSplit;
     const baseline = standardBaselineAreas;
@@ -1514,9 +1536,12 @@ export function V2StepFloorPlan({
       setIsBalconyActive(true);
     }
 
-    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
+    const currentBasePrice = currentModel
+      ? getTierPrice(currentModel.row, design.specTier || "H2 Design Collection", currentModel.type || houseType, division)
+      : (design.standardBasePrice || design.basePrice || 0);
     const calc = calculateModifiedFloorplanPricing({
       ...design,
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: baseline,
       modifiedAreas: updatedAreas,
@@ -1528,6 +1553,7 @@ export function V2StepFloorPlan({
     });
 
     onChange({
+      mode: "modified",
       isModifiedFloorplan: true,
       standardAreas: baseline,
       modifiedAreas: updatedAreas,
@@ -1543,7 +1569,6 @@ export function V2StepFloorPlan({
       type: "success",
       text: `Dimension table detected (Read-Only SQM Extraction)! Populated schedule of areas (Total: ${newTotal} m²).`,
     });
-    toast.success(`Dimension table detected! Updated areas: Total ${newTotal} m²`);
   };
 
 
@@ -1614,7 +1639,16 @@ export function V2StepFloorPlan({
           type="button"
           onClick={() => {
             setDesignMode("standard");
-            onChange({ mode: "standard", isModifiedFloorplan: false });
+            const officialBase = currentModel
+              ? getTierPrice(currentModel.row, design.specTier || "H2 Design Collection", currentModel.type || houseType, division)
+              : (design.standardBasePrice || design.basePrice || 0);
+            onChange({
+              mode: "standard",
+              isModifiedFloorplan: false,
+              basePrice: officialBase > 0 ? officialBase : design.basePrice,
+              standardBasePrice: officialBase > 0 ? officialBase : design.standardBasePrice,
+              designM2: currentModel?.row.m2 || design.standardDesignM2 || design.designM2,
+            });
           }}
           className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer ${
             designMode === "standard"
@@ -1633,9 +1667,38 @@ export function V2StepFloorPlan({
           type="button"
           onClick={() => {
             setDesignMode("modified");
-            onChange({ isModifiedFloorplan: true });
-            if (!design.designName || (!design.modifiedPlanFileName && !design.modifiedAreas)) {
-              setModifiedSubStep("upload");
+            if (currentModel && design.designName) {
+              const stdBase = getTierPrice(currentModel.row, design.specTier || "H2 Design Collection", currentModel.type || houseType, division);
+              const stdAreas = getStandardAreaBreakdown(currentModel.row.name, currentModel.type || houseType, currentModel.row.m2);
+              const modAreas = design.modifiedAreas && Object.keys(design.modifiedAreas).length > 0 ? design.modifiedAreas : stdAreas;
+              const calc = calculateModifiedFloorplanPricing({
+                ...design,
+                mode: "modified",
+                isModifiedFloorplan: true,
+                standardAreas: stdAreas,
+                modifiedAreas: modAreas,
+                areas: modAreas,
+                standardDesignM2: currentModel.row.m2,
+                standardBasePrice: stdBase,
+              });
+              onChange({
+                mode: "modified",
+                isModifiedFloorplan: true,
+                standardAreas: stdAreas,
+                modifiedAreas: modAreas,
+                areas: modAreas,
+                standardDesignM2: currentModel.row.m2,
+                designM2: calc.modifiedTotalM2,
+                modifiedDesignM2: calc.modifiedTotalM2,
+                standardBasePrice: stdBase,
+                basePrice: calc.modifiedBasePrice,
+              });
+              setModifiedSubStep("areas");
+            } else {
+              onChange({ mode: "modified", isModifiedFloorplan: true });
+              if (!design.designName || (!design.modifiedPlanFileName && !design.modifiedAreas)) {
+                setModifiedSubStep("upload");
+              }
             }
           }}
           className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center gap-2 cursor-pointer ${
@@ -2222,7 +2285,7 @@ export function V2StepFloorPlan({
                       ) : (
                         filteredModifiedModels.map(({ row, type }) => {
                           const isSelected = design.designName?.toLowerCase() === row.name.toLowerCase();
-                          const tierPrice = getTierPrice(row, design.specTier || "H2 Design Collection", type);
+                          const tierPrice = getTierPrice(row, design.specTier || "H2 Design Collection", type, division);
                           const planInfo = plansForDesign(row.name)[0];
 
                           return (
@@ -2354,6 +2417,26 @@ export function V2StepFloorPlan({
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
+                      {(modifiedPlanPreviewUrl || design.modifiedPlanImageUrl) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setModifiedPlanPreviewUrl(null);
+                            setUploadedModifiedFile(null);
+                            setCropFile(null);
+                            onChange({
+                              floorplanUrl: undefined,
+                              modifiedPlanImageUrl: undefined,
+                              modifiedPlanFileName: undefined,
+                            });
+                          }}
+                          className="text-xs h-9 px-3 font-bold rounded-xl cursor-pointer gap-1.5 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10"
+                        >
+                          Use Standard Floorplan Image
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
@@ -2643,7 +2726,6 @@ export function V2StepFloorPlan({
                                   onClick={() => {
                                     setIsBalconyActive(false);
                                     handleModifiedAreaChange("balconyM2", "0");
-                                    toast.info("Removed Balcony");
                                   }}
                                   className="p-1 rounded text-rose-400 hover:bg-rose-500/10 cursor-pointer"
                                   title="Remove Balcony"
@@ -2752,7 +2834,6 @@ export function V2StepFloorPlan({
                         onClick={() => {
                           setIsBalconyActive(true);
                           handleModifiedAreaChange("balconyM2", "6.5");
-                          toast.success(`Added Balcony zone (6.50 m²)`);
                         }}
                         className="rounded-xl border-dashed border-cyan-500/40 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 font-semibold cursor-pointer"
                       >
@@ -3402,10 +3483,10 @@ export function V2StepFloorPlan({
           );
         })()}
 
-        {/* Primary Floor Plan Confirmation & Option to Add 2nd Dwelling */}
+        {/* Primary Floor Plan Confirmation & Option to Add 2nd Dwelling / Modify Areas */}
         {hasFloorPlanSelected && (
           <div className="pt-5 mt-6 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className={`text-sm font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                 Selected Primary Design:
               </span>
@@ -3417,6 +3498,51 @@ export function V2StepFloorPlan({
               >
                 🏠 {design.designName} • {design.designM2} m²
               </Badge>
+              {designMode === "standard" && currentModel && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  data-testid="modify-standard-floorplan-areas-btn"
+                  onClick={() => {
+                    const stdBase = getTierPrice(currentModel.row, design.specTier || "H2 Design Collection", currentModel.type || houseType, division);
+                    const stdAreas = getStandardAreaBreakdown(currentModel.row.name, currentModel.type || houseType, currentModel.row.m2);
+                    const modAreas = design.modifiedAreas && Object.keys(design.modifiedAreas).length > 0 ? design.modifiedAreas : stdAreas;
+                    const calc = calculateModifiedFloorplanPricing({
+                      ...design,
+                      mode: "modified",
+                      isModifiedFloorplan: true,
+                      standardAreas: stdAreas,
+                      modifiedAreas: modAreas,
+                      areas: modAreas,
+                      standardDesignM2: currentModel.row.m2,
+                      standardBasePrice: stdBase,
+                    });
+                    setDesignMode("modified");
+                    setModifiedSubStep("areas");
+                    onChange({
+                      mode: "modified",
+                      isModifiedFloorplan: true,
+                      standardAreas: stdAreas,
+                      modifiedAreas: modAreas,
+                      areas: modAreas,
+                      standardDesignM2: currentModel.row.m2,
+                      designM2: calc.modifiedTotalM2,
+                      modifiedDesignM2: calc.modifiedTotalM2,
+                      standardBasePrice: stdBase,
+                      basePrice: calc.modifiedBasePrice,
+                    });
+                  }}
+                  className={`text-xs font-bold h-9 px-3.5 gap-1.5 transition-all cursor-pointer rounded-xl ${
+                    isLight
+                      ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                      : "border-amber-500/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40"
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                  Update / Modify Floorplan Areas
+                </Button>
+              )}
             </div>
 
             {!isSecondDwellingActive ? (
@@ -4307,6 +4433,7 @@ export function V2StepFloorPlan({
         onSave={(croppedDataUrl) => {
           setModifiedPlanPreviewUrl(croppedDataUrl);
           onChange({
+            mode: "modified",
             floorplanUrl: croppedDataUrl,
             modifiedPlanImageUrl: croppedDataUrl,
             modifiedPlanFileName: cropFile?.name || uploadedModifiedFile?.name || design.modifiedPlanFileName || "Modified Plan",
@@ -4318,7 +4445,6 @@ export function V2StepFloorPlan({
           } else {
             setModifiedSubStep("confirm_base");
           }
-          toast.success("Floor plan cropped and attached successfully!");
         }}
         onExtractedAreas={(extracted) => {
           handleApplyExtractedAreas(extracted);

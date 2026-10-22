@@ -946,17 +946,69 @@ export interface ModifiedBreakdownCalculation {
   zones: ZoneVarianceResult[];
 }
 
+export function findHudsonModelPriceRow(
+  designName?: string,
+  housingType?: string,
+  division: string = getActiveDivision(),
+): { row: PriceRow; type: string } | null {
+  if (!designName || !designName.trim()) return null;
+  const priceMap = getHousingTypePrices(division);
+  const rawLower = designName.trim().toLowerCase();
+  const cleanedLower = cleanDesignName(designName).toLowerCase();
+  if (!cleanedLower) return null;
+
+  const preferredTypes = housingType
+    ? [housingType, ...Object.keys(priceMap).filter((t) => t !== housingType)]
+    : Object.keys(priceMap);
+
+  for (const t of preferredTypes) {
+    const rows = priceMap[t] || [];
+    const exact = rows.find(
+      (r) =>
+        r.name.trim().toLowerCase() === rawLower ||
+        cleanDesignName(r.name).toLowerCase() === cleanedLower,
+    );
+    if (exact) return { row: exact, type: t };
+  }
+  return null;
+}
+
 export function calculateModifiedFloorplanPricing(
   design?: QuoteDesignSelection,
 ): ModifiedBreakdownCalculation {
-  const stdTotal = Number(design?.standardDesignM2) || Number(design?.designM2) || 198.08;
-  const housingType = design?.housingType || "Single Storey";
-  const stdAreas =
-    design?.standardAreas && Object.keys(design.standardAreas).length > 0
-      ? (design.standardAreas as FloorplanAreaBreakdown)
-      : getStandardAreaBreakdown(design?.designName, housingType, stdTotal);
+  const div =
+    (design as any)?.division ||
+    (design as any)?.state ||
+    getActiveDivision();
+  const matchedHudson = findHudsonModelPriceRow(
+    design?.designName,
+    design?.housingType,
+    div,
+  );
+  const housingType = matchedHudson?.type || design?.housingType || "Single Storey";
+  const stdTotal =
+    matchedHudson?.row.m2 ||
+    Number(design?.standardDesignM2) ||
+    Number(design?.designM2) ||
+    198.08;
 
-  const modAreas = design?.modifiedAreas || {};
+  const hasValidSavedStdAreas =
+    design?.standardAreas &&
+    Object.keys(design.standardAreas).length > 0 &&
+    !(
+      matchedHudson &&
+      design.standardAreas.totalM2 === 198.08 &&
+      !/coral\s*21/i.test(design?.designName || "")
+    );
+
+  const stdAreas = hasValidSavedStdAreas
+    ? (design!.standardAreas as FloorplanAreaBreakdown)
+    : getStandardAreaBreakdown(design?.designName, housingType, stdTotal);
+
+  const modAreas =
+    design?.modifiedAreas && Object.keys(design.modifiedAreas).length > 0
+      ? design.modifiedAreas
+      : (design?.areas || {});
   const isDoubleOrSplit =
     housingType === "Double Storey" ||
     housingType === "Split Level" ||
@@ -1176,7 +1228,19 @@ export function calculateModifiedFloorplanPricing(
   const netDeltaM2 = Number((modifiedTotalM2 - standardTotalM2).toFixed(2));
   const totalCostAdjustment = zones.reduce((sum, z) => sum + z.costAdjustment, 0);
 
-  const standardBasePrice = Number(design?.standardBasePrice) || Number(design?.basePrice) || 0;
+  const officialTierPrice = matchedHudson
+    ? getTierPrice(
+        matchedHudson.row,
+        design?.specTier || "H2 Design Collection",
+        matchedHudson.type,
+        div,
+      )
+    : 0;
+
+  const standardBasePrice =
+    officialTierPrice > 0
+      ? officialTierPrice
+      : Number(design?.standardBasePrice) || Number(design?.basePrice) || 0;
   const modifiedBasePrice = Math.max(0, standardBasePrice + totalCostAdjustment);
 
   return {
@@ -1213,12 +1277,44 @@ export function cleanDesignName(name?: string): string {
 }
 
 /**
+ * Helper to determine if a design is genuinely a Modified Hudson Design rather than a Custom Architectural Plan.
+ */
+export function isModifiedHudsonDesign(design?: QuoteDesignSelection): boolean {
+  if (!design) return false;
+  if (design.isModifiedFloorplan || design.mode === "modified") return true;
+  if (
+    design.mode === "custom_floorplan" &&
+    design.modifiedAreas &&
+    Object.keys(design.modifiedAreas).length > 0 &&
+    findHudsonModelPriceRow(design.designName, design.housingType) !== null
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Helper to determine if a design is genuinely a Custom Architectural Plan (not a Standard or Modified Hudson Design).
+ */
+export function isTrueCustomFloorplan(design?: QuoteDesignSelection): boolean {
+  if (!design) return false;
+  if (isModifiedHudsonDesign(design)) return false;
+  if (design.mode !== "custom_floorplan") return false;
+  // If a valid Hudson catalogue design is selected and user did not name it Custom, treat as Hudson design
+  const matched = findHudsonModelPriceRow(design.designName, design.housingType);
+  if (matched && !/custom/i.test(design.designName || "")) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Returns the customer/consultant facing floorplan design name.
  * If modified floorplan is enabled, appends "Modified" (e.g. "Coral 21 Modified").
  */
 export function getEffectiveDesignName(design?: QuoteDesignSelection): string {
   if (!design) return "No Design Selected";
-  if (design.mode === "custom_floorplan") {
+  if (isTrueCustomFloorplan(design)) {
     return `Custom Architectural Plan (${design.customSpec?.storeys === "double" ? "Two" : "Single"} Storey)`;
   }
   const raw = design.designName || "";
@@ -1226,7 +1322,7 @@ export function getEffectiveDesignName(design?: QuoteDesignSelection): string {
     return "No Design Selected";
   }
   const cleaned = cleanDesignName(raw);
-  if (design.isModifiedFloorplan) {
+  if (isModifiedHudsonDesign(design)) {
     if (!cleaned.toLowerCase().includes("modified")) {
       return `${cleaned} Modified`;
     }
@@ -1240,18 +1336,22 @@ export function getEffectiveDesignName(design?: QuoteDesignSelection): string {
  */
 export function getEffectiveDesignM2(design?: QuoteDesignSelection): number {
   if (!design) return 0;
-  if (design.mode === "custom_floorplan") {
+  if (isTrueCustomFloorplan(design)) {
     return calculateCustomTotalM2(design.customSpec);
   }
-  if (design.isModifiedFloorplan) {
-    if (design.modifiedAreas && Object.keys(design.modifiedAreas).length > 0) {
+  if (isModifiedHudsonDesign(design)) {
+    if (
+      (design.modifiedAreas && Object.keys(design.modifiedAreas).length > 0) ||
+      (design.areas && Object.keys(design.areas).length > 0)
+    ) {
       return calculateModifiedFloorplanPricing(design).modifiedTotalM2;
     }
     if (Number(design.modifiedDesignM2) > 0) {
       return Number(design.modifiedDesignM2);
     }
   }
-  return Number(design.designM2) || 0;
+  const matched = findHudsonModelPriceRow(design.designName, design.housingType);
+  return Number(design.designM2) || matched?.row.m2 || 0;
 }
 
 /**
@@ -1268,7 +1368,7 @@ export function getAutomatedPromotionDiscount(designM2: number): number {
  * Calculates GFA (Ground Floor Area = Ground living + Porch + Garage + Alfresco).
  */
 export function calculateDesignGFA(design: QuoteDesignSelection): number {
-  if (design.mode === "custom_floorplan") {
+  if (isTrueCustomFloorplan(design)) {
     const spec = design.customSpec;
     const gLiving = Number(spec?.groundLivingM2) || 0;
     const garage = Number(spec?.garageM2) || 0;
@@ -1293,7 +1393,7 @@ export function calculateDesignGFA(design: QuoteDesignSelection): number {
   // 1. Single Storey (including Single Storey Dual Occupancy / Duplexes like Alabaster)
   // The entire slab area is Ground Living + Garage + Porch + Alfresco = total plan area!
   if (!isDouble && !isSplit) {
-    if (design.isModifiedFloorplan) {
+    if (isModifiedHudsonDesign(design)) {
       const calc = calculateModifiedFloorplanPricing(design);
       return Number(calc.modifiedTotalM2.toFixed(2));
     }
@@ -1502,15 +1602,46 @@ export function calculateQuotePricing(
   let baseHousePrice = 0;
   let customFloorplanPrice = 0;
 
-  if (design.mode === "custom_floorplan") {
+  const activeDiv =
+    (design as any)?.division ||
+    (design as any)?.state ||
+    (site as any)?.state ||
+    getActiveDivision();
+  const matchedHudson = findHudsonModelPriceRow(
+    design.designName,
+    design.housingType,
+    activeDiv,
+  );
+  const officialHudsonPrice = matchedHudson
+    ? getTierPrice(
+        matchedHudson.row,
+        design.specTier || "H2 Design Collection",
+        matchedHudson.type,
+        activeDiv,
+      )
+    : 0;
+
+  if (isTrueCustomFloorplan(design)) {
     customFloorplanPrice = calculateCustomFloorplanPrice(design.customSpec, design.specTier);
     baseHousePrice = customFloorplanPrice;
-  } else if (design.isModifiedFloorplan) {
-    const modCalc = calculateModifiedFloorplanPricing(design);
-    // INVARIANT: Base house price strictly fixed at standard brochure baseline!
-    baseHousePrice = Number(design.standardBasePrice) || Number(modCalc.standardBasePrice) || Number(design.basePrice) || 0;
+  } else if (isModifiedHudsonDesign(design)) {
+    const modCalc = calculateModifiedFloorplanPricing({
+      ...design,
+      ...(activeDiv ? { division: activeDiv } : {}),
+    } as any);
+    // INVARIANT: Base house price strictly fixed at standard brochure baseline for the active inclusion tier!
+    baseHousePrice =
+      officialHudsonPrice > 0
+        ? officialHudsonPrice
+        : Number(modCalc.standardBasePrice) ||
+          Number(design.standardBasePrice) ||
+          Number(design.basePrice) ||
+          0;
   } else {
-    baseHousePrice = Number(design.basePrice) || 0;
+    baseHousePrice =
+      officialHudsonPrice > 0
+        ? officialHudsonPrice
+        : Number(design.basePrice) || 0;
   }
 
   const facadePrice = Number(design.facadePrice) || 0;

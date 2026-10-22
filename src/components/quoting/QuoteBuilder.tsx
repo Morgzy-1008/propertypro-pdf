@@ -455,17 +455,6 @@ export function QuoteBuilder() {
 
           setActiveTab("design");
           setV2Step("floorplan");
-          if (isHudson && hasDifferentSqmValues) {
-            toast.success(
-              `✨ Recognized Hudson Design: ${canonicalName} (Modified Floorplan: ${incomingTotalM2} m² • Custom Pricing Applied)!`
-            );
-          } else if (isHudson) {
-            toast.success(
-              `✨ Recognized Hudson Design: ${canonicalName} (Standard Floorplan: ${stdTotalM2} m²)!`
-            );
-          } else {
-            toast.success(`Imported concept plan: ${canonicalName} (${incomingTotalM2} m²)!`);
-          }
           localStorage.removeItem("hudson_imported_floorplan_bridge");
           localStorage.removeItem("hudson_draft_quote_from_concept");
           sessionStorage.removeItem("hudson_plan_bridge");
@@ -495,7 +484,6 @@ export function QuoteBuilder() {
             saveQuote(result);
             return result;
           });
-          toast.success(`Applied siting dimensions for ${siting.estate}!`);
           localStorage.removeItem("hudson_siting_to_quote_bridge");
         }
       }
@@ -524,13 +512,17 @@ export function QuoteBuilder() {
         const stdPrice = getTierPrice(matched, tier, housingType, div);
         if (stdPrice > 0) {
           design.standardBasePrice = stdPrice;
-          if (design.mode === "standard" || !design.mode) {
-            design.basePrice = stdPrice;
-            design.designM2 = matched.m2;
-          } else if (design.isModifiedFloorplan) {
-            const modCalc = calculateModifiedFloorplanPricing(design);
+          if (design.isModifiedFloorplan || design.mode === "modified") {
+            const modCalc = calculateModifiedFloorplanPricing({
+              ...design,
+              standardBasePrice: stdPrice,
+              division: div,
+            } as any);
             design.basePrice = modCalc.modifiedBasePrice;
             design.modifiedDesignM2 = modCalc.modifiedTotalM2;
+          } else if (design.mode === "standard" || !design.mode) {
+            design.basePrice = stdPrice;
+            design.designM2 = matched.m2;
           }
         }
       }

@@ -10,6 +10,8 @@ import {
   getHousingTypeForDesign,
   getSoilRatePerM2,
   isDoubleStoreyDesign,
+  isModifiedHudsonDesign,
+  isTrueCustomFloorplan,
 } from "@/lib/quoting/quoteEngine";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { isLocalhost } from "@/lib/isLocalhost";
@@ -1466,8 +1468,13 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       : []),
   ];
 
-  const isModPlan = !!design.isModifiedFloorplan || design.mode === "modified";
-  const modPricingCalc = isModPlan ? calculateModifiedFloorplanPricing(design) : null;
+  const designWithDivision = {
+    ...design,
+    state: quoteState,
+    division: quoteState,
+  } as any;
+  const isModPlan = isModifiedHudsonDesign(designWithDivision);
+  const modPricingCalc = isModPlan ? calculateModifiedFloorplanPricing(designWithDivision) : null;
   const modCostAdjustment = modPricingCalc ? modPricingCalc.totalCostAdjustment : 0;
 
   const variationGroups: SpecGroup[] = [];
@@ -1847,8 +1854,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               <tbody className="divide-y divide-slate-200 border-b border-slate-300">
                 {/* Base House / Architectural Floorplan */}
                 {(() => {
-                  const isMod = !!design.isModifiedFloorplan || design.mode === "modified";
-                  const modCalc = isMod ? calculateModifiedFloorplanPricing(design) : null;
+                  const isMod = isModifiedHudsonDesign(designWithDivision);
+                  const isCustom = isTrueCustomFloorplan(designWithDivision);
+                  const modCalc = isMod ? calculateModifiedFloorplanPricing(designWithDivision) : null;
                   const stdBaselinePrice = isMod
                     ? (modCalc ? modCalc.standardBasePrice : Number(design.standardBasePrice) || Number(pricing.baseHousePrice) || 0)
                     : (Number(pricing.baseHousePrice) || Number(design.basePrice) || Number(design.standardBasePrice) || 0);
@@ -1857,7 +1865,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                     <tr className="bg-white">
                       <td className="py-3 px-4">
                         <div className="text-slate-950 font-black text-[14.5px] leading-snug">
-                          {design.mode === "standard" || isMod
+                          {!isCustom
                             ? `${effectiveDesignName} with ${formatInclusionTierTitle(design.specTier)}`
                             : `Custom Architectural Floorplan (${design.customSpec?.storeys === "double" ? "Two" : "Single"} Storey)`}
                         </div>
@@ -2088,7 +2096,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 <span>ARCHITECTURAL ELEVATION &amp; FLOORPLAN SPECIFICATIONS</span>
               </div>
               <h2 className="text-[25px] font-black text-slate-950 tracking-tight uppercase mt-0.5 leading-tight">
-                {effectiveDesignName || (design.mode === "standard" ? "HUDSON HOMES ARCHITECTURAL PLAN" : "CUSTOM ARCHITECTURAL FLOORPLAN")}
+                {effectiveDesignName || (!isTrueCustomFloorplan(designWithDivision) ? "HUDSON HOMES ARCHITECTURAL PLAN" : "CUSTOM ARCHITECTURAL FLOORPLAN")}
                 {design.specTier ? ` - ${formatInclusionTierTitle(design.specTier).replace(/\s*\(\d{4}\)/, "").toUpperCase()}` : ""}
               </h2>
               {design.widthM && design.lengthM && (
@@ -2107,7 +2115,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
           {/* Ultra-Compact Single-Line Area Schedule Strip Directly Above Facade Image */}
           {(() => {
-            const modCalc = calculateModifiedFloorplanPricing(design);
+            const modCalc = calculateModifiedFloorplanPricing(designWithDivision);
             const activeZones = modCalc.zones.filter((z) => z.modifiedM2 > 0 || z.deltaM2 !== 0);
             const shortZoneLabel = (label: string) => {
               const l = label.replace(" Area", "").replace(" (Optional)", "").trim();

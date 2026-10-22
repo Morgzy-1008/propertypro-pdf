@@ -1,6 +1,10 @@
-import { Toaster as Sonner } from "sonner";
+import { Toaster as Sonner, toast } from "sonner";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
+
+// Suppress white success/info popup boxes so they never block UI features or buttons on completed actions
+toast.success = (() => "") as typeof toast.success;
+toast.info = (() => "") as typeof toast.info;
 
 const Toaster = ({ ...props }: ToasterProps) => {
   return (
