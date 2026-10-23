@@ -117,6 +117,17 @@ export function saveGhlSettings(settings: GhlIntegrationSettings): GhlIntegratio
   return settings;
 }
 
+export function extractGhlLocationId(input?: string): string {
+  if (!input) return "";
+  const trimmed = input.trim();
+  // Match /location/<20-char-id> from any Honey / GoHighLevel URL
+  const urlMatch = trimmed.match(/\/location\/([a-zA-Z0-9_-]{12,32})/);
+  if (urlMatch && urlMatch[1]) {
+    return urlMatch[1];
+  }
+  return trimmed;
+}
+
 export function maskGhlToken(token?: string): string {
   if (!token || token.trim().length < 10) return "Not Configured";
   const t = token.trim();
@@ -164,7 +175,8 @@ export async function probeGhlTokenScopes(
 ): Promise<GhlScopeCheckResult[]> {
   const settings = loadGhlSettings();
   const token = (pitToken ?? settings.pitToken ?? "").trim();
-  const loc = (locationId ?? settings.locationId ?? "").trim() || "LOCATION_ID_PENDING";
+  const cleanLoc = extractGhlLocationId(locationId ?? settings.locationId ?? "");
+  const loc = cleanLoc || "LOCATION_ID_PENDING";
 
   const scopeTests: Array<{
     scope: string;
@@ -182,6 +194,12 @@ export async function probeGhlTokenScopes(
       scope: "campaigns.readonly",
       label: "Marketing Campaigns & Automations (Read)",
       endpoint: `/campaigns/?locationId=${encodeURIComponent(loc)}`,
+      category: "read",
+    },
+    {
+      scope: "businesses.readonly",
+      label: "Businesses & Accounts Directory (Read)",
+      endpoint: `/businesses/?locationId=${encodeURIComponent(loc)}`,
       category: "read",
     },
     {
@@ -474,20 +492,24 @@ To enable Phase 2 (Full Two-Way Sync — automatic AI Call Summaries, LVM tags, 
 export async function syncHoneyGhlLeadsToCrm(): Promise<{
   syncedCount: number;
   liveApiConnected: boolean;
+  diagnosticMessage?: string;
   allLeads: CrmLead[];
 }> {
   const settings = loadGhlSettings();
   const currentLeads = await loadAllCrmLeads();
   let liveApiConnected = false;
+  let diagnosticMessage: string | undefined;
   const incomingGhlLeads: CrmLead[] = [];
+  const cleanLocationId = extractGhlLocationId(settings.locationId);
 
-  if (settings.pitToken && settings.locationId) {
+  if (settings.pitToken) {
     try {
+      const locParam = cleanLocationId || "LOCATION_ID_REQUIRED";
       const res = await fetch(
-        `${GHL_BASE_URL}/contacts/?locationId=${encodeURIComponent(settings.locationId)}&limit=100`,
+        `${GHL_BASE_URL}/contacts/?locationId=${encodeURIComponent(locParam)}&limit=100`,
         {
           headers: {
-            Authorization: `Bearer ${settings.pitToken}`,
+            Authorization: `Bearer ${settings.pitToken.trim()}`,
             Version: GHL_API_VERSION,
             Accept: "application/json",
           },
@@ -497,6 +519,7 @@ export async function syncHoneyGhlLeadsToCrm(): Promise<{
         const data = await res.json();
         const contacts = Array.isArray(data?.contacts) ? data.contacts : [];
         liveApiConnected = true;
+        diagnosticMessage = `Pulled ${contacts.length} live contacts directly from GoHighLevel v2 API!`;
 
         contacts.forEach((c: any) => {
           const fullName =
@@ -542,6 +565,17 @@ export async function syncHoneyGhlLeadsToCrm(): Promise<{
             lastContactedAt: c.dateUpdated || new Date().toISOString(),
           });
         });
+      } else {
+        const errText = await res.text();
+        if (errText.toLowerCase().includes("not authorized for this scope")) {
+          diagnosticMessage =
+            "GoHighLevel API returned 401 on GET /contacts/: Marketing only enabled 'calendars.readonly', 'campaigns.readonly' & 'businesses.readonly' on this token and forgot to tick 'contacts.readonly' & 'opportunities.readonly'.";
+        } else if (!cleanLocationId) {
+          diagnosticMessage =
+            "Paste your Honey CRM URL or 20-character Location ID to complete live Sub-Account binding.";
+        } else {
+          diagnosticMessage = `GHL API response (${res.status}): ${errText.slice(0, 120)}`;
+        }
       }
     } catch {
       // Fallback to curated Honey GHL sync stream below
@@ -838,6 +872,7 @@ export async function syncHoneyGhlLeadsToCrm(): Promise<{
   return {
     syncedCount: addedOrUpdated || allToMerge.length,
     liveApiConnected,
+    diagnosticMessage,
     allLeads: finalLeads,
   };
 }

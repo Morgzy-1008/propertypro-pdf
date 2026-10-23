@@ -14,6 +14,7 @@ import {
   buildMarketingScopeRequestText,
   syncHoneyGhlLeadsToCrm,
   maskGhlToken,
+  extractGhlLocationId,
 } from "@/lib/crm/ghlIntegration";
 import {
   ShieldCheck,
@@ -104,15 +105,21 @@ export function CrmGhlControlModal({
   };
 
   const handleSaveCredentials = () => {
-    saveGhlSettings(settings);
-    void handleRunScopeProbe(settings.pitToken, settings.locationId);
-    toast.success("Honey (GoHighLevel) API credentials saved securely in local vault!");
+    const cleanLoc = extractGhlLocationId(settings.locationId);
+    const updated = { ...settings, locationId: cleanLoc };
+    setSettings(updated);
+    saveGhlSettings(updated);
+    void handleRunScopeProbe(updated.pitToken, updated.locationId);
+    toast.success("Honey (GoHighLevel) API credentials saved & live scope probe executed!");
   };
 
   const handleSyncLeadsNow = async () => {
     setIsSyncing(true);
     try {
       const res = await syncHoneyGhlLeadsToCrm();
+      if (res.diagnosticMessage) {
+        toast.info(res.diagnosticMessage, { duration: 8000 });
+      }
       toast.success(
         `Honey GHL Sync Complete! ${res.syncedCount} leads & call transcripts synchronized.`
       );
@@ -311,13 +318,18 @@ export function CrmGhlControlModal({
 
               <div>
                 <label className="font-bold block mb-1">
-                  Honey Sub-Account Location ID (20-char GHL ID)
+                  Honey Sub-Account Location ID (or Paste Any Honey Browser URL)
                 </label>
                 <div className="flex items-center gap-1.5">
                   <Input
                     value={settings.locationId}
-                    onChange={(e) => setSettings({ ...settings, locationId: e.target.value })}
-                    placeholder="e.g. ve9EPM428h8vShlRW1KT (From Settings → Business Profile)"
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        locationId: extractGhlLocationId(e.target.value),
+                      })
+                    }
+                    placeholder="Paste Honey URL (e.g. .../v2/location/ve9EPM428h...) or 20-char ID"
                     className="h-9 text-xs font-mono"
                   />
                   <Button
@@ -330,7 +342,7 @@ export function CrmGhlControlModal({
                   </Button>
                 </div>
                 <p className="text-[10px] text-slate-500 mt-1">
-                  Required by GHL v2 endpoints (`GET /contacts/`, `/opportunities/`, `/conversations/`).
+                  Tip: Open Honey CRM in your browser and paste the URL from your address bar — we auto-extract your 20-char `locationId`!
                 </p>
               </div>
             </div>
