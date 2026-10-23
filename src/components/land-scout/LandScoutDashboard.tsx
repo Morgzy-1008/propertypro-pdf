@@ -62,6 +62,7 @@ import { GeminiApiKeyModal } from "./GeminiApiKeyModal";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/theme";
+import { HelpSupportWidget } from "@/components/support/HelpSupportWidget";
 
 const SUBURB_ALIASES: Record<string, string> = {
   flagsatone: "flagstone",
@@ -790,6 +791,9 @@ export function LandScoutDashboard() {
                 <Trash2 className="h-4 w-4" />
               </button>
             )}
+
+            {/* Help & Support Dropdown */}
+            <HelpSupportWidget isLight={isLight} compact />
 
             {/* Back to Hub Button */}
             <button

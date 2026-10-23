@@ -33,6 +33,7 @@ import { getActiveStaffUser } from "@/lib/authSession";
 import { useTheme } from "@/lib/theme";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { HelpSupportWidget } from "@/components/support/HelpSupportWidget";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -407,6 +408,8 @@ export function SiteStudioWorkspace() {
         {/* Action Controls & Top CTAs */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
+
+          <HelpSupportWidget isLight={isLight} compact />
 
           <Link to="/land-scout">
             <Button

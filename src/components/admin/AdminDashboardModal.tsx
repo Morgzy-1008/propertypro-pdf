@@ -23,6 +23,13 @@ import {
   Layers,
   Eye,
   ArrowRight,
+  MessageSquarePlus,
+  Bug,
+  Lightbulb,
+  HelpCircle,
+  Copy,
+  Maximize2,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -45,6 +52,18 @@ import {
   type ActivityLogItem,
 } from "@/lib/activityLog";
 import {
+  getSupportTickets,
+  getSupportTicketsAsync,
+  updateSupportTicketStatus,
+  deleteSupportTicket,
+  markAllSupportTicketsRead,
+  onSupportTicketsChanged,
+  formatTicketAsAiPrompt,
+  formatAllOpenTicketsAsAiPrompt,
+  type SupportTicket,
+} from "@/lib/supportFeedback";
+import { isMorganHales } from "@/lib/access";
+import {
   KNOWN_STAFF_PROFILES,
   getActiveStaffUser,
   setActiveStaffUser,
@@ -52,23 +71,46 @@ import {
   type StaffProfile,
 } from "@/lib/authSession";
 import { setActiveDivision } from "@/lib/divisionContext";
+import { useTheme } from "@/lib/theme";
 
 interface AdminDashboardModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: "support" | "approvals" | "users" | "alerts" | "activity";
 }
 
-export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProps) {
-  const [activeTab, setActiveTab] = useState<"approvals" | "users" | "alerts" | "activity">("approvals");
+export function AdminDashboardModal({
+  isOpen,
+  onClose,
+  initialTab = "support",
+}: AdminDashboardModalProps) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
+  const [activeTab, setActiveTab] = useState<
+    "support" | "approvals" | "users" | "alerts" | "activity"
+  >(initialTab);
   const [requests, setRequests] = useState<AdminAccessRequest[]>(() => getAllAccessRequests());
   const [alerts, setAlerts] = useState<AdminSystemAlert[]>(() => getAllSystemAlerts());
   const [activities, setActivities] = useState<ActivityLogItem[]>(() => getActivityLogs());
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>(() => getSupportTickets());
+  const [supportFilter, setSupportFilter] = useState<
+    "all" | "open" | "resolved" | "issue" | "feedback"
+  >("all");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{
+    url: string;
+    author: string;
+    page: string;
+  } | null>(null);
   const currentUser = getActiveStaffUser();
+  const hasMorganAccess = isMorganHales(currentUser) || currentUser?.role === "admin";
 
   const refreshData = () => {
     setRequests(getAllAccessRequests());
     setAlerts(getAllSystemAlerts());
     setActivities(getActivityLogs());
+    setSupportTickets(getSupportTickets());
+    void getSupportTicketsAsync().then((merged) => setSupportTickets(merged));
   };
 
   useEffect(() => {
@@ -76,16 +118,44 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
     refreshData();
     const unsub = onAdminAlertsChanged(() => refreshData());
     const unsubAct = onActivityLogged(() => refreshData());
+    const unsubSup = onSupportTicketsChanged(() => refreshData());
     return () => {
       unsub();
       unsubAct();
+      unsubSup();
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !hasMorganAccess) return null;
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   const unreadAlerts = alerts.filter((a) => !a.read);
+  const openTickets = supportTickets.filter((t) => t.status !== "resolved");
+
+  const filteredSupportTickets = supportTickets.filter((t) => {
+    if (supportFilter === "open") return t.status !== "resolved";
+    if (supportFilter === "resolved") return t.status === "resolved";
+    if (supportFilter === "issue") return t.category === "issue";
+    if (supportFilter === "feedback") return t.category === "feedback";
+    return true;
+  });
+
+  const handleCopyPrompt = async (text: string, idKey: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopiedId(idKey);
+    setTimeout(() => {
+      setCopiedId((prev) => (prev === idKey ? null : prev));
+    }, 2500);
+  };
 
   const handleApprove = (id: string, name: string) => {
     approveAccessRequest(id);
@@ -159,8 +229,33 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
         {/* Tab Navigation */}
         <div className="px-6 pt-3 border-b border-slate-800/80 flex items-center gap-2 bg-slate-950/50 flex-wrap">
           <button
+            type="button"
+            data-testid="admin-tab-support"
+            onClick={() => {
+              setActiveTab("support");
+              markAllSupportTicketsRead();
+              refreshData();
+            }}
+            className={`px-4 py-2.5 rounded-t-xl text-xs font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              activeTab === "support"
+                ? "border-emerald-400 text-emerald-300 bg-slate-900/90"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+            <span>Support &amp; Feedback Log</span>
+            {openTickets.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-slate-950 font-bold text-[10px]">
+                {openTickets.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            data-testid="admin-tab-approvals"
             onClick={() => setActiveTab("approvals")}
-            className={`px-4 py-2.5 rounded-t-xl text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
+            className={`px-4 py-2.5 rounded-t-xl text-xs font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
               activeTab === "approvals"
                 ? "border-amber-400 text-amber-300 bg-slate-900/90"
                 : "border-transparent text-slate-400 hover:text-slate-200"
@@ -222,6 +317,340 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
 
         {/* Tab Content Container */}
         <div className="p-6 overflow-y-auto flex-1 space-y-4">
+          {/* TAB 0: SUPPORT & FEEDBACK LOG (MORGAN EXCLUSIVE) */}
+          {activeTab === "support" && (
+            <div className="space-y-4" data-testid="admin-support-log-panel">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                      Team Help, Support &amp; Feedback Log
+                    </h4>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                        isLight
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      }`}
+                    >
+                      MORGAN ACCESS ONLY
+                    </span>
+                  </div>
+                  <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Review issues, cropped screen snips, and improvement ideas submitted by colleagues across the website.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {openTickets.length > 0 && (
+                    <Button
+                      size="sm"
+                      data-testid="copy-all-open-support-prompt-btn"
+                      onClick={() =>
+                        handleCopyPrompt(
+                          formatAllOpenTicketsAsAiPrompt(supportTickets),
+                          "bulk_all_open"
+                        )
+                      }
+                      className="h-8 text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold gap-1.5 shadow-md cursor-pointer"
+                    >
+                      {copiedId === "bulk_all_open" ? (
+                        <>
+                          <Check className="h-3.5 w-3.5" />
+                          <span>Copied Prompt for All Open Issues!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3.5 w-3.5" />
+                          <span>Copy All Open Issues ({openTickets.length}) as AI Prompt</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={refreshData}
+                    className="h-8 text-xs border-slate-800 bg-slate-950 text-slate-300 gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Refresh
+                  </Button>
+                </div>
+              </div>
+
+              {/* Filter Pills */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(
+                  [
+                    { id: "all", label: `All (${supportTickets.length})` },
+                    { id: "open", label: `Open (${openTickets.length})` },
+                    {
+                      id: "resolved",
+                      label: `Resolved (${supportTickets.filter((t) => t.status === "resolved").length})`,
+                    },
+                    {
+                      id: "issue",
+                      label: `Problems (${supportTickets.filter((t) => t.category === "issue").length})`,
+                    },
+                    {
+                      id: "feedback",
+                      label: `Feedback (${supportTickets.filter((t) => t.category === "feedback").length})`,
+                    },
+                  ] as const
+                ).map((pill) => (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => setSupportFilter(pill.id)}
+                    className={`px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                      supportFilter === pill.id
+                        ? "bg-emerald-500/20 border-emerald-400 text-emerald-300"
+                        : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tickets List */}
+              {filteredSupportTickets.length === 0 ? (
+                <div className="text-center py-12 border border-slate-800 rounded-2xl bg-slate-950/60 p-8 space-y-2">
+                  <MessageSquarePlus className="h-10 w-10 text-emerald-400 mx-auto opacity-80" />
+                  <h5 className="text-sm font-bold text-slate-200">
+                    No Support or Feedback Requests Found
+                  </h5>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    When colleagues use the "Help &amp; Support" button in the top toolbar to report an issue or attach a cropped screen snip, it will appear right here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
+                  {filteredSupportTickets.map((ticket) => {
+                    const isResolved = ticket.status === "resolved";
+                    return (
+                      <div
+                        key={ticket.id}
+                        data-testid="support-ticket-card"
+                        className={`p-4 rounded-2xl border transition-all ${
+                          isResolved
+                            ? isLight
+                              ? "border-slate-200 bg-slate-50 opacity-75"
+                              : "border-slate-800/80 bg-slate-950/40 opacity-75"
+                            : ticket.category === "issue"
+                              ? isLight
+                                ? "border-rose-300 bg-rose-50/40"
+                                : "border-rose-500/40 bg-rose-950/15"
+                              : ticket.category === "feedback"
+                                ? isLight
+                                  ? "border-amber-300 bg-amber-50/40"
+                                  : "border-amber-500/40 bg-amber-950/15"
+                                : isLight
+                                  ? "border-cyan-300 bg-cyan-50/40"
+                                  : "border-cyan-500/40 bg-cyan-950/15"
+                        }`}
+                      >
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                          {/* Left: Author, Page, Message */}
+                          <div className="flex-1 min-w-0 space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`font-bold text-sm ${
+                                  isLight ? "text-slate-900" : "text-white"
+                                }`}
+                              >
+                                {ticket.authorName}
+                              </span>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded border font-mono ${
+                                  isLight
+                                    ? "bg-white text-slate-700 border-slate-300"
+                                    : "bg-slate-800 text-slate-300 border-slate-700"
+                                }`}
+                              >
+                                {ticket.authorRole}
+                              </span>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase flex items-center gap-1 border ${
+                                  ticket.category === "issue"
+                                    ? isLight
+                                      ? "bg-rose-100 text-rose-900 border-rose-300"
+                                      : "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                                    : ticket.category === "feedback"
+                                      ? isLight
+                                        ? "bg-amber-100 text-amber-900 border-amber-300"
+                                        : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                      : isLight
+                                        ? "bg-cyan-100 text-cyan-900 border-cyan-300"
+                                        : "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                                }`}
+                              >
+                                {ticket.category === "issue" ? (
+                                  <>
+                                    <Bug className="h-3 w-3" /> Problem / Bug
+                                  </>
+                                ) : ticket.category === "feedback" ? (
+                                  <>
+                                    <Lightbulb className="h-3 w-3" /> Feedback
+                                  </>
+                                ) : (
+                                  <>
+                                    <HelpCircle className="h-3 w-3" /> Question
+                                  </>
+                                )}
+                              </span>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-md border font-mono flex items-center gap-1 ${
+                                  isLight
+                                    ? "bg-white border-emerald-300 text-emerald-800"
+                                    : "bg-slate-900 border-slate-800 text-emerald-400"
+                                }`}
+                              >
+                                <MapPin className="h-3 w-3" />
+                                {ticket.pageTitle}
+                              </span>
+                              <span
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold uppercase border ${
+                                  isResolved
+                                    ? isLight
+                                      ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                      : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                    : isLight
+                                      ? "bg-amber-100 text-amber-900 border-amber-300"
+                                      : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                }`}
+                              >
+                                {isResolved ? "Resolved" : "Open"}
+                              </span>
+                            </div>
+
+                            <p
+                              className={`text-xs sm:text-sm leading-relaxed whitespace-pre-wrap p-3 rounded-xl border ${
+                                isLight
+                                  ? "bg-white text-slate-900 border-slate-200 shadow-2xs"
+                                  : "bg-slate-950/60 text-slate-100 border-slate-800/80"
+                              }`}
+                            >
+                              {ticket.message}
+                            </p>
+
+                            <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+                              <span
+                                className={`text-[10px] font-mono flex items-center gap-1 ${
+                                  isLight ? "text-slate-600" : "text-slate-400"
+                                }`}
+                              >
+                                <Clock className="h-3 w-3" />
+                                {new Date(ticket.createdAt).toLocaleString()} &bull;{" "}
+                                {ticket.authorEmail}
+                              </span>
+
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  data-testid="copy-ticket-prompt-btn"
+                                  onClick={() =>
+                                    handleCopyPrompt(
+                                      formatTicketAsAiPrompt(ticket),
+                                      ticket.id
+                                    )
+                                  }
+                                  className={`h-7 px-2.5 text-[11px] font-bold gap-1 cursor-pointer ${
+                                    isLight
+                                      ? "border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+                                      : "border-emerald-500/40 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/50"
+                                  }`}
+                                >
+                                  {copiedId === ticket.id ? (
+                                    <>
+                                      <Check className="h-3 w-3" />
+                                      <span>Copied AI Fix Prompt!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="h-3 w-3" />
+                                      <span>Copy AI Fix Prompt</span>
+                                    </>
+                                  )}
+                                </Button>
+
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  data-testid="toggle-ticket-status-btn"
+                                  onClick={() => {
+                                    updateSupportTicketStatus(
+                                      ticket.id,
+                                      isResolved ? "open" : "resolved"
+                                    );
+                                    refreshData();
+                                  }}
+                                  className={`h-7 px-2.5 text-[11px] gap-1 cursor-pointer ${
+                                    isResolved
+                                      ? "border-slate-700 bg-slate-900 text-slate-300 hover:text-white"
+                                      : "border-emerald-500/40 bg-emerald-500 text-slate-950 hover:bg-emerald-400 font-bold"
+                                  }`}
+                                >
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  <span>{isResolved ? "Reopen" : "Mark Resolved"}</span>
+                                </Button>
+
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    deleteSupportTicket(ticket.id);
+                                    refreshData();
+                                  }}
+                                  className="h-7 px-2 text-[11px] border-slate-800 bg-slate-950 text-rose-400 hover:bg-rose-950/40 cursor-pointer"
+                                  title="Delete ticket"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right: Attached Cropped Screenshot Thumbnail */}
+                          {ticket.screenshotDataUrl && (
+                            <div className="w-full md:w-48 shrink-0 space-y-1.5">
+                              <button
+                                type="button"
+                                data-testid="support-ticket-screenshot-btn"
+                                onClick={() =>
+                                  setLightboxImage({
+                                    url: ticket.screenshotDataUrl!,
+                                    author: ticket.authorName,
+                                    page: ticket.pageTitle,
+                                  })
+                                }
+                                className="group relative w-full rounded-xl overflow-hidden border border-emerald-500/40 bg-slate-950 aspect-video flex items-center justify-center cursor-pointer"
+                              >
+                                <img
+                                  src={ticket.screenshotDataUrl}
+                                  alt="Cropped website snip"
+                                  className="max-h-28 w-auto object-contain group-hover:scale-105 transition-transform"
+                                />
+                                <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 text-[11px] font-bold text-white">
+                                  <Maximize2 className="h-3.5 w-3.5 text-emerald-400" />
+                                  <span>Enlarge Snip</span>
+                                </div>
+                              </button>
+                              <span className="block text-center text-[10px] font-mono text-emerald-400">
+                                ✂️ Attached Screen Snip
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB 1: PENDING APPROVALS */}
           {activeTab === "approvals" && (
             <div className="space-y-4">
@@ -588,6 +1017,42 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
           </Button>
         </div>
       </div>
+
+      {/* Fullscreen Lightbox for Attached Support Screen Snips */}
+      {lightboxImage && (
+        <div
+          data-testid="support-snip-lightbox"
+          onClick={() => setLightboxImage(null)}
+          className="fixed inset-0 z-[10000] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-8"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-5xl w-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+          >
+            <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+              <div className="text-xs text-slate-200">
+                <span className="font-bold text-emerald-400">Cropped Screen Snip</span> &bull;{" "}
+                Submitted by <strong className="text-white">{lightboxImage.author}</strong> on{" "}
+                <span className="font-mono text-slate-400">{lightboxImage.page}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="h-7 w-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 overflow-auto flex-1 flex items-center justify-center bg-slate-950">
+              <img
+                src={lightboxImage.url}
+                alt="Full size cropped screen snip"
+                className="max-w-full max-h-[75vh] object-contain rounded-lg border border-slate-800"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );

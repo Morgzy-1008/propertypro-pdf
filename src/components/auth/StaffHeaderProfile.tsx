@@ -12,7 +12,12 @@ import {
   type StaffProfile,
 } from "@/lib/authSession";
 import { getUnreadAlertCount, onAdminAlertsChanged } from "@/lib/adminAlerts";
+import {
+  getOpenSupportTicketCount,
+  onSupportTicketsChanged,
+} from "@/lib/supportFeedback";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
+import { HelpSupportWidget } from "@/components/support/HelpSupportWidget";
 import {
   ShieldCheck,
   LogOut,
@@ -57,17 +62,25 @@ export function StaffHeaderProfile({
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isSwitcherModalOpen, setIsSwitcherModalOpen] = useState(false);
   const [unreadAlerts, setUnreadAlerts] = useState<number>(() => getUnreadAlertCount());
+  const [openSupportCount, setOpenSupportCount] = useState<number>(() =>
+    getOpenSupportTicketCount()
+  );
 
   useEffect(() => {
     setActiveUser(getActiveStaffUser());
     setUnreadAlerts(getUnreadAlertCount());
+    setOpenSupportCount(getOpenSupportTicketCount());
 
     const unsubUser = onStaffUserChanged((user) => setActiveUser(user));
     const unsubAlerts = onAdminAlertsChanged(() => setUnreadAlerts(getUnreadAlertCount()));
+    const unsubSupport = onSupportTicketsChanged(() =>
+      setOpenSupportCount(getOpenSupportTicketCount())
+    );
 
     return () => {
       unsubUser();
       unsubAlerts();
+      unsubSupport();
     };
   }, []);
 
@@ -105,7 +118,8 @@ export function StaffHeaderProfile({
     navigate({ to: "/auth", replace: true });
   };
 
-  const isAdmin = activeUser?.role === "admin" || activeUser?.id === "morgan-hales";
+  const isAdmin = isMorganHales(activeUser) || activeUser?.role === "admin";
+  const totalAdminBadgeCount = openSupportCount + unreadAlerts;
 
   return (
     <div className="flex items-center gap-2">
@@ -115,24 +129,32 @@ export function StaffHeaderProfile({
           <DivisionSwitcher isLight={isLight} size="sm" />
         </div>
       )}
+
+      {/* Help & Support Dropdown Button across the entire website */}
+      <HelpSupportWidget isLight={isLight} compact={compact} />
+
       {/* Website Admin Button for Morgan Hales */}
       {!compact && isAdmin && (
         <button
           type="button"
+          data-testid="website-admin-trigger-btn"
           onClick={() => setIsAdminModalOpen(true)}
-          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border transition-all text-xs font-bold shadow-md shrink-0 ${
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full border transition-all text-xs font-bold shadow-md shrink-0 cursor-pointer ${
             isLight
               ? "bg-amber-100/90 border-amber-300 text-amber-900 hover:bg-amber-200"
               : "bg-amber-950/50 border-amber-500/50 text-amber-300 hover:bg-amber-900/60 hover:border-amber-400"
           }`}
-          title="Open Website Admin & Security Approvals"
+          title="Open Website Admin & Support Log"
         >
           <Shield className="h-3.5 w-3.5 text-amber-400 shrink-0" />
           <span className="hidden 2xl:inline">Website Admin</span>
           <span className="2xl:hidden hidden sm:inline">Admin</span>
-          {unreadAlerts > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-mono text-[9px] font-bold animate-pulse">
-              {unreadAlerts}
+          {totalAdminBadgeCount > 0 && (
+            <span
+              data-testid="website-admin-badge"
+              className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-mono text-[9px] font-bold animate-pulse"
+            >
+              {totalAdminBadgeCount}
             </span>
           )}
         </button>

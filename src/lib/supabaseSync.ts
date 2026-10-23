@@ -178,7 +178,8 @@ export async function seedRemoteDatabaseIfEmpty(): Promise<{ seededLots: boolean
     const { data: existingPackages, error: pkgErr } = await supabase
       .from("packages")
       .select("id, name")
-      .not("name", "like", "Tender Request%");
+      .not("name", "like", "Tender Request%")
+      .not("name", "like", "Support Ticket%");
 
     const existingNames = new Set((existingPackages || []).map((p) => p.name?.toLowerCase().trim()));
     const existingIds = new Set((existingPackages || []).map((p) => p.id));
@@ -557,7 +558,7 @@ export async function fetchRemoteLotsAndPackages(): Promise<{ lots: Lot[]; packa
     await ensureStaffSupabaseAuth();
     const [lotRes, pkgRes] = await Promise.all([
       supabase.from("land_lots").select("*").order("created_at", { ascending: false }).limit(2000),
-      supabase.from("packages").select("*").not("name", "like", "Tender Request%").not("name", "like", "Builders Estimate%").order("created_at", { ascending: false }).limit(2000),
+      supabase.from("packages").select("*").not("name", "like", "Tender Request%").not("name", "like", "Builders Estimate%").not("name", "like", "Support Ticket%").order("created_at", { ascending: false }).limit(2000),
     ]);
 
     let rawLots = (lotRes.data || []) as Record<string, unknown>[];
