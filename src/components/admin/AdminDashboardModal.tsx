@@ -200,19 +200,24 @@ export function AdminDashboardModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="p-6 border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950/40 flex items-center justify-between">
+        <div className="keep-dark p-6 border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950/40 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
             <div className="h-11 w-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-md">
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-white tracking-wide">Website Admin Portal</h3>
+                <h3
+                  className="text-lg font-bold tracking-wide"
+                  style={{ color: "#ffffff" }}
+                >
+                  Website Admin Portal
+                </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
                   SYSTEM ADMINISTRATOR
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs mt-0.5" style={{ color: "#cbd5e1" }}>
                 Staff Authentication Approvals, Authorized Logins &amp; Security Alert Center
               </p>
             </div>
@@ -614,7 +619,7 @@ export function AdminDashboardModal({
 
                           {/* Right: Attached Cropped Screenshot Thumbnail */}
                           {ticket.screenshotDataUrl && (
-                            <div className="w-full md:w-48 shrink-0 space-y-1.5">
+                            <div className="w-full md:w-56 shrink-0 space-y-1.5">
                               <button
                                 type="button"
                                 data-testid="support-ticket-screenshot-btn"
@@ -625,20 +630,20 @@ export function AdminDashboardModal({
                                     page: ticket.pageTitle,
                                   })
                                 }
-                                className="group relative w-full rounded-xl overflow-hidden border border-emerald-500/40 bg-slate-950 aspect-video flex items-center justify-center cursor-pointer"
+                                className="group relative w-full rounded-xl overflow-hidden border border-emerald-500/40 bg-slate-900/10 p-1.5 flex items-center justify-center cursor-pointer shadow-xs"
                               >
                                 <img
                                   src={ticket.screenshotDataUrl}
                                   alt="Cropped website snip"
-                                  className="max-h-28 w-auto object-contain group-hover:scale-105 transition-transform"
+                                  className="max-h-32 w-auto max-w-full object-contain rounded-lg group-hover:scale-[1.02] transition-transform"
                                 />
-                                <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 text-[11px] font-bold text-white">
+                                <div className="keep-dark absolute inset-0 bg-slate-950/65 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-[11px] font-bold text-white">
                                   <Maximize2 className="h-3.5 w-3.5 text-emerald-400" />
-                                  <span>Enlarge Snip</span>
+                                  <span>Enlarge Screen Snip</span>
                                 </div>
                               </button>
-                              <span className="block text-center text-[10px] font-mono text-emerald-400">
-                                ✂️ Attached Screen Snip
+                              <span className="block text-center text-[10px] font-mono text-emerald-500 font-semibold">
+                                ✂️ Attached Screen Snip (Click to Enlarge)
                               </span>
                             </div>
                           )}
@@ -1023,31 +1028,45 @@ export function AdminDashboardModal({
         <div
           data-testid="support-snip-lightbox"
           onClick={() => setLightboxImage(null)}
-          className="fixed inset-0 z-[10000] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-8"
+          className="keep-dark fixed inset-0 z-[10000] backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-8"
+          style={{ backgroundColor: "rgba(2, 6, 23, 0.86)" }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="max-w-5xl w-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            className="keep-dark w-fit min-w-[360px] max-w-[92vw] border border-slate-700 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            style={{ backgroundColor: "#0f172a" }}
           >
-            <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-              <div className="text-xs text-slate-200">
-                <span className="font-bold text-emerald-400">Cropped Screen Snip</span> &bull;{" "}
-                Submitted by <strong className="text-white">{lightboxImage.author}</strong> on{" "}
-                <span className="font-mono text-slate-400">{lightboxImage.page}</span>
+            <div
+              className="keep-dark px-5 py-3.5 border-b border-slate-800 flex items-center justify-between gap-6"
+              style={{ backgroundColor: "#020617" }}
+            >
+              <div className="text-xs" style={{ color: "#e2e8f0" }}>
+                <span className="font-bold" style={{ color: "#34d399" }}>
+                  ✂️ Cropped Screen Snip (1:1 Capture)
+                </span>{" "}
+                &bull; Submitted by{" "}
+                <strong style={{ color: "#ffffff" }}>{lightboxImage.author}</strong> on{" "}
+                <span className="font-mono" style={{ color: "#94a3b8" }}>
+                  {lightboxImage.page}
+                </span>
               </div>
               <button
                 type="button"
+                data-testid="close-snip-lightbox-btn"
                 onClick={() => setLightboxImage(null)}
-                className="h-7 w-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center cursor-pointer"
+                className="h-7 w-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center cursor-pointer shrink-0"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="p-4 overflow-auto flex-1 flex items-center justify-center bg-slate-950">
+            <div
+              className="keep-dark p-5 overflow-auto flex-1 flex items-center justify-center"
+              style={{ backgroundColor: "#090d16" }}
+            >
               <img
                 src={lightboxImage.url}
                 alt="Full size cropped screen snip"
-                className="max-w-full max-h-[75vh] object-contain rounded-lg border border-slate-800"
+                className="block w-auto h-auto max-w-[86vw] max-h-[78vh] object-contain rounded-xl border border-slate-700/80 shadow-2xl"
               />
             </div>
           </div>

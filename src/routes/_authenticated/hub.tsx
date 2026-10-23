@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   FileText,
@@ -190,27 +190,27 @@ function PortalCard({
     </>
   );
 
-  const cardClasses = `relative h-full rounded-[20px] p-5 sm:p-5.5 flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-xl ${
+  const cardClasses = `relative h-full rounded-[20px] p-5 sm:p-5.5 flex flex-col justify-between overflow-hidden transition-colors duration-200 backdrop-blur-md ${
     isLight
       ? isComingSoon
         ? "bg-white/80 text-slate-800 shadow-md shadow-slate-200/50"
-        : "bg-white/88 text-slate-900 group-hover:bg-white/95 shadow-xl shadow-slate-300/40"
+        : "bg-white/90 text-slate-900 group-hover:bg-white/95 shadow-xl shadow-slate-300/40"
       : isComingSoon
       ? "bg-slate-950/78 text-slate-200 shadow-lg shadow-black/50"
-      : "bg-slate-950/82 text-slate-100 group-hover:bg-slate-900/90 shadow-2xl shadow-black/80"
+      : "bg-slate-950/86 text-slate-100 group-hover:bg-slate-900/92 shadow-2xl shadow-black/80"
   }`;
 
   return (
     <div
-      className={`group relative flex flex-col transition-transform duration-300 ease-out ${
+      className={`group relative flex flex-col transition-transform duration-200 ease-out will-change-transform ${
         isComingSoon ? "cursor-default select-none opacity-90" : "hover:-translate-y-1"
       }`}
     >
       {/* Layer 1: Ambient Outer Radiant Glow */}
       <div
         className={`absolute -inset-1 rounded-[24px] bg-gradient-to-r ${glowGradient} ${
-          isComingSoon ? "opacity-10 blur-md" : "opacity-20 blur-xl group-hover:opacity-75 group-hover:blur-2xl"
-        } transition-all duration-500 pointer-events-none -z-10`}
+          isComingSoon ? "opacity-10 blur-sm" : "opacity-20 blur-md group-hover:opacity-75 group-hover:blur-lg"
+        } transition-opacity duration-300 pointer-events-none -z-10`}
       />
 
       {/* Layer 2: Precision Laser Perimeter Outline */}
@@ -251,6 +251,7 @@ function PortalCard({
 function WelcomeHubPage() {
   const { mode } = useTheme();
   const navigate = useNavigate();
+  const router = useRouter();
   const [staffUser, setStaffUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
   const [greeting, setGreeting] = useState("Good day");
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
@@ -301,7 +302,18 @@ function WelcomeHubPage() {
       setUnreadAlerts(getUnreadAlertCount());
     });
 
+    // Warm up primary portals in background idle time so first portal open has zero delay
+    const warmupTimer = setTimeout(() => {
+      try {
+        router.preloadRoute({ to: "/quote-builder" as any }).catch(() => {});
+        router.preloadRoute({ to: "/crm" as any }).catch(() => {});
+        router.preloadRoute({ to: "/packages" as any }).catch(() => {});
+        router.preloadRoute({ to: "/builder" as any }).catch(() => {});
+      } catch {}
+    }, 120);
+
     return () => {
+      clearTimeout(warmupTimer);
       unsubUser();
       unsubAlerts();
     };
@@ -387,10 +399,10 @@ function WelcomeHubPage() {
         }}
       />
 
-      {/* Futuristic Atmospheric Ambient Glow Orbs */}
-      <div className="fixed top-8 left-1/4 w-[550px] h-[350px] bg-gradient-to-br from-amber-500/10 via-brand-gold/5 to-transparent rounded-full blur-[140px] pointer-events-none" />
-      <div className="fixed top-32 right-1/4 w-[500px] h-[350px] bg-gradient-to-bl from-cyan-500/10 via-blue-500/5 to-transparent rounded-full blur-[140px] pointer-events-none" />
-      <div className="fixed bottom-12 left-1/3 w-[600px] h-[300px] bg-gradient-to-t from-emerald-500/8 via-purple-500/5 to-transparent rounded-full blur-[150px] pointer-events-none" />
+      {/* Futuristic Atmospheric Ambient Glow Orbs (GPU-accelerated zero-filter radial gradients) */}
+      <div className="fixed top-0 left-1/5 w-[650px] h-[420px] bg-[radial-gradient(closest-side,rgba(245,158,11,0.11),transparent)] pointer-events-none" />
+      <div className="fixed top-24 right-1/5 w-[600px] h-[420px] bg-[radial-gradient(closest-side,rgba(6,182,212,0.11),transparent)] pointer-events-none" />
+      <div className="fixed bottom-4 left-1/4 w-[680px] h-[360px] bg-[radial-gradient(closest-side,rgba(16,185,129,0.08),transparent)] pointer-events-none" />
 
       {/* Top Navigation Bar with Optical Laser Accent */}
       <header

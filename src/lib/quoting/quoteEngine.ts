@@ -16,6 +16,7 @@ import {
 } from "@/lib/pricelist.nsw.data";
 import { findFhbPrice } from "@/lib/pricing/pricelists";
 import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/facadePricing";
+import { plansForDesign } from "@/components/flyer/floorplans";
 import { HUDSON_CAD_REGISTRY } from "@/components/flyer/floorplanVisionEngine";
 import { getActiveDivision, type Division } from "@/lib/divisionContext";
 import {
@@ -2789,7 +2790,7 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
     }
   }
 
-  // 4. Update standard facade uplift if not custom
+  // 4. Update standard facade uplift if not custom, and restore static floorplan URL if stripped
   if (!quote.design.isCustomFacade && quote.design.facadeName) {
     try {
       const isDouble = isDoubleStoreyDesign(quote.design.designName, quote.design.housingType);
@@ -2803,8 +2804,61 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
     } catch {}
   }
 
-  // 5. Ensure line item categorization and subtotal validity
-  if (Array.isArray(quote.lineItems)) {
+  if (
+    !quote.design.floorplanUrl &&
+    quote.design.designName &&
+    quote.design.mode !== "custom_floorplan"
+  ) {
+    try {
+      const matchedPlans = plansForDesign(quote.design.designName);
+      if (matchedPlans.length > 0 && matchedPlans[0].url) {
+        quote.design.floorplanUrl = matchedPlans[0].url;
+      }
+    } catch {}
+  }
+
+  // 5. Rehydrate compacted line items against DEFAULT_CATALOGUE and ensure categorization/subtotal validity
+  const existingItems = Array.isArray(quote.lineItems) ? quote.lineItems : [];
+  let workingLineItems = existingItems;
+  if (existingItems.length < DEFAULT_CATALOGUE.length) {
+    const byCatId = new Map<string, QuoteSelectedLineItem>();
+    const customExtras: QuoteSelectedLineItem[] = [];
+    for (const item of existingItems) {
+      if (item.catalogueItemId) {
+        byCatId.set(item.catalogueItemId, item);
+      } else {
+        customExtras.push(item);
+      }
+    }
+    const mergedFromCat: QuoteSelectedLineItem[] = DEFAULT_CATALOGUE.map((cat) => {
+      const saved = byCatId.get(cat.id);
+      if (saved) {
+        byCatId.delete(cat.id);
+        return saved;
+      }
+      const resolvedCat = resolveItemCategory(cat);
+      return {
+        id: `item_${cat.id}`,
+        catalogueItemId: cat.id,
+        category: resolvedCat,
+        name: cat.name,
+        description: cat.description,
+        unitType: cat.unitType,
+        unitRate: cat.unitRate,
+        quantity: cat.defaultQty ?? 1,
+        subtotal: (cat.defaultQty ?? 1) * cat.unitRate,
+        isIncluded: false,
+        isClientSelectable: !!cat.isClientSelectable,
+        clientSelected: false,
+      };
+    });
+    for (const leftover of byCatId.values()) {
+      customExtras.push(leftover);
+    }
+    workingLineItems = [...mergedFromCat, ...customExtras];
+  }
+
+  if (workingLineItems.length > 0) {
     const isH1 = tier.toUpperCase().includes("H1");
     const m2 = quote.design.isModifiedFloorplan && quote.design.modifiedDesignM2
       ? quote.design.modifiedDesignM2
@@ -2814,7 +2868,7 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
       (quote.design.housingType || "").toLowerCase().includes("double") ||
       (quote.design.housingType || "").toLowerCase().includes("split");
 
-    quote.lineItems = quote.lineItems.map((it) => {
+    quote.lineItems = workingLineItems.map((it) => {
       if (it.id.startsWith("pop_h1_ducted_ac") || it.id === "hvac_ducted_aircon") {
         if (!isH1) {
           // Ducted AC is already standard in H2 and H3 inclusions

@@ -102,7 +102,13 @@ export function V2StepClient({
   const canChangeConsultant = canChangeQuoteConsultant(activeStaff);
 
   useEffect(() => {
-    if (activeStaff && !canChangeConsultant) {
+    const hasExistingTeamConsultant = Boolean(
+      client.clientName &&
+      client.clientName.trim().length > 1 &&
+      client.consultantName &&
+      client.consultantName.trim().length > 1
+    );
+    if (activeStaff && !canChangeConsultant && !hasExistingTeamConsultant) {
       if (
         client.consultantId !== activeStaff.id ||
         client.consultantEmail?.toLowerCase() !== activeStaff.email.toLowerCase() ||

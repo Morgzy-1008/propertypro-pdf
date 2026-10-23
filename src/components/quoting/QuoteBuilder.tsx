@@ -12,6 +12,7 @@ import {
   Check,
   RotateCcw,
   FolderOpen,
+  Users,
   Sparkles,
   ExternalLink,
   MessageSquare,
@@ -146,7 +147,35 @@ export function QuoteBuilder() {
 
   const [savedQuotes, setSavedQuotes] = useState<FullQuote[]>(() => loadAllQuotes());
   const [isEstimatesDialogOpen, setIsEstimatesDialogOpen] = useState(false);
+  const [estimatesModalScope, setEstimatesModalScope] = useState<"mine" | "all" | "archived">("all");
   const [activeTab, setActiveTab] = useState<TabId>("client");
+
+  const activeSavedQuotes = React.useMemo(
+    () => savedQuotes.filter((q) => !q.isArchived),
+    [savedQuotes]
+  );
+
+  const mySavedQuotesCount = React.useMemo(() => {
+    const staff = getActiveStaffUser();
+    if (!staff) return activeSavedQuotes.length;
+    const myEmail = (staff.email || "").toLowerCase().trim();
+    const myName = (staff.name || "").toLowerCase().trim();
+    return activeSavedQuotes.filter((q) => {
+      const cEmail = (q.client?.consultantEmail || "").toLowerCase().trim();
+      const cName = (q.client?.consultantName || "").toLowerCase().trim();
+      return (
+        cEmail === myEmail ||
+        (cName.length > 0 && (cName.includes(myName) || myName.includes(cName))) ||
+        q.client?.consultantId === staff.id
+      );
+    }).length;
+  }, [activeSavedQuotes]);
+
+  const openEstimatesModal = (scope: "mine" | "all" | "archived" = "all") => {
+    setEstimatesModalScope(scope);
+    setIsEstimatesDialogOpen(true);
+    refreshSavedQuotes();
+  };
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -925,6 +954,7 @@ export function QuoteBuilder() {
   const [shareUrl, setShareUrl] = useState<string>("");
 
   useEffect(() => {
+    if (!isShareOpen) return;
     let active = true;
     encodeQuoteForClientLink(quote).then((compact) => {
       if (!active) return;
@@ -935,7 +965,7 @@ export function QuoteBuilder() {
     return () => {
       active = false;
     };
-  }, [quote]);
+  }, [quote, isShareOpen]);
 
   const clientShareUrl =
     shareUrl ||
@@ -943,19 +973,33 @@ export function QuoteBuilder() {
       ? `${window.location.origin}/quote/${quote.id}`
       : `/quote/${quote.id}`);
 
-  const handleCopyShareLink = () => {
+  const handleCopyShareLink = async () => {
     saveQuote(quote);
     saveQuoteToIdb(quote).catch(() => {});
     setSavedQuotes(loadAllQuotes());
-    navigator.clipboard.writeText(clientShareUrl);
+    let targetUrl = clientShareUrl;
+    if (!shareUrl) {
+      const compact = await encodeQuoteForClientLink(quote);
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      targetUrl = `${base}/quote/${quote.id}${compact ? `?d=${compact}` : ""}`;
+      setShareUrl(targetUrl);
+    }
+    navigator.clipboard.writeText(targetUrl);
     setCopied(true);
     toast.success("Client collaboration link copied to clipboard");
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleCopyClientSms = () => {
+  const handleCopyClientSms = async () => {
+    let targetUrl = clientShareUrl;
+    if (!shareUrl) {
+      const compact = await encodeQuoteForClientLink(quote);
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      targetUrl = `${base}/quote/${quote.id}${compact ? `?d=${compact}` : ""}`;
+      setShareUrl(targetUrl);
+    }
     const clientName = quote.client.clientName || "there";
-    const msg = `Hi ${clientName}, here is your interactive Hudson Homes Builders Estimate link:\n${clientShareUrl}\n\nYou can review your design, test alternative floorplan sizes, compare inclusion ranges, and customise options.`;
+    const msg = `Hi ${clientName}, here is your interactive Hudson Homes Builders Estimate link:\n${targetUrl}\n\nYou can review your design, test alternative floorplan sizes, compare inclusion ranges, and customise options.`;
     navigator.clipboard.writeText(msg);
     toast.success("Copied client SMS message to clipboard!");
   };
@@ -1052,30 +1096,51 @@ export function QuoteBuilder() {
             </span>
           </label>
 
-          {/* Saved Estimates Open Button */}
+          {/* My Estimates Open Button */}
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => {
-              setIsEstimatesDialogOpen(true);
-              refreshSavedQuotes();
-            }}
+            data-testid="open-my-estimates-btn"
+            onClick={() => openEstimatesModal("mine")}
             className={`text-xs gap-1.5 font-bold px-2.5 py-1.5 ${
               isLight
-                ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs"
-                : "border-slate-800 bg-slate-900/90 text-slate-200 hover:bg-slate-800 hover:text-white"
+                ? "border-amber-300 bg-amber-50/70 text-amber-900 hover:bg-amber-100 shadow-xs"
+                : "border-amber-500/40 bg-amber-950/30 text-amber-200 hover:bg-amber-900/50 hover:text-white"
             }`}
           >
             <FolderOpen className={`h-3.5 w-3.5 ${isLight ? "text-amber-700" : "text-amber-400"}`} />
-            <span className="hidden 2xl:inline">Saved Estimates</span>
-            <span className="2xl:hidden">Saved</span>
+            <span>My Estimates</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold border ${
               isLight
                 ? "bg-amber-100 text-amber-900 border-amber-300"
                 : "bg-amber-500/20 text-amber-400 border-amber-500/40"
             }`}>
-              {savedQuotes.length}
+              {mySavedQuotesCount}
+            </span>
+          </Button>
+
+          {/* View Team Estimates Open Button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="open-team-estimates-btn"
+            onClick={() => openEstimatesModal("all")}
+            className={`text-xs gap-1.5 font-bold px-2.5 py-1.5 ${
+              isLight
+                ? "border-cyan-300 bg-cyan-50/70 text-cyan-900 hover:bg-cyan-100 shadow-xs"
+                : "border-cyan-500/40 bg-cyan-950/30 text-cyan-200 hover:bg-cyan-900/50 hover:text-white"
+            }`}
+          >
+            <Users className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
+            <span>View Team Estimates</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold border ${
+              isLight
+                ? "bg-cyan-100 text-cyan-900 border-cyan-300"
+                : "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+            }`}>
+              {activeSavedQuotes.length}
             </span>
           </Button>
 
@@ -1161,13 +1226,11 @@ export function QuoteBuilder() {
         onSaveQuote={handleSaveQuote}
         onDownloadPdf={handleDownloadPdf}
         onOpenShare={() => setIsShareOpen(true)}
-        onOpenSavedEstimates={() => {
-          setIsEstimatesDialogOpen(true);
-          refreshSavedQuotes();
-        }}
+        onOpenSavedEstimates={(scope) => openEstimatesModal(scope || "all")}
         onOpenAdminCatalogue={() => setIsAdminOpen(true)}
         onNewQuote={handleNewQuote}
-        savedQuotesCount={savedQuotes.length}
+        savedQuotesCount={activeSavedQuotes.length}
+        myQuotesCount={mySavedQuotesCount}
         saving={saving}
         downloading={downloading}
       />
@@ -1178,10 +1241,15 @@ export function QuoteBuilder() {
         onOpenChange={setIsEstimatesDialogOpen}
         savedQuotes={savedQuotes}
         activeQuoteId={quote.id}
+        initialScope={estimatesModalScope}
+        onRefreshQuotes={setSavedQuotes}
         onLoadQuote={async (loaded) => {
           let refreshed = rehydrateAndRecalculateQuote(loaded);
           const currentStaff = getActiveStaffUser();
-          if (currentStaff && !canChangeQuoteConsultant(currentStaff)) {
+          const hasExistingConsultant = Boolean(
+            refreshed.client?.consultantName && refreshed.client.consultantName.trim().length > 1
+          );
+          if (currentStaff && !canChangeQuoteConsultant(currentStaff) && !hasExistingConsultant) {
             refreshed = {
               ...refreshed,
               client: {
@@ -1299,8 +1367,8 @@ export function QuoteBuilder() {
         </DialogContent>
       </Dialog>
 
-      {/* Hidden background render host for 1-click PDF download from non-preview tabs */}
-      {activeTab !== "pdf_preview" && (
+      {/* Hidden background render host for 1-click PDF download from non-preview tabs (mounted on demand when downloading to keep DOM ultra-fast) */}
+      {activeTab !== "pdf_preview" && downloading && (
         <div
           id="quote-pdf-export-container"
           className="light normal-mode"

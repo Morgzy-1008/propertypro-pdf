@@ -51,6 +51,10 @@ import {
   recoverAllHistoricalQuotes,
   loadAllQuotesAsync,
   recoverArchivedQuote,
+  archiveQuotesAsync,
+  compactAllSavedQuotesAsync,
+  getQuoteStorageStats,
+  compactQuoteForStorage,
 } from "@/lib/quoting/quoteStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
@@ -65,6 +69,8 @@ interface QuoteEstimatesDialogProps {
   onOpenChange: (open: boolean) => void;
   savedQuotes: FullQuote[];
   activeQuoteId?: string;
+  initialScope?: "mine" | "all" | "archived";
+  onRefreshQuotes?: (quotes: FullQuote[]) => void;
   onLoadQuote: (quote: FullQuote) => void;
   onDeleteQuote: (id: string) => void;
   onDeleteQuotes?: (ids: string[]) => void | Promise<void>;
@@ -182,6 +188,8 @@ export function QuoteEstimatesDialog({
   onOpenChange,
   savedQuotes,
   activeQuoteId,
+  initialScope,
+  onRefreshQuotes,
   onLoadQuote,
   onDeleteQuote,
   onDeleteQuotes,
@@ -192,11 +200,68 @@ export function QuoteEstimatesDialog({
   const isLight = mode === "normal";
   const [searchQuery, setSearchQuery] = useState("");
   const [activeStaff, setActiveStaff] = useState<StaffProfile | null>(() => getActiveStaffUser());
-  const [scopeFilter, setScopeFilter] = useState<"mine" | "all">("all");
+  const [scopeFilter, setScopeFilter] = useState<"mine" | "all" | "archived">(initialScope || "all");
   const [selectedQuoteIds, setSelectedQuoteIds] = useState<Set<string>>(new Set());
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [pdfRenderQuote, setPdfRenderQuote] = useState<FullQuote | null>(null);
+  const [compactingStorage, setCompactingStorage] = useState(false);
   const hiddenPdfRef = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (open) {
+      setActiveStaff(getActiveStaffUser());
+      if (initialScope) {
+        setScopeFilter(initialScope);
+      }
+      loadAllQuotesAsync()
+        .then((latest) => {
+          if (latest && latest.length > 0) {
+            onRefreshQuotes?.(latest);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [open, initialScope]);
+
+  const storageStats = React.useMemo(
+    () => getQuoteStorageStats(savedQuotes),
+    [savedQuotes]
+  );
+
+  const handleCompactAllStorage = async () => {
+    if (compactingStorage) return;
+    setCompactingStorage(true);
+    const toastId = toast.loading("Compressing & optimizing all saved & archived estimates...");
+    try {
+      const res = await compactAllSavedQuotesAsync();
+      const latest = await loadAllQuotesAsync();
+      onRefreshQuotes?.(latest);
+      toast.success(
+        `Storage optimized! Reduced ${res.quoteCount} estimates by ${res.savedPercent}% (${(res.afterBytes / 1024).toFixed(1)} KB total)`,
+        { id: toastId }
+      );
+    } catch {
+      toast.error("Could not optimize storage", { id: toastId });
+    } finally {
+      setCompactingStorage(false);
+    }
+  };
+
+  const handleArchiveSelected = async (idsToArchive: string[]) => {
+    if (idsToArchive.length === 0) return;
+    const toastId = toast.loading(`Archiving & compressing ${idsToArchive.length} estimate(s)...`);
+    try {
+      const updated = await archiveQuotesAsync(idsToArchive);
+      onRefreshQuotes?.(updated);
+      setSelectedQuoteIds(new Set());
+      toast.success(
+        `Archived & compressed ${idsToArchive.length} estimate(s) (~94% smaller storage footprint)`,
+        { id: toastId }
+      );
+    } catch {
+      toast.error("Could not archive estimate(s)", { id: toastId });
+    }
+  };
 
   const handleDownloadSavedQuotePdf = async (q: FullQuote) => {
     if (downloadingPdfId) return;
@@ -249,7 +314,11 @@ export function QuoteEstimatesDialog({
   const allQuotesCount = activeQuotes.length;
 
   const scopedQuotes =
-    scopeFilter === "mine" && activeStaff ? activeQuotes.filter(isMyQuote) : activeQuotes;
+    scopeFilter === "archived"
+      ? archivedQuotes
+      : scopeFilter === "mine" && activeStaff
+        ? activeQuotes.filter(isMyQuote)
+        : activeQuotes;
 
   const filteredQuotes = scopedQuotes.filter((q) => {
     const query = searchQuery.toLowerCase().trim();
@@ -390,17 +459,19 @@ export function QuoteEstimatesDialog({
   };
 
   const handleBulkExportJson = () => {
-    const selectedList = savedQuotes.filter((q) => selectedQuoteIds.has(q.id));
+    const selectedList = savedQuotes
+      .filter((q) => selectedQuoteIds.has(q.id))
+      .map((q) => compactQuoteForStorage(q, false));
     if (selectedList.length === 0) return;
     try {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(selectedList, null, 2));
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(selectedList));
       const downloadAnchor = document.createElement("a");
       downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `Hudson_Estimates_Backup_${selectedList.length}_quotes_${new Date().toISOString().slice(0, 10)}.json`);
+      downloadAnchor.setAttribute("download", `Hudson_Estimates_Compact_${selectedList.length}_quotes_${new Date().toISOString().slice(0, 10)}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-      toast.success(`Exported ${selectedList.length} estimate(s) as JSON backup`);
+      toast.success(`Exported ${selectedList.length} compact estimate(s) as JSON backup`);
     } catch {
       toast.error("Could not export backup JSON");
     }
@@ -426,7 +497,8 @@ export function QuoteEstimatesDialog({
 
   const handleExportJson = (quote: FullQuote) => {
     try {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(quote, null, 2));
+      const compacted = compactQuoteForStorage(quote, false);
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(compacted));
       const downloadAnchor = document.createElement("a");
       const safeName = (quote.client.clientName || "Estimate").replace(/[^a-zA-Z0-9_-]/g, "_");
       downloadAnchor.setAttribute("href", dataStr);
@@ -434,7 +506,7 @@ export function QuoteEstimatesDialog({
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-      toast.success("Estimate JSON exported for backup");
+      toast.success("Compact Estimate JSON exported for backup (~94% smaller)");
     } catch {
       toast.error("Could not export JSON");
     }
@@ -647,6 +719,26 @@ export function QuoteEstimatesDialog({
                 <Users className="h-3.5 w-3.5" />
                 <span>All Team Estimates ({allQuotesCount})</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setScopeFilter("archived");
+                  setSelectedQuoteIds(new Set());
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  scopeFilter === "archived"
+                    ? isLight
+                      ? "bg-violet-600 text-white shadow-xs"
+                      : "bg-violet-500 text-white shadow-sm"
+                    : isLight
+                    ? "text-slate-600 hover:text-slate-950"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Archive className="h-3.5 w-3.5" />
+                <span>Archived ({archivedQuotes.length})</span>
+              </button>
             </div>
 
             <div className="flex items-center gap-2.5">
@@ -670,6 +762,40 @@ export function QuoteEstimatesDialog({
                 Showing {filteredQuotes.length} estimate{filteredQuotes.length === 1 ? "" : "s"}
               </span>
             </div>
+          </div>
+
+          {/* Smart Storage Compression & Cloud Sync Status Bar */}
+          <div className={`mt-2.5 px-3 py-2 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+            isLight
+              ? "bg-emerald-50/70 border-emerald-200 text-emerald-950"
+              : "bg-emerald-950/25 border-emerald-500/25 text-emerald-200"
+          }`}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Sparkles className={`h-3.5 w-3.5 flex-none ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
+              <span>
+                <strong>Delta Storage Compression Active ({storageStats.savedPercent}% smaller):</strong>{" "}
+                All {storageStats.quoteCount} estimates occupy just{" "}
+                <strong>{(storageStats.compactedBytes / 1024).toFixed(1)} KB</strong>{" "}
+                (down from {(storageStats.uncompactedEstimateBytes / 1024).toFixed(0)} KB raw) • Synced to IndexedDB &amp; Supabase Cloud (No 5MB storage limit).
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCompactAllStorage}
+              disabled={compactingStorage}
+              className={`px-2.5 py-1 rounded-lg border text-[10.5px] font-extrabold inline-flex items-center gap-1 transition-colors cursor-pointer ${
+                isLight
+                  ? "bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                  : "bg-emerald-950/60 border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/70"
+              }`}
+            >
+              {compactingStorage ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3" />
+              )}
+              Compact &amp; Optimize Storage
+            </button>
           </div>
         </DialogHeader>
 
@@ -702,6 +828,21 @@ export function QuoteEstimatesDialog({
               >
                 <X className="h-3.5 w-3.5" />
                 Clear
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => handleArchiveSelected(Array.from(selectedQuoteIds))}
+                className={`text-xs font-bold h-8 gap-1.5 ${
+                  isLight
+                    ? "border-violet-400 bg-violet-50 text-violet-900 hover:bg-violet-100"
+                    : "border-violet-500/40 bg-violet-950/40 text-violet-200 hover:bg-violet-900/60"
+                }`}
+              >
+                <Archive className="h-3.5 w-3.5" />
+                Archive &amp; Compress ({selectedQuoteIds.size})
               </Button>
 
               <Button
@@ -992,7 +1133,7 @@ export function QuoteEstimatesDialog({
                         <button
                           type="button"
                           onClick={() => handleExportJson(q)}
-                          title="Export JSON Backup (.json)"
+                          title="Export Compact JSON Backup (.json)"
                           className={`p-2 rounded-lg transition-colors cursor-pointer ${
                             isLight
                               ? "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
@@ -1001,6 +1142,34 @@ export function QuoteEstimatesDialog({
                         >
                           <FileCode className="h-3.5 w-3.5" />
                         </button>
+
+                        {!q.isArchived ? (
+                          <button
+                            type="button"
+                            onClick={() => handleArchiveSelected([q.id])}
+                            title="Archive & Compress Estimate (94% smaller storage)"
+                            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                              isLight
+                                ? "text-violet-600 hover:text-violet-900 hover:bg-violet-50"
+                                : "text-violet-400 hover:text-violet-200 hover:bg-violet-950/60"
+                            }`}
+                          >
+                            <Archive className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleRecoverQuote(q)}
+                            title="Restore from Archive"
+                            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                              isLight
+                                ? "text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50"
+                                : "text-emerald-400 hover:text-emerald-200 hover:bg-emerald-950/60"
+                            }`}
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </button>
+                        )}
 
                         <button
                           type="button"

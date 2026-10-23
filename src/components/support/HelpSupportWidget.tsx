@@ -140,26 +140,66 @@ export function HelpSupportWidget({ isLight = false, compact = false }: HelpSupp
     setIsCapturingSnip(true);
     try {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const fullCanvas = await html2canvas(document.body, {
+      const vw = document.documentElement.clientWidth || window.innerWidth;
+      const vh = document.documentElement.clientHeight || window.innerHeight;
+      const sx = window.scrollX || window.pageXOffset || 0;
+      const sy = window.scrollY || window.pageYOffset || 0;
+
+      // Capture the full viewport at 1:1 viewport alignment so flex/centered containers never shift horizontally,
+      // then slice the exact (rect.x, rect.y, rect.width, rect.height) region onto outCanvas.
+      const fullCanvas = await html2canvas(document.documentElement, {
         scale: dpr,
         useCORS: true,
         allowTaint: true,
         logging: false,
-        windowWidth: document.documentElement.clientWidth,
-        windowHeight: document.documentElement.clientHeight,
-        scrollX: -window.scrollX,
-        scrollY: -window.scrollY,
-        x: window.scrollX + rect.x,
-        y: window.scrollY + rect.y,
-        width: rect.width,
-        height: rect.height,
-        ignoreElements: (el) => el.hasAttribute("data-snip-ignore"),
+        backgroundColor: isLight ? "#f8fafc" : "#020617",
+        windowWidth: vw,
+        windowHeight: vh,
+        width: vw,
+        height: vh,
+        x: sx,
+        y: sy,
+        scrollX: 0,
+        scrollY: 0,
+        ignoreElements: (el) =>
+          el.hasAttribute("data-snip-ignore") ||
+          el.id === "quote-pdf-export-container" ||
+          el.classList.contains("ambient-glow-gold") ||
+          el.classList.contains("ambient-glow-cyan"),
+        onclone: (clonedDoc) => {
+          const allEls = clonedDoc.querySelectorAll<HTMLElement>("*");
+          for (let i = 0; i < allEls.length; i++) {
+            const el = allEls[i];
+            const cls = typeof el.className === "string" ? el.className : "";
+            // Prevent Tailwind v4 shadow-2xl / backdrop-blur from rendering dark grey bands in html2canvas
+            if (cls.includes("shadow-2xl") || cls.includes("shadow-xl")) {
+              el.style.boxShadow = isLight
+                ? "0 2px 8px rgba(15, 23, 42, 0.06)"
+                : "0 6px 16px rgba(0, 0, 0, 0.35)";
+            }
+            if (cls.includes("backdrop-blur")) {
+              el.style.backdropFilter = "none";
+              (el.style as any).webkitBackdropFilter = "none";
+            }
+          }
+        },
       });
 
-      // Downscale if wider than 1200px to keep storage light & fast
-      const maxDim = 1200;
-      let targetW = fullCanvas.width;
-      let targetH = fullCanvas.height;
+      const cropX = Math.max(0, Math.round(rect.x * dpr));
+      const cropY = Math.max(0, Math.round(rect.y * dpr));
+      const cropW = Math.max(
+        1,
+        Math.min(fullCanvas.width - cropX, Math.round(rect.width * dpr))
+      );
+      const cropH = Math.max(
+        1,
+        Math.min(fullCanvas.height - cropY, Math.round(rect.height * dpr))
+      );
+
+      // Downscale only if wider than 1400px while strictly preserving the exact cropped aspect ratio
+      const maxDim = 1400;
+      let targetW = cropW;
+      let targetH = cropH;
       if (targetW > maxDim || targetH > maxDim) {
         const ratio = Math.min(maxDim / targetW, maxDim / targetH);
         targetW = Math.max(1, Math.round(targetW * ratio));
@@ -171,12 +211,29 @@ export function HelpSupportWidget({ isLight = false, compact = false }: HelpSupp
       outCanvas.height = targetH;
       const ctx = outCanvas.getContext("2d");
       if (ctx) {
-        ctx.drawImage(fullCanvas, 0, 0, targetW, targetH);
+        ctx.fillStyle = isLight ? "#f8fafc" : "#020617";
+        ctx.fillRect(0, 0, targetW, targetH);
+        ctx.drawImage(
+          fullCanvas,
+          cropX,
+          cropY,
+          cropW,
+          cropH,
+          0,
+          0,
+          targetW,
+          targetH
+        );
       }
 
-      const dataUrl = outCanvas.toDataURL("image/jpeg", 0.86);
+      const dataUrl = outCanvas.toDataURL("image/png");
       setScreenshotDataUrl(dataUrl);
-      setSnipRect(rect);
+      setSnipRect({
+        x: Math.round(rect.x),
+        y: Math.round(rect.y),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      });
     } catch {
       // Fallback visual snapshot if DOM contains untainted canvas/WebGL
       const fallbackCanvas = document.createElement("canvas");
@@ -565,11 +622,17 @@ export function HelpSupportWidget({ isLight = false, compact = false }: HelpSupp
                           </button>
                         </div>
                       </div>
-                      <div className="rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-950 max-h-36 flex items-center justify-center">
+                      <div
+                        className={`rounded-lg overflow-hidden border p-1.5 flex items-center justify-center ${
+                          isLight
+                            ? "border-slate-300 bg-slate-100/80"
+                            : "border-slate-700 bg-slate-950"
+                        }`}
+                      >
                         <img
                           src={screenshotDataUrl}
                           alt="Cropped website snip"
-                          className="max-h-36 w-auto object-contain"
+                          className="max-h-40 w-auto max-w-full object-contain rounded shadow-xs"
                         />
                       </div>
                     </div>

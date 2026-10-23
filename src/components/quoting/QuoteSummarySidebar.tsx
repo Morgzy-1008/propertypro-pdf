@@ -8,6 +8,7 @@ import {
   Sparkles,
   Tag,
   FolderOpen,
+  Users,
   Send,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -23,8 +24,9 @@ interface QuoteSummarySidebarProps {
   onDownloadPdf: () => void;
   onOpenClientShare: () => void;
   onOpenAdminCatalogue: () => void;
-  onOpenSavedEstimates?: () => void;
+  onOpenSavedEstimates?: (scope?: "mine" | "all") => void;
   savedQuotesCount?: number;
+  myQuotesCount?: number;
   saving?: boolean;
   downloading?: boolean;
 }
@@ -37,6 +39,7 @@ export function QuoteSummarySidebar({
   onOpenAdminCatalogue,
   onOpenSavedEstimates,
   savedQuotesCount = 0,
+  myQuotesCount,
   saving,
   downloading,
 }: QuoteSummarySidebarProps) {
@@ -266,20 +269,36 @@ export function QuoteSummarySidebar({
           </Link>
 
           {onOpenSavedEstimates && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onOpenSavedEstimates}
-              className={`w-full text-xs gap-1.5 font-semibold ${
-                isLight
-                  ? "border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                  : "border-slate-800 bg-slate-950/70 text-slate-300 hover:bg-slate-900 hover:text-white"
-              }`}
-            >
-              <FolderOpen className="h-3.5 w-3.5 text-cyan-500" />
-              Saved Estimates ({savedQuotesCount})
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenSavedEstimates("mine")}
+                className={`w-full text-xs gap-1.5 font-bold ${
+                  isLight
+                    ? "border-amber-300 bg-amber-50/70 text-amber-900 hover:bg-amber-100"
+                    : "border-amber-500/40 bg-amber-950/30 text-amber-300 hover:bg-amber-900/50"
+                }`}
+              >
+                <FolderOpen className="h-3.5 w-3.5 text-amber-500" />
+                My Estimates ({myQuotesCount ?? savedQuotesCount})
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenSavedEstimates("all")}
+                className={`w-full text-xs gap-1.5 font-bold ${
+                  isLight
+                    ? "border-cyan-300 bg-cyan-50/70 text-cyan-900 hover:bg-cyan-100"
+                    : "border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-900/50"
+                }`}
+              >
+                <Users className="h-3.5 w-3.5 text-cyan-500" />
+                Team Estimates ({savedQuotesCount})
+              </Button>
+            </div>
           )}
 
           <Button

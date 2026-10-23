@@ -390,7 +390,7 @@ export function canChangeQuoteConsultant(staffUser?: {
   role?: string | null;
 } | null): boolean {
   if (!staffUser) return false;
-  return isAlyssaHales(staffUser) || isBenGrill(staffUser);
+  return isMorganHales(staffUser) || isAlyssaHales(staffUser) || isBenGrill(staffUser);
 }
 
 
