@@ -1371,44 +1371,72 @@ export async function deleteCrmTask(taskId: string, leadId?: string): Promise<vo
 export async function logLeftVoicemail(
   leadId: string,
   consultantName?: string
-): Promise<{ updatedLead: CrmLead; lvmSmsBody: string }> {
+): Promise<{ updatedLead: CrmLead; lvmSmsBody: string; lvmCount: number }> {
   const staff = typeof window !== "undefined" ? getActiveStaffUser() : null;
   const actualConsultant = consultantName || staff?.name || "Morgan Hales";
   const list = await loadAllCrmLeads();
   const lead = list.find((l) => l.id === leadId);
   if (!lead) throw new Error("Lead not found");
 
+  const nextLvmCount = (lead.lvmCount || 0) + 1;
   const firstName = lead.clientName.split(" ")[0];
-  const lvmSmsBody = `Hi ${firstName}, ${actualConsultant} from Hudson Homes here. Tried calling you regarding your ${lead.preferredDesign} package on Lot ${lead.lotNumber} ${lead.targetEstate}. Left a voicemail, feel free to call or text me back when you get a chance!`;
+  const cadenceLabel =
+    nextLvmCount === 1
+      ? "Tomorrow (+24h)"
+      : nextLvmCount === 2
+      ? "In 2 days (+48h)"
+      : "In 5 days (+5d)";
+  const slaDays = nextLvmCount === 1 ? 1 : nextLvmCount === 2 ? 2 : 5;
+
+  const lvmSmsBody =
+    nextLvmCount === 1
+      ? `Hi ${firstName}, ${actualConsultant} from Hudson Homes here. Just tried calling regarding your ${lead.preferredDesign} enquiry at ${lead.targetEstate} (Lot ${lead.lotNumber}) and left a quick voicemail. Feel free to text or call me back when suits!`
+      : nextLvmCount === 2
+      ? `Hi ${firstName}, ${actualConsultant} from Hudson Homes checking in (#2). I have your ${lead.preferredDesign} siting & pricing ready for ${lead.targetEstate}. Let me know if a quick 5-min call later today or tomorrow works!`
+      : `Hi ${firstName}, ${actualConsultant} from Hudson Homes here. Left you a voicemail regarding ${lead.targetEstate} — happy to send through the digital estimate PDF via email/SMS whenever you're ready to review!`;
 
   const newNote: CrmNote = {
     id: `note_${Date.now()}`,
     author: consultantName || actualConsultant || "Morgan Hales",
-    content: "📞 [Left Voicemail (LVM)]: Client did not answer. Standard 48-hour follow-up task auto-scheduled.",
+    content: `📞 [Left Voicemail — LVM #${nextLvmCount}]: Client did not answer. Smart LVM #${nextLvmCount} follow-up task auto-scheduled for ${cadenceLabel}.`,
     createdAt: new Date().toISOString(),
   };
 
   const newActivity = {
     id: `act_${Date.now()}`,
     type: "lvm" as const,
-    title: "📞 Left Voicemail (LVM)",
-    description: "Follow-up task scheduled for 48 hours.",
+    title: `📞 Left Voicemail (LVM #${nextLvmCount})`,
+    description: `LVM #${nextLvmCount} logged • Next callback scheduled: ${cadenceLabel}.`,
     timestamp: new Date().toISOString(),
   };
 
   const newTask: CrmTask = {
     id: `task_${Date.now()}`,
-    title: `LVM Follow-up Call: ${lead.clientName} (2nd touchpoint)`,
-    dueDate: "In 2 days",
+    title: `📞 LVM #${nextLvmCount} Callback: ${lead.clientName} (${lead.targetEstate})`,
+    description: `Voicemail #${nextLvmCount} left by ${actualConsultant}. Follow up regarding ${lead.preferredDesign}.`,
+    dueDate: nextLvmCount === 1 ? "Tomorrow" : nextLvmCount === 2 ? "In 2 days" : "In 5 days",
+    dueAt: new Date(Date.now() + slaDays * 86400000).toISOString(),
+    slaDays,
     completed: false,
     assignedTo: lead.assignedConsultantId,
-    priority: "high",
+    priority: nextLvmCount === 1 ? "urgent" : "high",
     type: "lvm_followup",
+    leadId: lead.id,
+    clientName: lead.clientName,
+    clientMobile: lead.mobile,
+    estate: lead.targetEstate,
+    lotNumber: lead.lotNumber,
+    designName: lead.preferredDesign,
+    tags: [`LVM #${nextLvmCount}`, lead.targetEstate],
     createdAt: new Date().toISOString(),
   };
 
   const updated: CrmLead = {
     ...lead,
+    lvmCount: nextLvmCount,
+    lastLvmAt: new Date().toISOString(),
+    lastCallOutcome: `LVM #${nextLvmCount}`,
+    ghlTags: Array.from(new Set([...(lead.ghlTags || []), `lvm-${nextLvmCount}`])),
     clientNotes: [newNote, ...(lead.clientNotes || [])],
     activities: [newActivity, ...(lead.activities || [])],
     tasks: [newTask, ...(lead.tasks || [])],
@@ -1417,7 +1445,7 @@ export async function logLeftVoicemail(
   };
 
   await saveCrmLead(updated);
-  return { updatedLead: updated, lvmSmsBody };
+  return { updatedLead: updated, lvmSmsBody, lvmCount: nextLvmCount };
 }
 
 // -------------------------------------------------------------

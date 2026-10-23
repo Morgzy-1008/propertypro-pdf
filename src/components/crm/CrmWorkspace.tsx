@@ -15,7 +15,14 @@ import {
   saveCrmMessage,
   getOutlookSyncStatus,
   triggerOutlookSync,
+  logLeftVoicemail,
 } from "@/lib/crm/crmStorage";
+import {
+  loadGhlSettings,
+  syncHoneyGhlLeadsToCrm,
+  queueOrExecuteGhlAction,
+} from "@/lib/crm/ghlIntegration";
+import { calculateLeadHeatScore } from "@/lib/crm/crmAiEngine";
 import { CrmKanbanBoard } from "./CrmKanbanBoard";
 import { CrmTopTrBoard } from "./CrmTopTrBoard";
 import { CrmBulkSmsModal } from "./CrmBulkSmsModal";
@@ -28,6 +35,10 @@ import { CrmTasksView } from "./CrmTasksView";
 import { CrmNewClientModal } from "./CrmNewClientModal";
 import { CrmHoneyImportModal } from "./CrmHoneyImportModal";
 import { CrmQuickCommunicationModal } from "./CrmQuickCommunicationModal";
+import { CrmAskHoneyCopilot } from "./CrmAskHoneyCopilot";
+import { CrmGhlControlModal } from "./CrmGhlControlModal";
+import { CrmPriorityQueueView } from "./CrmPriorityQueueView";
+import { CrmHighDensityTableView } from "./CrmHighDensityTableView";
 import {
   Users,
   Award,
@@ -82,15 +93,33 @@ export function CrmWorkspace() {
 
   const [leads, setLeads] = useState<CrmLead[]>([]);
   const [messages, setMessages] = useState<CrmMessage[]>([]);
-  const [activeTab, setActiveTab] = useState<"kanban" | "top_tr" | "tasks" | "team_chat" | "conversations" | "commissions">(() => {
+  const [activeTab, setActiveTab] = useState<
+    | "priority_queue"
+    | "table"
+    | "kanban"
+    | "top_tr"
+    | "tasks"
+    | "team_chat"
+    | "conversations"
+    | "commissions"
+  >(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const t = params.get("tab");
-      if (t === "tasks" || t === "top_tr" || t === "team_chat" || t === "conversations" || t === "commissions" || t === "kanban") {
+      if (
+        t === "priority_queue" ||
+        t === "table" ||
+        t === "tasks" ||
+        t === "top_tr" ||
+        t === "team_chat" ||
+        t === "conversations" ||
+        t === "commissions" ||
+        t === "kanban"
+      ) {
         return t as any;
       }
     }
-    return "kanban";
+    return "priority_queue";
   });
   const [selectedConsultantId, setSelectedConsultantId] = useState<string>(() => {
     const user = getActiveStaffUser();
@@ -106,6 +135,9 @@ export function CrmWorkspace() {
   const [isHoneyImportModalOpen, setIsHoneyImportModalOpen] = useState(false);
   const [isBulkSmsOpen, setIsBulkSmsOpen] = useState(false);
   const [isTelnyxSettingsOpen, setIsTelnyxSettingsOpen] = useState(false);
+  const [isGhlControlOpen, setIsGhlControlOpen] = useState(false);
+  const [aiFilteredLeadIds, setAiFilteredLeadIds] = useState<string[] | null>(null);
+  const [aiFilterLabel, setAiFilterLabel] = useState<string | null>(null);
 
   // Quick Communication Modal state
   const [quickCommLead, setQuickCommLead] = useState<CrmLead | null>(null);
@@ -114,23 +146,28 @@ export function CrmWorkspace() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [outlookSyncState, setOutlookSyncState] = useState(getOutlookSyncStatus());
+  const [ghlSettingsState, setGhlSettingsState] = useState(() => loadGhlSettings());
 
   const refreshData = async () => {
     const loadedLeads = await loadAllCrmLeads();
     const loadedMessages = await loadAllCrmMessages();
     setLeads(loadedLeads);
     setMessages(loadedMessages);
+    setGhlSettingsState(loadGhlSettings());
   };
 
   useEffect(() => {
-    refreshData();
+    void (async () => {
+      await syncHoneyGhlLeadsToCrm();
+      await refreshData();
+    })();
     const unsub = onStaffUserChanged((user) => {
       setStaffUser(user);
       if (user) {
         setSelectedConsultantId(normalizeConsultantId(user.id || user.email || user.name));
       }
       if (!canViewRemuneration(user)) {
-        setActiveTab((prev) => (prev === "commissions" ? "kanban" : prev));
+        setActiveTab((prev) => (prev === "commissions" ? "priority_queue" : prev));
       }
     });
 
@@ -139,12 +176,14 @@ export function CrmWorkspace() {
     };
     if (typeof window !== "undefined") {
       window.addEventListener("hudson_crm_change", handleCrmChange);
+      window.addEventListener("hudson_ghl_settings_change", handleCrmChange);
     }
 
     return () => {
       unsub();
       if (typeof window !== "undefined") {
         window.removeEventListener("hudson_crm_change", handleCrmChange);
+        window.removeEventListener("hudson_ghl_settings_change", handleCrmChange);
       }
     };
   }, []);
@@ -236,33 +275,86 @@ export function CrmWorkspace() {
     return { openTasksCount: openCount, overdueTasksCount: overdueCount };
   }, [leads, selectedConsultantId]);
 
+  const handleLogLvmQuick = async (lead: CrmLead) => {
+    const res = await logLeftVoicemail(lead.id);
+    await queueOrExecuteGhlAction({
+      actionType: "log_lvm",
+      leadId: lead.id,
+      leadName: lead.clientName,
+      ghlContactId: lead.ghlContactId,
+      httpMethod: "POST",
+      ghlEndpoint: `/contacts/${lead.ghlContactId || lead.id}/tasks`,
+      payload: {
+        title: `LVM #${res.lvmCount} Callback — ${lead.clientName}`,
+        tags: [`lvm-${res.lvmCount}`],
+      },
+      summary: `Logged LVM #${res.lvmCount} + Auto-Scheduled Callback Task`,
+    });
+    toast.success(
+      `LVM #${res.lvmCount} logged for ${lead.clientName}! Next callback task auto-scheduled.`
+    );
+    await refreshData();
+  };
+
   const filteredLeads = leads.filter((l) => {
     const matchesConsultant =
       isAssistantMode ||
       selectedConsultantId === "all" ||
-      l.assignedConsultantId === selectedConsultantId;
+      l.assignedConsultantId === selectedConsultantId ||
+      Boolean(l.isUnassignedPool);
     const matchesSearch =
       l.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.mobile.includes(searchTerm) ||
       l.targetEstate.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.preferredDesign.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesConsultant && matchesSearch;
+    const matchesAiCohort =
+      !aiFilteredLeadIds || aiFilteredLeadIds.includes(l.id);
+    return matchesConsultant && matchesSearch && matchesAiCohort;
   });
+
+  const briefingMetrics = useMemo(() => {
+    let speedToLeadCount = 0;
+    let staleCount = 0;
+    let lvmQueueCount = 0;
+    let hotCount = 0;
+
+    filteredLeads.forEach((l) => {
+      const h = calculateLeadHeatScore(l);
+      if (h.isSpeedToLead) speedToLeadCount++;
+      if (h.isStaleLead) staleCount++;
+      if ((l.lvmCount || 0) > 0) lvmQueueCount++;
+      if (h.score >= 80) hotCount++;
+    });
+
+    return { speedToLeadCount, staleCount, lvmQueueCount, hotCount };
+  }, [filteredLeads]);
 
   const totalPipelineVal = leads.reduce((acc, l) => acc + (l.totalEstimatedDealValue || 0), 0);
 
   return (
-    <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} p-4 sm:p-6 lg:p-8 2xl:p-12 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto space-y-6 font-sans`}>
+    <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} p-4 sm:p-6 lg:p-8 2xl:p-12 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto space-y-5 font-sans`}>
       {/* Top Header Bar */}
       <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 border-b ${isLight ? "border-slate-200" : "border-slate-800/80"} pb-5`}>
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <span className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-xs px-2.5 py-1 rounded-md tracking-wider uppercase">
-              Hudson Horizon CRM
+              Hudson Horizon x Honey AI
             </span>
             <h1 className={`text-xl sm:text-2xl font-black ${isLight ? "text-slate-900" : "text-white"} tracking-tight`}>
-              Sales Pipeline &amp; Client Hub
+              Elevated AI Sales Pipeline &amp; Call Cockpit
             </h1>
+            <button
+              type="button"
+              onClick={() => setIsGhlControlOpen(true)}
+              className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all"
+            >
+              🛡️ Honey GHL Mode:{" "}
+              {ghlSettingsState.syncMode === "dry_run_sandbox"
+                ? "Dry-Run Sandbox Active"
+                : ghlSettingsState.syncMode === "two_way_live"
+                ? "Two-Way Live Sync"
+                : "Read-Only Sync"}
+            </button>
             {isAssistantMode && (
               <span className="bg-purple-950/80 text-purple-300 border border-purple-800/80 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                 <UserCheck className="h-3 w-3" /> Assistant Mode
@@ -270,12 +362,28 @@ export function CrmWorkspace() {
             )}
           </div>
           <p className={`text-xs ${isLight ? "text-slate-600" : "text-slate-400"} mt-1`}>
-            Modern residential builder CRM with 13 pipeline milestones, Top 10 TR radar, bulk SMS marketing, internal team handoffs, and AI call intelligence.
+            GoHighLevel (Honey) API integration, Ask Honey AI natural-language copilot, 1-click LVM cadence, AI call summaries &amp; auto-tasks, and 2-way Quoting/Floorplan links.
           </p>
         </div>
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Honey GHL API Control & Sandbox Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="open-ghl-control-btn"
+            onClick={() => setIsGhlControlOpen(true)}
+            className={`text-xs gap-1.5 font-black ${
+              isLight
+                ? "border-amber-400 bg-amber-50/80 text-amber-950 hover:bg-amber-100"
+                : "border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+            }`}
+          >
+            <Shield className="h-3.5 w-3.5 text-amber-500" />
+            Honey GHL API &amp; Sandbox
+          </Button>
+
           {/* Assistant / NHC Mode Toggle */}
           <Button
             variant="outline"
@@ -342,7 +450,7 @@ export function CrmWorkspace() {
             }`}
           >
             <FileSpreadsheet className={`h-3.5 w-3.5 ${isLight ? "text-amber-700" : "text-amber-400"}`} />
-            Import Honey
+            Import CSV
           </Button>
 
           {/* Add New Client */}
@@ -357,102 +465,156 @@ export function CrmWorkspace() {
         </div>
       </div>
 
-      {/* Urgent Overdue Alert Banner if tasks are due */}
-      {overdueTasksCount > 0 && (
-        <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-xs ${
-          isLight ? "bg-rose-50 border-rose-200 text-rose-950" : "bg-rose-950/30 border-rose-500/40 text-rose-200"
-        }`}>
-          <div className="flex items-center gap-2.5">
-            <span className="p-1.5 rounded-lg bg-rose-500 text-white font-bold">
-              <AlertTriangle className="h-3.5 w-3.5" />
-            </span>
-            <div>
-              <span className="font-bold block">
-                {overdueTasksCount} Follow-up Task(s) Past Due!
-              </span>
-              <span className="opacity-90 text-[11px]">
-                Don&apos;t lose momentum on high-value clients. Check your task schedule now.
-              </span>
-            </div>
-          </div>
+      {/* AI Morning Briefing & Stale Lead Rescue Radar */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+        <button
+          type="button"
+          onClick={() => setActiveTab("priority_queue")}
+          className={`p-3 rounded-xl border text-left transition-all ${
+            isLight ? "bg-white border-slate-200 hover:border-rose-400 shadow-2xs" : "bg-slate-900/60 border-slate-800 hover:border-rose-500/50"
+          }`}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 block">
+            🔥 Blazing Hot Leads (80+ Score)
+          </span>
+          <span className="text-base font-black">{briefingMetrics.hotCount} Priority Leads</span>
+          <span className="block text-[10px] text-slate-500">Registered land &amp; finance ready</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("priority_queue")}
+          className={`p-3 rounded-xl border text-left transition-all ${
+            isLight ? "bg-white border-slate-200 hover:border-amber-400 shadow-2xs" : "bg-slate-900/60 border-slate-800 hover:border-amber-500/50"
+          }`}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500 block">
+            ⚡ Speed-to-Lead (&lt;48h)
+          </span>
+          <span className="text-base font-black">{briefingMetrics.speedToLeadCount} Fresh Enquiries</span>
+          <span className="block text-[10px] text-slate-500">New Honey Meta/Google leads</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("priority_queue")}
+          className={`p-3 rounded-xl border text-left transition-all ${
+            isLight ? "bg-white border-slate-200 hover:border-purple-400 shadow-2xs" : "bg-slate-900/60 border-slate-800 hover:border-purple-500/50"
+          }`}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-500 block">
+            📞 LVM Cadence Queue
+          </span>
+          <span className="text-base font-black">{briefingMetrics.lvmQueueCount} LVM Callbacks</span>
+          <span className="block text-[10px] text-slate-500">LVM #1 / #2 / #3 follow-ups</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("priority_queue")}
+          className={`p-3 rounded-xl border text-left transition-all ${
+            isLight ? "bg-white border-slate-200 hover:border-orange-400 shadow-2xs" : "bg-slate-900/60 border-slate-800 hover:border-orange-500/50"
+          }`}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-wider text-orange-500 block">
+            ⚠️ Stale Lead Rescue (7d+)
+          </span>
+          <span className="text-base font-black">{briefingMetrics.staleCount} Need Rescue</span>
+          <span className="block text-[10px] text-slate-500">Active quotes/concepts untouched</span>
+        </button>
+
+        <div
+          className={`p-3 rounded-xl border ${
+            isLight ? "bg-white border-slate-200 shadow-2xs" : "bg-slate-900/60 border-slate-800"
+          }`}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 block">
+            💰 Total Active Pipeline
+          </span>
+          <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
+            {formatAud(totalPipelineVal)}
+          </span>
+          <span className="block text-[10px] text-slate-500">{openTasksCount} Active SLA Tasks</span>
+        </div>
+      </div>
+
+      {/* Ask Honey AI Natural Language Command Bar */}
+      <CrmAskHoneyCopilot
+        leads={leads}
+        onOpenLead={handleOpenLead}
+        onQuickAction={handleQuickAction}
+        onLogLvmQuick={handleLogLvmQuick}
+        onApplyLeadIdFilter={(ids, label) => {
+          setAiFilteredLeadIds(ids);
+          setAiFilterLabel(label || null);
+        }}
+        onOpenBulkSmsWithLeads={() => setIsBulkSmsOpen(true)}
+        onTasksCreated={refreshData}
+      />
+
+      {/* Active AI Cohort Filter Pill if applied */}
+      {aiFilteredLeadIds && (
+        <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-xs">
+          <span className="font-bold">
+            ✨ Active AI Cohort Filter: <strong>{aiFilterLabel}</strong> ({filteredLeads.length} leads shown)
+          </span>
           <Button
             size="sm"
-            onClick={() => setActiveTab("tasks")}
-            className="h-7 text-xs bg-rose-600 hover:bg-rose-500 text-white font-bold"
+            variant="ghost"
+            onClick={() => {
+              setAiFilteredLeadIds(null);
+              setAiFilterLabel(null);
+            }}
+            className="h-6 text-xs font-bold"
           >
-            Resolve Overdue Tasks
+            Clear AI Filter
           </Button>
         </div>
       )}
-
-      {/* Assistant & Admin Delegation Banner when Assistant Mode is active */}
-      {isAssistantMode && (
-        <div className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-          isLight ? "bg-purple-50 border-purple-200 text-purple-950" : "bg-purple-950/30 border-purple-500/40 text-purple-200"
-        }`}>
-          <div className="flex items-center gap-2.5">
-            <span className="p-1.5 rounded-lg bg-purple-600 text-white font-bold">
-              <UserCheck className="h-4 w-4" />
-            </span>
-            <div>
-              <span className="font-bold block">
-                🤝 Assistant &amp; Admin Mode Active (Viewing all NHC pipelines)
-              </span>
-              <span className="opacity-90 text-[11px]">
-                Delegate follow-up tasks to consultants, prepare tender packs, and track team handoffs across all Hudson sales branches.
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              onClick={() => setActiveTab("tasks")}
-              className="h-7 text-xs bg-purple-600 hover:bg-purple-500 text-white font-bold"
-            >
-              Delegate Tasks to NHC
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setActiveTab("team_chat")}
-              className={`h-7 text-xs ${
-                isLight ? "border-purple-300 text-purple-900 hover:bg-purple-100" : "border-purple-500/40 text-purple-300 hover:bg-purple-900/40"
-              }`}
-            >
-              Admin Handoffs Chat
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* KPI Performance Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900/60 border-slate-800"}`}>
-          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Total Active Pipeline</span>
-          <span className={`text-lg font-black ${isLight ? "text-amber-800" : "text-amber-400"}`}>{formatAud(totalPipelineVal)}</span>
-        </div>
-        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900/60 border-slate-800"}`}>
-          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>🔥 Top 10 TR Targets</span>
-          <span className={`text-lg font-black text-rose-500`}>{topTrCount} Clients</span>
-        </div>
-        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900/60 border-slate-800"}`}>
-          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Follow-up Tasks</span>
-          <span className={`text-lg font-black ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>{openTasksCount} Tasks</span>
-        </div>
-        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900/60 border-slate-800"}`}>
-          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Outlook 365 &amp; Telnyx</span>
-          <span className={`text-lg font-black ${isLight ? "text-purple-800" : "text-purple-400"}`}>{outlookSyncState.count} Synced</span>
-        </div>
-      </div>
 
       {/* Navigation Tabs Bar */}
       <div className={`flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b pb-3 ${
         isLight ? "border-slate-200" : "border-slate-800/80"
       }`}>
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {/* 0A. Priority Queue & Power Dialer Cockpit */}
+          <button
+            type="button"
+            data-testid="tab-priority-queue"
+            onClick={() => setActiveTab("priority_queue")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              activeTab === "priority_queue"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : isLight
+                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                : "text-slate-400 hover:text-white hover:bg-slate-900/80"
+            }`}
+          >
+            <Flame className="h-3.5 w-3.5 text-rose-500" />
+            Priority Queue &amp; Call Cockpit
+          </button>
+
+          {/* 0B. High-Density Table (Attio / Linear style) */}
+          <button
+            type="button"
+            data-testid="tab-high-density-table"
+            onClick={() => setActiveTab("table")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              activeTab === "table"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : isLight
+                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                : "text-slate-400 hover:text-white hover:bg-slate-900/80"
+            }`}
+          >
+            <Layers className="h-3.5 w-3.5 text-emerald-500" />
+            High-Density Table
+          </button>
+
           {/* 1. Kanban Pipeline */}
           <button
             type="button"
+            data-testid="tab-kanban-pipeline"
             onClick={() => setActiveTab("kanban")}
             className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
               activeTab === "kanban"
@@ -494,6 +656,7 @@ export function CrmWorkspace() {
           {/* 3. Tasks & Colleague Sharing */}
           <button
             type="button"
+            data-testid="tab-tasks-center"
             onClick={() => {
               setActiveTab("tasks");
               if (typeof window !== "undefined") {
@@ -511,7 +674,7 @@ export function CrmWorkspace() {
             }`}
           >
             <CheckSquare className="h-3.5 w-3.5" />
-            Tasks &amp; Colleague Sharing
+            Tasks &amp; Action Lanes
             {openTasksCount > 0 && (
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold border ${
                 overdueTasksCount > 0
@@ -610,7 +773,7 @@ export function CrmWorkspace() {
                 isLight ? "bg-white border-slate-300 text-slate-800" : "bg-slate-900 border-slate-700 text-slate-200"
               }`}
             >
-              <option value="all">All Consultants</option>
+              <option value="all">All Consultants (QLD &amp; NSW)</option>
               {HUDSON_CONSULTANTS.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} ({c.displayOffice})
@@ -622,6 +785,25 @@ export function CrmWorkspace() {
       </div>
 
       {/* Main Tab Content */}
+      {activeTab === "priority_queue" && (
+        <CrmPriorityQueueView
+          leads={filteredLeads}
+          onOpenFullModal={handleOpenLead}
+          onQuickAction={handleQuickAction}
+          onDataChanged={refreshData}
+        />
+      )}
+
+      {activeTab === "table" && (
+        <CrmHighDensityTableView
+          leads={filteredLeads}
+          onOpenLead={handleOpenLead}
+          onUpdateStage={handleUpdateStage}
+          onQuickAction={handleQuickAction}
+          onLogLvmQuick={handleLogLvmQuick}
+        />
+      )}
+
       {activeTab === "kanban" && (
         <CrmKanbanBoard
           leads={filteredLeads}
@@ -678,6 +860,13 @@ export function CrmWorkspace() {
         />
       )}
 
+      {/* Honey GHL API Control & Sandbox Modal */}
+      <CrmGhlControlModal
+        isOpen={isGhlControlOpen}
+        onClose={() => setIsGhlControlOpen(false)}
+        onSynced={refreshData}
+      />
+
       {/* 360° Client Detail Profile Modal */}
       {activeLead && (
         <CrmClientDetailPage
@@ -706,7 +895,7 @@ export function CrmWorkspace() {
           if (selectedConsultantId !== "all" && selectedConsultantId !== newLead.assignedConsultantId) {
             setSelectedConsultantId(newLead.assignedConsultantId);
           }
-          setActiveTab("kanban");
+          setActiveTab("priority_queue");
           void refreshData();
           setActiveLead(newLead);
           setIsClientDetailOpen(true);

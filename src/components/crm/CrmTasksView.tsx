@@ -162,6 +162,9 @@ export function CrmTasksView({
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<
+    "due_date_asc" | "priority_desc" | "created_newest" | "estate_asc" | "client_asc"
+  >("due_date_asc");
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeNotesTaskId, setActiveNotesTaskId] = useState<string | null>(null);
@@ -263,7 +266,13 @@ export function CrmTasksView({
       }
 
       // Task Type Filter
-      if (filterType !== "all" && t.type !== filterType) return false;
+      if (filterType !== "all") {
+        if (filterType === "call_lvm") {
+          if (t.type !== "call" && t.type !== "lvm_followup") return false;
+        } else if (t.type !== filterType) {
+          return false;
+        }
+      }
 
       // Priority Filter
       if (filterPriority !== "all" && t.priority !== filterPriority) return false;
@@ -289,8 +298,34 @@ export function CrmTasksView({
       }
 
       return true;
+    }).sort((a, b) => {
+      if (sortBy === "created_newest") {
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      }
+      if (sortBy === "priority_desc") {
+        const pMap: Record<string, number> = { urgent: 4, high: 3, normal: 2, low: 1 };
+        return (pMap[b.priority || "normal"] || 2) - (pMap[a.priority || "normal"] || 2);
+      }
+      if (sortBy === "estate_asc") {
+        return (a.estate || "ZZZ").localeCompare(b.estate || "ZZZ");
+      }
+      if (sortBy === "client_asc") {
+        return (a.clientName || "ZZZ").localeCompare(b.clientName || "ZZZ");
+      }
+      // Default: due_date_asc (Overdue -> Today -> Tomorrow -> Upcoming)
+      const uRank: Record<string, number> = {
+        overdue: 0,
+        due_today: 1,
+        due_tomorrow: 2,
+        upcoming: 3,
+        completed: 4,
+      };
+      const ua = getTaskSlaUrgency(a.dueAt || a.dueDate, a.completed).urgency;
+      const ub = getTaskSlaUrgency(b.dueAt || b.dueDate, b.completed).urgency;
+      if (uRank[ua] !== uRank[ub]) return (uRank[ua] ?? 3) - (uRank[ub] ?? 3);
+      return new Date(a.dueAt || a.createdAt || 0).getTime() - new Date(b.dueAt || b.createdAt || 0).getTime();
     });
-  }, [tasks, filterView, filterColleague, filterCategory, filterType, filterPriority, searchTerm, activeStaffId, activeStaffName]);
+  }, [tasks, filterView, filterColleague, filterCategory, filterType, filterPriority, searchTerm, sortBy, activeStaffId, activeStaffName]);
 
   // Actions
   const handleToggleTask = async (task: CrmTask) => {
@@ -690,6 +725,24 @@ export function CrmTasksView({
             <option value="low">Low Priority</option>
           </select>
 
+          {/* Sort By Selector */}
+          <select
+            data-testid="tasks-sort-by-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className={`h-8 rounded-lg border px-2.5 text-xs font-bold ${
+              isLight
+                ? "bg-amber-50 border-amber-300 text-amber-950"
+                : "bg-slate-950 border-amber-500/40 text-amber-400"
+            }`}
+          >
+            <option value="due_date_asc">📅 Sort: Due Date (Chronological)</option>
+            <option value="priority_desc">🔥 Sort: Highest Priority First</option>
+            <option value="created_newest">⚡ Sort: Recently Created First</option>
+            <option value="estate_asc">📍 Sort: Estate Name (A → Z)</option>
+            <option value="client_asc">👤 Sort: Client Name (A → Z)</option>
+          </select>
+
           {(filterColleague !== "all" || filterCategory !== "all" || filterType !== "all" || filterPriority !== "all" || searchTerm) && (
             <button
               type="button"
@@ -705,6 +758,60 @@ export function CrmTasksView({
               Reset Filters
             </button>
           )}
+        </div>
+
+        {/* Dedicated Action Lanes Bar */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-200/80 dark:border-slate-800/80">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">
+            Action Lanes:
+          </span>
+          {[
+            { id: "all", label: "🌐 All Lanes", count: tasks.filter((t) => !t.completed).length },
+            {
+              id: "call_lvm",
+              label: "📞 Phone & LVM Callbacks",
+              count: tasks.filter(
+                (t) => !t.completed && (t.type === "call" || t.type === "lvm_followup")
+              ).length,
+            },
+            {
+              id: "mark_up",
+              label: "📐 Floorplan Mark-Ups",
+              count: tasks.filter((t) => !t.completed && t.type === "mark_up").length,
+            },
+            {
+              id: "estimate",
+              label: "🧮 Builders Estimates",
+              count: tasks.filter((t) => !t.completed && t.type === "estimate").length,
+            },
+            {
+              id: "tender_submission",
+              label: "🚀 Tender / ATP Submissions",
+              count: tasks.filter(
+                (t) =>
+                  !t.completed &&
+                  (t.type === "tender_submission" || t.type === "tr_prep")
+              ).length,
+            },
+          ].map((lane) => (
+            <button
+              key={lane.id}
+              type="button"
+              onClick={() => setFilterType(lane.id)}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${
+                filterType === lane.id
+                  ? "bg-amber-500 text-slate-950 border-amber-600 shadow-2xs"
+                  : isLight
+                  ? "bg-slate-50 border-slate-200 text-slate-700 hover:border-amber-400"
+                  : "bg-slate-950 border-slate-800 text-slate-300 hover:border-amber-500/50"
+              }`}
+            >
+              <span>{lane.label}</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-slate-900/15 dark:bg-slate-800">
+                {lane.count}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 

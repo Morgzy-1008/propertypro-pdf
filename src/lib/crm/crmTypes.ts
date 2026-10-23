@@ -387,6 +387,77 @@ export interface BulkSmsTemplate {
   body: string;
 }
 
+export type GhlSyncMode = "readonly_live" | "dry_run_sandbox" | "two_way_live";
+
+export interface GhlScopeCheckResult {
+  scope: string;
+  label: string;
+  endpoint: string;
+  category: "read" | "write";
+  status: "authorized" | "missing_location_id" | "scope_not_ticked" | "untested";
+  statusCode?: number;
+  detail: string;
+}
+
+export interface GhlOutboundStagingItem {
+  id: string;
+  createdAt: string;
+  actionType:
+    | "update_stage"
+    | "log_call_summary"
+    | "log_lvm"
+    | "create_task"
+    | "send_sms"
+    | "update_deal_value"
+    | "sync_estimate_pdf"
+    | "update_custom_fields";
+  leadId: string;
+  leadName: string;
+  ghlContactId?: string;
+  httpMethod: "POST" | "PUT" | "PATCH";
+  ghlEndpoint: string;
+  payload: Record<string, any>;
+  status: "staged_dry_run" | "approved_ready" | "synced_live" | "failed";
+  initiatedBy: string;
+  summary: string;
+}
+
+export interface GhlIntegrationSettings {
+  pitToken: string;
+  locationId: string;
+  syncMode: GhlSyncMode;
+  autoSyncIntervalMinutes: number;
+  lastSyncedAt?: string;
+  lastProbeAt?: string;
+  stageMappings: Record<string, CrmStageId>;
+  consultantMappings: Record<string, string>;
+}
+
+export interface CrmCallRecord {
+  id: string;
+  leadId: string;
+  consultantName: string;
+  direction: "outbound" | "inbound";
+  source: "ghl_recording" | "telnyx_webrtc" | "voice_debrief" | "manual_log";
+  outcome: "answered" | "lvm_1" | "lvm_2" | "lvm_3" | "no_answer" | "busy";
+  durationSeconds: number;
+  recordingUrl?: string;
+  transcript: string;
+  aiSummary: string;
+  aiSentiment: "hot_ready" | "positive" | "comparing" | "objection" | "voicemail";
+  extractedFields?: {
+    targetEstate?: string;
+    suburb?: string;
+    lotNumber?: string;
+    preferredDesign?: string;
+    budget?: number;
+    landStatus?: CrmLead["landStatus"];
+    financeStatus?: string;
+  };
+  autoCreatedTaskIds?: string[];
+  createdAt: string;
+}
+
 export interface CrmLead {
   id: string;
   clientName: string;
@@ -412,6 +483,7 @@ export interface CrmLead {
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
   totalEstimatedDealValue: number;
   tenderPrice?: number; // Official head office tender price once Tender Received stage is reached
+  financeStatus?: "Pre-Approved" | "Cash Buyer" | "Broker In Progress" | "Unconfirmed";
 
   // Top 10 Most Likely to TR (Tender Request) Fields
   isTopTrTarget?: boolean;
@@ -423,21 +495,40 @@ export interface CrmLead {
   trAiReadinessScore?: number; // 0 - 100
   trAiReadinessReason?: string;
 
+  // Hot Lead Prioritisation & LVM Cadence Fields
+  isVipPinned?: boolean;
+  lvmCount?: number;
+  lastLvmAt?: string;
+  lastCallOutcome?: string;
+  aiHeatScore?: number; // 0 - 100 calculated dynamically
+  aiHeatReasons?: string[];
+
+  // GoHighLevel (Honey CRM) Sync Metadata
+  ghlContactId?: string;
+  ghlOpportunityId?: string;
+  ghlAssignedUserId?: string;
+  ghlRawStageName?: string;
+  ghlTags?: string[];
+  ghlSyncedAt?: string;
+  isUnassignedPool?: boolean;
+
   // Workflow State
   stage: CrmStageId;
   assignedConsultantId: string;
-  leadSource: "Display Home Kiosk" | "Website Inquiry" | "Phone Walk-in" | "Referral" | "Developer Land Partner";
+  leadSource: "Display Home Kiosk" | "Website Inquiry" | "Phone Walk-in" | "Referral" | "Developer Land Partner" | "Honey GHL Meta/Google Ad";
   notes: string;
   
   // Rich Sub-records
   clientNotes?: CrmNote[];
   tasks?: CrmTask[];
   activities?: CrmActivityItem[];
+  callRecords?: CrmCallRecord[];
   
   // Linked System Records
   linkedQuoteNumber?: string;
   linkedTenderSubmissionNumber?: string;
   linkedFlyerId?: string;
+  linkedMarkUpPlanId?: string;
   isAtpSigned: boolean;
   atpFeePaid: boolean;
   atpSignedDate?: string;
