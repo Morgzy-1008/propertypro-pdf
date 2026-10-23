@@ -110,7 +110,9 @@ export function buildPhotorealPromptFromStore(req: PhotorealRenderRequest): stri
 async function enhanceViewportClientSideFallback(
   colorDataUrl: string,
   depthDataUrl: string,
-  lightingMood: ArchitecturalLightingMood
+  lightingMood: ArchitecturalLightingMood,
+  designName?: string,
+  cameraMode?: CameraMode
 ): Promise<string> {
   return new Promise((resolve) => {
     if (typeof document === "undefined") {
@@ -147,12 +149,12 @@ async function enhanceViewportClientSideFallback(
         depthPixels = dCtx.getImageData(0, 0, w, h).data;
       }
 
-      // 2. Render photorealistic sky dome & horizon on main canvas first
+      // 2. Render photorealistic sky dome, volumetric clouds & horizon on main canvas first
       const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.65);
       if (lightingMood === "golden_hour") {
-        skyGrad.addColorStop(0, "#1e3a8a");
-        skyGrad.addColorStop(0.45, "#0284c7");
-        skyGrad.addColorStop(0.78, "#f59e0b");
+        skyGrad.addColorStop(0, "#172554");
+        skyGrad.addColorStop(0.42, "#0369a1");
+        skyGrad.addColorStop(0.76, "#f59e0b");
         skyGrad.addColorStop(1, "#fef3c7");
       } else if (lightingMood === "twilight_dusk") {
         skyGrad.addColorStop(0, "#090d16");
@@ -170,6 +172,28 @@ async function enhanceViewportClientSideFallback(
       }
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, w, h);
+
+      // Soft volumetric cloud wisps in upper sky
+      const cloudBands = [
+        { cx: w * 0.22, cy: h * 0.14, rx: w * 0.18, ry: h * 0.045 },
+        { cx: w * 0.54, cy: h * 0.11, rx: w * 0.22, ry: h * 0.05 },
+        { cx: w * 0.82, cy: h * 0.19, rx: w * 0.16, ry: h * 0.04 },
+      ];
+      cloudBands.forEach((cb) => {
+        const cg = ctx.createRadialGradient(cb.cx, cb.cy, 4, cb.cx, cb.cy, cb.rx);
+        const cloudCol =
+          lightingMood === "golden_hour"
+            ? "rgba(254, 243, 199, 0.28)"
+            : lightingMood === "twilight_dusk"
+            ? "rgba(251, 146, 60, 0.18)"
+            : "rgba(255, 255, 255, 0.34)";
+        cg.addColorStop(0, cloudCol);
+        cg.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.fillStyle = cg;
+        ctx.beginPath();
+        ctx.ellipse(cb.cx, cb.cy, cb.rx, cb.ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
 
       // Sun orb bloom in sky
       const sunX = w * 0.78;
@@ -197,7 +221,7 @@ async function enhanceViewportClientSideFallback(
       const src = colorData.data;
       const dst = outImg.data;
 
-      // 3. Per-pixel Depth-Locked Compositing, SSAO Crevice Shading & Natural Turf/Foliage Realism
+      // 3. Per-pixel Depth-Locked Compositing, SSAO Crevice Shading, Micro-Contrast Sharpening & Turf Realism
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
           const i = (y * w + x) * 4;
@@ -219,7 +243,17 @@ async function enhanceViewportClientSideFallback(
             continue;
           }
 
-          // Detect synthetic lime-green lawn pixels and grade them into realistic Australian buffalo turf with micro-blade variation
+          // Unsharp Mask micro-detail enhancement on architectural materials (brick courses, timber grain, marble veins)
+          if (x > 1 && x < w - 2 && y > 1 && y < h - 2) {
+            const avgR = (src[i - 4] + src[i + 4] + src[i - w * 4] + src[i + w * 4]) * 0.25;
+            const avgG = (src[i - 3] + src[i + 5] + src[i - w * 4 + 1] + src[i + w * 4 + 1]) * 0.25;
+            const avgB = (src[i - 2] + src[i + 6] + src[i - w * 4 + 2] + src[i + w * 4 + 2]) * 0.25;
+            r = Math.max(0, Math.min(255, r + (r - avgR) * 0.42));
+            g = Math.max(0, Math.min(255, g + (g - avgG) * 0.42));
+            b = Math.max(0, Math.min(255, b + (b - avgB) * 0.42));
+          }
+
+          // Detect synthetic lime-green lawn pixels and grade them into realistic Australian Sir Walter buffalo turf
           const isLawn = g > r * 1.12 && g > b * 1.35 && g > 110;
           if (isLawn) {
             const hash =
@@ -232,19 +266,23 @@ async function enhanceViewportClientSideFallback(
 
           // Compute Screen-Space Ambient Occlusion (SSAO) & architectural edge crispness from Depth Buffer
           let aoFactor = 1.0;
-          if (depthPixels && x > 1 && x < w - 2 && y > 1 && y < h - 2) {
+          if (depthPixels && x > 2 && x < w - 3 && y > 2 && y < h - 3) {
             const dRight = depthPixels[i + 4];
             const dLeft = depthPixels[i - 4];
             const dDown = depthPixels[i + w * 4];
             const dUp = depthPixels[i - w * 4];
+            const dRight2 = depthPixels[i + 8];
+            const dDown2 = depthPixels[i + w * 8];
             const laplacian =
               Math.abs(dRight - dVal) +
               Math.abs(dLeft - dVal) +
               Math.abs(dDown - dVal) +
-              Math.abs(dUp - dVal);
-            // Darken crevices and sharpen roof/wall intersections
-            if (laplacian > 8) {
-              aoFactor = Math.max(0.62, 1.0 - (laplacian - 8) * 0.0085);
+              Math.abs(dUp - dVal) +
+              Math.abs(dRight2 - dVal) * 0.5 +
+              Math.abs(dDown2 - dVal) * 0.5;
+            // Darken crevices and sharpen roof/wall/joinery shadow intersections
+            if (laplacian > 7) {
+              aoFactor = Math.max(0.58, 1.0 - (laplacian - 7) * 0.009);
             }
           }
 
@@ -254,24 +292,24 @@ async function enhanceViewportClientSideFallback(
           b *= aoFactor;
 
           if (lightingMood === "golden_hour") {
-            r = Math.min(255, r * 1.09 + 8);
-            g = Math.min(255, g * 1.02 + 3);
-            b = Math.max(0, b * 0.93);
+            r = Math.min(255, r * 1.10 + 9);
+            g = Math.min(255, g * 1.03 + 3);
+            b = Math.max(0, b * 0.92);
           } else if (lightingMood === "twilight_dusk") {
             r = Math.min(255, r * 0.88 + 4);
-            g = Math.min(255, g * 0.9 + 4);
-            b = Math.min(255, b * 1.12 + 12);
+            g = Math.min(255, g * 0.91 + 4);
+            b = Math.min(255, b * 1.14 + 12);
           } else {
-            r = Math.min(255, r * 1.04);
-            g = Math.min(255, g * 1.04);
-            b = Math.min(255, b * 1.05);
+            r = Math.min(255, r * 1.05);
+            g = Math.min(255, g * 1.05);
+            b = Math.min(255, b * 1.06);
           }
 
-          // Soft S-curve contrast
+          // Soft ACES Filmic S-curve contrast
           const sCurve = (v: number) => {
             const n = Math.max(0, Math.min(1, v / 255));
             const c = n * n * (3 - 2 * n);
-            return Math.round((n * 0.45 + c * 0.55) * 255);
+            return Math.round((n * 0.42 + c * 0.58) * 255);
           };
 
           dst[i] = sCurve(r);
@@ -286,8 +324,8 @@ async function enhanceViewportClientSideFallback(
       // 4. Add subtle golden-hour lens flare & atmospheric mist along top edge
       const flare = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, w * 0.65);
       if (lightingMood === "golden_hour") {
-        flare.addColorStop(0, "rgba(254, 243, 199, 0.22)");
-        flare.addColorStop(0.4, "rgba(245, 158, 11, 0.08)");
+        flare.addColorStop(0, "rgba(254, 243, 199, 0.24)");
+        flare.addColorStop(0.4, "rgba(245, 158, 11, 0.09)");
         flare.addColorStop(1, "rgba(0, 0, 0, 0)");
       } else {
         flare.addColorStop(0, "rgba(255, 255, 255, 0.14)");
@@ -296,7 +334,81 @@ async function enhanceViewportClientSideFallback(
       ctx.fillStyle = flare;
       ctx.fillRect(0, 0, w, h);
 
-      resolve(canvas.toDataURL("image/jpeg", 0.95));
+      // 5. Render sleek Architectural Material Specification Legend Stamp at bottom of HD Render
+      const surfaces = useHouseMaterialStore.getState().surfaces;
+      const barH = Math.max(40, Math.round(h * 0.062));
+      const barY = h - barH;
+      ctx.fillStyle = "rgba(9, 13, 22, 0.84)";
+      ctx.fillRect(0, barY, w, barH);
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.45)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, barY);
+      ctx.lineTo(w, barY);
+      ctx.stroke();
+
+      const fontSize = Math.max(10, Math.round(barH * 0.30));
+      ctx.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
+      ctx.fillStyle = "#f8fafc";
+      const titleLabel = `HUDSON 3D STUDIO HD RENDER • ${(designName || "DESIGNER RESIDENCE").toUpperCase()} (${
+        cameraMode === "walkthrough" ? "INTERIOR WALKTHROUGH" : "ARCHITECTURAL EXTERIOR"
+      })`;
+      ctx.fillText(titleLabel, 16, barY + Math.round(barH * 0.44));
+
+      ctx.font = `${Math.max(9, fontSize - 2)}px Inter, system-ui, sans-serif`;
+      ctx.fillStyle = "#94a3b8";
+      const moodTitle = LIGHTING_MOOD_DESCRIPTIONS[lightingMood]?.label || "Golden Hour";
+      ctx.fillText(
+        `Lighting: ${moodTitle} • PBR Material Specification Schedule`,
+        16,
+        barY + Math.round(barH * 0.78)
+      );
+
+      // Draw live material swatch pills on right side of specification bar
+      const specItems =
+        cameraMode === "walkthrough"
+          ? [
+              { label: "Floor", mat: surfaces.interior_floor_living },
+              { label: "Benchtop", mat: surfaces.kitchen_benchtop },
+              { label: "Joinery", mat: surfaces.kitchen_cabinetry_lower },
+              { label: "Splashback", mat: surfaces.kitchen_splashback },
+              { label: "Walls", mat: surfaces.interior_walls_main },
+            ]
+          : [
+              { label: "Masonry", mat: surfaces.exterior_wall_main },
+              { label: "Cladding", mat: surfaces.exterior_cladding_feature },
+              { label: "Portico", mat: surfaces.portico_facade },
+              { label: "Roof", mat: surfaces.roof_main },
+              { label: "Floor/Stone", mat: surfaces.kitchen_benchtop },
+            ];
+
+      let curX = w - 16;
+      for (let idx = specItems.length - 1; idx >= 0; idx--) {
+        const item = specItems[idx];
+        const shortName = item.mat.name.split("(")[0].trim().slice(0, 22);
+        const text = `${item.label}: ${shortName}`;
+        ctx.font = `600 ${Math.max(9, fontSize - 2)}px Inter, system-ui, sans-serif`;
+        const textW = ctx.measureText(text).width;
+        const pillW = textW + 26;
+        const pillH = Math.round(barH * 0.56);
+        const pillX = curX - pillW;
+        const pillY = barY + Math.round((barH - pillH) / 2);
+        if (pillX < w * 0.42) break;
+
+        ctx.fillStyle = "rgba(30, 41, 59, 0.9)";
+        ctx.fillRect(pillX, pillY, pillW, pillH);
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.35)";
+        ctx.strokeRect(pillX, pillY, pillW, pillH);
+
+        ctx.fillStyle = item.mat.baseColorHex;
+        ctx.fillRect(pillX + 5, pillY + 5, pillH - 10, pillH - 10);
+
+        ctx.fillStyle = "#e2e8f0";
+        ctx.fillText(text, pillX + pillH, pillY + Math.round(pillH * 0.66));
+        curX = pillX - 8;
+      }
+
+      resolve(canvas.toDataURL("image/jpeg", 0.96));
     };
 
     const checkLoaded = () => {
@@ -324,9 +436,12 @@ export async function renderPhotorealisticHouseView(
   const prompt = buildPhotorealPromptFromStore(req);
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
     const resp = await fetch("/api/fal-render", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         pipeline: req.pipeline,
         prompt,
@@ -335,8 +450,10 @@ export async function renderPhotorealisticHouseView(
         controlStrength: req.controlStrength ?? 0.86,
       }),
     });
+    clearTimeout(timeoutId);
 
-    if (resp.ok) {
+    const contentType = resp.headers.get("content-type") || "";
+    if (resp.ok && contentType.includes("application/json")) {
       const data = await resp.json();
       if (data.ok && (data.renderedDataUrl || data.imageUrl)) {
         return {
@@ -359,13 +476,15 @@ export async function renderPhotorealisticHouseView(
   const fallbackDataUrl = await enhanceViewportClientSideFallback(
     req.colorDataUrl,
     req.depthDataUrl,
-    req.lightingMood
+    req.lightingMood,
+    req.designName,
+    req.cameraMode
   );
 
   return {
     id: `render_${Date.now()}`,
     timestamp: Date.now(),
-    pipelineUsed: `${req.pipeline} (Depth-Locked SSAO + Filmic Engine)`,
+    pipelineUsed: `${req.pipeline} (HD Supersampled PBR + Depth SSAO Engine)`,
     lightingMood: req.lightingMood,
     prompt,
     sourceColorDataUrl: req.colorDataUrl,

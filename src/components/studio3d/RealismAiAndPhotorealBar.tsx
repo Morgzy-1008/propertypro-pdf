@@ -20,6 +20,7 @@ import {
   ALL_SEMANTIC_SURFACES,
   MATERIAL_PRESET_CATALOG,
   SemanticSurfaceId,
+  WHOLE_HOUSE_DESIGNER_SCHEMES,
   useHouseMaterialStore,
 } from "@/lib/studio3d/houseMaterialStore";
 import {
@@ -47,6 +48,8 @@ interface RealismAiAndPhotorealBarProps {
   cameraMode: CameraMode;
   currentRoomName?: string;
   activeSceneContext?: ActiveSceneContext;
+  externalDrawerOpen?: boolean;
+  onOpenPanel?: () => void;
   onExecuteSceneActions?: (actions: SceneAction[]) => void;
   onCaptureViewport: () => {
     colorDataUrl: string;
@@ -64,14 +67,18 @@ export function RealismAiAndPhotorealBar({
   cameraMode,
   currentRoomName,
   activeSceneContext,
+  externalDrawerOpen,
+  onOpenPanel,
   onExecuteSceneActions,
   onCaptureViewport,
 }: RealismAiAndPhotorealBarProps) {
   const surfaces = useHouseMaterialStore((s) => s.surfaces);
   const selectedSurfaceId = useHouseMaterialStore((s) => s.selectedSurfaceId);
+  const activeSchemeId = useHouseMaterialStore((s) => s.activeSchemeId);
   const setSelectedSurfaceId = useHouseMaterialStore((s) => s.setSelectedSurfaceId);
   const updateSurfaceMaterial = useHouseMaterialStore((s) => s.updateSurfaceMaterial);
   const applyPresetToSurface = useHouseMaterialStore((s) => s.applyPresetToSurface);
+  const applyWholeHouseScheme = useHouseMaterialStore((s) => s.applyWholeHouseScheme);
   const resetAllMaterials = useHouseMaterialStore((s) => s.resetAllSurfaces);
 
   // Active panel: "none" | "pbr_store" | "talk_to_house" | "photoreal_render"
@@ -99,6 +106,13 @@ export function RealismAiAndPhotorealBar({
       setSurfaceGroupTab(meta.zone);
     }
   }, [selectedSurfaceId]);
+
+  // Close internal panel if an external drawer (Facade / Fitout) is opened
+  useEffect(() => {
+    if (externalDrawerOpen && activePanel !== "none") {
+      setActivePanel("none");
+    }
+  }, [externalDrawerOpen]);
 
   // "Talk to the House" Conversational AI state
   const [chatInput, setChatInput] = useState("");
@@ -210,6 +224,7 @@ export function RealismAiAndPhotorealBar({
 
   const handleOpenPhotorealModal = () => {
     if (!hasDesign) return;
+    onOpenPanel?.();
     const snap = onCaptureViewport();
     if (snap) {
       setCapturedPreview(snap);
@@ -278,11 +293,12 @@ export function RealismAiAndPhotorealBar({
         <button
           type="button"
           disabled={!hasDesign}
-          onClick={() =>
+          onClick={() => {
+            onOpenPanel?.();
             setActivePanel((prev) =>
               prev === "pbr_store" ? "none" : "pbr_store"
-            )
-          }
+            );
+          }}
           className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
             activePanel === "pbr_store"
               ? "bg-amber-500 text-slate-950 border-amber-500 shadow-sm"
@@ -300,11 +316,12 @@ export function RealismAiAndPhotorealBar({
         <button
           type="button"
           disabled={!hasDesign}
-          onClick={() =>
+          onClick={() => {
+            onOpenPanel?.();
             setActivePanel((prev) =>
               prev === "talk_to_house" ? "none" : "talk_to_house"
-            )
-          }
+            );
+          }}
           className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
             activePanel === "talk_to_house"
               ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white border-violet-500 shadow-md"
@@ -375,6 +392,46 @@ export function RealismAiAndPhotorealBar({
               >
                 <X className="h-3.5 w-3.5" />
               </button>
+            </div>
+          </div>
+
+          {/* 1-Click Whole-House Designer Material Schemes */}
+          <div className="mb-3 pb-3 border-b border-slate-500/20">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-extrabold text-amber-500 uppercase tracking-wider">
+                Whole-House Designer Schemes (All 20 Surfaces)
+              </span>
+              <span className="text-[10px] opacity-65">1-Click Apply</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {WHOLE_HOUSE_DESIGNER_SCHEMES.map((scheme) => (
+                <button
+                  key={scheme.id}
+                  type="button"
+                  onClick={() => {
+                    applyWholeHouseScheme(scheme.id);
+                    toast.success(`Applied "${scheme.name}" across all 20 exterior & interior surfaces`);
+                  }}
+                  className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                    activeSchemeId === scheme.id
+                      ? "border-amber-500 bg-amber-500/15 shadow-sm"
+                      : isLight
+                      ? "border-slate-200 hover:bg-slate-100"
+                      : "border-slate-800 hover:bg-slate-900"
+                  }`}
+                >
+                  <div className="flex items-center gap-1 mb-1">
+                    {scheme.swatches.map((hex, idx) => (
+                      <span
+                        key={idx}
+                        className="w-3.5 h-3.5 rounded-full border border-black/20"
+                        style={{ backgroundColor: hex }}
+                      />
+                    ))}
+                  </div>
+                  <div className="text-[10px] font-extrabold truncate">{scheme.name}</div>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -878,6 +935,45 @@ export function RealismAiAndPhotorealBar({
                         }`}
                       >
                         {LIGHTING_MOOD_DESCRIPTIONS[moodKey].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quick Whole-House Material Palette Switcher inside Render Modal */}
+                <div>
+                  <label className="block font-bold mb-1.5">
+                    2B. Active Whole-House Material Palette (Live 3D Sync)
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {WHOLE_HOUSE_DESIGNER_SCHEMES.map((scheme) => (
+                      <button
+                        key={scheme.id}
+                        type="button"
+                        onClick={() => {
+                          applyWholeHouseScheme(scheme.id);
+                          setTimeout(() => {
+                            const snap = onCaptureViewport();
+                            if (snap) setCapturedPreview(snap);
+                          }, 80);
+                          toast.success(`Switched to "${scheme.name}" & recaptured 3D viewport`);
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                          activeSchemeId === scheme.id
+                            ? "border-emerald-500 bg-emerald-500/15"
+                            : "border-slate-500/30 opacity-85 hover:opacity-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1 mb-0.5">
+                          {scheme.swatches.map((hex, idx) => (
+                            <span
+                              key={idx}
+                              className="w-3 h-3 rounded-full border border-black/20"
+                              style={{ backgroundColor: hex }}
+                            />
+                          ))}
+                        </div>
+                        <div className="text-[10px] font-bold truncate">{scheme.name}</div>
                       </button>
                     ))}
                   </div>

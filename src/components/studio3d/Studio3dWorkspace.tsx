@@ -46,6 +46,8 @@ import {
   SceneSelectedElement,
   SceneAction,
   Fixture3D,
+  FURNITURE_CATALOG_ITEMS,
+  FurnitureCatalogItem,
 } from "@/lib/studio3d/studio3dTypes";
 import {
   get3DDesign,
@@ -59,6 +61,7 @@ import {
   applyPlanModificationsTo3DDesign,
   getTailoredFacadePresetsForDesign,
   validateAndClampFixtures,
+  ensureOutdoorZonesOpenAndFurnished,
   DEFAULT_FITOUT_CONFIG,
   DEFAULT_CUSTOM_FACADE_CONFIG,
   StandardHudsonDesignOption,
@@ -158,6 +161,10 @@ export function Studio3dWorkspace() {
   const [activeLevelFilter, setActiveLevelFilter] = useState<"all" | number>("all");
   const [currentRoomName, setCurrentRoomName] = useState<string>("");
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [furnitureCategoryFilter, setFurnitureCategoryFilter] = useState<
+    "all" | FurnitureCatalogItem["category"]
+  >("all");
+  const [targetFurnitureRoom, setTargetFurnitureRoom] = useState<string>("");
 
   // Three.js Canvas container ref & manager
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -836,6 +843,170 @@ export function Studio3dWorkspace() {
     toast.success("Interior joinery, benchtops, sinks & furniture updated in 3D");
   };
 
+  // Spawn a 3D Furniture piece from the Interactive Catalog into a matched or selected room
+  const handleAddCatalogFurniture = (
+    item: FurnitureCatalogItem,
+    explicitRoomName?: string
+  ) => {
+    if (!design) return;
+
+    const chosenRoomName = (explicitRoomName ?? targetFurnitureRoom).trim();
+    const rooms = design.rooms || [];
+
+    // Find target room either by explicit dropdown selection or smart defaultRoom match
+    const defaultTarget = item.defaultRoom.toLowerCase();
+    let matchedRoom = chosenRoomName
+      ? rooms.find((r) => r.name === chosenRoomName)
+      : rooms.find((r) => {
+          const n = r.name.toLowerCase();
+          if (defaultTarget.includes("living")) {
+            return n.includes("living") || n.includes("family");
+          }
+          if (defaultTarget.includes("cinema")) {
+            return n.includes("cinema") || n.includes("media") || n.includes("lounge");
+          }
+          return n.includes(defaultTarget);
+        });
+
+    if (!matchedRoom && currentRoomName) {
+      matchedRoom = rooms.find((r) => r.name === currentRoomName);
+    }
+    if (!matchedRoom) {
+      matchedRoom =
+        rooms.find((r) => {
+          const n = r.name.toLowerCase();
+          return (
+            n.includes("family") ||
+            n.includes("living") ||
+            n.includes("dining") ||
+            n.includes("master")
+          );
+        }) || rooms[0];
+    }
+
+    const rLevel =
+      matchedRoom?.level ??
+      (typeof activeLevelFilter === "number" ? activeLevelFilter : 0);
+
+    // Compute room center + slight offset if other items of same type already exist
+    const baseCx = matchedRoom
+      ? matchedRoom.center[0]
+      : design.widthM * 0.5;
+    const baseCz = matchedRoom
+      ? matchedRoom.center[1]
+      : design.lengthM * 0.5;
+
+    const existingInRoom = (design.fixtures || []).filter(
+      (f) => f.roomName === matchedRoom?.name && f.type === item.type
+    ).length;
+
+    const offsetX =
+      existingInRoom > 0 ? ((existingInRoom % 2 === 1 ? 1 : -1) * 0.65) : 0;
+    const offsetZ = existingInRoom > 0 ? existingInRoom * 0.45 : 0;
+
+    const spawnX = Math.round((baseCx + offsetX) * 100) / 100;
+    const spawnZ = Math.round((baseCz + offsetZ) * 100) / 100;
+
+    const newFix: Fixture3D = {
+      id: `furn_${item.id}_${Date.now()}`,
+      type: item.type,
+      position: [spawnX, item.elevationY || item.height / 2, spawnZ],
+      dimensions: [item.width, item.height, item.depth],
+      width: item.width,
+      height: item.height,
+      depth: item.depth,
+      rotationY: 0,
+      rotationDeg: 0,
+      label: item.name,
+      level: rLevel,
+      roomName: matchedRoom?.name || "Living",
+    };
+
+    const nextFitout: InteriorFitoutConfig = {
+      ...DEFAULT_FITOUT_CONFIG,
+      ...(design.fitout || {}),
+      showFurniture: true,
+    };
+
+    const nextDesign: BuildingDesign3D = {
+      ...design,
+      fitout: nextFitout,
+      fixtures: [...(design.fixtures || []), newFix],
+    };
+
+    try {
+      localStorage.setItem(
+        `studio3d_custom_geom_${nextDesign.id}`,
+        JSON.stringify({
+          fixtures: nextDesign.fixtures,
+          openings: nextDesign.openings,
+        })
+      );
+    } catch {}
+
+    setDesign(nextDesign);
+    setSelectedElement({
+      id: newFix.id,
+      kind: "fixture",
+      elementType: newFix.type,
+      type: newFix.type,
+      label: newFix.label || item.name,
+      roomName: newFix.roomName,
+      position: [spawnX, spawnZ],
+      rotationDeg: 0,
+      level: rLevel,
+    });
+
+    if (sceneManagerRef.current) {
+      sceneManagerRef.current.updateFitout(nextFitout);
+      sceneManagerRef.current.updateDesign(nextDesign);
+    }
+
+    toast.success(
+      `Placed "${item.name}" into ${newFix.roomName} — use the inspector to move, rotate, or resize!`
+    );
+  };
+
+  // Auto-stage all bedrooms, living/family, dining, media, study & alfresco with full 3D furniture
+  const handleAutoFurnishHouse = () => {
+    if (!design) return;
+    const stagedRaw = ensureOutdoorZonesOpenAndFurnished({
+      ...design,
+      exactStructuralWalls: false,
+      fitout: {
+        ...DEFAULT_FITOUT_CONFIG,
+        ...(design.fitout || {}),
+        showFurniture: true,
+      },
+      fixtures: [...(design.fixtures || [])],
+      openings: [...(design.openings || [])],
+      rooms: [...(design.rooms || [])],
+      walls: [...(design.walls || [])],
+    });
+    const staged: BuildingDesign3D = {
+      ...stagedRaw,
+      walls: design.exactStructuralWalls ? design.walls : stagedRaw.walls,
+      exactStructuralWalls: design.exactStructuralWalls,
+    };
+    try {
+      localStorage.setItem(
+        `studio3d_custom_geom_${staged.id}`,
+        JSON.stringify({
+          fixtures: staged.fixtures,
+          openings: staged.openings,
+        })
+      );
+    } catch {}
+    setDesign(staged);
+    if (sceneManagerRef.current) {
+      if (staged.fitout) sceneManagerRef.current.updateFitout(staged.fitout);
+      sceneManagerRef.current.updateDesign(staged);
+    }
+    toast.success(
+      "Whole house & Alfresco staged with 3D architectural furniture!"
+    );
+  };
+
   // Boundary fencing toggle
   const handleToggleFencing = () => {
     const newShow = !showFencing;
@@ -1445,6 +1616,8 @@ export function Studio3dWorkspace() {
             cameraMode={cameraMode}
             currentRoomName={currentRoomName}
             activeSceneContext={activeSceneContext}
+            externalDrawerOpen={viewportDrawer !== "none"}
+            onOpenPanel={() => setViewportDrawer("none")}
             onExecuteSceneActions={handleExecuteSceneActions}
             onCaptureViewport={() =>
               sceneManagerRef.current
@@ -2588,6 +2761,204 @@ export function Studio3dWorkspace() {
                         Tiled Inset Podium Bath with Stone Hob
                       </option>
                     </select>
+                  </div>
+
+                  {/* Interactive 3D Furniture & Room Staging Catalog */}
+                  <div
+                    className={`pt-3 mt-2 border-t ${
+                      isLight ? "border-slate-200" : "border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div>
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
+                          <Sofa className="h-3.5 w-3.5" />
+                          3D Furniture & Staging Catalog
+                        </span>
+                        <span
+                          className={`block text-[10px] ${
+                            isLight ? "text-slate-500" : "text-slate-400"
+                          }`}
+                        >
+                          Spawn realistic 3D beds, lounges, dining, TV & outdoor pieces
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAutoFurnishHouse}
+                        className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-[10px] shadow-sm hover:brightness-110 transition-all cursor-pointer shrink-0"
+                        title="Automatically stage all Bedrooms, Family/Living, Dining, Media, Study & Covered Alfresco"
+                      >
+                        Auto-Stage All Rooms
+                      </button>
+                    </div>
+
+                    {/* Target Room Selector */}
+                    <div className="mb-2">
+                      <label className="block text-[10px] font-bold mb-1 opacity-80">
+                        Target Room for New Furniture
+                      </label>
+                      <select
+                        value={targetFurnitureRoom}
+                        onChange={(e) => setTargetFurnitureRoom(e.target.value)}
+                        className={`w-full py-1.5 px-2 rounded-lg border text-[11px] font-bold ${
+                          isLight
+                            ? "bg-white border-slate-300 text-slate-900"
+                            : "bg-slate-900 border-slate-700 text-white"
+                        }`}
+                      >
+                        <option value="">
+                          ✨ Auto-Match Best Room (Smart Placement)
+                        </option>
+                        {(design.rooms || []).map((rm) => (
+                          <option key={rm.id} value={rm.name}>
+                            {rm.name} ({Math.round(rm.areaM2 || 0)}m²)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Category Filter Pills */}
+                    <div className="flex items-center gap-1 flex-wrap mb-2">
+                      {(
+                        [
+                          { id: "all", label: "All (14)" },
+                          { id: "Living & Lounge", label: "Living" },
+                          { id: "Dining & Kitchen", label: "Dining" },
+                          { id: "Bedrooms", label: "Bedroom" },
+                          { id: "Media & Study", label: "Media & Study" },
+                          { id: "Alfresco & Outdoor", label: "Alfresco" },
+                          { id: "Plants & Decor", label: "Plants" },
+                        ] as const
+                      ).map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setFurnitureCategoryFilter(cat.id)}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
+                            furnitureCategoryFilter === cat.id
+                              ? "bg-amber-500 text-slate-950 border-amber-400"
+                              : isLight
+                              ? "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                              : "bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800"
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Furniture Catalog Cards */}
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                      {FURNITURE_CATALOG_ITEMS.filter(
+                        (item) =>
+                          furnitureCategoryFilter === "all" ||
+                          item.category === furnitureCategoryFilter
+                      ).map((item) => (
+                        <div
+                          key={item.id}
+                          className={`p-2 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                            isLight
+                              ? "bg-slate-50/90 border-slate-200 hover:border-amber-400"
+                              : "bg-slate-900/80 border-slate-800 hover:border-amber-500/50"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-extrabold truncate">
+                                {item.name}
+                              </span>
+                              <span
+                                className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${
+                                  isLight
+                                    ? "bg-slate-200 text-slate-700"
+                                    : "bg-slate-800 text-slate-400"
+                                }`}
+                              >
+                                {item.width}m × {item.depth}m
+                              </span>
+                            </div>
+                            <p
+                              className={`text-[10px] leading-tight mt-0.5 line-clamp-1 ${
+                                isLight ? "text-slate-600" : "text-slate-400"
+                              }`}
+                            >
+                              {item.description}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleAddCatalogFurniture(item)}
+                            className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500 text-amber-500 hover:text-slate-950 border border-amber-500/40 font-black text-[10px] transition-all cursor-pointer shrink-0"
+                          >
+                            + Add 3D
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Placed Furniture Count & Quick Select */}
+                    {(() => {
+                      const placedFurniture = (design.fixtures || []).filter((f) =>
+                        FURNITURE_CATALOG_ITEMS.some((c) => c.type === f.type)
+                      );
+                      if (placedFurniture.length === 0) return null;
+                      return (
+                        <div className="mt-2.5 pt-2 border-t border-slate-700/30">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider opacity-75">
+                              Placed 3D Furniture ({placedFurniture.length} items)
+                            </span>
+                            <span className="text-[9px] text-amber-500 font-semibold">
+                              Click item to move / rotate
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                            {placedFurniture.map((furn) => (
+                              <button
+                                key={furn.id}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedElement({
+                                    id: furn.id,
+                                    kind: "fixture",
+                                    elementType: furn.type,
+                                    type: furn.type,
+                                    label:
+                                      furn.label ||
+                                      furn.type.replace(/_/g, " "),
+                                    roomName: furn.roomName,
+                                    position: [
+                                      furn.position[0],
+                                      furn.position[2] ?? furn.position[1],
+                                    ],
+                                    rotationDeg: furn.rotationDeg || 0,
+                                    level: furn.level ?? 0,
+                                  })
+                                }
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                                  selectedElement?.id === furn.id
+                                    ? "bg-amber-500 text-slate-950 border-amber-400"
+                                    : isLight
+                                    ? "bg-white border-slate-200 text-slate-700 hover:border-amber-400"
+                                    : "bg-slate-900 border-slate-800 text-slate-300 hover:border-amber-500/50"
+                                }`}
+                              >
+                                <span>
+                                  {furn.label ||
+                                    furn.type.replace(/_/g, " ")}
+                                </span>
+                                {furn.roomName && (
+                                  <span className="opacity-65 text-[9px]">
+                                    ({furn.roomName})
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}

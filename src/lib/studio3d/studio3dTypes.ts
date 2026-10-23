@@ -174,8 +174,198 @@ export type FixtureType =
   | "tv_console"
   | "tv_entertainment_unit"
   | "wardrobe"
+  | "accent_armchair"
+  | "indoor_plant"
+  | "alfresco_dining"
+  | "alfresco_bbq"
+  | "outdoor_lounge"
+  | "buffet_sideboard"
   | "staircase"
   | "balustrade";
+
+export interface FurnitureCatalogItem {
+  id: string;
+  type: FixtureType;
+  name: string;
+  category: "Living & Lounge" | "Dining & Kitchen" | "Bedrooms" | "Media & Study" | "Alfresco & Outdoor" | "Plants & Decor";
+  defaultRoom: RoomCategory;
+  width: number;
+  depth: number;
+  height: number;
+  elevationY: number;
+  description: string;
+}
+
+export const FURNITURE_CATALOG_ITEMS: FurnitureCatalogItem[] = [
+  {
+    id: "cat_sofa_sectional",
+    type: "sofa_sectional",
+    name: "Modular L-Shape Linen Sofa + Rug",
+    category: "Living & Lounge",
+    defaultRoom: "Living",
+    width: 2.85,
+    depth: 1.75,
+    height: 0.85,
+    elevationY: 0.42,
+    description: "Plush 5-seater L-shape modular linen lounge with scatter cushions & woven wool rug",
+  },
+  {
+    id: "cat_coffee_table",
+    type: "coffee_table",
+    name: "Travertine Plinth Coffee Table",
+    category: "Living & Lounge",
+    defaultRoom: "Living",
+    width: 1.25,
+    depth: 0.70,
+    height: 0.42,
+    elevationY: 0.21,
+    description: "Designer fluted travertine coffee table with art book stack & ceramic vessel",
+  },
+  {
+    id: "cat_tv_unit",
+    type: "tv_entertainment_unit",
+    name: "Fluted Oak Credenza & 75\" OLED TV",
+    category: "Living & Lounge",
+    defaultRoom: "Living",
+    width: 2.20,
+    depth: 0.44,
+    height: 0.52,
+    elevationY: 0.26,
+    description: "Low-line timber entertainment credenza with soundbar & wall-mounted 75\" OLED display",
+  },
+  {
+    id: "cat_accent_armchair",
+    type: "accent_armchair",
+    name: "Bouclé Accent Armchair & Side Table",
+    category: "Living & Lounge",
+    defaultRoom: "Living",
+    width: 0.88,
+    depth: 0.84,
+    height: 0.78,
+    elevationY: 0.39,
+    description: "Curved ivory bouclé designer occasional chair with brass drink table",
+  },
+  {
+    id: "cat_dining_table",
+    type: "dining_table",
+    name: "8-Seater Solid Oak Dining Suite",
+    category: "Dining & Kitchen",
+    defaultRoom: "Dining",
+    width: 2.20,
+    depth: 1.05,
+    height: 0.76,
+    elevationY: 0.38,
+    description: "2200mm European Oak dining table with 8 upholstered chairs, rug & centerpiece",
+  },
+  {
+    id: "cat_buffet_sideboard",
+    type: "buffet_sideboard",
+    name: "Fluted Timber Dining Sideboard & Art",
+    category: "Dining & Kitchen",
+    defaultRoom: "Dining",
+    width: 1.80,
+    depth: 0.46,
+    height: 0.84,
+    elevationY: 0.42,
+    description: "Stone-topped timber buffet credenza with sculptural vase & framed gallery artwork",
+  },
+  {
+    id: "cat_bed_queen",
+    type: "bed_queen",
+    name: "King/Queen Master Suite + Side Lamps",
+    category: "Bedrooms",
+    defaultRoom: "Master Bed",
+    width: 1.85,
+    depth: 2.10,
+    height: 0.70,
+    elevationY: 0.35,
+    description: "Upholstered fluted headboard, layered Euro pillows, waffle throw, rug & twin lamp nightstands",
+  },
+  {
+    id: "cat_bed_double",
+    type: "bed_double",
+    name: "Double Bedroom Suite + Nightstand",
+    category: "Bedrooms",
+    defaultRoom: "Bed 2",
+    width: 1.48,
+    depth: 1.98,
+    height: 0.64,
+    elevationY: 0.32,
+    description: "Double timber bed frame with upholstered headboard, linen bedding, throw & bedside lamp",
+  },
+  {
+    id: "cat_cinema_seating",
+    type: "cinema_seating",
+    name: "Home Theatre Recliner Lounge Suite",
+    category: "Media & Study",
+    defaultRoom: "Cinema",
+    width: 2.55,
+    depth: 1.05,
+    height: 0.92,
+    elevationY: 0.46,
+    description: "3-seat charcoal leather cinema recliners with brass cupholders & plush headrests",
+  },
+  {
+    id: "cat_study_desk",
+    type: "study_desk",
+    name: "Executive Timber Study Desk & Display",
+    category: "Media & Study",
+    defaultRoom: "Study",
+    width: 1.55,
+    depth: 0.75,
+    height: 0.76,
+    elevationY: 0.38,
+    description: "Architectural timber home office desk with ergonomic chair & ultrawide studio monitor",
+  },
+  {
+    id: "cat_alfresco_dining",
+    type: "alfresco_dining",
+    name: "Alfresco Spotted Gum Outdoor Dining",
+    category: "Alfresco & Outdoor",
+    defaultRoom: "Alfresco",
+    width: 2.10,
+    depth: 1.00,
+    height: 0.76,
+    elevationY: 0.38,
+    description: "Slatted hardwood outdoor 6-seater dining table & weather-resistant woven chairs",
+  },
+  {
+    id: "cat_alfresco_bbq",
+    type: "alfresco_bbq",
+    name: "Alfresco Built-In BBQ & Outdoor Kitchen",
+    category: "Alfresco & Outdoor",
+    defaultRoom: "Alfresco",
+    width: 1.85,
+    depth: 0.65,
+    height: 0.92,
+    elevationY: 0.46,
+    description: "Stone-topped outdoor kitchen joinery with 6-burner hooded stainless BBQ & bar fridge",
+  },
+  {
+    id: "cat_outdoor_lounge",
+    type: "outdoor_lounge",
+    name: "Coastal Teak Outdoor Daybed Lounge",
+    category: "Alfresco & Outdoor",
+    defaultRoom: "Alfresco",
+    width: 2.15,
+    depth: 1.45,
+    height: 0.78,
+    elevationY: 0.39,
+    description: "Teak outdoor resort lounge with Sunbrella linen cushions & slatted coffee table",
+  },
+  {
+    id: "cat_indoor_plant",
+    type: "indoor_plant",
+    name: "Fiddle-Leaf Fig Designer Planter",
+    category: "Plants & Decor",
+    defaultRoom: "Living",
+    width: 0.58,
+    depth: 0.58,
+    height: 1.45,
+    elevationY: 0.72,
+    description: "Fluted ceramic planter pot with lush architectural Fiddle-Leaf Fig tree",
+  },
+];
 
 export interface Fixture3D {
   id: string;

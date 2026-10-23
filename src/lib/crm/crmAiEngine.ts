@@ -753,9 +753,10 @@ export function getLeadConnectedAssets(lead: CrmLead): {
 
   const matchingPackages = packages
     .filter((pkg) => {
-      const pSub = (pkg.suburb || "").toLowerCase();
-      const pEst = (pkg.estate || "").toLowerCase();
-      const pDes = (pkg.house_name || "").toLowerCase();
+      const anyPkg = pkg as any;
+      const pSub = (anyPkg.suburb || anyPkg.location || "").toLowerCase();
+      const pEst = (anyPkg.estate || pkg.name || "").toLowerCase();
+      const pDes = (anyPkg.house_name || pkg.design || pkg.name || "").toLowerCase();
       if (suburbKey && pSub.includes(suburbKey)) return true;
       if (estateKey && pEst.includes(estateKey)) return true;
       if (lead.preferredDesign && pDes.includes(lead.preferredDesign.split(" ")[0].toLowerCase())) {

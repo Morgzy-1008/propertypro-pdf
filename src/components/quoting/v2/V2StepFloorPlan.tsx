@@ -2423,7 +2423,7 @@ export function V2StepFloorPlan({
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            setModifiedPlanPreviewUrl(null);
+                            setModifiedPlanPreviewUrl("");
                             setUploadedModifiedFile(null);
                             setCropFile(null);
                             onChange({

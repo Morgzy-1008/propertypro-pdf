@@ -730,20 +730,28 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
         height: 0.04,
         label: "Future Washing Machine Space (Dashed Provision)",
       });
-    } else if (room.name === "Master Bed" && room.customLabel !== "W.I.R" && !hasFixtureInRoom("Master Bed", "bed_queen")) {
+    } else if (
+      room.name === "Master Bed" &&
+      room.customLabel !== "W.I.R" &&
+      !room.customLabel?.includes("Robe") &&
+      !hasFixtureInRoom("Master Bed", "bed_queen")
+    ) {
       fixtures.push({
         id: `auto_mbed_${room.id}`,
         type: "bed_queen",
         roomName: "Master Bed",
         position: [cx, 0.35, cz],
-        rotationY: 0,
-        width: 1.8,
+        rotationY: rw >= rl ? Math.PI / 2 : 0,
+        width: 1.85,
         depth: 2.1,
         height: 0.7,
-        label: "King/Queen Master Bed with Upholstered Headboard & Side Tables",
+        label: "King/Queen Master Bed with Upholstered Headboard & Side Lamp Tables",
+        level: room.level ?? 0,
+        elevationOffsetM: room.elevationOffsetM ?? 0,
       });
     } else if (
-      (room.name === "Bed 2" || room.name === "Bed 3" || room.name === "Bed 4") &&
+      (room.name === "Bed 2" || room.name === "Bed 3" || room.name === "Bed 4" || room.name === "Bed 5") &&
+      !room.customLabel?.includes("Robe") &&
       !hasFixtureInRoom(room.name, "bed_double")
     ) {
       fixtures.push({
@@ -751,37 +759,73 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
         type: "bed_double",
         roomName: room.name,
         position: [cx, 0.32, cz],
-        rotationY: 0,
-        width: 1.45,
-        depth: 1.95,
-        height: 0.62,
-        label: `${room.name} Double Bed & Sliding Built-in Robe`,
+        rotationY: rw >= rl ? Math.PI / 2 : 0,
+        width: 1.48,
+        depth: 1.98,
+        height: 0.64,
+        label: `${room.name} Double Bed Suite & Nightstand`,
+        level: room.level ?? 0,
+        elevationOffsetM: room.elevationOffsetM ?? 0,
       });
-    } else if (room.name === "Living") {
-      if (!hasFixtureInRoom("Living", "sofa_sectional")) {
+    } else if (room.name === "Living" || room.name === "Family") {
+      if (!hasFixtureInRoom(room.name, "sofa_sectional") && !hasFixtureInRoom("Family", "sofa_sectional")) {
         fixtures.push({
           id: `auto_sofa_${room.id}`,
           type: "sofa_sectional",
-          roomName: "Living",
+          roomName: room.name,
           position: [cx, 0.42, cz],
           rotationY: 0,
-          width: Math.min(3.1, Math.max(2.2, rw * 0.52)),
-          depth: Math.min(2.2, Math.max(1.6, rl * 0.45)),
+          width: Math.min(2.9, Math.max(2.2, rw * 0.48)),
+          depth: Math.min(1.85, Math.max(1.5, rl * 0.38)),
           height: 0.85,
-          label: "Modular L-Shape Living Lounge & Coffee Table",
+          label: "Modular L-Shape Linen Living Lounge & Woven Area Rug",
+          level: room.level ?? 0,
+          elevationOffsetM: room.elevationOffsetM ?? 0,
         });
       }
-      if (!hasFixtureInRoom("Living", "tv_console")) {
+      if (!hasFixtureInRoom(room.name, "coffee_table") && !hasFixtureInRoom("Family", "coffee_table")) {
+        fixtures.push({
+          id: `auto_ct_${room.id}`,
+          type: "coffee_table",
+          roomName: room.name,
+          position: [cx - 0.15, 0.21, Math.max(rb.minY + 0.9, cz - 1.15)],
+          rotationY: 0,
+          width: 1.25,
+          depth: 0.70,
+          height: 0.42,
+          label: "Designer Fluted Travertine Coffee Table",
+          level: room.level ?? 0,
+          elevationOffsetM: room.elevationOffsetM ?? 0,
+        });
+      }
+      if (!hasFixtureInRoom(room.name, "tv_console") && !hasFixtureInRoom(room.name, "tv_entertainment_unit")) {
         fixtures.push({
           id: `auto_tv_${room.id}`,
-          type: "tv_console",
-          roomName: "Living",
-          position: [cx, 1.0, rb.maxY - 0.32],
+          type: "tv_entertainment_unit",
+          roomName: room.name,
+          position: [cx, 0.26, Math.max(rb.minY + 0.38, cz - 2.2)],
           rotationY: 0,
-          width: 2.1,
-          depth: 0.4,
-          height: 1.2,
-          label: "Floating Timber Entertainment Joinery & 75\" Wall TV",
+          width: 2.15,
+          depth: 0.44,
+          height: 0.52,
+          label: "Fluted Oak Entertainment Credenza & 75\" Wall OLED TV",
+          level: room.level ?? 0,
+          elevationOffsetM: room.elevationOffsetM ?? 0,
+        });
+      }
+      if (!hasFixtureInRoom(room.name, "indoor_plant")) {
+        fixtures.push({
+          id: `auto_plant_${room.id}`,
+          type: "indoor_plant",
+          roomName: room.name,
+          position: [Math.min(rb.maxX - 0.55, cx + 1.65), 0.72, Math.max(rb.minY + 0.55, cz - 1.8)],
+          rotationY: 0,
+          width: 0.58,
+          depth: 0.58,
+          height: 1.45,
+          label: "Fiddle-Leaf Fig Designer Ceramic Planter",
+          level: room.level ?? 0,
+          elevationOffsetM: room.elevationOffsetM ?? 0,
         });
       }
     } else if (room.name === "Dining" && !hasFixtureInRoom("Dining", "dining_table")) {
@@ -791,23 +835,86 @@ export function ensureOutdoorZonesOpenAndFurnished(rawDesign: BuildingDesign3D):
         roomName: "Dining",
         position: [cx, 0.38, cz],
         rotationY: 0,
-        width: Math.min(2.2, Math.max(1.6, rw * 0.55)),
-        depth: 1.0,
+        width: Math.min(2.2, Math.max(1.65, rw * 0.55)),
+        depth: 1.05,
         height: 0.76,
-        label: "8-Seater Solid Oak Dining Table & Chairs",
+        label: "8-Seater Solid European Oak Dining Table & Upholstered Chairs",
+        level: room.level ?? 0,
+        elevationOffsetM: room.elevationOffsetM ?? 0,
       });
-    } else if (room.name === "Cinema" && !hasFixtureInRoom(room.customLabel || "Cinema", "cinema_seating")) {
+    } else if (
+      (room.name === "Cinema" || room.name === "Media" || room.name === "Lounge") &&
+      !hasFixtureInRoom(room.customLabel || room.name, "cinema_seating") &&
+      !hasFixtureInRoom(room.name, "sofa_sectional")
+    ) {
       fixtures.push({
         id: `auto_cinema_${room.id}`,
         type: "cinema_seating",
-        roomName: room.customLabel || "Cinema",
-        position: [cx, 0.45, cz],
+        roomName: room.customLabel || room.name,
+        position: [cx, 0.46, cz],
         rotationY: 0,
-        width: Math.min(2.6, Math.max(1.8, rw * 0.6)),
-        depth: 1.1,
-        height: 0.88,
+        width: Math.min(2.55, Math.max(1.8, rw * 0.6)),
+        depth: 1.05,
+        height: 0.92,
         label: "Home Theatre Recliner Lounge Suite",
+        level: room.level ?? 0,
+        elevationOffsetM: room.elevationOffsetM ?? 0,
       });
+    } else if (room.name === "Study" && !hasFixtureInRoom("Study", "study_desk")) {
+      fixtures.push({
+        id: `auto_study_${room.id}`,
+        type: "study_desk",
+        roomName: "Study",
+        position: [cx, 0.38, cz],
+        rotationY: 0,
+        width: 1.55,
+        depth: 0.75,
+        height: 0.76,
+        label: "Executive Timber Study Desk, Chair & Studio Display",
+        level: room.level ?? 0,
+        elevationOffsetM: room.elevationOffsetM ?? 0,
+      });
+    }
+  }
+
+  // Also stage Covered Alfresco with Outdoor Spotted Gum Dining Set & Built-In BBQ Kitchen
+  for (const outRoom of outdoorRooms) {
+    if (outRoom.name === "Alfresco") {
+      const ob = getBox(outRoom);
+      const ow = ob.maxX - ob.minX;
+      const ol = ob.maxY - ob.minY;
+      const ocx = outRoom.center[0];
+      const ocz = outRoom.center[1];
+      if (ow >= 2.2 && ol >= 1.8 && !hasFixtureInRoom("Alfresco", "alfresco_dining")) {
+        fixtures.push({
+          id: `auto_alf_dining_${outRoom.id}`,
+          type: "alfresco_dining",
+          roomName: "Alfresco",
+          position: [ocx, 0.38, ocz],
+          rotationY: ow >= ol ? 0 : Math.PI / 2,
+          width: Math.min(2.1, Math.max(1.5, ow * 0.52)),
+          depth: 1.0,
+          height: 0.76,
+          label: "Alfresco 6-Seater Spotted Gum Outdoor Dining Suite",
+          level: outRoom.level ?? 0,
+          elevationOffsetM: outRoom.elevationOffsetM ?? 0,
+        });
+      }
+      if (ow >= 2.6 && ol >= 2.0 && !hasFixtureInRoom("Alfresco", "alfresco_bbq")) {
+        fixtures.push({
+          id: `auto_alf_bbq_${outRoom.id}`,
+          type: "alfresco_bbq",
+          roomName: "Alfresco",
+          position: [+(ob.maxX - 0.45).toFixed(2), 0.46, ocz],
+          rotationY: -Math.PI / 2,
+          width: Math.min(1.8, Math.max(1.3, ol * 0.48)),
+          depth: 0.65,
+          height: 0.92,
+          label: "Alfresco Built-In Stainless BBQ & Stone Outdoor Kitchen",
+          level: outRoom.level ?? 0,
+          elevationOffsetM: outRoom.elevationOffsetM ?? 0,
+        });
+      }
     }
   }
 
@@ -878,6 +985,9 @@ export function validateAndClampFixtures(
   const isWetFixture = (t: Fixture3D["type"]) =>
     t === "vanity_single" || t === "vanity_double" || t === "toilet" || t === "bath" || t === "shower";
 
+  const isOutdoorFixture = (t: Fixture3D["type"]) =>
+    t === "alfresco_dining" || t === "alfresco_bbq" || t === "outdoor_lounge";
+
   const isExcludedIndoorFixture = (t: Fixture3D["type"]) =>
     isWetFixture(t) ||
     t === "bed_queen" ||
@@ -892,11 +1002,14 @@ export function validateAndClampFixtures(
   const HARD_EXCLUDED_ROOM_NAMES = new Set([
     "garage",
     "porch",
-    "entry",
     "alfresco",
     "driveway",
     "stairs",
     "void",
+  ]);
+
+  const WET_ONLY_EXCLUDED_ROOM_NAMES = new Set([
+    "entry",
     "robe",
     "wir",
     "linen",
@@ -922,7 +1035,7 @@ export function validateAndClampFixtures(
     let minLvlZ = lvlMeta?.worldBounds ? lvlMeta.worldBounds.z : 0;
     let maxLvlZ = lvlMeta?.worldBounds ? lvlMeta.worldBounds.z + lvlMeta.worldBounds.depthM : lengthM;
 
-    if (lvlWalls.length >= 4) {
+    if (lvlWalls.length >= 4 && !isOutdoorFixture(f.type)) {
       const xs = lvlWalls.flatMap((w) => [w.start[0], w.end[0]]);
       const zs = lvlWalls.flatMap((w) => [w.start[1], w.end[1]]);
       minLvlX = Math.min(...xs);
@@ -939,7 +1052,7 @@ export function validateAndClampFixtures(
 
     // 2. Check scanline exterior wall containment at (fx, fz) so recesses (e.g. driveway in front of garage) are caught
     let outsideScanlineEnvelope = false;
-    if (lvlWalls.length >= 4 && f.type !== "balustrade") {
+    if (lvlWalls.length >= 4 && f.type !== "balustrade" && !isOutdoorFixture(f.type)) {
       const extWalls = lvlWalls.filter((w) => w.isExterior);
       const checkWalls = extWalls.length >= 4 ? extWalls : lvlWalls;
       const vSpanning = checkWalls.filter(
@@ -966,7 +1079,7 @@ export function validateAndClampFixtures(
       }
     }
 
-    // 3. Check Hard Exclusion Zones (Garage, Porch, Entry, Alfresco, Driveway in front of Garage, Stairs, Void, Robe, WIR, Store)
+    // 3. Check Hard Exclusion Zones (Garage, Porch, Alfresco, Driveway in front of Garage, Stairs, Void)
     const levelRooms = (rooms || []).filter((r) => (r.level ?? 0) === fLevel && r.polygon && r.polygon.length >= 3);
     let inExcludedZone = false;
     if (isExcludedIndoorFixture(f.type)) {
@@ -986,6 +1099,7 @@ export function validateAndClampFixtures(
           }
         } else if (
           HARD_EXCLUDED_ROOM_NAMES.has(rNameLow) ||
+          (isWetFixture(f.type) && WET_ONLY_EXCLUDED_ROOM_NAMES.has(rNameLow)) ||
           rCustomLow.includes("porch") ||
           rCustomLow.includes("garage") ||
           rCustomLow.includes("alfresco")

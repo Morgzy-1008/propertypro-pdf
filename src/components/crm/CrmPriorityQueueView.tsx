@@ -224,8 +224,8 @@ export function CrmPriorityQueueView({
         designName: lead.preferredDesign,
         quickActionUrl: urls[type],
         tags: [lead.targetEstate, type === "mark_up" ? "Mark-Up" : type === "estimate" ? "Estimate" : "Priority"],
-      },
-      lead.id
+        completed: false,
+      }
     );
 
     await queueOrExecuteGhlAction({
@@ -936,7 +936,7 @@ export function CrmPriorityQueueView({
                     🏡 Matching Land Lots ({activeEntry.lead.targetEstate})
                   </span>
                   <Link
-                    to="/packages"
+                    to="/database"
                     className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline"
                   >
                     View Database →

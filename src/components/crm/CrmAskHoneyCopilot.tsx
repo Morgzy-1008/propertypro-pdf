@@ -162,8 +162,8 @@ export function CrmAskHoneyCopilot({
             lotNumber: lead.lotNumber,
             designName: lead.preferredDesign,
             tags: ["Ask Honey AI", lead.targetEstate],
-          },
-          lead.id
+            completed: false,
+          }
         );
 
         await queueOrExecuteGhlAction({

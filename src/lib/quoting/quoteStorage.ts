@@ -125,7 +125,7 @@ export function compactQuoteForStorage(
           Boolean(it.isIncluded) ||
           Boolean(it.clientSelected) ||
           Boolean(it.notes && it.notes.trim().length > 0) ||
-          it.customPriceOverride !== undefined ||
+          (it as any).customPriceOverride !== undefined ||
           !it.catalogueItemId
       )
     : [];
@@ -136,7 +136,7 @@ export function compactQuoteForStorage(
           Boolean(it.isIncluded) ||
           Boolean(it.clientSelected) ||
           Boolean(it.notes && it.notes.trim().length > 0) ||
-          it.customPriceOverride !== undefined ||
+          (it as any).customPriceOverride !== undefined ||
           !it.catalogueItemId
       )
     : undefined;
@@ -167,7 +167,6 @@ export function compactQuoteForStorage(
     customSpec = {
       ...customSpec,
       customPlanUrl: "",
-      customPlanFloor2Url: "",
     };
   }
 
@@ -243,12 +242,11 @@ async function compressImageDataUrlForArchive(
  */
 export async function compressQuoteForArchive(quote: FullQuote): Promise<FullQuote> {
   const compacted = compactQuoteForStorage(quote, false);
-  const [floorplanUrl, modifiedPlanImageUrl, customPlanUrl, customPlanFloor2Url] =
+  const [floorplanUrl, modifiedPlanImageUrl, customPlanUrl] =
     await Promise.all([
       compressImageDataUrlForArchive(compacted.design?.floorplanUrl),
       compressImageDataUrlForArchive(compacted.design?.modifiedPlanImageUrl),
       compressImageDataUrlForArchive(compacted.design?.customSpec?.customPlanUrl),
-      compressImageDataUrlForArchive(compacted.design?.customSpec?.customPlanFloor2Url),
     ]);
 
   return {
@@ -261,7 +259,6 @@ export async function compressQuoteForArchive(quote: FullQuote): Promise<FullQuo
         ? {
             ...compacted.design.customSpec,
             customPlanUrl: customPlanUrl || "",
-            customPlanFloor2Url: customPlanFloor2Url || "",
           }
         : compacted.design.customSpec,
     },
@@ -1575,7 +1572,7 @@ export async function syncQuoteToCloud(quote: FullQuote): Promise<void> {
     const pkgId = toValidUuid(quoteNotesKey);
     const safeQuote = compactQuoteForStorage(quote, true);
     const payload = {
-      id: pkgId,
+      id: pkgId || undefined,
       name: `Builders Estimate: ${quote.quoteNumber || "MH"} - ${quote.client?.clientName || "Client"}`,
       housing_type: quote.design?.housingType || "Single Storey",
       design: quote.design?.designName || "Design",

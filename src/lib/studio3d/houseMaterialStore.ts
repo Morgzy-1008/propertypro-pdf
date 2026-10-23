@@ -1472,6 +1472,173 @@ export function createDefaultSurfaceConfigs(): Record<SemanticSurfaceId, Surface
   };
 }
 
+export interface WholeHouseDesignerScheme {
+  id: string;
+  name: string;
+  subtitle: string;
+  swatches: [string, string, string, string];
+  presetsBySurface: Partial<Record<SemanticSurfaceId, string>>;
+}
+
+export const WHOLE_HOUSE_DESIGNER_SCHEMES: WholeHouseDesignerScheme[] = [
+  {
+    id: "modern_monument_urban",
+    name: "Modern Monument & Urban Silver",
+    subtitle: "Austral Urban Silver brick, Monument portico & roof, Natural Oak joinery, Calacatta Nuvo 40mm stone",
+    swatches: ["#6b7280", "#272b33", "#c08b5c", "#f8fafc"],
+    presetsBySurface: {
+      exterior_wall_main: "austral_urban_one_silver",
+      exterior_cladding_feature: "scyon_linea_crisp_white",
+      portico_facade: "render_monument_charcoal",
+      roof_main: "colorbond_monument",
+      roof_fascia_gutter: "powdercoat_monument_frame",
+      garage_door: "powdercoat_monument_frame",
+      window_frames: "powdercoat_monument_frame",
+      front_entry_door: "western_red_cedar_batten",
+      driveway_paving: "exposed_aggregate_charcoal",
+      interior_walls_main: "dulux_natural_white",
+      interior_feature_wall: "dulux_tranquil_retreat",
+      interior_floor_living: "rectified_porcelain_600",
+      interior_floor_bedrooms: "plush_wool_carpet_oatmeal",
+      interior_floor_wet_areas: "rectified_porcelain_600",
+      kitchen_cabinetry_lower: "european_oak_wide_plank",
+      kitchen_cabinetry_upper: "dulux_natural_white",
+      kitchen_benchtop: "caesarstone_calacatta_nuvo",
+      kitchen_splashback: "moroccan_zellige_subway",
+    },
+  },
+  {
+    id: "coastal_hamptons_linen",
+    name: "Coastal Hamptons Weatherboard",
+    subtitle: "Scyon Linea Whisper White cladding, Surfmist roof, Blonde Blackbutt floor, Shaker White & Calacatta stone",
+    swatches: ["#f8fafc", "#e4e6e1", "#dfbe99", "#94a3b8"],
+    presetsBySurface: {
+      exterior_wall_main: "scyon_linea_crisp_white",
+      exterior_cladding_feature: "scyon_axon_shale_grey",
+      portico_facade: "render_lexicon_white",
+      roof_main: "colorbond_surfmist",
+      roof_fascia_gutter: "powdercoat_pearl_white_frame",
+      garage_door: "powdercoat_pearl_white_frame",
+      window_frames: "powdercoat_pearl_white_frame",
+      front_entry_door: "dulux_domino_charcoal",
+      driveway_paving: "exposed_aggregate_charcoal",
+      interior_walls_main: "dulux_natural_white",
+      interior_feature_wall: "scyon_linea_crisp_white",
+      interior_floor_living: "coastal_blackbutt_blonde",
+      interior_floor_bedrooms: "plush_wool_carpet_oatmeal",
+      interior_floor_wet_areas: "rectified_porcelain_600",
+      kitchen_cabinetry_lower: "dulux_natural_white",
+      kitchen_cabinetry_upper: "dulux_natural_white",
+      kitchen_benchtop: "caesarstone_calacatta_nuvo",
+      kitchen_splashback: "moroccan_zellige_subway",
+    },
+  },
+  {
+    id: "warm_travertine_oak",
+    name: "Mediterranean Travertine & Oak",
+    subtitle: "Whitsunday Limestone brick, Travertine portico, Basalt roof, European Oak floor, Travertine benchtop & kitkat splashback",
+    swatches: ["#e7e5e4", "#e7e0d6", "#c08b5c", "#52565e"],
+    presetsBySurface: {
+      exterior_wall_main: "austral_whitsunday_chalk",
+      exterior_cladding_feature: "western_red_cedar_batten",
+      portico_facade: "render_travertine_warm",
+      roof_main: "colorbond_basalt",
+      roof_fascia_gutter: "powdercoat_monument_frame",
+      garage_door: "western_red_cedar_batten",
+      window_frames: "brushed_brass_gold_metal",
+      front_entry_door: "australian_spotted_gum",
+      driveway_paving: "render_travertine_warm",
+      interior_walls_main: "dulux_hog_bristle_quarter",
+      interior_feature_wall: "render_travertine_warm",
+      interior_floor_living: "european_oak_wide_plank",
+      interior_floor_bedrooms: "plush_wool_carpet_oatmeal",
+      interior_floor_wet_areas: "render_travertine_warm",
+      kitchen_cabinetry_lower: "european_oak_wide_plank",
+      kitchen_cabinetry_upper: "dulux_hog_bristle_quarter",
+      kitchen_benchtop: "render_travertine_warm",
+      kitchen_splashback: "kitkat_sage_finger_mosaic",
+    },
+  },
+  {
+    id: "palm_springs_walnut",
+    name: "Palm Springs Crisp White & Walnut",
+    subtitle: "Lexicon stucco render, Cedar vertical battens, Terrazzo floor, Florentine Walnut joinery & Calacatta marble",
+    swatches: ["#f8fafc", "#b45309", "#5c3a21", "#e2e8f0"],
+    presetsBySurface: {
+      exterior_wall_main: "render_lexicon_white",
+      exterior_cladding_feature: "western_red_cedar_batten",
+      portico_facade: "render_lexicon_white",
+      roof_main: "colorbond_surfmist",
+      roof_fascia_gutter: "powdercoat_pearl_white_frame",
+      garage_door: "western_red_cedar_batten",
+      window_frames: "brushed_brass_gold_metal",
+      front_entry_door: "western_red_cedar_batten",
+      driveway_paving: "venetian_terrazzo_stone",
+      interior_walls_main: "dulux_natural_white",
+      interior_feature_wall: "western_red_cedar_batten",
+      interior_floor_living: "venetian_terrazzo_stone",
+      interior_floor_bedrooms: "plush_wool_carpet_oatmeal",
+      interior_floor_wet_areas: "rectified_porcelain_600",
+      kitchen_cabinetry_lower: "smoked_walnut_herringbone",
+      kitchen_cabinetry_upper: "dulux_natural_white",
+      kitchen_benchtop: "caesarstone_calacatta_nuvo",
+      kitchen_splashback: "caesarstone_calacatta_nuvo",
+    },
+  },
+  {
+    id: "industrial_noir_basalt",
+    name: "Architectural Noir & Empira Black",
+    subtitle: "Austral Ironstone Black brick, Charred Shou Sugi Ban cladding, Spotted Gum floor, Walnut & Empira Black marble kitchen",
+    swatches: ["#27272a", "#1c1917", "#9a5226", "#1e293b"],
+    presetsBySurface: {
+      exterior_wall_main: "austral_industrial_monument",
+      exterior_cladding_feature: "shou_sugi_ban_charred",
+      portico_facade: "render_monument_charcoal",
+      roof_main: "colorbond_monument",
+      roof_fascia_gutter: "powdercoat_monument_frame",
+      garage_door: "powdercoat_monument_frame",
+      window_frames: "powdercoat_monument_frame",
+      front_entry_door: "australian_spotted_gum",
+      driveway_paving: "exposed_aggregate_charcoal",
+      interior_walls_main: "dulux_natural_white",
+      interior_feature_wall: "dulux_domino_charcoal",
+      interior_floor_living: "australian_spotted_gum",
+      interior_floor_bedrooms: "plush_wool_carpet_silver",
+      interior_floor_wet_areas: "caesarstone_sleek_concrete",
+      kitchen_cabinetry_lower: "dulux_domino_charcoal",
+      kitchen_cabinetry_upper: "smoked_walnut_herringbone",
+      kitchen_benchtop: "caesarstone_empira_black",
+      kitchen_splashback: "caesarstone_empira_black",
+    },
+  },
+  {
+    id: "classic_homestead_terracotta",
+    name: "Australian Homestead & Terracotta",
+    subtitle: "Austral Everyday Life Terracotta brick, Bristile Terracotta roof, Spotted Gum floor & Warm Oak kitchen",
+    swatches: ["#9a3412", "#b45309", "#9a5226", "#c08b5c"],
+    presetsBySurface: {
+      exterior_wall_main: "austral_everyday_terracotta",
+      exterior_cladding_feature: "scyon_axon_shale_grey",
+      portico_facade: "render_travertine_warm",
+      roof_main: "bristile_terracotta_tile",
+      roof_fascia_gutter: "powdercoat_monument_frame",
+      garage_door: "western_red_cedar_batten",
+      window_frames: "powdercoat_monument_frame",
+      front_entry_door: "australian_spotted_gum",
+      driveway_paving: "exposed_aggregate_charcoal",
+      interior_walls_main: "dulux_hog_bristle_quarter",
+      interior_feature_wall: "austral_everyday_terracotta",
+      interior_floor_living: "australian_spotted_gum",
+      interior_floor_bedrooms: "plush_wool_carpet_oatmeal",
+      interior_floor_wet_areas: "render_travertine_warm",
+      kitchen_cabinetry_lower: "european_oak_wide_plank",
+      kitchen_cabinetry_upper: "dulux_natural_white",
+      kitchen_benchtop: "render_travertine_warm",
+      kitchen_splashback: "moroccan_zellige_subway",
+    },
+  },
+];
+
 // ============================================================================
 // REACTIVE ZUSTAND-STYLE STORE FOR REACT + IMPERATIVE THREE.JS SCENE MANAGER
 // ============================================================================
@@ -1479,6 +1646,7 @@ export function createDefaultSurfaceConfigs(): Record<SemanticSurfaceId, Surface
 export interface HouseMaterialStoreState {
   surfaces: Record<SemanticSurfaceId, SurfaceMaterialConfig>;
   selectedSurfaceId: SemanticSurfaceId | null;
+  activeSchemeId: string;
   customGeneratedPresets: MaterialPresetOption[];
   lastUpdatedSurfaceId: SemanticSurfaceId | null;
   lastUpdatedTimestamp: number;
@@ -1487,6 +1655,7 @@ export interface HouseMaterialStoreState {
     patch: Partial<SurfaceMaterialConfig>
   ) => void;
   applyPresetToSurface: (surfaceId: SemanticSurfaceId, presetId: string) => void;
+  applyWholeHouseScheme: (schemeId: string) => void;
   applyBatchUpdates: (
     updates: Array<{
       surfaceId: SemanticSurfaceId;
@@ -1516,6 +1685,7 @@ function enrichWithProceduralMaps(config: SurfaceMaterialConfig): SurfaceMateria
 let storeState: HouseMaterialStoreState = {
   surfaces: createDefaultSurfaceConfigs(),
   selectedSurfaceId: "exterior_wall_main",
+  activeSchemeId: "modern_monument_urban",
   customGeneratedPresets: [],
   lastUpdatedSurfaceId: null,
   lastUpdatedTimestamp: Date.now(),
@@ -1563,6 +1733,41 @@ let storeState: HouseMaterialStoreState = {
       normalMapUrl: preset.normalMapUrl,
       roughnessMapUrl: preset.roughnessMapUrl,
     });
+  },
+
+  applyWholeHouseScheme: (schemeId) => {
+    const scheme = WHOLE_HOUSE_DESIGNER_SCHEMES.find((s) => s.id === schemeId);
+    if (!scheme) return;
+    const nextSurfaces = { ...storeState.surfaces };
+    for (const [sid, presetId] of Object.entries(scheme.presetsBySurface)) {
+      const surfaceId = sid as SemanticSurfaceId;
+      const existing = nextSurfaces[surfaceId];
+      const preset = MATERIAL_PRESET_CATALOG.find((p) => p.presetId === presetId);
+      if (!existing || !preset) continue;
+      nextSurfaces[surfaceId] = enrichWithProceduralMaps({
+        ...existing,
+        surfaceId,
+        name: preset.name,
+        category: preset.category,
+        baseColorHex: preset.baseColorHex,
+        secondaryColorHex: preset.secondaryColorHex,
+        roughness: preset.roughness,
+        metalness: preset.metalness,
+        textureScaleMeters: preset.textureScaleMeters,
+        bumpScale: preset.bumpScale,
+        patternType: preset.patternType,
+        albedoMapUrl: preset.albedoMapUrl,
+        normalMapUrl: preset.normalMapUrl,
+        roughnessMapUrl: preset.roughnessMapUrl,
+      });
+    }
+    storeState = {
+      ...storeState,
+      surfaces: nextSurfaces,
+      activeSchemeId: schemeId,
+      lastUpdatedTimestamp: Date.now(),
+    };
+    listeners.forEach((l) => l(storeState));
   },
 
   applyBatchUpdates: (updates) => {

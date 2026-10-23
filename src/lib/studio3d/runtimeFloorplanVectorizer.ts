@@ -37,7 +37,7 @@ import { deduplicateWallSegments, cleanAndSnapWallGraph } from "./wallNetworkEng
 import { resolveLocalFloorplanUrl } from "@/components/flyer/floorplans";
 import { scoreFloorplanPage } from "@/lib/pdfPages";
 
-const CACHE_VERSION = "v29_north_window_chain_bed4";
+const CACHE_VERSION = "v30_single_storey_scanline_bounds";
 const MEMORY_CACHE = new Map<string, VectorizedFloorplanPatch>();
 const IDB_NAME = "hudson_studio3d_vectorizer_cache";
 const IDB_STORE = "vectorized_plans";
@@ -731,21 +731,30 @@ async function runCanvasFloorplanVectorizer(
               ? Math.round(320 * scaleRef)
               : Math.round(280 * scaleRef);
 
+            const isKnownMultiStoreySheet =
+              baseDesign.housingType === "Double Storey" ||
+              (baseDesign.schedule?.firstLivingM2 ?? 0) > 0 ||
+              /double|two\s*storey|first\s*floor|mauve\s*35/i.test(
+                `${baseDesign.name || ""} ${baseDesign.variantName || ""}`
+              );
+
             const sameColumnVertMerge =
               !isBottomOptionInset &&
               overlapX >= minWidth * 0.20 &&
               gapY <= maxVertGap &&
-              // Never merge across the vertical gutter (~0.50W) separating Ground Floor (left) and First Floor (right)
-              !(Math.min(a.maxX, b.maxX) < W * 0.52 && Math.max(a.minX, b.minX) > W * 0.48);
+              // On multi-storey sheets, never merge across the vertical gutter (~0.50W) separating Ground Floor (left) and First Floor (right)
+              (!isKnownMultiStoreySheet ||
+                !(Math.min(a.maxX, b.maxX) < W * 0.52 && Math.max(a.minX, b.minX) > W * 0.48));
 
             const attachedGarageBayMerge =
-              overlapY >= minHeight * 0.25 &&
-              gapX <= Math.round(350 * scaleRef) &&
-              Math.max(a.maxX, b.maxX) < W * 0.52;
+              overlapY >= minHeight * 0.22 &&
+              gapX <= Math.round((isKnownMultiStoreySheet ? 350 : 480) * scaleRef) &&
+              Math.max(a.maxX, b.maxX) < (isKnownMultiStoreySheet ? W * 0.52 : W * 0.92);
 
             // First Floor on double-storey sheets starts at ~0.50W..0.55W (e.g. Burgundy 32 starts at 0.545W)
             // and can have a ~310px vertical gap in 250mm exterior walls where the upper floor steps in at Bed 1/WIR & Gallery
             const rightFirstFloorSubMerge =
+              isKnownMultiStoreySheet &&
               (overlapY >= minHeight * 0.15 || gapY <= Math.round(420 * scaleRef)) &&
               gapX <= Math.round(520 * scaleRef) &&
               Math.min(a.minX, b.minX) > W * 0.48 &&
@@ -816,12 +825,15 @@ async function runCanvasFloorplanVectorizer(
         const totalRightPts = rightSubClusters.reduce((acc, c) => acc + c.pts.length, 0);
         const isKnownDoubleStorey =
           baseDesign.housingType === "Double Storey" ||
-          (baseDesign.schedule?.firstLivingM2 ?? 0) > 0;
+          (baseDesign.schedule?.firstLivingM2 ?? 0) > 0 ||
+          /double|two\s*storey|first\s*floor|mauve\s*35/i.test(
+            `${baseDesign.name || ""} ${baseDesign.variantName || ""}`
+          );
 
         if (
+          isKnownDoubleStorey &&
           rightSubClusters.length > 0 &&
-          (totalRightPts >= Math.max(120, main.pts.length * 0.14) ||
-            (isKnownDoubleStorey && totalRightPts >= 50))
+          totalRightPts >= Math.min(50, main.pts.length * 0.12)
         ) {
           detectedUpperCluster = {
             minX: Math.min(...rightSubClusters.map((c) => c.minX)),
@@ -2642,14 +2654,51 @@ async function runCanvasFloorplanVectorizer(
   const getScanlineXBoundsAtZ = (z: number): [number, number] => {
     const activeX: number[] = [];
     for (const t of vExtTracks) {
-      if (t.intervals.some((iv) => z >= iv.start - 0.45 && z <= iv.end + 0.45)) {
+      if (t.totalLen >= 0.65 && t.intervals.some((iv) => z >= iv.start - 0.55 && z <= iv.end + 0.55)) {
         activeX.push(t.coord);
+      }
+    }
+    for (const w of cleanWalls) {
+      if (Math.abs(w.start[0] - w.end[0]) < 0.25) {
+        const minZSeg = Math.min(w.start[1], w.end[1]);
+        const maxZSeg = Math.max(w.start[1], w.end[1]);
+        if (maxZSeg - minZSeg >= 0.75 && z >= minZSeg - 0.55 && z <= maxZSeg + 0.55) {
+          activeX.push((w.start[0] + w.end[0]) * 0.5);
+        }
       }
     }
     if (activeX.length >= 2) {
       return [Math.min(...activeX), Math.max(...activeX)];
     }
-    return [0, widthM];
+    if (activeX.length === 1) {
+      return activeX[0] < widthM * 0.5 ? [activeX[0], widthM] : [0, activeX[0]];
+    }
+    return [widthM + 1, -1];
+  };
+
+  const getScanlineZBoundsAtX = (x: number): [number, number] => {
+    const activeZ: number[] = [];
+    for (const t of hExtTracks) {
+      if (t.totalLen >= 0.65 && t.intervals.some((iv) => x >= iv.start - 0.55 && x <= iv.end + 0.55)) {
+        activeZ.push(t.coord);
+      }
+    }
+    for (const w of cleanWalls) {
+      if (Math.abs(w.start[1] - w.end[1]) < 0.25) {
+        const minXSeg = Math.min(w.start[0], w.end[0]);
+        const maxXSeg = Math.max(w.start[0], w.end[0]);
+        if (maxXSeg - minXSeg >= 0.75 && x >= minXSeg - 0.55 && x <= maxXSeg + 0.55) {
+          activeZ.push((w.start[1] + w.end[1]) * 0.5);
+        }
+      }
+    }
+    if (activeZ.length >= 2) {
+      return [Math.min(...activeZ), Math.max(...activeZ)];
+    }
+    if (activeZ.length === 1) {
+      return activeZ[0] < lengthM * 0.5 ? [activeZ[0], lengthM] : [0, activeZ[0]];
+    }
+    return [lengthM + 1, -1];
   };
 
   // Mark outdoor/garage/driveway zones & exterior scanline margins as blocked (1)
@@ -2658,10 +2707,13 @@ async function runCanvasFloorplanVectorizer(
     const [scanMinX, scanMaxX] = getScanlineXBoundsAtZ(z);
     for (let ix = 0; ix < gW; ix++) {
       const x = (ix + 0.5) * cellM;
+      const [scanMinZ, scanMaxZ] = getScanlineZBoundsAtX(x);
       const outsideScanlineX = x < scanMinX - 0.08 || x > scanMaxX + 0.08;
+      const outsideScanlineZ = z < scanMinZ - 0.08 || z > scanMaxZ + 0.08;
       if (isUpperFloorScan) {
         if (
           outsideScanlineX ||
+          outsideScanlineZ ||
           z > upperBalconyMinZ + 0.1 ||
           x < 0.15 ||
           x > widthM - 0.15 ||
@@ -2685,6 +2737,7 @@ async function runCanvasFloorplanVectorizer(
       const outWestStep = hasWestPorchStepIn && x < frontMinX && z > porchZMin;
       if (
         outsideScanlineX ||
+        outsideScanlineZ ||
         inAlf ||
         inPorch ||
         inGar ||
@@ -3450,7 +3503,7 @@ async function runCanvasFloorplanVectorizer(
     });
   }
 
-  // Add Open-Plan Family Room Sofa, Coffee Table, Entertainment Unit & Dining Table on Ground Floor
+  // Add Open-Plan Family Room Sofa, Coffee Table, Entertainment Unit, Plant, Dining Table & Alfresco Suite on Ground Floor
   if (!isUpperFloorScan) {
     const diningX = +(Math.max(1.8, Math.min(widthM - 2.2, sinkXM - 2.8))).toFixed(2);
     const diningZ = +(Math.max(alfZMax + 1.8, Math.min(lengthM * 0.55, sinkZM))).toFixed(2);
@@ -3490,6 +3543,57 @@ async function runCanvasFloorplanVectorizer(
       height: 0.42,
       label: "Designer Travertine Coffee Table",
     });
+    fixtures.push({
+      id: "fx_family_tv_unit",
+      type: "tv_entertainment_unit",
+      roomName: "Family",
+      position: [+(Math.min(widthM - 0.55, familyX + 1.8)).toFixed(2), 0.26, familyZ],
+      rotationY: -Math.PI / 2,
+      width: 2.10,
+      depth: 0.44,
+      height: 0.52,
+      label: "Fluted Oak Credenza & 75\" Wall OLED TV",
+    });
+    fixtures.push({
+      id: "fx_family_plant",
+      type: "indoor_plant",
+      roomName: "Family",
+      position: [+(Math.max(0.8, diningX - 1.35)).toFixed(2), 0.72, +(Math.max(alfZMax + 0.7, diningZ - 1.1)).toFixed(2)],
+      rotationY: 0,
+      width: 0.58,
+      depth: 0.58,
+      height: 1.45,
+      label: "Fiddle-Leaf Fig Designer Ceramic Planter",
+    });
+
+    if (alfXMax - alfXMin >= 2.2 && alfZMax >= 1.8) {
+      const alfCx = +((alfXMin + alfXMax) / 2).toFixed(2);
+      const alfCz = +(alfZMax / 2).toFixed(2);
+      fixtures.push({
+        id: "fx_alfresco_dining_main",
+        type: "alfresco_dining",
+        roomName: "Alfresco",
+        position: [alfCx, 0.38, alfCz],
+        rotationY: alfXMax - alfXMin >= alfZMax ? 0 : Math.PI / 2,
+        width: Math.min(2.05, +((alfXMax - alfXMin) * 0.52).toFixed(2)),
+        depth: 0.98,
+        height: 0.76,
+        label: "Alfresco Spotted Gum Outdoor Dining Suite",
+      });
+      if (alfXMax - alfXMin >= 2.8) {
+        fixtures.push({
+          id: "fx_alfresco_bbq_main",
+          type: "alfresco_bbq",
+          roomName: "Alfresco",
+          position: [+(alfXMax - 0.45).toFixed(2), 0.46, alfCz],
+          rotationY: -Math.PI / 2,
+          width: Math.min(1.75, +(alfZMax * 0.55).toFixed(2)),
+          depth: 0.62,
+          height: 0.92,
+          label: "Alfresco Built-In Stainless BBQ & Stone Outdoor Kitchen",
+        });
+      }
+    }
   }
 
   const levels: LevelConfig3D[] = [];
