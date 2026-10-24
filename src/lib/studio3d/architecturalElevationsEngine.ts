@@ -830,7 +830,7 @@ export async function exportElevationsPdf(
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(10);
     pdf.setTextColor(15, 23, 42);
-    pdf.text("HUDSON HOMES DIGITAL BUILDER OS", 20, 265);
+    pdf.text("HUDSON SALES HUB", 20, 265);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
     pdf.setTextColor(100, 116, 139);

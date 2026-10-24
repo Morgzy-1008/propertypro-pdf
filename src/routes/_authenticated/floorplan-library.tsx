@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/floorplan-library")({
   },
   head: () => ({
     meta: [
-      { title: "Floorplan Library | Hudson Homes Digital Builder OS" },
+      { title: "Floorplan Library | Hudson Sales Hub" },
       {
         name: "description",
         content:

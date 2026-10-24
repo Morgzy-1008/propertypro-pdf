@@ -60,8 +60,8 @@ export async function getNativeDesktopInfo(): Promise<DesktopSystemInfo | null> 
       os: "windows",
       arch: "x86_64",
       cpuCores: typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 8 : 8,
-      exportsRootDir: "Documents\\Hudson Homes OS",
-      workspaceBackupDir: "Documents\\Hudson Homes OS\\Workspace",
+      exportsRootDir: "Documents\\Hudson Sales Hub",
+      workspaceBackupDir: "Documents\\Hudson Sales Hub\\Workspace",
     };
   }
 }

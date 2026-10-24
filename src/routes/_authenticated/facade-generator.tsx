@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/facade-generator")({
   },
   head: () => ({
     meta: [
-      { title: "Facade Generator | Hudson Homes Digital Builder OS" },
+      { title: "Facade Generator | Hudson Sales Hub" },
       {
         name: "description",
         content:

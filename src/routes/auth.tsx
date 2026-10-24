@@ -32,7 +32,7 @@ import {
   ArrowRight,
   Phone,
 } from "lucide-react";
-import { Logo } from "@/components/flyer/FlyerTemplates";
+import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { useTheme } from "@/lib/theme";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
@@ -310,7 +310,7 @@ function AuthPage() {
         {/* Header Branding */}
         <div className="text-center space-y-2">
           <div className="flex justify-center">
-            <Logo light={!isNormal} size={14} />
+            <HudsonMark size={14} />
           </div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-[11px] font-semibold tracking-wide">
             <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
@@ -318,7 +318,7 @@ function AuthPage() {
           </div>
 
           <h1 className={titleClass}>
-            {authMode === "signin" && "Sign In to Hudson Portal"}
+            {authMode === "signin" && "Sign In to Hudson Sales Hub"}
             {authMode === "create_password" && "Create Your Password"}
             {authMode === "reset_password" && "Reset Your Password"}
           </h1>

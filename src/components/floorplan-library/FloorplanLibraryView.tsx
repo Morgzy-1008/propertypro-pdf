@@ -200,10 +200,12 @@ export function FloorplanLibraryView() {
               <span className="hidden sm:inline">Hub</span>
             </Link>
 
-            <Link to="/hub" className="flex items-center">
-              <HudsonMark size={9} className="sm:hidden" />
-              <div className="hidden sm:block">
-                <Logo light={!isLight} size={11} />
+            <Link to="/hub" className="flex items-center gap-2.5 group">
+              <HudsonMark size={9} className="transition-transform group-hover:scale-105" />
+              <div className={`hidden sm:block border-l ${isLight ? "border-slate-300" : "border-slate-700/80"} pl-2.5`}>
+                <span className={`text-xs font-bold tracking-wider ${isLight ? "text-slate-900" : "text-white"} uppercase`}>
+                  Hudson Sales Hub
+                </span>
               </div>
             </Link>
 

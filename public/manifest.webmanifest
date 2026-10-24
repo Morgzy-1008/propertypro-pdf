@@ -1,7 +1,7 @@
 {
-  "name": "Hudson Homes Digital Builder OS",
-  "short_name": "Hudson OS",
-  "description": "Hudson Homes Estimating, Quoting, Floorplans & Tender Compare OS",
+  "name": "Hudson Sales Hub",
+  "short_name": "Hudson Sales Hub",
+  "description": "Hudson Homes Estimating, Quoting, Floorplans, CRM & 3D Studio - Hudson Sales Hub",
   "theme_color": "#0f172a",
   "background_color": "#0f172a",
   "display": "standalone",
@@ -12,13 +12,13 @@
       "src": "/pwa-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/pwa-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

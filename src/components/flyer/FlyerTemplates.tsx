@@ -16,7 +16,7 @@ export function HudsonMark({ size = 15, className = "" }: { size?: number; class
   return (
     <img
       src="/hudson-mark.png"
-      alt="Hudson Homes"
+      alt="Hudson Sales Hub"
       style={{ height: `${size}mm`, width: "auto" }}
       className={`flex-none object-contain ${className}`}
       loading="eager"

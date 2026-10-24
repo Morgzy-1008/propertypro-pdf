@@ -44,10 +44,12 @@ function QuoteBuilderPage() {
       <header className={`border-b ${isLight ? "border-slate-200 bg-white/95 shadow-xs" : "border-slate-800 bg-slate-900/60"} backdrop-blur-md sticky top-0 z-40`}>
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Link to="/hub" className="flex items-center">
-              <HudsonMark size={9} className="sm:hidden" />
-              <div className="hidden sm:block">
-                <Logo light={!isLight} size={11} />
+            <Link to="/hub" className="flex items-center gap-2.5 group">
+              <HudsonMark size={9} className="transition-transform group-hover:scale-105" />
+              <div className={`hidden sm:block border-l ${isLight ? "border-slate-300" : "border-slate-800"} pl-2.5`}>
+                <span className={`text-xs font-bold tracking-wider ${isLight ? "text-slate-900" : "text-white"} uppercase`}>
+                  Hudson Sales Hub
+                </span>
               </div>
             </Link>
             <div className={`hidden 2xl:block border-l ${isLight ? "border-slate-300" : "border-slate-800"} pl-4 flex-none`}>

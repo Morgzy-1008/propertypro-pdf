@@ -45,7 +45,7 @@ import { isLocalhost } from "@/lib/isLocalhost";
 export const Route = createFileRoute("/_authenticated/hub")({
   head: () => ({
     meta: [
-      { title: "Welcome Hub | Hudson Homes Digital Builder OS" },
+      { title: "Welcome Hub | Hudson Sales Hub" },
       {
         name: "description",
         content: "Staff portal for Hudson Homes QLD Package Studio, CRM, Quoting, and Concept Floorplans.",
@@ -413,20 +413,17 @@ function WelcomeHubPage() {
         <div className="absolute bottom-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
         <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 h-16 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <Link to="/hub" className="flex items-center">
-              <HudsonMark size={9} className="sm:hidden" />
-              <div className="hidden sm:block">
-                <Logo light={!isLight} size={11} />
+            <Link to="/hub" className="flex items-center gap-2.5 sm:gap-3 group">
+              <HudsonMark size={10} className="transition-transform group-hover:scale-105" />
+              <div className={`border-l ${isLight ? "border-slate-300" : "border-slate-700/80"} pl-2.5 sm:pl-3`}>
+                <span className={`text-xs sm:text-sm font-black tracking-wider ${isLight ? "text-slate-900" : "text-white"} uppercase font-sans block leading-tight`}>
+                  Hudson Sales Hub
+                </span>
+                <span className="block text-[10px] tracking-widest text-brand-gold font-bold uppercase">
+                  {staffUser?.division === "NSW" || staffUser?.state === "NSW" ? "New South Wales Division" : "Queensland Division"}
+                </span>
               </div>
             </Link>
-            <div className={`hidden md:block border-l ${isLight ? "border-slate-300" : "border-slate-700/80"} pl-3`}>
-              <span className={`text-xs font-bold tracking-widest ${isLight ? "text-slate-800" : "text-slate-300"} uppercase font-mono`}>
-                Digital Builder OS
-              </span>
-              <span className="block text-[10px] tracking-widest text-brand-gold font-semibold uppercase">
-                {staffUser?.division === "NSW" || staffUser?.state === "NSW" ? "New South Wales Division" : "Queensland Division"}
-              </span>
-            </div>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">

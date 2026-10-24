@@ -6,13 +6,13 @@ export const Route = createFileRoute("/")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Hudson Homes | QLD House & Land Package Database" },
+      { title: "Hudson Sales Hub | Hudson Homes" },
       {
         name: "description",
         content:
           "Hudson Homes staff portal for the QLD House & Land package database and print-ready flyer studio.",
       },
-      { property: "og:title", content: "Hudson Homes | QLD House & Land Package Database" },
+      { property: "og:title", content: "Hudson Sales Hub | Hudson Homes" },
       {
         property: "og:description",
         content:

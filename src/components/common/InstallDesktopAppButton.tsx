@@ -62,7 +62,7 @@ export function InstallDesktopAppButton({
       const handleAppInstalled = () => {
         setIsInstalled(true);
         setDeferredPrompt(null);
-        toast.success("Hudson Homes OS installed to your desktop!", {
+        toast.success("Hudson Sales Hub installed to your desktop!", {
           description: "You can now launch it directly from your Windows Taskbar or Start Menu.",
         });
       };
@@ -121,7 +121,7 @@ export function InstallDesktopAppButton({
         type="button"
         data-testid="tauri-native-desktop-badge"
         onClick={handleOpenNativeFolder}
-        title={`Running Hudson Homes Native Windows OS v${nativeInfo?.appVersion || "2026.1"} (${nativeInfo?.cpuCores || 8} CPU cores). Click to open local Documents\\Hudson Homes OS folder in Windows Explorer.`}
+        title={`Running Hudson Sales Hub Native Windows App v${nativeInfo?.appVersion || "2026.1"} (${nativeInfo?.cpuCores || 8} CPU cores). Click to open local Documents folder in Windows Explorer.`}
         className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md active:scale-95 border ${
           isLight
             ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-300"
@@ -159,12 +159,12 @@ export function InstallDesktopAppButton({
       const choice = await deferredPrompt.userChoice;
       if (choice.outcome === "accepted") {
         toast.success("Installation started", {
-          description: "Hudson OS is being pinned to your Windows desktop and taskbar.",
+          description: "Hudson Sales Hub is being pinned to your Windows desktop and taskbar.",
         });
         setDeferredPrompt(null);
       } else {
         toast.info("Installation dismissed", {
-          description: "You can install Hudson Homes OS at any time from this header.",
+          description: "You can install Hudson Sales Hub at any time from this header.",
         });
       }
     } catch (err) {
@@ -192,7 +192,7 @@ export function InstallDesktopAppButton({
       type="button"
       data-testid="pwa-install-desktop-btn"
       onClick={handleInstallClick}
-      title="Install Hudson Homes OS to your Windows Desktop and Taskbar for instant offline access"
+      title="Install Hudson Sales Hub to your Windows Desktop and Taskbar for instant offline access"
       className={`inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer shadow-md hover:shadow-lg active:scale-95 border ${
         isLight
           ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 border-amber-400/80 shadow-amber-500/20"

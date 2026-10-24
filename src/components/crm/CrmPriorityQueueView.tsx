@@ -692,7 +692,7 @@ export function CrmPriorityQueueView({
                 }`}
               >
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                  1-Click Hudson OS Portals &amp; Instant Task Queue
+                  1-Click Hudson Sales Hub Portals &amp; Instant Task Queue
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   <Link

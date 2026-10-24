@@ -507,10 +507,12 @@ export function FacadeGeneratorPortal() {
       >
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Link to="/hub" className="flex items-center gap-2">
-              <HudsonMark size={9} className="sm:hidden" />
-              <div className="hidden sm:block">
-                <Logo light={!isLight} size={10} />
+            <Link to="/hub" className="flex items-center gap-2.5 group">
+              <HudsonMark size={9} className="transition-transform group-hover:scale-105" />
+              <div className={`hidden sm:block border-l pl-2.5 ${isLight ? "border-slate-300" : "border-slate-800"}`}>
+                <span className={`text-xs font-bold tracking-wider ${isLight ? "text-slate-900" : "text-white"} uppercase`}>
+                  Hudson Sales Hub
+                </span>
               </div>
             </Link>
             <div

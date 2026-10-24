@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/3d-studio")({
   },
   head: () => ({
     meta: [
-      { title: "3D Plan Studio & Architectural Elevations | Hudson Homes Digital Builder OS" },
+      { title: "3D Plan Studio & Architectural Elevations | Hudson Sales Hub" },
       {
         name: "description",
         content:
