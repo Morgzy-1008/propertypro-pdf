@@ -88,8 +88,8 @@ export function InstallDesktopAppButton({
           os: "windows",
           arch: "x86_64",
           cpuCores: 16,
-          exportsRootDir: "C:\\Users\\morga\\Documents\\Hudson Homes OS",
-          workspaceBackupDir: "C:\\Users\\morga\\Documents\\Hudson Homes OS\\Workspace",
+          exportsRootDir: "C:\\Users\\morga\\Documents\\Hudson Sales Hub",
+          workspaceBackupDir: "C:\\Users\\morga\\Documents\\Hudson Sales Hub\\Workspace",
         });
       };
 
@@ -106,12 +106,12 @@ export function InstallDesktopAppButton({
     const handleOpenNativeFolder = async () => {
       const opened = await openInWindowsExplorer(nativeInfo?.exportsRootDir);
       if (opened) {
-        toast.success("Opened Hudson Homes OS Folder", {
-          description: nativeInfo?.exportsRootDir || "Documents\\Hudson Homes OS",
+        toast.success("Opened Hudson Sales Hub Folder", {
+          description: nativeInfo?.exportsRootDir || "Documents\\Hudson Sales Hub",
         });
       } else {
-        toast.info("Hudson Homes Native Desktop OS Active", {
-          description: `Exports directory: ${nativeInfo?.exportsRootDir || "Documents\\Hudson Homes OS"}`,
+        toast.info("Hudson Sales Hub Native Desktop App Active", {
+          description: `Exports directory: ${nativeInfo?.exportsRootDir || "Documents\\Hudson Sales Hub"}`,
         });
       }
     };

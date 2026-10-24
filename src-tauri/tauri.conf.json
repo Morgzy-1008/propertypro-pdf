@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Hudson Homes OS",
+  "productName": "Hudson Sales Hub",
   "version": "2026.1.0",
   "identifier": "au.com.hudsonhomes.os",
   "build": {
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Hudson Homes Digital Builder OS",
+        "title": "Hudson Sales Hub",
         "width": 1600,
         "height": 960,
         "minWidth": 1100,
@@ -21,7 +21,7 @@
         "resizable": true,
         "fullscreen": false,
         "center": true,
-        "backgroundColor": "#0f172a"
+        "backgroundColor": "#ffffff"
       }
     ],
     "security": {
@@ -32,8 +32,8 @@
     "active": true,
     "targets": ["nsis", "msi"],
     "publisher": "Hudson Homes Australia",
-    "shortDescription": "Hudson Homes Estimating, Quoting, Floorplans, Facade Studio & Tender Compare OS",
-    "longDescription": "Native Windows Desktop Operating System for Hudson Homes Australia — featuring high-speed local SSD caching, 4K AI Facade Studio, Quoting V2, Floorplan Library, and Forensic Tender Compare.",
+    "shortDescription": "Hudson Sales Hub - Estimating, Quoting, Floorplans, CRM & 3D Studio",
+    "longDescription": "Native Windows Desktop Application for Hudson Homes Australia — featuring high-speed local SSD caching, 3D Studio, Quoting V2, Floorplan Library, Horizon CRM, and Forensic Tender Compare.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
