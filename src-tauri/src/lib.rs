@@ -140,7 +140,7 @@ fn native_send_notification(title: String, body: String) -> Result<(), String> {
        $textNodes.Item(0).AppendChild($template.CreateTextNode('{}')) > $null; \
        $textNodes.Item(1).AppendChild($template.CreateTextNode('{}')) > $null; \
        $toast = [Windows.UI.Notifications.ToastNotification]::new($template); \
-       [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Hudson Homes Digital Builder OS').Show($toast);",
+       [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Hudson Sales Hub').Show($toast);",
       title.replace('\'', "''"),
       body.replace('\'', "''")
     );
@@ -365,5 +365,5 @@ pub fn run() {
       native_load_json_workspace,
     ])
     .run(tauri::generate_context!())
-    .expect("error while running Hudson Homes OS desktop application");
+    .expect("error while running Hudson Sales Hub desktop application");
 }
