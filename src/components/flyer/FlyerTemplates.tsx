@@ -15,7 +15,7 @@ import { isSingleGarageDesign } from "./facadePricing";
 export function HudsonMark({ size = 15, className = "" }: { size?: number; className?: string }) {
   return (
     <img
-      src="/hudson-mark.png"
+      src="/hudson-mark.png?v=20261024"
       alt="Hudson Sales Hub"
       style={{ height: `${size}mm`, width: "auto" }}
       className={`flex-none object-contain ${className}`}

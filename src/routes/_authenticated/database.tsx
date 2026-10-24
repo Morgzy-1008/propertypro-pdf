@@ -44,7 +44,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import logoUrl from "@/assets/hudson-homes-logo.png";
+import { HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { formatAud } from "@/lib/pricing";
 import { pdfDocumentToPagesAndText, pdfPagesToDataUrls } from "@/lib/pdfPages";
 import { DevelopersDialog } from "@/components/database/DevelopersDialog";
@@ -2470,8 +2470,8 @@ function DatabasePage() {
 
       <header className={`sticky top-0 z-30 border-b ${isLight ? "border-slate-200 bg-white/95 shadow-xs" : "border-slate-800/80 bg-slate-950/80"} backdrop-blur-xl`}>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 sm:flex sm:flex-wrap sm:justify-between sm:px-6">
-          <Link to="/hub" className="flex min-w-0 items-center gap-3 hover:opacity-90 transition-opacity">
-            <img src={logoUrl} alt="Hudson Homes" className="h-6 w-auto shrink-0 object-contain sm:h-7" />
+          <Link to="/hub" className="flex min-w-0 items-center gap-3 hover:opacity-90 transition-opacity group">
+            <HudsonMark size={9} className="transition-transform group-hover:scale-105" />
             <div className={`min-w-0 leading-tight border-l ${isLight ? "border-slate-200" : "border-slate-800"} pl-3`}>
               <h1 className={`truncate text-xs font-bold tracking-[0.14em] ${isLight ? "text-slate-900" : "text-white"} uppercase sm:text-sm`}>
                 QLD &amp; NSW House &amp; Land Database

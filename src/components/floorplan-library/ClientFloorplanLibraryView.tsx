@@ -282,10 +282,12 @@ export function ClientFloorplanLibraryView() {
         <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 h-16 flex items-center justify-between gap-4">
           {/* Left: Branding & Client Badge (No link to /hub or /) */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center select-none">
-              <HudsonMark size={9} className="sm:hidden" />
-              <div className="hidden sm:block">
-                <Logo light={!isLight} size={11} />
+            <div className="flex items-center select-none gap-2.5">
+              <HudsonMark size={9} />
+              <div className={`hidden sm:block border-l ${isLight ? "border-slate-300" : "border-slate-700/80"} pl-2.5`}>
+                <span className={`text-xs font-bold tracking-wider ${isLight ? "text-slate-900" : "text-white"} uppercase`}>
+                  Hudson Sales Hub
+                </span>
               </div>
             </div>
 

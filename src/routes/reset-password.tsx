@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import logoUrl from "@/assets/hudson-homes-logo.png";
+import { HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { isLegacySharedPassword } from "@/lib/access";
 
 
@@ -15,15 +15,15 @@ export const Route = createFileRoute("/reset-password")({
   }),
   head: () => ({
     meta: [
-      { title: "Set a new password | Hudson Homes Package Studio" },
+      { title: "Set a new password | Hudson Sales Hub" },
       {
         name: "description",
-        content: "Choose a new private password for your Hudson Homes Package Studio account.",
+        content: "Choose a new private password for your Hudson Sales Hub account.",
       },
-      { property: "og:title", content: "Set a new Package Studio password" },
+      { property: "og:title", content: "Set a new password | Hudson Sales Hub" },
       {
         property: "og:description",
-        content: "Hudson Homes staff password reset for the House & Land package studio.",
+        content: "Hudson Sales Hub staff password reset.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -81,7 +81,9 @@ function ResetPasswordPage() {
       <div className="ambient-glow-cyan h-96 w-96 -bottom-20 -left-20" />
 
       <div className="w-full max-w-md rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-8 sm:p-10 shadow-2xl relative z-10">
-        <img src={logoUrl} alt="Hudson Homes" className="mx-auto h-12 w-auto object-contain" />
+        <div className="flex justify-center">
+          <HudsonMark size={14} />
+        </div>
         <h1 className="mt-6 text-center text-xl font-bold tracking-tight text-white">
           {forced ? "Choose your own password" : "Set a new password"}
         </h1>

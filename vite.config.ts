@@ -522,6 +522,7 @@ export default defineConfig({
         enabled: true,
       },
       manifest: {
+        id: "hudson-sales-hub-v2",
         name: "Hudson Sales Hub",
         short_name: "Hudson Sales Hub",
         description: "Hudson Homes Estimating, Quoting, Floorplans, CRM & 3D Studio - Hudson Sales Hub",
@@ -532,13 +533,19 @@ export default defineConfig({
         scope: "/",
         icons: [
           {
-            src: "/pwa-192x192.png",
+            src: "/favicon.png?v=20261024",
+            sizes: "128x128",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/pwa-192x192.png?v=20261024",
             sizes: "192x192",
             type: "image/png",
             purpose: "any",
           },
           {
-            src: "/pwa-512x512.png",
+            src: "/pwa-512x512.png?v=20261024",
             sizes: "512x512",
             type: "image/png",
             purpose: "any",

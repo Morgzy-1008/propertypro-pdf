@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Download, Loader2 } from "lucide-react";
-import logoUrl from "@/assets/hudson-homes-logo.png";
+import { HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { Button } from "@/components/ui/button";
 import { downloadA4Pdf } from "@/lib/downloadPdf";
 
@@ -24,7 +24,7 @@ export function ListingSheet({
       <div className="shrink-0 w-full bg-white">
         <div className="flex items-end justify-between px-[14mm] pt-[8mm] pb-[3mm]">
           <div className="flex items-center gap-[3.5mm]">
-            <img src={logoUrl} alt="Hudson Homes" className="h-[14mm] w-auto object-contain" />
+            <HudsonMark size={14} />
             <div className="border-l border-brand-navy/20 pl-[3.5mm] leading-none">
               <div className="font-display text-[5.8mm] tracking-[0.14em] text-brand-navy">
                 HUDSON HOMES
