@@ -35,7 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 import { canChangeQuoteConsultant } from "@/lib/access";
 import { getActiveDivision, setActiveDivision, onDivisionChanged } from "@/lib/divisionContext";
-import { downloadA4Pdf } from "@/lib/downloadPdf";
+import { downloadA4Pdf, ensureAllFontsReady, ensureContainerAssetsSettled } from "@/lib/downloadPdf";
 import {
   calculateQuotePricing,
   generateQuoteNumber,
@@ -913,30 +913,24 @@ export function QuoteBuilder() {
           .then(() => refreshSavedQuotes())
           .catch(() => {});
       }
-      if (typeof document !== "undefined" && document.fonts) {
-        try {
-          await Promise.allSettled([
-            document.fonts.load("400 12px Barlow"),
-            document.fonts.load("600 12px Barlow"),
-            document.fonts.load("700 14px Barlow"),
-            document.fonts.load("800 18px Barlow"),
-            document.fonts.load("400 12px 'Plus Jakarta Sans'"),
-            document.fonts.load("600 12px 'Plus Jakarta Sans'"),
-            document.fonts.load("700 14px 'Plus Jakarta Sans'"),
-            document.fonts.ready,
-          ]);
-        } catch {}
-      }
 
-      // Allow microtask tick and animation frames so hidden or active export container settles
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      // 1. Pre-warm brand fonts (Barlow weights 300-800, Bebas Neue)
+      await ensureAllFontsReady();
+
+      // 2. Allow React state tick to mount the hidden export container into DOM
+      await new Promise((resolve) => setTimeout(resolve, 300));
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
       const exportHost =
-        document.querySelector(".quote-pdf-root:not(#quote-pdf-export-container)") ||
+        (document.querySelector(".quote-pdf-root:not(#quote-pdf-export-container)") as HTMLElement) ||
         document.getElementById("quote-pdf-export-container") ||
-        document.querySelector(".quote-pdf-root") ||
+        (document.querySelector(".quote-pdf-root") as HTMLElement) ||
         document.body;
+
+      // 3. Actively ensure all facade images, floorplan diagrams, and QR codes have settled
+      if (exportHost && exportHost !== document.body) {
+        await ensureContainerAssetsSettled(exportHost);
+      }
 
       // Format downloaded PDF Name using centralized formatEstimateFileName (e.g. Hudson Estimate_Ronald_custom plan_H2)
       const filename = formatEstimateFileName(quote);
@@ -947,6 +941,8 @@ export function QuoteBuilder() {
       console.error("PDF Export error:", err);
       toast.error("Failed to generate PDF. Please try again.");
     } finally {
+      // Extra delay before unmounting hidden container so html2canvas pipeline has cleanly resolved
+      await new Promise((resolve) => setTimeout(resolve, 300));
       setDownloading(false);
     }
   };

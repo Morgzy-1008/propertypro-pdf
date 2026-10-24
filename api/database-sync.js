@@ -58,11 +58,29 @@ export default async function handler(req, res) {
         const chunkSize = 50;
         for (let i = 0; i < packages.length; i += chunkSize) {
           const chunk = packages.slice(i, i + chunkSize);
-          const { error } = await supabase.from("packages").upsert(chunk);
-          if (error) {
-            console.warn("[api/database-sync] Package upsert error:", error);
-          } else {
-            pkgsUpserted += chunk.length;
+          // For support tickets and single packages, check if notes already exists
+          for (const pkg of chunk) {
+            if (pkg.notes && String(pkg.notes).startsWith("support_ticket_")) {
+              const { data: existing } = await supabase
+                .from("packages")
+                .select("id")
+                .eq("notes", pkg.notes)
+                .maybeSingle();
+              if (existing?.id) {
+                await supabase.from("packages").update(pkg).eq("id", existing.id);
+              } else {
+                await supabase.from("packages").insert(pkg);
+              }
+              pkgsUpserted += 1;
+            } else {
+              const { error } = await supabase.from("packages").upsert([pkg]);
+              if (error) {
+                const { error: insErr } = await supabase.from("packages").insert([pkg]);
+                if (!insErr) pkgsUpserted += 1;
+              } else {
+                pkgsUpserted += 1;
+              }
+            }
           }
         }
       }

@@ -54,6 +54,7 @@ import {
 import {
   getSupportTickets,
   getSupportTicketsAsync,
+  forceSyncSupportTicketsFromCloud,
   updateSupportTicketStatus,
   deleteSupportTicket,
   markAllSupportTicketsRead,
@@ -97,6 +98,7 @@ export function AdminDashboardModal({
     "all" | "open" | "resolved" | "issue" | "feedback"
   >("all");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{
     url: string;
     author: string;
@@ -375,10 +377,27 @@ export function AdminDashboardModal({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={refreshData}
-                    className="h-8 text-xs border-slate-800 bg-slate-950 text-slate-300 gap-1.5 cursor-pointer"
+                    data-testid="admin-sync-cloud-tickets-btn"
+                    disabled={isSyncingCloud}
+                    onClick={async () => {
+                      setIsSyncingCloud(true);
+                      const res = await forceSyncSupportTicketsFromCloud();
+                      refreshData();
+                      setIsSyncingCloud(false);
+                      if (res.error) {
+                        toast.error(`Cloud check notice: ${res.error}`);
+                      } else {
+                        toast.success(`Synced tickets with Supabase cloud (${res.count} total)`);
+                      }
+                    }}
+                    className={`h-8 text-xs gap-1.5 cursor-pointer ${
+                      isLight
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+                        : "border-emerald-500/40 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-900/40"
+                    }`}
                   >
-                    <RefreshCw className="h-3 w-3" /> Refresh
+                    <RefreshCw className={`h-3 w-3 ${isSyncingCloud ? "animate-spin" : ""}`} />
+                    <span>{isSyncingCloud ? "Checking Cloud..." : "Sync from Cloud"}</span>
                   </Button>
                 </div>
               </div>

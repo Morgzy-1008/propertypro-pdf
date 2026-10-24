@@ -24,7 +24,79 @@ function safeFilename(value: string) {
   return `${cleaned || "Hudson Homes - Builders Estimate"}.pdf`;
 }
 
-/** Embeds a hidden, selectable, and searchable text layer on the jsPDF page so that text search and OCR work. */
+/**
+ * Ensures all required Hudson Homes brand fonts (Barlow weights 300-900, Bebas Neue)
+ * are 100% downloaded, decoded, and ready in browser memory before PDF canvas rasterization.
+ * This prevents html2canvas falling back to Arial/Times New Roman with wide metrics.
+ */
+export async function ensureAllFontsReady(): Promise<void> {
+  if (typeof document === "undefined" || !document.fonts) return;
+  try {
+    const isBarlowDeclared = Array.from(document.fonts).some((f) => f.family.toLowerCase().includes("barlow"));
+    if (!isBarlowDeclared && !document.querySelector("link[href*='family=Barlow']")) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800;900&family=Bebas+Neue&display=swap";
+      document.head.appendChild(link);
+    }
+
+    const checks = [
+      document.fonts.load("300 12px Barlow"),
+      document.fonts.load("400 12px Barlow"),
+      document.fonts.load("500 12px Barlow"),
+      document.fonts.load("600 12px Barlow"),
+      document.fonts.load("700 14px Barlow"),
+      document.fonts.load("800 18px Barlow"),
+      document.fonts.load("400 24px 'Bebas Neue'"),
+    ];
+
+    await Promise.race([
+      Promise.allSettled(checks).then(() => document.fonts.ready),
+      new Promise((resolve) => setTimeout(resolve, 3500)),
+    ]);
+  } catch (err) {
+    console.warn("[downloadPdf] Font pre-warming notice:", err);
+  }
+}
+
+/**
+ * Actively awaits all images (facades, logos, floorplans, QR codes) inside a container
+ * to finish fetching and decoding, and ensures React layout settlement before html2canvas capture.
+ */
+export async function ensureContainerAssetsSettled(container: HTMLElement | null, timeoutMs = 4500): Promise<void> {
+  if (!container) return;
+
+  const checkImages = async () => {
+    const images = Array.from(container.querySelectorAll<HTMLImageElement>("img"));
+    const pendingImages = images.filter((img) => img.src && !img.complete);
+
+    if (pendingImages.length > 0) {
+      await Promise.all(
+        pendingImages.map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              if (img.complete) return resolve();
+              img.addEventListener("load", () => resolve(), { once: true });
+              img.addEventListener("error", () => resolve(), { once: true });
+              if ("decode" in img) {
+                img.decode().then(resolve).catch(resolve);
+              }
+            })
+        )
+      );
+    }
+  };
+
+  await Promise.race([
+    checkImages(),
+    new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+
+  // Double requestAnimationFrame ensures layout engine completes all flexbox/grid/SVG recalcs
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+/** Embeds an invisible, selectable, and searchable text layer on the jsPDF page so that text search and OCR work without visual text clashes. */
 function embedSearchableTextLayer(pdf: any, clone: HTMLElement) {
   try {
     const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT, null);
@@ -61,11 +133,24 @@ function embedSearchableTextLayer(pdf: any, clone: HTMLElement) {
     }
 
     if (textItems.length > 0) {
-      pdf.setTextColor(0, 0, 0);
+      // Set PDF text rendering mode to 3 (Neither fill nor stroke text = standard invisible searchable OCR layer)
+      // This eliminates double-text artifacts and text misalignment across diverse PDF viewers.
+      try {
+        if (pdf.internal?.write) {
+          pdf.internal.write("3 Tr");
+        }
+      } catch {}
+
       for (const item of textItems) {
         pdf.setFontSize(item.fontSize);
         pdf.text(item.text, item.x, item.y, { maxWidth: 195 });
       }
+
+      try {
+        if (pdf.internal?.write) {
+          pdf.internal.write("0 Tr"); // Restore standard fill mode
+        }
+      } catch {}
     }
   } catch (err) {
     console.warn("Could not embed searchable text layer:", err);
@@ -74,6 +159,9 @@ function embedSearchableTextLayer(pdf: any, clone: HTMLElement) {
 
 /** Renders high-resolution print-ready A4 sheets and returns the jsPDF instance. */
 export async function renderA4PdfDocument(root?: ParentNode) {
+  // Pre-warm fonts before querying layout elements
+  await ensureAllFontsReady();
+
   // Support both House & Land flyers (.flyer-page) and Builders Estimate Quotes (.quote-page)
   let sheets: HTMLElement[] = [];
   
@@ -96,6 +184,7 @@ export async function renderA4PdfDocument(root?: ParentNode) {
   if (!sheets.length) {
     const exportContainer = document.getElementById("quote-pdf-export-container");
     if (exportContainer) {
+      await ensureContainerAssetsSettled(exportContainer);
       sheets = Array.from(exportContainer.querySelectorAll<HTMLElement>(".quote-page, .flyer-page"));
     }
   }
@@ -105,24 +194,6 @@ export async function renderA4PdfDocument(root?: ParentNode) {
   }
 
   if (!sheets.length) throw new Error("No PDF printable pages found (.quote-page or .flyer-page)");
-
-  // 1. Ensure Barlow, Plus Jakarta Sans, and Inter fonts are 100% loaded into memory before capture
-  if (typeof document !== "undefined" && document.fonts) {
-    try {
-      await Promise.allSettled([
-        document.fonts.load("400 12px Barlow"),
-        document.fonts.load("600 12px Barlow"),
-        document.fonts.load("700 14px Barlow"),
-        document.fonts.load("800 18px Barlow"),
-        document.fonts.load("400 12px 'Plus Jakarta Sans'"),
-        document.fonts.load("600 12px 'Plus Jakarta Sans'"),
-        document.fonts.load("700 14px 'Plus Jakarta Sans'"),
-        document.fonts.ready,
-      ]);
-    } catch (fontErr) {
-      console.warn("Font pre-warming notice:", fontErr);
-    }
-  }
 
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas-pro"),
@@ -319,6 +390,9 @@ export async function renderA4PdfDocument(root?: ParentNode) {
 
 /** Downloads high-resolution print-ready A4 sheets directly as a PDF. */
 export async function downloadA4Pdf(root: ParentNode | undefined, filename: string) {
+  if (root instanceof HTMLElement) {
+    await ensureContainerAssetsSettled(root);
+  }
   const pdf = await renderA4PdfDocument(root);
   const outFilename = safeFilename(filename);
 
@@ -352,4 +426,4 @@ export async function downloadA4Pdf(root: ParentNode | undefined, filename: stri
 export async function renderA4PdfBlob(root?: ParentNode): Promise<Blob> {
   const pdf = await renderA4PdfDocument(root);
   return pdf.output("blob");
-}
+}

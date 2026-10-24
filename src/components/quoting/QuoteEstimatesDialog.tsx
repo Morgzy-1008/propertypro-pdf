@@ -61,7 +61,7 @@ import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 import { getActiveStaffUser, type StaffProfile } from "@/lib/authSession";
 import { useTheme } from "@/lib/theme";
-import { downloadA4Pdf } from "@/lib/downloadPdf";
+import { downloadA4Pdf, ensureAllFontsReady, ensureContainerAssetsSettled } from "@/lib/downloadPdf";
 import { QuotePdfDocument } from "./QuotePdfDocument";
 
 interface QuoteEstimatesDialogProps {
@@ -270,12 +270,20 @@ export function QuoteEstimatesDialog({
     try {
       const rehydrated = rehydrateAndRecalculateQuote(q);
       setPdfRenderQuote(rehydrated);
-      // Wait for React to render into hidden container and fonts/DOM to settle
-      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Pre-warm brand fonts (Barlow, Bebas Neue)
+      await ensureAllFontsReady();
+
+      // Wait for React to mount the hidden container and for dynamic assets to settle
+      await new Promise((resolve) => setTimeout(resolve, 300));
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
       const container = hiddenPdfRef.current;
       if (!container) throw new Error("PDF render container unavailable");
+
+      // Actively ensure facade photos, floorplan diagrams, and QR codes have settled
+      await ensureContainerAssetsSettled(container);
+
       const filename = formatEstimateFileName(rehydrated);
       await downloadA4Pdf(container, filename);
       toast.success(`Downloaded Builders Estimate PDF for #${rehydrated.quoteNumber || "MH"}`, { id: toastId });
@@ -283,6 +291,7 @@ export function QuoteEstimatesDialog({
       console.error("Download saved quote PDF error:", err);
       toast.error("Could not generate estimate PDF", { id: toastId });
     } finally {
+      await new Promise((resolve) => setTimeout(resolve, 300));
       setDownloadingPdfId(null);
       setPdfRenderQuote(null);
     }

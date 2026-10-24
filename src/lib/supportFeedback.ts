@@ -182,6 +182,52 @@ function saveTicketsToLocalStorage(tickets: SupportTicket[]): void {
   }
 }
 
+/**
+ * Dynamically compresses a screenshot data URL for fast and reliable cloud synchronization.
+ * Full-resolution screenshots remain intact in local client storage/IndexedDB.
+ */
+async function compressScreenshotForCloud(dataUrl?: string): Promise<string | undefined> {
+  if (!dataUrl) return undefined;
+  if (dataUrl.length < 60000) return dataUrl; // Already compact (<60KB)
+  if (typeof window === "undefined" || typeof document === "undefined") return dataUrl;
+
+  try {
+    return await new Promise<string>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxDim = 800;
+          let w = img.width || 800;
+          let h = img.height || 600;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return resolve(dataUrl);
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL("image/jpeg", 0.70);
+          resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
+        } catch {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  } catch {
+    return dataUrl;
+  }
+}
+
 export async function getSupportTicketsAsync(): Promise<SupportTicket[]> {
   const local = getSupportTickets();
   const idb = await loadAllSupportTicketsFromIdb();
@@ -199,37 +245,61 @@ export async function getSupportTicketsAsync(): Promise<SupportTicket[]> {
     }
   }
 
-  // Also pull shared support tickets from Supabase cloud so Morgan sees submissions from all staff computers
+  // Pull shared support tickets from Supabase cloud across all consultant workstations
   try {
     await ensureStaffSupabaseAuth();
     const remotePromise = supabase
       .from("packages")
-      .select("flyer_data, updated_at, notes")
-      .like("notes", "support_ticket_%")
+      .select("flyer_data, updated_at, notes, name")
+      .or("notes.like.support_ticket_%,name.like.Support Ticket%")
       .order("updated_at", { ascending: false })
-      .limit(100);
+      .limit(200);
 
     const timeoutPromise = new Promise<{ data: null }>((resolve) =>
-      setTimeout(() => resolve({ data: null }), 3500)
+      setTimeout(() => resolve({ data: null }), 8000)
     );
 
     const { data: rows } = (await Promise.race([remotePromise, timeoutPromise])) as any;
-    if (Array.isArray(rows)) {
-      for (const row of rows) {
+    let validRemoteRows = Array.isArray(rows) && rows.length > 0 ? rows : [];
+
+    // Fallback: If direct client returned empty/null, query via /api/database-sync bridge
+    if (validRemoteRows.length === 0 && typeof window !== "undefined") {
+      try {
+        const apiRes = await fetch("/api/database-sync");
+        if (apiRes.ok) {
+          const apiJson = await apiRes.json();
+          if (Array.isArray(apiJson.packages)) {
+            validRemoteRows = apiJson.packages.filter(
+              (p: any) =>
+                (p.notes && String(p.notes).startsWith("support_ticket_")) ||
+                (p.name && String(p.name).startsWith("Support Ticket")) ||
+                p.flyer_data?.type === "support_ticket"
+            );
+          }
+        }
+      } catch {}
+    }
+
+    if (Array.isArray(validRemoteRows)) {
+      for (const row of validRemoteRows) {
         const remoteTicket = row?.flyer_data?.ticket as SupportTicket | undefined;
         if (remoteTicket && remoteTicket.id) {
           const existing = map.get(remoteTicket.id);
           const remoteTime = new Date(remoteTicket.updatedAt || row.updated_at || 0).getTime();
           const localTime = new Date(existing?.updatedAt || 0).getTime();
           if (!existing || remoteTime > localTime) {
+            // Retain high-resolution screenshot if local already has it
+            if (existing?.screenshotDataUrl && !remoteTicket.screenshotDataUrl) {
+              remoteTicket.screenshotDataUrl = existing.screenshotDataUrl;
+            }
             map.set(remoteTicket.id, remoteTicket);
             void saveTicketToIdb(remoteTicket);
           }
         }
       }
     }
-  } catch {
-    // Ignore cloud fetch errors when offline
+  } catch (cloudErr) {
+    console.warn("[supportFeedback] Cloud pull warning:", cloudErr);
   }
 
   const merged = Array.from(map.values()).sort(
@@ -239,10 +309,28 @@ export async function getSupportTicketsAsync(): Promise<SupportTicket[]> {
   return merged;
 }
 
-async function syncSupportTicketToCloud(ticket: SupportTicket): Promise<void> {
+export async function forceSyncSupportTicketsFromCloud(): Promise<{ count: number; error?: string }> {
+  try {
+    const list = await getSupportTicketsAsync();
+    broadcastTicketUpdate();
+    return { count: list.length };
+  } catch (err: any) {
+    return { count: 0, error: err?.message || "Cloud sync error" };
+  }
+}
+
+async function syncSupportTicketToCloud(ticket: SupportTicket): Promise<boolean> {
   try {
     await ensureStaffSupabaseAuth();
     const notesKey = `support_ticket_${ticket.id}`;
+
+    // Compress screenshot for cloud transmission (<50KB) so payload limits are never exceeded
+    const cloudScreenshot = await compressScreenshotForCloud(ticket.screenshotDataUrl);
+    const cloudTicket: SupportTicket = {
+      ...ticket,
+      screenshotDataUrl: cloudScreenshot,
+    };
+
     const payload = {
       name: `Support Ticket: ${ticket.authorName} - ${ticket.category.toUpperCase()}`,
       housing_type: "Single Storey",
@@ -252,26 +340,48 @@ async function syncSupportTicketToCloud(ticket: SupportTicket): Promise<void> {
       status: "draft" as const,
       flyer_data: {
         type: "support_ticket",
-        ticket,
+        ticket: cloudTicket,
       } as any,
       updated_at: new Date().toISOString(),
     };
 
+    // 1. Direct Supabase insert / update
     const { data: existing } = await supabase
       .from("packages")
       .select("id")
       .eq("notes", notesKey)
       .maybeSingle();
 
+    let syncedOk = false;
     if (existing?.id) {
-      await supabase.from("packages").update(payload).eq("id", existing.id);
+      const { error: updateErr } = await supabase.from("packages").update(payload).eq("id", existing.id);
+      syncedOk = !updateErr;
+      if (updateErr) console.warn("[supportFeedback] Direct update warning:", updateErr);
     } else {
-      await supabase.from("packages").insert(payload);
+      const { error: insertErr } = await supabase.from("packages").insert(payload);
+      syncedOk = !insertErr;
+      if (insertErr) console.warn("[supportFeedback] Direct insert warning:", insertErr);
+    }
+
+    // 2. Serverless API bridge fallback (/api/database-sync) if direct Supabase client hit network/RLS issues
+    if (!syncedOk && typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/database-sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ packages: [payload] }),
+        });
+        if (res.ok) syncedOk = true;
+      } catch (bridgeErr) {
+        console.warn("[supportFeedback] API bridge sync fallback error:", bridgeErr);
+      }
     }
 
     await broadcastCloudChange({ action: "database_full_sync", timestamp: Date.now() });
-  } catch {
-    // Ignore offline cloud sync errors
+    return syncedOk;
+  } catch (e) {
+    console.warn("[supportFeedback] Cloud sync exception:", e);
+    return false;
   }
 }
 

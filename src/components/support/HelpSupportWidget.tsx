@@ -16,7 +16,11 @@ import {
   Sparkles,
   Clock,
   MapPin,
+  Mic,
+  MicOff,
+  Volume2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 import {
   submitSupportTicket,
@@ -61,6 +65,109 @@ export function HelpSupportWidget({ isLight = false, compact = false }: HelpSupp
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Voice-to-Text Speech Recognition State
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const hasSpeech = Boolean(
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      );
+      setSpeechSupported(hasSpeech);
+    }
+  }, []);
+
+  const toggleVoiceRecording = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+      setIsListening(false);
+      setInterimTranscript("");
+      return;
+    }
+
+    const SpeechClass =
+      typeof window !== "undefined"
+        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        : null;
+
+    if (!SpeechClass) {
+      toast.info("Voice recognition works best on Chrome or Microsoft Edge with microphone access.");
+      return;
+    }
+
+    try {
+      const rec = new SpeechClass();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = "en-AU";
+
+      rec.onstart = () => {
+        setIsListening(true);
+        setInterimTranscript("");
+      };
+
+      rec.onresult = (event: any) => {
+        let interim = "";
+        let finalChunk = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalChunk += transcript;
+          } else {
+            interim += transcript;
+          }
+        }
+        setInterimTranscript(interim);
+        if (finalChunk) {
+          setMessage((prev) => {
+            const trimmed = prev.trim();
+            const chunkTrimmed = finalChunk.trim();
+            if (!trimmed) return chunkTrimmed;
+            return `${trimmed} ${chunkTrimmed}`;
+          });
+        }
+      };
+
+      rec.onerror = (e: any) => {
+        console.warn("[HelpSupportWidget] Speech recognition error:", e?.error);
+        if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
+          toast.error("Microphone access was denied. Please allow microphone permissions in browser settings.");
+        }
+        setIsListening(false);
+        setInterimTranscript("");
+      };
+
+      rec.onend = () => {
+        setIsListening(false);
+        setInterimTranscript("");
+      };
+
+      recognitionRef.current = rec;
+      rec.start();
+    } catch (err) {
+      console.warn("Could not start speech recognition:", err);
+      setIsListening(false);
+      setInterimTranscript("");
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -341,6 +448,14 @@ export function HelpSupportWidget({ isLight = false, compact = false }: HelpSupp
     e.preventDefault();
     if (!message.trim() && !screenshotDataUrl) return;
 
+    if (isListening && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      setIsListening(false);
+      setInterimTranscript("");
+    }
+
     submitSupportTicket({
       category,
       message: message.trim() || "(Attached cropped screen snip)",
@@ -561,8 +676,56 @@ export function HelpSupportWidget({ isLight = false, compact = false }: HelpSupp
                     </button>
                   </div>
 
+                  {/* Voice-to-Text Dictation Button */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      data-testid="support-voice-dictate-btn"
+                      onClick={toggleVoiceRecording}
+                      className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold border flex items-center justify-between transition-all cursor-pointer shadow-2xs ${
+                        isListening
+                          ? "bg-rose-500/20 border-rose-500 text-rose-300 animate-pulse"
+                          : isLight
+                            ? "bg-emerald-50/70 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                            : "bg-emerald-950/25 border-emerald-500/30 text-emerald-300 hover:bg-emerald-900/30"
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {isListening ? (
+                          <>
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                            </span>
+                            <Mic className="h-3.5 w-3.5 text-rose-400" />
+                            <span>Listening... Click to Finish</span>
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="h-3.5 w-3.5 text-emerald-500" />
+                            <span>Talk &amp; Explain (Voice to Text)</span>
+                          </>
+                        )}
+                      </span>
+                      <span className="text-[10px] opacity-75 font-normal">
+                        {isListening ? "Transcribing live" : "Hands-free"}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Live Interim Transcript Bubble */}
+                  {isListening && interimTranscript && (
+                    <div
+                      data-testid="support-voice-interim"
+                      className="p-2 rounded-xl bg-rose-950/30 border border-rose-500/40 text-[11px] text-rose-200 italic flex items-center gap-1.5"
+                    >
+                      <Volume2 className="h-3 w-3 text-rose-400 shrink-0 animate-bounce" />
+                      <span className="truncate">&ldquo;{interimTranscript}&rdquo;</span>
+                    </div>
+                  )}
+
                   {/* Message Input */}
-                  <div>
+                  <div className="relative">
                     <textarea
                       ref={textareaRef}
                       data-testid="support-message-input"
@@ -572,17 +735,32 @@ export function HelpSupportWidget({ isLight = false, compact = false }: HelpSupp
                       onPaste={handlePaste}
                       placeholder={
                         category === "issue"
-                          ? "Describe what happened or what isn't working properly..."
+                          ? "Describe what happened or click 'Talk & Explain' above to speak..."
                           : category === "feedback"
-                            ? "Share your idea or what would make this workflow easier..."
+                            ? "Share your idea or click 'Talk & Explain' above to speak..."
                             : "Ask a question about how to use a feature..."
                       }
-                      className={`w-full rounded-xl border p-3 text-xs leading-relaxed resize-none focus:outline-none focus:ring-2 transition-all ${
+                      className={`w-full rounded-xl border p-3 pr-9 text-xs leading-relaxed resize-none focus:outline-none focus:ring-2 transition-all ${
                         isLight
                           ? "bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-emerald-500/30 focus:border-emerald-500"
                           : "bg-slate-900/90 border-slate-800 text-white placeholder:text-slate-500 focus:ring-emerald-500/30 focus:border-emerald-500"
                       }`}
                     />
+                    <button
+                      type="button"
+                      data-testid="support-textarea-mic-btn"
+                      onClick={toggleVoiceRecording}
+                      className={`absolute right-2.5 bottom-2.5 p-1 rounded-lg transition-all cursor-pointer ${
+                        isListening
+                          ? "text-rose-400 bg-rose-500/20 animate-pulse"
+                          : isLight
+                            ? "text-slate-400 hover:text-emerald-600 hover:bg-slate-200/60"
+                            : "text-slate-500 hover:text-emerald-400 hover:bg-slate-800"
+                      }`}
+                      title={isListening ? "Stop listening" : "Click to speak"}
+                    >
+                      {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                    </button>
                   </div>
 
                   {/* Screen Crop & Snip Attachment Area */}
